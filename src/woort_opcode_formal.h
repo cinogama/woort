@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stddef.h>
 #include <stdint.h>
 
 /*
@@ -31,22 +30,6 @@ typedef struct woort_OpcodeFormal_OP6_U26
     }
 #define woort_OpcodeFormal_OP6_U26_cons(op6, u26)                   \
     _woort_OpcodeFormal_OP6_U26_cons((uint8_t)(op6), (uint32_t)(u26))
-
-typedef struct woort_OpcodeFormal_OP6_I26
-{
-    _Alignas(4) uint8_t     m_op6_i26l2;
-    int8_t                  m_i26h8;
-    uint16_t                m_i26m16;
-
-} woort_OpcodeFormal_OP6_I26;
-#define _woort_OpcodeFormal_OP6_I26_cons(op6, i26)                  \
-    woort_OpcodeFormal_OP6_I26{                                     \
-        .m_op6_i26l2 = ((op6) << 2) | (uint8_t)((i26) & 0b011)),    \
-        .m_i26h8 = (int8_t)(((i26) >> 18) & 0xff),                  \
-        .m_i26m16 = (uint16_t)(((i26) >> 2) & 0xffff),              \
-    }
-#define woort_OpcodeFormal_OP6_I26_cons(op6, i26)                   \
-    _woort_OpcodeFormal_OP6_I26_cons((uint8_t)(op6), (int32_t)(i26))
 
 typedef struct woort_OpcodeFormal_OP6_U18_I8
 {
@@ -94,22 +77,6 @@ typedef struct woort_OpcodeFormal_OP6M2_I8_16
     }
 #define woort_OpcodeFormal_OP6M2_I8_16_cons(op6, m2, i8)    \
     _woort_OpcodeFormal_OP6M2_I8_16_cons((uint8_t)(op6), (uint8_t)(m2), (int8_t)(i8))
-
-typedef struct woort_OpcodeFormal_OP6M2_I24
-{
-    _Alignas(4) uint8_t     m_op6_m2;
-    int8_t                  m_i24h8;
-    uint16_t                m_i24l16;
-
-} woort_OpcodeFormal_OP6M2_I24;
-#define _woort_OpcodeFormal_OP6M2_I24_cons(op6, m2, i24)    \
-    woort_OpcodeFormal_OP6M2_I24{                           \
-        .m_op6_m2 = ((op6) << 2) | (m2),                    \
-        .m_i24h8 = (int8_t)(((i24) >> 16) & 0xff),          \
-        .m_i24l16 = (uint16_t)((i24) & 0xffff),             \
-    }
-#define woort_OpcodeFormal_OP6M2_I24_cons(op6, m2, i24)     \
-    _woort_OpcodeFormal_OP6M2_I24_cons((uint8_t)(op6), (uint8_t)(m2), (int32_t)(i24))
 
 typedef struct woort_OpcodeFormal_OP6M2_I8_I8_8
 {
@@ -196,18 +163,16 @@ typedef struct woort_OpcodeFormal_OP6M2_I8_I8_U8
 #define woort_OpcodeFormal_OP6M2_I8_I8_U8_cons(op6, m2, i8_1, i8_2, u8_3)   \
     _woort_OpcodeFormal_OP6M2_I8_I8_U8_cons((uint8_t)(op6), (uint8_t)(m2), (int8_t)(i8_1), (int8_t)(i8_2), (uint8_t)(u8_3))
 
-#define wort_OpCodeFormal_const(FORMAL, ...)                            \
+#define wort_OpCodeFormal_cons(FORMAL, ...) \
     woort_OpcodeFormal_FORMAL##_cons(__VA_ARGS__)
 
 typedef union woort_Bytecode
 {
     woort_OpcodeFormal_OP6_26           m_op6_26;
     woort_OpcodeFormal_OP6_U26          m_op6_u26;
-    woort_OpcodeFormal_OP6_I26          m_op6_i26;
     woort_OpcodeFormal_OP6_U18_I8       m_op6_u18_i8;
 
     woort_OpcodeFormal_OP6M2_U24        m_op6m2_u24;
-    woort_OpcodeFormal_OP6M2_I24        m_op6m2_i24;
     woort_OpcodeFormal_OP6M2_I8_16      m_op6m2_i8_16;
     woort_OpcodeFormal_OP6M2_I8_U16     m_op6m2_i8_u16;
     woort_OpcodeFormal_OP6M2_I8_I16     m_op6m2_i8_i16;

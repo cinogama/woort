@@ -18,13 +18,13 @@ typedef enum woort_Opcode
     //     0:   COUNT24
     //     1:   C24
     //     2:   S8 _16
-    //     3:   S24
+    //     3:   _8 S16
     POP,
     // OP6 M2 
     //      0:  COUNT24
     //      1:  C24
     //      2:  S8 _16
-    //      3:  S24
+    //      3:  _8 S16
 
     CAST,              
     // OP6 M2
