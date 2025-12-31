@@ -144,9 +144,10 @@ bool woort_LIRCompiler_allocate_label(
     return true;
 }
 
-woort_Value* woort_LIRCompiler_get_constant(
+bool woort_LIRCompiler_get_constant(
     woort_LIRCompiler* lir_compiler,
-    woort_LIRCompiler_ConstantStorage constant_address)
+    woort_LIRCompiler_ConstantStorage constant_address,
+    woort_Value** out_constant_storage)
 {
     woort_Value* constant_storage;
     if (!woort_vector_index(
@@ -156,9 +157,10 @@ woort_Value* woort_LIRCompiler_get_constant(
     {
         // Invalid constant address.
         WOORT_DEBUG("Invalid constant address.");
-        abort();
+        return false;
     }
-    return constant_storage;
+    *out_constant_storage = constant_storage;
+    return true;
 }
 
 //bool woort_LIRCompiler_bind(

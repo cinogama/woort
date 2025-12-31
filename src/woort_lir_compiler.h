@@ -107,11 +107,11 @@ bool woort_LIRCompiler_allocate_label(
 /*
 NOTE: The returned pointer is valid until the next call to
       woort_LIRCompiler_allocate_constant.
-NOTE: Abort if the constant_address is invalid.
 */
-woort_Value* woort_LIRCompiler_get_constant(
+bool woort_LIRCompiler_get_constant(
     woort_LIRCompiler* lir_compiler, 
-    woort_LIRCompiler_ConstantStorage constant_address);
+    woort_LIRCompiler_ConstantStorage constant_address,
+    woort_Value** out_constant_storage);
 
 // Code generator
 
