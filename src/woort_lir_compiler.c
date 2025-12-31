@@ -1,167 +1,102 @@
 #include "woort_lir_compiler.h"
 #include "woort_log.h"
 #include "woort_opcode_formal.h"
+#include "woort_linklist.h"
+#include "woort_vector.h"
 
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <assert.h>
 
-void _woort_LIRCompiler_free_update_static_storage_list(
-    woort_LIRCompiler_UpdateStaticStorage* /* OPTIONAL */ update_list)
-{
-    woort_LIRCompiler_UpdateStaticStorage* current = update_list;
-    while (current != NULL)
-    {
-        woort_LIRCompiler_UpdateStaticStorage* next = current->m_next;
-        free(current);
-        current = next;
-    }
-}
-
 void _woort_LIRCompiler_free_static_storage_list(
-    woort_LIRCompiler_StaticStorageData* /* OPTIONAL */ static_storage_list)
+    woort_LinkList /* woort_LIRCompiler_StaticStorageData */* static_storage_list)
 {
-    woort_LIRCompiler_StaticStorageData* current = static_storage_list;
+    woort_LIRCompiler_StaticStorageData* current = woort_linklist_iter(static_storage_list);
     while (current != NULL)
     {
-        woort_LIRCompiler_StaticStorageData* next = current->m_next;
-        
         // Free the update list.
-        _woort_LIRCompiler_free_update_static_storage_list(
-            current->m_code_update_list);
-
-        free(current);
-        current = next;
+        woort_linklist_deinit(&current->m_code_update_list);
+        current = woort_linklist_next(current);
     }
-}
-
-void _woort_LIRCompiler_free_label_update_list(
-    woort_LIRCompiler_UpdateJmpOffset* /* OPTIONAL */ update_list)
-{
-    woort_LIRCompiler_UpdateJmpOffset* current = update_list;
-    while (current != NULL)
-    {
-        woort_LIRCompiler_UpdateJmpOffset* next = current->m_next;
-        free(current);
-        current = next;
-    }
+    woort_linklist_deinit(static_storage_list);
 }
 
 void _woort_LIRCompiler_free_label_list(
-    woort_LIRCompiler_JmpLabelData* /* OPTIONAL */ label_list)
+    woort_LinkList /* woort_LIRCompiler_JmpLabelData */* label_list)
 {
-    woort_LIRCompiler_JmpLabelData* current = label_list;
+    woort_LIRCompiler_JmpLabelData* current = woort_linklist_iter(label_list);
     while (current != NULL)
     {
-        woort_LIRCompiler_JmpLabelData* next = current->m_next;
         // Free the update list.
-        _woort_LIRCompiler_free_label_update_list(
-            current->m_code_update_list);
-        free(current);
-        current = next;
+        woort_linklist_deinit(&current->m_code_update_list);
+        current = woort_linklist_next(current);
     }
+    woort_linklist_deinit(label_list);
 }
 
 ////////////////////////////////////////////////////////////////////////
 
-bool woort_LIRCompiler_init(woort_LIRCompiler* lir_compiler)
+void woort_LIRCompiler_init(woort_LIRCompiler* lir_compiler)
 {
-    lir_compiler->m_code_holder = 
-        malloc(8 * sizeof(woort_Bytecode));
+    woort_vector_init(
+        &lir_compiler->m_code_holder,
+        sizeof(woort_Bytecode));
 
-    lir_compiler->m_constant_storage_holder =
-        malloc(8 * sizeof(woort_Value));
-
-    if (lir_compiler->m_code_holder == NULL
-        || lir_compiler->m_constant_storage_holder == NULL)
-    {
-        WOORT_DEBUG("Allocation failed.");
-
-        free(lir_compiler->m_code_holder);
-        free(lir_compiler->m_constant_storage_holder);
-
-        return false;
-    }
-
-    lir_compiler->m_code_capacity = 8;
-    lir_compiler->m_code_size = 0;
-
-    lir_compiler->m_constant_storage_capacity = 2;
-    lir_compiler->m_constant_storage_size = 0;
+    woort_vector_init(
+        &lir_compiler->m_constant_storage_holder,
+        sizeof(woort_Value));
 
     lir_compiler->m_static_storage_count = 0;
-    lir_compiler->m_static_storage_list = NULL;
+    woort_linklist_init(
+        &lir_compiler->m_static_storage_list,
+        sizeof(woort_LIRCompiler_StaticStorageData));
 
-    lir_compiler->m_label_list = NULL;
-
-    return true;
+    woort_linklist_init(
+        &lir_compiler->m_label_list,
+        sizeof(woort_LIRCompiler_JmpLabelData));
 }
 
 void woort_LIRCompiler_deinit(woort_LIRCompiler* lir_compiler)
 {
     _woort_LIRCompiler_free_label_list(
-        lir_compiler->m_label_list);
-
+        &lir_compiler->m_label_list);
     _woort_LIRCompiler_free_static_storage_list(
-        lir_compiler->m_static_storage_list);
+        &lir_compiler->m_static_storage_list);
 
-    if (lir_compiler->m_code_holder != NULL)
-        free(lir_compiler->m_code_holder);
-
-    if (lir_compiler->m_constant_storage_holder != NULL)
-        free(lir_compiler->m_constant_storage_holder);
+    woort_vector_deinit(&lir_compiler->m_code_holder);
+    woort_vector_deinit(&lir_compiler->m_constant_storage_holder);
 }
 
 bool _woort_LIRCompiler_emit(
-    woort_LIRCompiler* lir_compiler, 
+    woort_LIRCompiler* lir_compiler,
     woort_Bytecode bytecode)
 {
-    if (lir_compiler->m_code_size >= lir_compiler->m_code_capacity)
-    {
-        // Need to reallocate.
-        size_t new_capacity = lir_compiler->m_code_capacity * 2;
-        woort_Bytecode* new_holder = 
-            realloc(
-                lir_compiler->m_code_holder, 
-                new_capacity * sizeof(woort_Bytecode));
-
-        if (new_holder == NULL)
-        {
-            WOORT_DEBUG("Reallocation failed.");
-            return false;
-        }
-        lir_compiler->m_code_holder = new_holder;
-        lir_compiler->m_code_capacity = new_capacity;
-    }
-    lir_compiler->m_code_holder[lir_compiler->m_code_size++] = bytecode;
+    woort_vector_push_back(
+        &lir_compiler->m_code_holder,
+        1,
+        &bytecode);
     return true;
 }
 
 bool woort_LIRCompiler_allocate_constant(
-    woort_LIRCompiler* lir_compiler, 
+    woort_LIRCompiler* lir_compiler,
     woort_LIRCompiler_ConstantStorage* out_constant_address)
 {
-    if (lir_compiler->m_constant_storage_size >= lir_compiler->m_constant_storage_capacity)
+    void* _useless_storage;
+    if (!woort_vector_emplace_back(
+        &lir_compiler->m_constant_storage_holder,
+        1,
+        &lir_compiler))
     {
-        // Need to reallocate.
-        size_t new_capacity = lir_compiler->m_constant_storage_capacity * 2;
-        woort_Value* new_holder = 
-            realloc(
-                lir_compiler->m_constant_storage_holder, 
-                new_capacity * sizeof(woort_Value));
-        if (new_holder == NULL)
-        {
-            WOORT_DEBUG("Reallocation failed.");
-            return false;
-        }
-        lir_compiler->m_constant_storage_holder = new_holder;
-        lir_compiler->m_constant_storage_capacity = new_capacity;
+        // Allocation failed.
+        return false;
     }
 
-    // Constant and global address will share the same space.
-    *out_constant_address = 
-        (woort_LIRCompiler_ConstantStorage)(lir_compiler->m_constant_storage_size++);
+    (void)_useless_storage;
+    *out_constant_address =
+        (woort_LIRCompiler_ConstantStorage)
+        lir_compiler->m_constant_storage_holder.m_size;
 
     return true;
 }
@@ -169,44 +104,42 @@ bool woort_LIRCompiler_allocate_static_storage(
     woort_LIRCompiler* lir_compiler,
     woort_LIRCompiler_StaticStorage* out_static_storage_address)
 {
-    woort_LIRCompiler_StaticStorageData* new_static_storage =
-        malloc(sizeof(woort_LIRCompiler_StaticStorageData));
-
-    if (new_static_storage == NULL)
+    woort_LIRCompiler_StaticStorageData* new_static_storage;
+    if (!woort_linklist_emplace_back(
+        &lir_compiler->m_static_storage_list,
+        &new_static_storage))
     {
-        WOORT_DEBUG("Allocation failed.");
+        // Allocation failed.
         return false;
     }
 
+    // Initialize the new static storage data.
     new_static_storage->m_static_index = lir_compiler->m_static_storage_count++;
-    new_static_storage->m_code_update_list = NULL;
-    new_static_storage->m_next = lir_compiler->m_static_storage_list;
-
-    // Update the list head.
-    lir_compiler->m_static_storage_list = new_static_storage;
+    woort_linklist_init(
+        &new_static_storage->m_code_update_list,
+        sizeof(woort_LIRCompiler_UpdateStaticStorage));
 
     *out_static_storage_address = new_static_storage;
-
     return true;
 }
 bool woort_LIRCompiler_allocate_label(
     woort_LIRCompiler* lir_compiler,
     woort_LIRCompiler_JmpLabel* out_label_address)
 {
-    woort_LIRCompiler_JmpLabelData* new_label =
-        malloc(sizeof(woort_LIRCompiler_JmpLabelData));
-    
-    if (new_label == NULL)
+    woort_LIRCompiler_JmpLabelData* new_label;
+    if (!woort_linklist_emplace_back(
+        &lir_compiler->m_label_list,
+        &new_label))
     {
-        WOORT_DEBUG("Allocation failed.");
+        // Allocation failed.
         return false;
     }
 
     new_label->m_binded_code_offset = SIZE_MAX; // Not binded yet.
-    new_label->m_code_update_list = NULL;
-    new_label->m_next = lir_compiler->m_label_list;
-    // Update the list head.
-    lir_compiler->m_label_list = new_label;
+    woort_linklist_init(
+        &new_label->m_code_update_list,
+        sizeof(woort_LIRCompiler_UpdateJmpOffset));
+
     *out_label_address = new_label;
     return true;
 }
@@ -215,7 +148,28 @@ woort_Value* woort_LIRCompiler_get_constant(
     woort_LIRCompiler* lir_compiler,
     woort_LIRCompiler_ConstantStorage constant_address)
 {
-    assert(constant_address < lir_compiler->m_constant_storage_size);
-
-    return &lir_compiler->m_constant_storage_holder[constant_address];
+    woort_Value* constant_storage;
+    if (!woort_vector_index(
+        &lir_compiler->m_constant_storage_holder,
+        (size_t)constant_address,
+        (void**)&constant_storage))
+    {
+        // Invalid constant address.
+        WOORT_DEBUG("Invalid constant address.");
+        abort();
+    }
+    return constant_storage;
 }
+
+//bool woort_LIRCompiler_bind(
+//    woort_LIRCompiler* lir_compiler,
+//    woort_LIRCompiler_JmpLabel* label)
+//{
+//    if (label->m_binded_code_offset != SIZE_MAX)
+//    {
+//        WOORT_DEBUG("Label already binded.");
+//        return false;
+//    }
+//    
+//    return false;
+//}
