@@ -163,15 +163,35 @@ bool woort_LIRCompiler_get_constant(
     return true;
 }
 
-//bool woort_LIRCompiler_bind(
-//    woort_LIRCompiler* lir_compiler,
-//    woort_LIRCompiler_JmpLabel* label)
-//{
-//    if (label->m_binded_code_offset != SIZE_MAX)
-//    {
-//        WOORT_DEBUG("Label already binded.");
-//        return false;
-//    }
-//    
-//    return false;
-//}
+bool woort_LIRCompiler_bind(
+    woort_LIRCompiler* lir_compiler,
+    woort_LIRCompiler_JmpLabel label)
+{
+    if (label->m_binded_code_offset != SIZE_MAX)
+    {
+        WOORT_DEBUG("Label already binded.");
+        return false;
+    }
+    
+    label->m_binded_code_offset =
+        lir_compiler->m_code_holder.m_size;
+
+    woort_LIRCompiler_UpdateJmpOffset* current =
+        woort_linklist_iter(&label->m_code_update_list);
+    while (current != NULL)
+    {
+        switch (current->m_target)
+        {
+        case WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_OFFSET26:
+        case WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_8_OFFSET16:
+        case WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_16_OFFSET8:
+        default:
+            WOORT_DEBUG("Unknown jump offset target kind.");
+            abort();
+        }
+
+        current = woort_linklist_next(current);
+    }
+
+    return false;
+}

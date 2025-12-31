@@ -65,6 +65,10 @@ bool woort_vector_push_back(woort_Vector* vector, size_t count, const void* elem
     memcpy(new_element, element, count * vector->m_element_size);
     return true;
 }
+void woort_vector_clear(woort_Vector* vector)
+{
+    vector->m_size = 0;
+}
 bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element)
 {
     if (index >= vector->m_size)

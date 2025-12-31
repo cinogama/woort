@@ -16,8 +16,8 @@ woort_lir_compiler.h
 // Static storage.
 typedef enum woort_LIRCompiler_UpdateStaticStorage_Target
 {
-    WOORT_LIRCOMPILER_UPDATE_STATIC_STORAGE_TARGET_C18,
-    WOORT_LIRCOMPILER_UPDATE_STATIC_STORAGE_TARGET_C18L_EXC26H,
+    WOORT_LIRCOMPILER_UPDATE_STATIC_STORAGE_TARGET_C18_8,
+    WOORT_LIRCOMPILER_UPDATE_STATIC_STORAGE_TARGET_C18L_8_EXC26H,
     WOORT_LIRCOMPILER_UPDATE_STATIC_STORAGE_TARGET_C24,
 
 }woort_LIRCompiler_UpdateStaticStorage_Target;
@@ -42,8 +42,8 @@ typedef struct woort_LIRCompiler_StaticStorageData
 typedef enum woort_LIRCompiler_UpdateJmpOffset_Target
 {
     WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_OFFSET26,
-    WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_OFFSET16,
-    WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_OFFSET8,
+    WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_8_OFFSET16,
+    WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_16_OFFSET8,
 
 }woort_LIRCompiler_UpdateJmpOffset_Target;
 
@@ -117,5 +117,5 @@ bool woort_LIRCompiler_get_constant(
 
 bool woort_LIRCompiler_bind(
     woort_LIRCompiler* lir_compiler,
-    woort_LIRCompiler_JmpLabel* label);
+    woort_LIRCompiler_JmpLabel label);
 

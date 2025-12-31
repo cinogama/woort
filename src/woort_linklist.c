@@ -10,7 +10,7 @@ void woort_linklist_init(woort_LinkList* list, size_t storage_size)
     list->m_head = NULL;
     list->m_tail = NULL;
 
-    list->m_storage_size = storage_size;
+    list->m_element_size = storage_size;
 }
 void woort_linklist_deinit(woort_LinkList* list)
 {
@@ -26,7 +26,7 @@ void woort_linklist_deinit(woort_LinkList* list)
 bool woort_linklist_emplace_back(woort_LinkList* list, void** out_storage)
 {
     woort_LinkList_Node* new_node =
-        malloc(sizeof(woort_LinkList_Node) + list->m_storage_size);
+        malloc(sizeof(woort_LinkList_Node) + list->m_element_size);
 
     if (NULL == new_node)
     {
@@ -58,8 +58,14 @@ bool woort_linklist_push_back(woort_LinkList* list, const void* data)
     if (!woort_linklist_emplace_back(list, &storage))
         return false;
 
-    memcpy(storage, data, list->m_storage_size);
+    memcpy(storage, data, list->m_element_size);
     return true;
+}
+void woort_linklist_clear(woort_LinkList* list)
+{
+    woort_linklist_deinit(list);
+    list->m_head = NULL;
+    list->m_tail = NULL;
 }
 bool woort_linklist_index(woort_LinkList* list, size_t index, void** out_storage)
 {
