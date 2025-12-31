@@ -45,6 +45,10 @@ typedef struct woort_LIRCompiler
     // Static storage data list.
     size_t          m_static_storage_count;
 
+    // LIR Storage.
+    woort_LinkList /* woort_LIRFunction */
+                    m_functions;
+
 } woort_LIRCompiler;
 
 void woort_LIRCompiler_init(woort_LIRCompiler* lir_compiler);
@@ -68,3 +72,18 @@ bool woort_LIRCompiler_get_constant(
     woort_LIRCompiler* lir_compiler, 
     woort_LIRCompiler_ConstantStorage constant_address,
     woort_Value** out_constant_storage);
+
+typedef struct woort_LIRRegister woort_LIRRegister;
+typedef struct woort_LIRFunction woort_LIRFunction;
+typedef struct woort_LIRBlock woort_LIRBlock;
+
+bool woort_LIRCompiler_add_function(
+    woort_LIRCompiler* lir_compiler,
+    woort_LIRFunction** out_function);
+
+/*
+NOTE: Function's first block will be treated as entry block.
+*/
+bool woort_LIRFunction_add_block(
+    woort_LIRFunction* lir_function,
+    woort_LIRBlock** out_block);
