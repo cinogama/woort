@@ -13,63 +13,21 @@ woort_lir_compiler.h
 #include "woort_value.h"
 #include "woort_vector.h"
 
-// Static storage.
-typedef enum woort_LIRCompiler_UpdateStaticStorage_Target
-{
-    WOORT_LIRCOMPILER_UPDATE_STATIC_STORAGE_TARGET_C18_8,
-    WOORT_LIRCOMPILER_UPDATE_STATIC_STORAGE_TARGET_C18L_8_EXC26H,
-    WOORT_LIRCOMPILER_UPDATE_STATIC_STORAGE_TARGET_C24,
-
-}woort_LIRCompiler_UpdateStaticStorage_Target;
-
-typedef struct woort_LIRCompiler_UpdateStaticStorage
-{
-    woort_LIRCompiler_UpdateStaticStorage_Target 
-                m_target;
-    size_t      m_code_offset;
-
-}woort_LIRCompiler_UpdateStaticStorage;
-
-typedef struct woort_LIRCompiler_StaticStorageData
-{
-    uint64_t    m_static_index;
-    woort_LinkList /* woort_LIRCompiler_UpdateStaticStorage */ 
-                m_code_update_list;
-
-}woort_LIRCompiler_StaticStorageData, * woort_LIRCompiler_StaticStorage;
-
 // Jump label.
-typedef enum woort_LIRCompiler_UpdateJmpOffset_Target
-{
-    WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_OFFSET26,
-    WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_8_OFFSET16,
-    WOORT_LIRCOMPILER_UPDATE_JMP_OFFSET_TARGET_16_OFFSET8,
-
-}woort_LIRCompiler_UpdateJmpOffset_Target;
-
-typedef struct woort_LIRCompiler_UpdateJmpOffset
-{
-    woort_LIRCompiler_UpdateJmpOffset_Target 
-                m_target;
-    size_t      m_code_offset;
-
-} woort_LIRCompiler_UpdateJmpOffset;
-
 typedef struct woort_LIRCompiler_JmpLabelData
 {
     /* NOTE: SIZE_MAX means bind less. */
     size_t      m_binded_code_offset;   
-    /* NOTE: `m_code_update_list` will be apply and free if binded. */
-    woort_LinkList /* woort_LIRCompiler_UpdateJmpOffset */
-                m_code_update_list;
 
 } woort_LIRCompiler_JmpLabelData, * woort_LIRCompiler_JmpLabel;
 
 // Constant.
 typedef uint64_t woort_LIRCompiler_ConstantStorage;
 
-// LIRCompiler.
+// Static storage.
+typedef uint64_t woort_LIRCompiler_StaticStorage;
 
+// LIRCompiler.
 typedef struct woort_LIRCompiler
 {
     // Code holder.
@@ -80,14 +38,12 @@ typedef struct woort_LIRCompiler
     woort_Vector /* woort_Value */
                     m_constant_storage_holder;
 
-    // Static storage data list.
-    size_t          m_static_storage_count;
-    woort_LinkList /* woort_LIRCompiler_StaticStorageData */
-                    m_static_storage_list;
-
     // Label data list.
     woort_LinkList /* woort_LIRCompiler_JmpLabelData */
                     m_label_list;
+
+    // Static storage data list.
+    size_t          m_static_storage_count;
 
 } woort_LIRCompiler;
 
@@ -112,10 +68,3 @@ bool woort_LIRCompiler_get_constant(
     woort_LIRCompiler* lir_compiler, 
     woort_LIRCompiler_ConstantStorage constant_address,
     woort_Value** out_constant_storage);
-
-// Code generator
-
-bool woort_LIRCompiler_bind(
-    woort_LIRCompiler* lir_compiler,
-    woort_LIRCompiler_JmpLabel label);
-
