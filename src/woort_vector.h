@@ -4,6 +4,7 @@
 woort_vector.h
 */
 
+#include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -26,3 +27,4 @@ bool woort_vector_push_back(woort_Vector* vector, size_t count, const void* elem
 void woort_vector_clear(woort_Vector* vector);
 
 bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element);
+void* woort_vector_at(woort_Vector* vector, size_t index);

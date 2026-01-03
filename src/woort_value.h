@@ -4,7 +4,8 @@
 woort_value.h
 */
 
-#include "stdint.h"
+#include <stdint.h>
+#include <stddef.h>
 
 typedef int64_t woort_Integer;
 typedef double woort_Real;

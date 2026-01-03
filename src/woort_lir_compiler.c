@@ -3,67 +3,15 @@
 #include "woort_opcode_formal.h"
 #include "woort_linklist.h"
 #include "woort_vector.h"
+#include "woort_lir.h"
+#include "woort_lir_function.h"
+#include "woort_util.h"
 
+#include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <assert.h>
-
-struct woort_LIRRegister
-{
-    char _;
-};
-
-struct woort_LIROperand
-{
-    char _;
-};
-
-typedef enum woort_LIRCondBr_Type
-{
-    WOORT_LIR_COND_BR_TYPE_NEVER,
-    WOORT_LIR_COND_BR_TYPE_JT,
-    WOORT_LIR_COND_BR_TYPE_JF,
-    WOORT_LIR_COND_BR_TYPE_JEQU,
-    WOORT_LIR_COND_BR_TYPE_JNEQU,
-
-}woort_LIRCondBr_Type;
-
-struct woort_LIRCondBr
-{
-    woort_LIRCondBr_Type    m_type;
-
-    /* NOTE: If m_cond_next_block is NULL, means function end. */
-    woort_LIRBlock*         m_cond_next_block;
-};
-struct woort_LIRBlock
-{
-    woort_Vector /* woort_LIROperand */
-        m_operands;
-
-    struct woort_LIRCondBr m_cond_br_next_block;
-    struct woort_LIRBlock* m_next_block;
-};
-
-struct woort_LIRFunction
-{
-    woort_LinkList /* woort_LIRRegister */ m_registers;
-    woort_LinkList /* woort_LIRBlock */    m_blocks;
-};
-
-void _woort_LIRFunction_deinit(woort_LIRFunction* function)
-{
-    woort_LIRBlock* current_block = woort_linklist_iter(&function->m_blocks);
-    while (current_block != NULL)
-    {
-        woort_vector_deinit(&current_block->m_operands);
-        current_block = woort_linklist_next(current_block);
-    }
-    woort_linklist_deinit(&function->m_blocks);
-    woort_linklist_deinit(&function->m_registers);
-}
-
-///////////////////////////////////////////////////////////////////////////////
 
 void woort_LIRCompiler_init(woort_LIRCompiler* lir_compiler)
 {
@@ -75,29 +23,24 @@ void woort_LIRCompiler_init(woort_LIRCompiler* lir_compiler)
         &lir_compiler->m_constant_storage_holder,
         sizeof(woort_Value));
 
-    woort_linklist_init(
-        &lir_compiler->m_label_list,
-        sizeof(woort_LIRCompiler_JmpLabelData));
-
     lir_compiler->m_static_storage_count = 0;
 
     woort_linklist_init(
-        &lir_compiler->m_functions,
+        &lir_compiler->m_function_list,
         sizeof(woort_LIRFunction));
 }
 
 void woort_LIRCompiler_deinit(woort_LIRCompiler* lir_compiler)
 {
-    woort_LIRFunction* current_function =
-        woort_linklist_iter(&lir_compiler->m_functions);
-    while (current_function != NULL)
+    // Close all functions.
+    for (woort_LIRFunction* current_function = woort_linklist_iter(&lir_compiler->m_function_list);
+        NULL != current_function;
+        current_function = woort_linklist_next(current_function))
     {
-        _woort_LIRFunction_deinit(current_function);
-        current_function = woort_linklist_next(current_function);
+        woort_LIRFunction_deinit(current_function);
     }
-    woort_linklist_deinit(&lir_compiler->m_functions);
+    woort_linklist_deinit(&lir_compiler->m_function_list);
 
-    woort_linklist_deinit(&lir_compiler->m_label_list);
     woort_vector_deinit(&lir_compiler->m_constant_storage_holder);
     woort_vector_deinit(&lir_compiler->m_code_holder);
 }
@@ -115,7 +58,7 @@ bool _woort_LIRCompiler_emit(
 
 bool woort_LIRCompiler_allocate_constant(
     woort_LIRCompiler* lir_compiler,
-    woort_LIRCompiler_ConstantStorage* out_constant_address)
+    woort_LIR_ConstantStorage* out_constant_address)
 {
     void* _useless_storage;
     if (!woort_vector_emplace_back(
@@ -129,41 +72,24 @@ bool woort_LIRCompiler_allocate_constant(
 
     (void)_useless_storage;
     *out_constant_address =
-        (woort_LIRCompiler_ConstantStorage)
+        (woort_LIR_ConstantStorage)
         lir_compiler->m_constant_storage_holder.m_size;
 
     return true;
 }
 bool woort_LIRCompiler_allocate_static_storage(
     woort_LIRCompiler* lir_compiler,
-    woort_LIRCompiler_StaticStorage* out_static_storage_address)
+    woort_LIR_StaticStorage* out_static_storage_address)
 {
     *out_static_storage_address =
-        (woort_LIRCompiler_StaticStorage)
+        (woort_LIR_StaticStorage)
         lir_compiler->m_static_storage_count++;
-    return true;
-}
-bool woort_LIRCompiler_allocate_label(
-    woort_LIRCompiler* lir_compiler,
-    woort_LIRCompiler_JmpLabel* out_label_address)
-{
-    woort_LIRCompiler_JmpLabelData* new_label;
-    if (!woort_linklist_emplace_back(
-        &lir_compiler->m_label_list,
-        &new_label))
-    {
-        // Allocation failed.
-        return false;
-    }
-
-    new_label->m_binded_code_offset = SIZE_MAX; // Not binded yet.
-    *out_label_address = new_label;
     return true;
 }
 
 bool woort_LIRCompiler_get_constant(
     woort_LIRCompiler* lir_compiler,
-    woort_LIRCompiler_ConstantStorage constant_address,
+    woort_LIR_ConstantStorage constant_address,
     woort_Value** out_constant_storage)
 {
     woort_Value* constant_storage;
@@ -181,49 +107,158 @@ bool woort_LIRCompiler_get_constant(
 }
 
 bool woort_LIRCompiler_add_function(
-    woort_LIRCompiler* lir_compiler, woort_LIRFunction** out_function)
+    woort_LIRCompiler* lir_compiler,
+    woort_LIRFunction** out_function)
 {
     woort_LIRFunction* new_function;
-
     if (!woort_linklist_emplace_back(
-        &lir_compiler->m_functions,
-        &new_function))
+        &lir_compiler->m_function_list, &new_function))
     {
-        // Allocation failed.
+        // Failed to allocate function.
         return false;
     }
 
-    woort_linklist_init(
-        &new_function->m_registers,
-        sizeof(woort_LIRRegister));
-    woort_linklist_init(
-        &new_function->m_blocks,
-        sizeof(woort_LIRBlock));
+    woort_LIRFunction_init(new_function);
 
     *out_function = new_function;
     return true;
 }
 
-bool woort_LIRFunction_add_block(
-    woort_LIRFunction* lir_function,
-    woort_LIRBlock** out_block)
+woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
+    woort_LIRCompiler* lir_compiler,
+    woort_LIRFunction* function)
 {
-    woort_LIRBlock* new_block;
-    if (!woort_linklist_emplace_back(
-        &lir_function->m_blocks,
-        &new_block))
-    {
-        // Allocation failed.
-        return false;
-    }
-    woort_vector_init(
-        &new_block->m_operands, 
-        sizeof(struct woort_LIROperand));
+    woort_LIR* const lir =
+        woort_linklist_iter(&function->m_lir_list);
 
-    new_block->m_cond_br_next_block.m_type = WOORT_LIR_COND_BR_TYPE_NEVER;
-    new_block->m_cond_br_next_block.m_cond_next_block = NULL;
-    new_block->m_next_block = NULL;
-    
-    *out_block = new_block;
-    return true;
+    /* Check */
+    // 0. Check if jumping label is valid.
+    for (
+        woort_LIR* current_lir = lir;
+        current_lir != NULL;
+        current_lir = woort_linklist_next(current_lir))
+    {
+        woort_LIRLabel* target_label = NULL;
+        switch (current_lir->m_opnum_formal)
+        {
+        case WOORT_LIR_OPNUMFORMAL_LABEL:
+            target_label = current_lir->m_opnums.m_label.m_label;
+            break;
+        case WOORT_LIR_OPNUMFORMAL_R_LABEL:
+            target_label = current_lir->m_opnums.m_r_label.m_label;
+            break;
+        case WOORT_LIR_OPNUMFORMAL_R_R_LABEL:
+            target_label = current_lir->m_opnums.m_r_r_label.m_label;
+            break;
+        default:
+            break;
+        }
+
+        if (target_label != NULL
+            && target_label->m_binded_lir == NULL)
+        {
+            // Unbound label.
+            WOORT_DEBUG(
+                "Trying to jump to unbound label `%p` when committing LIR function.",
+                target_label);
+            return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_UNBOUND_LABEL;
+        }
+    }
+
+    /* Commit */
+    // 0. Mark base offset for this function.
+    size_t current_bytecode_offset = lir_compiler->m_code_holder.m_size;
+    for (
+        woort_LIR* current_lir = lir;
+        current_lir != NULL;
+        current_lir = woort_linklist_next(current_lir))
+    {
+        // Update static storage references.
+        woort_LIR_update_static_storage(
+            current_lir,
+            lir_compiler->m_constant_storage_holder.m_size);
+
+        current_lir->m_fact_bytecode_offset = current_bytecode_offset;
+
+        current_bytecode_offset +=
+            woort_LIR_ir_length_exclude_jmp(current_lir);
+    }
+
+    // 1. Fetch & Update and insert extended jump instructions.
+    /*
+    NOTE:
+    Because conditional jump instructions have other operands occupying instruction space,
+    it is easy for the target location to exceed the jump range limit of the instruction.
+    Therefore, we need to record these instructions and check if they need to be updated.
+    */
+    woort_Vector /* woort_LIR* */ jcond_lir_collection;
+    woort_vector_init(&jcond_lir_collection, sizeof(woort_LIR*));
+    {
+        for (
+            woort_LIR* current_lir = lir;
+            current_lir != NULL;
+            current_lir = woort_linklist_next(current_lir))
+        {
+            switch (current_lir->m_opnum_formal)
+            {
+            case WOORT_LIR_OPCODE_JNZ:
+            case WOORT_LIR_OPCODE_JZ:
+            case WOORT_LIR_OPCODE_JEQ:
+            case WOORT_LIR_OPCODE_JNEQ:
+                if (!woort_vector_push_back(&jcond_lir_collection, 1, &current_lir))
+                {
+                    // Failed to record jcond lir.
+                    woort_vector_deinit(&jcond_lir_collection);
+                    return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
+                }
+                break;
+            default:
+                break;
+            }
+        }
+
+        // Ok, check if the jump range is exceeded.
+        for (size_t i = 0; i < jcond_lir_collection.m_size; )
+        {
+            woort_LIR* const current_jcond_lir = 
+                woort_vector_at(&jcond_lir_collection, i);
+
+            switch (current_jcond_lir->m_opnum_formal)
+            {
+            case WOORT_LIR_OPNUMFORMAL_R_LABEL:
+            {
+                woort_LIR* const jmp_target_lir =
+                    current_jcond_lir->m_opnums.m_r_label.m_label->m_binded_lir;
+
+                assert(jmp_target_lir != NULL);
+                todo;
+            }
+            case WOORT_LIR_OPNUMFORMAL_R_R_LABEL:
+            default:
+                WOORT_DEBUG(
+                    "Internal error: invalid jcond lir opnum formal `%d`.",
+                    current_jcond_lir->m_opnum_formal);
+                abort();
+            }
+
+            // Go ahead~!
+            ++i;
+        }
+    }
+    woort_vector_deinit(&jcond_lir_collection);
+}
+
+woort_LIRCompiler_CommitResult woort_LIRCompiler_commit(
+    woort_LIRCompiler* lir_compiler)
+{
+    woort_LIRFunction* current_function =
+        woort_linklist_iter(&lir_compiler->m_function_list);
+
+    while (current_function != NULL)
+    {
+        _woort_LIRCompiler_commit_function(lir_compiler, current_function);
+        current_function = woort_linklist_next(current_function);
+    }
+
+    return WOORT_LIRCOMPILER_COMMIT_RESULT_OK;
 }

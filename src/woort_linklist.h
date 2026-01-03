@@ -4,14 +4,16 @@
 woort_linklist.h
 */
 
+#include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 
 typedef struct woort_LinkList_Node
 {
-    _Alignas(8)
     struct woort_LinkList_Node* m_next;
-     char m_storage[];
+
+    _Alignas(8)
+        char m_storage[];
 
 } woort_LinkList_Node;
 
@@ -32,7 +34,6 @@ bool woort_linklist_push_back(woort_LinkList* list, const void* data);
 void woort_linklist_clear(woort_LinkList* list);
 
 bool woort_linklist_index(woort_LinkList* list, size_t index, void** out_storage);
-
 
 /* OPTIONAL */ void* woort_linklist_iter(woort_LinkList* list);
 /* OPTIONAL */ void* woort_linklist_next(void* iterator);

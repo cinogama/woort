@@ -1,17 +1,19 @@
+#include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <memory.h>
 
 #include "woort_vector.h"
+#include "woort_log.h"
 
-bool woort_vector_init(woort_Vector* vector, size_t element_size)
+void woort_vector_init(woort_Vector* vector, size_t element_size)
 {
     vector->m_element_size = element_size;
     vector->m_size = 0;
     vector->m_capacity = 0; // Initial capacity.
 
     vector->m_data = NULL;
-
-    return true;
 }
 void woort_vector_deinit(woort_Vector* vector)
 {
@@ -79,4 +81,12 @@ bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element)
     *out_element =
         (void*)(vector->m_data + index * vector->m_element_size);
     return true;
+}
+void* woort_vector_at(woort_Vector* vector, size_t index)
+{
+    void* result;
+    if (!woort_vector_index(vector, index, &result))
+        abort();
+
+    return result;
 }
