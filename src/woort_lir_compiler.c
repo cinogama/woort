@@ -96,7 +96,7 @@ bool woort_LIRCompiler_get_constant(
     if (!woort_vector_index(
         &lir_compiler->m_constant_storage_holder,
         (size_t)constant_address,
-        (void**)&constant_storage))
+        &constant_storage))
     {
         // Invalid constant address.
         WOORT_DEBUG("Invalid constant address.");
@@ -122,6 +122,39 @@ bool woort_LIRCompiler_add_function(
 
     *out_function = new_function;
     return true;
+}
+
+void _woort_LIRCompiler_update_following_lir_offsets(
+    woort_LIR* start_lir,
+    size_t offset_delta)
+{
+    for (
+        woort_LIR* current_lir = start_lir;
+        current_lir != NULL;
+        current_lir = woort_linklist_next(current_lir))
+    {
+        current_lir->m_fact_bytecode_offset += offset_delta;
+    }
+}
+
+bool _woort_LIRCompiler_check_and_update_jcond_lir(
+    woort_LIR* jcond_lir,
+    woort_LIR* jmp_target_lir,
+    size_t length_limit)
+{
+    assert(jmp_target_lir != NULL && jcond_lir != NULL);
+
+    if (woort_util_abs_diff(
+        jcond_lir->m_fact_bytecode_offset,
+        jmp_target_lir->m_fact_bytecode_offset) > UINT16_MAX)
+    {
+        // Update all following lirs' fact bytecode offset.
+        _woort_LIRCompiler_update_following_lir_offsets(
+            woort_linklist_next(jcond_lir), 1);
+
+        return true;
+    }
+    return false;
 }
 
 woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
@@ -165,6 +198,9 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
         }
     }
 
+    /* Register allocation */
+
+
     /* Commit */
     // 0. Mark base offset for this function.
     size_t current_bytecode_offset = lir_compiler->m_code_holder.m_size;
@@ -199,7 +235,7 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
             current_lir != NULL;
             current_lir = woort_linklist_next(current_lir))
         {
-            switch (current_lir->m_opnum_formal)
+            switch (current_lir->m_opcode)
             {
             case WOORT_LIR_OPCODE_JNZ:
             case WOORT_LIR_OPCODE_JZ:
@@ -220,20 +256,51 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
         // Ok, check if the jump range is exceeded.
         for (size_t i = 0; i < jcond_lir_collection.m_size; )
         {
-            woort_LIR* const current_jcond_lir = 
-                woort_vector_at(&jcond_lir_collection, i);
+            woort_LIR* const current_jcond_lir =
+                *(woort_LIR**)woort_vector_at(&jcond_lir_collection, i);
 
             switch (current_jcond_lir->m_opnum_formal)
             {
             case WOORT_LIR_OPNUMFORMAL_R_LABEL:
-            {
-                woort_LIR* const jmp_target_lir =
-                    current_jcond_lir->m_opnums.m_r_label.m_label->m_binded_lir;
+                if (!current_jcond_lir->m_opnums.m_r_label.m_externed)
+                {
+                    woort_LIR* const jmp_target_lir =
+                        current_jcond_lir->m_opnums.m_r_label.m_label->m_binded_lir;
 
-                assert(jmp_target_lir != NULL);
-                todo;
-            }
+                    if (_woort_LIRCompiler_check_and_update_jcond_lir(
+                        current_jcond_lir,
+                        jmp_target_lir,
+                        UINT16_MAX))
+                    {
+                        // Too far to jump directly, need to extern.
+                        current_jcond_lir->m_opnums.m_r_label.m_externed = true;
+
+                        // Restart checking from the beginning.
+                        i = 0;
+                        continue;
+                    }
+                }
+                break;
             case WOORT_LIR_OPNUMFORMAL_R_R_LABEL:
+                if (!current_jcond_lir->m_opnums.m_r_r_label.m_externed)
+                {
+                    woort_LIR* const jmp_target_lir =
+                        current_jcond_lir->m_opnums.m_r_r_label.m_label->m_binded_lir;
+
+                    if (_woort_LIRCompiler_check_and_update_jcond_lir(
+                        current_jcond_lir,
+                        jmp_target_lir,
+                        UINT8_MAX))
+                    {
+                        // Too far to jump directly, need to extern.
+                        current_jcond_lir->m_opnums.m_r_r_label.m_externed = true;
+
+                        // Restart checking from the beginning.
+                        i = 0;
+                        continue;
+                    }
+                }
+                break;
             default:
                 WOORT_DEBUG(
                     "Internal error: invalid jcond lir opnum formal `%d`.",
@@ -246,6 +313,11 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
         }
     }
     woort_vector_deinit(&jcond_lir_collection);
+
+    // 2. All jobs done, emit bytecodes.
+
+
+    return WOORT_LIRCOMPILER_COMMIT_RESULT_OK;
 }
 
 woort_LIRCompiler_CommitResult woort_LIRCompiler_commit(

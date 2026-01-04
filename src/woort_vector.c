@@ -54,9 +54,10 @@ bool woort_vector_emplace_back(woort_Vector* vector, size_t count, void** out_el
     if (!woort_vector_reserve(vector, vector->m_size + count))
         return false;
 
-    vector->m_size += count;
     *out_element =
         (void*)(vector->m_data + vector->m_size * vector->m_element_size);
+    vector->m_size += count;
+
     return true;
 }
 bool woort_vector_push_back(woort_Vector* vector, size_t count, const void* element)

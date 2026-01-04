@@ -46,7 +46,7 @@ bool _woort_LIRFunction_append_lir(woort_LIRFunction* function, woort_LIR** out_
         for (size_t i = 0; i < function->m_pending_labels_to_bind.m_size; ++i)
         {
             woort_LIRLabel* binding_label =
-                woort_vector_at(
+                *(woort_LIRLabel**)woort_vector_at(
                     &function->m_pending_labels_to_bind,
                     i);
 #ifndef NDEBUG
@@ -107,8 +107,8 @@ bool woort_LIRFunction_alloc_register(
         return false;
     }
 
-    new_register->m_alive_range[0] = 0;
-    new_register->m_alive_range[1] = 0;
+    new_register->m_alive_range[0] = SIZE_MAX;
+    new_register->m_alive_range[1] = SIZE_MAX;
     new_register->m_assigned_bp_offset = INT16_MAX;
 
     *out_register = new_register;
@@ -140,6 +140,102 @@ bool woort_LIRFunction_bind(
         &label);
     return true;
 }
+
+void _woort_LIRRegister_mark_register_active_range(
+    woort_LIRRegister* target_register,
+    size_t instr_index)
+{
+    if (target_register->m_alive_range[0] == SIZE_MAX)
+    {
+        // First time to be used, set the start of alive range.
+        target_register->m_alive_range[0] = instr_index;
+    }
+    // Update the end of alive range.
+    target_register->m_alive_range[1] = instr_index;
+}
+
+void woort_LIRFunction_register_allocation(
+    woort_LIRFunction* function)
+{
+    // Mark active range for all registers.
+    size_t lir_count = 0;
+    for (
+        woort_LIR* current_lir = woort_linklist_iter(&function->m_lir_list);
+        current_lir != NULL;
+        (current_lir = woort_linklist_next(current_lir)), ++lir_count)
+    {
+        switch (current_lir->m_opnum_formal)
+        {
+        case WOORT_LIR_OPNUMFORMAL_CS_R:
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_cs_r.m_r,
+                lir_count);
+            break;
+        case WOORT_LIR_OPNUMFORMAL_S_R:
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_s_r.m_r,
+                lir_count);
+            break;
+        case WOORT_LIR_OPNUMFORMAL_R:
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r.m_r,
+                lir_count);
+            break;
+        case WOORT_LIR_OPNUMFORMAL_R_R:
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_r.m_r1,
+                lir_count);
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_r.m_r2,
+                lir_count);
+            break;
+        case WOORT_LIR_OPNUMFORMAL_R_R_R:
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_r_r.m_r1,
+                lir_count);
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_r_r.m_r2,
+                lir_count);
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_r_r.m_r3,
+                lir_count);
+            break;
+        case WOORT_LIR_OPNUMFORMAL_R_R_COUNT16:
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_r_count16.m_r1,
+                lir_count);
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_r_count16.m_r2,
+                lir_count);
+            break;
+        case WOORT_LIR_OPNUMFORMAL_R_COUNT16:
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_count16.m_r,
+                lir_count);
+            break;
+        case WOORT_LIR_OPNUMFORMAL_R_R_LABEL:
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_r_label.m_r1,
+                lir_count);
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_r_label.m_r2,
+                lir_count);
+            break;
+        case WOORT_LIR_OPNUMFORMAL_R_LABEL:
+            _woort_LIRRegister_mark_register_active_range(
+                current_lir->m_opnums.m_r_label.m_r,
+                lir_count);
+            break;
+        default:
+            // No registration allocation needed.
+            break;
+        }
+    }
+
+    // Ok, all registers active range has been marked.
+    
+}
+
 
 /* LIR Emit */
 #define WOORT_LIR_FUNCTION_EMIT_LIR(LIROP)                          \

@@ -11,6 +11,7 @@ woort_lir.h
 // Register.
 typedef struct woort_LIRRegister
 {
+    /* NOTE: SIZE_MAX means not active */
     size_t m_alive_range[2];
 
     /* Used in finalized only. */

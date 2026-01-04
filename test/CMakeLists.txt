@@ -2,6 +2,9 @@ cmake_minimum_required (VERSION 3.10)
 
 include_directories("../include")
 
+# Only for test:
+include_directories("../src")
+
 file(GLOB_RECURSE woort_test_src_cpp *.cpp)
 file(GLOB_RECURSE woort_test_src_c *.c)
 file(GLOB_RECURSE woort_test_src_hpp *.hpp)
