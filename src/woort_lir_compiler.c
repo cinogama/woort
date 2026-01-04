@@ -157,6 +157,23 @@ bool _woort_LIRCompiler_check_and_update_jcond_lir(
     return false;
 }
 
+void _woort_LIRCompiler_commit_function_codes(
+    woort_LIRCompiler* lir_compiler,
+    woort_LIRFunction* function)
+{
+    for (
+        woort_LIR* current_lir = woort_linklist_iter(&function->m_lir_list);
+        current_lir != NULL;
+        current_lir = woort_linklist_next(current_lir))
+    {
+        // Emit bytecode.
+        woort_Bytecode b;
+        woort_LIR_emit(current_lir, &b);
+
+        _woort_LIRCompiler_emit(lir_compiler, b);
+    }
+}
+
 woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
     woort_LIRCompiler* lir_compiler,
     woort_LIRFunction* function)
@@ -199,7 +216,11 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
     }
 
     /* Register allocation */
-
+    if (!woort_LIRFunction_register_allocation(function))
+    {
+        WOORT_DEBUG("Failed to allocate registers.");
+        return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_REGISTER_ALLOCATION;
+    }
 
     /* Commit */
     // 0. Mark base offset for this function.
@@ -249,6 +270,9 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
                 }
                 break;
             default:
+                assert(
+                    current_lir->m_opnum_formal != WOORT_LIR_OPNUMFORMAL_R_LABEL
+                    && current_lir->m_opnum_formal != WOORT_LIR_OPNUMFORMAL_R_R_LABEL);
                 break;
             }
         }
@@ -315,7 +339,7 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
     woort_vector_deinit(&jcond_lir_collection);
 
     // 2. All jobs done, emit bytecodes.
-
+    _woort_LIRCompiler_commit_function_codes(lir_compiler, function);
 
     return WOORT_LIRCOMPILER_COMMIT_RESULT_OK;
 }

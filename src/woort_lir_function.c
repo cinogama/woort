@@ -20,6 +20,9 @@ void woort_LIRFunction_init(woort_LIRFunction* function)
     woort_linklist_init(
         &function->m_register_list,
         sizeof(woort_LIRRegister));
+    woort_vector_init(
+        &function->m_argument_registers,
+        sizeof(woort_LIRRegister*));
     woort_linklist_init(
         &function->m_lir_list,
         sizeof(woort_LIR));
@@ -29,6 +32,7 @@ void woort_LIRFunction_deinit(woort_LIRFunction* function)
     woort_linklist_deinit(&function->m_label_list);
     woort_vector_deinit(&function->m_pending_labels_to_bind);
     woort_linklist_deinit(&function->m_register_list);
+    woort_vector_deinit(&function->m_argument_registers);
     woort_linklist_deinit(&function->m_lir_list);
 }
 
@@ -118,6 +122,67 @@ bool woort_LIRFunction_alloc_register(
     return true;
 }
 
+bool woort_LIRFunction_get_argument_register(
+    woort_LIRFunction* function,
+    uint16_t index,
+    woort_LIRRegister** out_register)
+{
+    // Addressing limit.
+    assert(index < INT16_MAX);
+
+    if (function->m_argument_registers.m_size <= index)
+    {
+        const size_t current_argument_registers_size = function->m_argument_registers.m_size;
+        if (!woort_vector_resize(&function->m_argument_registers, index + 1))
+        {
+            // Failed to resize argument register vector.
+            return false;
+        }
+
+        // Clear new added elements.
+        for (size_t i = current_argument_registers_size;
+            i < function->m_argument_registers.m_size;
+            ++i)
+        {
+            woort_LIRRegister** arg_reg_ptr =
+                (woort_LIRRegister**)woort_vector_at(
+                    &function->m_argument_registers,
+                    i);
+            *arg_reg_ptr = NULL;
+        }
+    }
+
+    woort_LIRRegister** argument_register = 
+        woort_vector_at(&function->m_argument_registers, index);
+
+    if (*argument_register == NULL)
+    {
+        // This argument register does not exist.
+        woort_LIRRegister* new_argument_register;
+        if (!woort_LIRFunction_alloc_register(function, &new_argument_register))
+        {
+            // Failed to allocate argument register.
+            return false;
+        }
+
+        assert(new_argument_register->m_alive_range[0] == SIZE_MAX
+            && new_argument_register->m_alive_range[1] == SIZE_MAX);
+
+        new_argument_register->m_assigned_bp_offset = /* TBD */-1 - index;
+
+        woort_LIRRegister** arg_reg_ptr =
+            (woort_LIRRegister**)woort_vector_at(
+                &function->m_argument_registers,
+                index);
+
+        assert(*arg_reg_ptr == NULL);
+        *arg_reg_ptr = new_argument_register;
+        argument_register = arg_reg_ptr;
+    }
+    *out_register = *argument_register;
+    return true;
+}
+
 bool woort_LIRFunction_bind(
     woort_LIRFunction* function,
     woort_LIRLabel* label)
@@ -148,6 +213,11 @@ void _woort_LIRRegister_mark_register_active_range(
     woort_LIRRegister* target_register,
     size_t instr_index)
 {
+    if (target_register->m_assigned_bp_offset < 0)
+        // Function arguments, skip.
+        return;
+
+    assert(target_register->m_assigned_bp_offset == INT16_MAX);
     if (target_register->m_alive_range[0] == SIZE_MAX)
     {
         // First time to be used, set the start of alive range.
@@ -289,14 +359,14 @@ bool woort_LIRFunction_register_allocation(
             {
                 // Expired.
                 woort_bitset_reset(&bitset, (size_t)active_register->m_assigned_bp_offset);
-                
+
                 // Remove from active list.
                 // Swap with last element and pop back.
                 if (j != active_registers.m_size - 1)
                 {
-                    woort_LIRRegister** last_element = 
+                    woort_LIRRegister** last_element =
                         (woort_LIRRegister**)woort_vector_at(&active_registers, active_registers.m_size - 1);
-                    woort_LIRRegister** current_element = 
+                    woort_LIRRegister** current_element =
                         (woort_LIRRegister**)woort_vector_at(&active_registers, j);
                     *current_element = *last_element;
                 }
@@ -319,7 +389,6 @@ bool woort_LIRFunction_register_allocation(
         else
         {
             // Failed to allocate register.
-            // Spill?
             WOORT_DEBUG("Failed to allocate register.");
             success = false;
 

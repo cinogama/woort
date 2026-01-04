@@ -22,6 +22,7 @@ void woort_vector_init(woort_Vector* vector, size_t element_size);
 void woort_vector_deinit(woort_Vector* vector);
 
 bool woort_vector_reserve(woort_Vector* vector, size_t new_capacity);
+bool woort_vector_resize(woort_Vector* vector, size_t new_size);
 bool woort_vector_emplace_back(woort_Vector* vector, size_t count, void** out_element);
 bool woort_vector_push_back(woort_Vector* vector, size_t count, const void* element);
 void woort_vector_clear(woort_Vector* vector);

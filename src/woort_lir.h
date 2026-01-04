@@ -8,6 +8,9 @@ woort_lir.h
 #include <stddef.h>
 #include <stdbool.h>
 
+#include "woort_opcode.h"
+#include "woort_opcode_formal.h"
+
 // Register.
 typedef struct woort_LIRRegister
 {
@@ -142,6 +145,29 @@ typedef struct woort_LIR_OpnumFormal_LABEL
 
 } woort_LIR_OpnumFormal_LABEL;
 
+/*
+Checklist:
+    When adding a new LIR instruction, besides adding the corresponding 
+enum value here, you also need to:
+
+
+1. Add the corresponding WOORT_LIR_OPNUM_FORMAL_XXXX format macro to 
+    confirm the instruction's operands.
+
+2. Add the corresponding union member in woort_LIR_Opnums.
+
+3. Add the emission for the corresponding instruction in woort_LIR_emit.
+
+4. If the instruction involves jump labels, you need to prepare far label 
+    handling in _woort_LIRCompiler_commit_function.
+
+5. If the instruction introduces a new operand form involving registers, 
+    you need to add register live range marking for that form in 
+    _woort_LIRFunction_register_allocation.
+
+6. Add the corresponding function declaration and definition for
+    woort_LIRFunction_emit_XXXX.
+*/
 typedef enum woort_LIR_Opcode
 {
     WOORT_LIR_OPCODE_LOAD,
@@ -382,3 +408,5 @@ NOTE: This method is used by the ir-compiler when submitting a function to calcu
     jump instructions during long-range jumps: these will be calculated later.
 */
 size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir);
+
+void woort_LIR_emit(const woort_LIR* lir, woort_Bytecode* out_bytecode);

@@ -18,6 +18,7 @@ typedef struct woort_LIRFunction
 
     // Register data list.
     woort_LinkList /* woort_LIRRegister */ m_register_list;
+    woort_Vector /* OPTIONAL woort_LIRRegister* */ m_argument_registers;
 
     // LIR codes
     woort_LinkList /* woort_LIR */ m_lir_list;
@@ -33,6 +34,11 @@ bool woort_LIRFunction_alloc_label(
 
 bool woort_LIRFunction_alloc_register(
     woort_LIRFunction* function,
+    woort_LIRRegister** out_register);
+
+bool woort_LIRFunction_get_argument_register(
+    woort_LIRFunction* function,
+    uint16_t index,
     woort_LIRRegister** out_register);
 
 typedef void(*woort_LIRFunction_CommitCallback)(

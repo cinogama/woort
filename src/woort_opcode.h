@@ -15,16 +15,14 @@ typedef enum woort_Opcode
 
     WOORT_OPCODE_PUSH,
     // OP6 M2 
-    //     0:   COUNT24
+    //     0:   _8 COUNT16
     //     1:   C24
-    //     2:   S8 _16
-    //     3:   _8 S16
+    //     2:   _8 S16
     WOORT_OPCODE_POP,
     // OP6 M2 
-    //      0:  COUNT24
+    //      0:  _8 COUNT16
     //      1:  C24
-    //      2:  S8 _16
-    //      3:  _8 S16
+    //      2:  _8 S16
 
     WOORT_OPCODE_CAST,
     // OP6 M2

@@ -49,6 +49,13 @@ bool woort_vector_reserve(woort_Vector* vector, size_t new_capacity)
     vector->m_data = new_data;
     return true;
 }
+bool woort_vector_resize(woort_Vector* vector, size_t new_size)
+{
+    if (!woort_vector_reserve(vector, new_size))
+        return false;
+    vector->m_size = new_size;
+    return true;
+}
 bool woort_vector_emplace_back(woort_Vector* vector, size_t count, void** out_element)
 {
     if (!woort_vector_reserve(vector, vector->m_size + count))
