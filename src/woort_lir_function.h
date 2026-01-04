@@ -39,6 +39,9 @@ typedef void(*woort_LIRFunction_CommitCallback)(
     woort_LIRFunction* function,
     void* user_data);
 
+bool woort_LIRFunction_register_allocation(
+    woort_LIRFunction* function);
+
 /* LIR Emit */
 
 bool woort_LIRFunction_bind(

@@ -1,10 +1,13 @@
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "woort_lir_function.h"
 #include "woort_linklist.h"
 #include "woort_vector.h"
 #include "woort_lir.h"
 #include "woort_log.h"
+#include "woort_bitset.h"
 
 void woort_LIRFunction_init(woort_LIRFunction* function)
 {
@@ -154,7 +157,19 @@ void _woort_LIRRegister_mark_register_active_range(
     target_register->m_alive_range[1] = instr_index;
 }
 
-void woort_LIRFunction_register_allocation(
+int _woort_register_start_pos_comparator(const void* a, const void* b)
+{
+    woort_LIRRegister* reg_a = *(woort_LIRRegister**)a;
+    woort_LIRRegister* reg_b = *(woort_LIRRegister**)b;
+
+    if (reg_a->m_alive_range[0] < reg_b->m_alive_range[0])
+        return -1;
+    else if (reg_a->m_alive_range[0] > reg_b->m_alive_range[0])
+        return 1;
+    return 0;
+}
+
+bool woort_LIRFunction_register_allocation(
     woort_LIRFunction* function)
 {
     // Mark active range for all registers.
@@ -233,11 +248,92 @@ void woort_LIRFunction_register_allocation(
     }
 
     // Ok, all registers active range has been marked.
-    
+    // Now we need to allocate registers.
+    woort_Vector registers;
+    woort_vector_init(&registers, sizeof(woort_LIRRegister*));
+
+    for (
+        woort_LIRRegister* current_register = woort_linklist_iter(&function->m_register_list);
+        current_register != NULL;
+        current_register = woort_linklist_next(current_register))
+    {
+        if (current_register->m_alive_range[0] != SIZE_MAX)
+        {
+            woort_vector_push_back(&registers, 1, &current_register);
+        }
+    }
+
+    // Sort registers by start position.
+    qsort(
+        registers.m_data,
+        registers.m_size,
+        sizeof(woort_LIRRegister*),
+        _woort_register_start_pos_comparator);
+
+    woort_Bitset bitset;
+    woort_bitset_init(&bitset, INT16_MAX);
+
+    woort_Vector active_registers;
+    woort_vector_init(&active_registers, sizeof(woort_LIRRegister*));
+
+    bool success = true;
+    for (size_t i = 0; i < registers.m_size; ++i)
+    {
+        woort_LIRRegister* current_register = *(woort_LIRRegister**)woort_vector_at(&registers, i);
+
+        // Expire old intervals.
+        for (size_t j = 0; j < active_registers.m_size; )
+        {
+            woort_LIRRegister* active_register = *(woort_LIRRegister**)woort_vector_at(&active_registers, j);
+            if (active_register->m_alive_range[1] < current_register->m_alive_range[0])
+            {
+                // Expired.
+                woort_bitset_reset(&bitset, (size_t)active_register->m_assigned_bp_offset);
+                
+                // Remove from active list.
+                // Swap with last element and pop back.
+                if (j != active_registers.m_size - 1)
+                {
+                    woort_LIRRegister** last_element = 
+                        (woort_LIRRegister**)woort_vector_at(&active_registers, active_registers.m_size - 1);
+                    woort_LIRRegister** current_element = 
+                        (woort_LIRRegister**)woort_vector_at(&active_registers, j);
+                    *current_element = *last_element;
+                }
+                active_registers.m_size--;
+            }
+            else
+            {
+                ++j;
+            }
+        }
+
+        // Allocate register.
+        size_t assigned_offset;
+        if (woort_bitset_find_first_unset(&bitset, &assigned_offset))
+        {
+            current_register->m_assigned_bp_offset = (int16_t)assigned_offset;
+            woort_bitset_set(&bitset, assigned_offset);
+            woort_vector_push_back(&active_registers, 1, &current_register);
+        }
+        else
+        {
+            // Failed to allocate register.
+            // Spill?
+            WOORT_DEBUG("Failed to allocate register.");
+            success = false;
+
+            break;
+        }
+    }
+
+    woort_vector_deinit(&active_registers);
+    woort_bitset_deinit(&bitset);
+    woort_vector_deinit(&registers);
+
+    return success;
 }
 
-
-/* LIR Emit */
 #define WOORT_LIR_FUNCTION_EMIT_LIR(LIROP)                          \
     woort_LIR* new_lir;                                         \
     if (!_woort_LIRFunction_append_lir(function, &new_lir))     \
