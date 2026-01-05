@@ -15,7 +15,6 @@ woort_lir_compiler.h
 #include "woort_lir.h"
 #include "woort_lir_function.h"
 
-
 // LIRCompiler.
 typedef struct woort_LIRCompiler
 {
