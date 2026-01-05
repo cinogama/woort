@@ -20,3 +20,13 @@ set_target_properties(
 
 target_link_libraries(woort 
 	PRIVATE woort_options)
+
+if (MSVC)
+	# We need to enable C11Atomic support in VS 2022
+	if (MSVC_VERSION LESS 1930)
+		# Donot support C11Atomics before VS 2022
+		message(FATAL_ERROR "MSVC versions before 1930 (VS 2022) are not supported.")
+	elseif (MSVC_VERSION LESS 1950)
+		target_compile_options(woort PRIVATE /experimental:c11atomics)
+	endif()
+endif()

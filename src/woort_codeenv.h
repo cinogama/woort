@@ -9,6 +9,8 @@ woort_codeenv.h
 
 typedef struct woort_CodeEnv
 {
+    volatile size_t m_refcount;
+    
     const woort_Bytecode* m_code_begin;
     const woort_Bytecode* m_code_end;
 
@@ -16,3 +18,7 @@ typedef struct woort_CodeEnv
     size_t       m_constant_and_static_storage_count;
 
 } woort_CodeEnv;
+
+bool woort_CodeEnv_bootup(void);
+void woort_CodeEnv_shutdown(void);
+
