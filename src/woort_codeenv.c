@@ -5,10 +5,13 @@
 
 #include "woort_codeenv.h"
 #include "woort_spin.h"
+#include "woort_vector.h"
 
 static struct _woort_CodeEnv_GlobalCtx
 {
-    woort_RWSpinlock m_codeenvs_lock;
+    woort_RWSpinlock    m_codeenvs_lock;
+    woort_Vector /* woort_CodeEnv* */        
+                        m_ordered_codeenvs;
 
 } *_codeenv_global_ctx = NULL;
 
@@ -35,4 +38,20 @@ void woort_CodeEnv_shutdown(void)
     free(_codeenv_global_ctx);
 
     _codeenv_global_ctx = NULL;
+}
+
+struct woort_CodeEnv
+{
+    atomic_size_t m_refcount;
+
+    const woort_Bytecode* m_code_begin;
+    const woort_Bytecode* m_code_end;
+
+    woort_Value* m_constant_and_static_storage;
+    size_t       m_constant_and_static_storage_count;
+};
+
+void _woort_CodeEnv_upload(woort_CodeEnv* codeenv)
+{
+
 }
