@@ -12,8 +12,8 @@ if (MSVC)
             "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,"
             "$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,"
             "$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
-        target_compile_options(woort_options INTERFACE "/source-charset:utf-8")
     endif()
+    target_compile_options(woort_options INTERFACE "/source-charset:utf-8")
 endif()
 
 project ("woort")
