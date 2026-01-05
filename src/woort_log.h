@@ -9,6 +9,7 @@ void woort_log(const char* format, ...);
 #ifdef NDEBUG
 #   define WOORT_DEBUG(format, ...) do {} while(0)
 #else
-#   define WOORT_DEBUG(format, ...) \
-        woort_log("WOORT(%s:%d): " format "\n", __FILE__, __LINE__,##__VA_ARGS__)
+#   define WOORT_DEBUG(format, ...)                 \
+        woort_log("WOORT(%s:%d) %s: " format "\n",  \
+            __FILE__, __LINE__, __FUNCTION__,##__VA_ARGS__)
 #endif

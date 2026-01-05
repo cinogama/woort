@@ -1,7 +1,9 @@
 #include "woort_threads.h"
+#include "woort_log.h"
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 /* ============================================================================
  * Platform/Compiler detection for threads support
@@ -82,14 +84,20 @@ bool woort_thread_start(
     void* user_data,
     woort_Thread** out_thread)
 {
-    if (!job || !out_thread) return false;
+    assert(NULL != job);
+    assert(NULL != out_thread);
 
-    woort_Thread* thread = (woort_Thread*)malloc(sizeof(woort_Thread));
-    if (!thread) return false;
+    woort_Thread* thread = malloc(sizeof(woort_Thread));
+    if (!thread)
+    {
+        WOORT_DEBUG("failed to allocate woort_Thread");
+        return false;
+    }
 
-    thread->data = (woort_ThreadData*)malloc(sizeof(woort_ThreadData));
+    thread->data = malloc(sizeof(woort_ThreadData));
     if (!thread->data)
     {
+        WOORT_DEBUG("failed to allocate woort_ThreadData");
         free(thread);
         return false;
     }
@@ -108,19 +116,19 @@ bool woort_thread_start(
     return true;
 }
 
-bool woort_thread_join(woort_Thread* thread)
+void woort_thread_join(woort_Thread* thread)
 {
-    if (!thread) return false;
+    assert(NULL != thread);
 
     int result;
     if (thrd_join(thread->handle, &result) != thrd_success)
     {
-        return false;
+        WOORT_DEBUG("thrd_join failed");
+        abort();
     }
 
     free(thread->data);
     free(thread);
-    return true;
 }
 
 void woort_thread_sleep_ms(uint32_t ms)
@@ -145,10 +153,14 @@ struct woort_Mutex
 
 bool woort_mutex_create(woort_Mutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_Mutex* mutex = (woort_Mutex*)malloc(sizeof(woort_Mutex));
-    if (!mutex) return false;
+    woort_Mutex* mutex = malloc(sizeof(woort_Mutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_Mutex");
+        return false;
+    }
 
     if (mtx_init(&mutex->handle, mtx_plain) != thrd_success)
     {
@@ -162,26 +174,26 @@ bool woort_mutex_create(woort_Mutex** out_mutex)
 
 void woort_mutex_destroy(woort_Mutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_destroy(&mutex->handle);
     free(mutex);
 }
 
 void woort_mutex_lock(woort_Mutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_lock(&mutex->handle);
 }
 
 bool woort_mutex_trylock(woort_Mutex* mutex)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
     return mtx_trylock(&mutex->handle) == thrd_success;
 }
 
 void woort_mutex_unlock(woort_Mutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_unlock(&mutex->handle);
 }
 
@@ -194,10 +206,14 @@ struct woort_TimeMutex
 
 bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_TimeMutex* mutex = (woort_TimeMutex*)malloc(sizeof(woort_TimeMutex));
-    if (!mutex) return false;
+    woort_TimeMutex* mutex = malloc(sizeof(woort_TimeMutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_TimeMutex");
+        return false;
+    }
 
     if (mtx_init(&mutex->handle, mtx_timed) != thrd_success)
     {
@@ -211,20 +227,20 @@ bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
 
 void woort_time_mutex_destroy(woort_TimeMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_destroy(&mutex->handle);
     free(mutex);
 }
 
 void woort_time_mutex_lock(woort_TimeMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_lock(&mutex->handle);
 }
 
 bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
 
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
@@ -241,7 +257,7 @@ bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
 
 void woort_time_mutex_unlock(woort_TimeMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_unlock(&mutex->handle);
 }
 
@@ -254,10 +270,14 @@ struct woort_RecursiveMutex
 
 bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_RecursiveMutex* mutex = (woort_RecursiveMutex*)malloc(sizeof(woort_RecursiveMutex));
-    if (!mutex) return false;
+    woort_RecursiveMutex* mutex = malloc(sizeof(woort_RecursiveMutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_RecursiveMutex");
+        return false;
+    }
 
     if (mtx_init(&mutex->handle, mtx_plain | mtx_recursive) != thrd_success)
     {
@@ -271,26 +291,26 @@ bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
 
 void woort_recursive_mutex_destroy(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_destroy(&mutex->handle);
     free(mutex);
 }
 
 void woort_recursive_mutex_lock(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_lock(&mutex->handle);
 }
 
 bool woort_recursive_mutex_trylock(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
     return mtx_trylock(&mutex->handle) == thrd_success;
 }
 
 void woort_recursive_mutex_unlock(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_unlock(&mutex->handle);
 }
 
@@ -303,10 +323,14 @@ struct woort_TimeRecursiveMutex
 
 bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_TimeRecursiveMutex* mutex = (woort_TimeRecursiveMutex*)malloc(sizeof(woort_TimeRecursiveMutex));
-    if (!mutex) return false;
+    woort_TimeRecursiveMutex* mutex = malloc(sizeof(woort_TimeRecursiveMutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_TimeRecursiveMutex");
+        return false;
+    }
 
     if (mtx_init(&mutex->handle, mtx_timed | mtx_recursive) != thrd_success)
     {
@@ -320,20 +344,20 @@ bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
 
 void woort_time_recursive_mutex_destroy(woort_TimeRecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_destroy(&mutex->handle);
     free(mutex);
 }
 
 bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
     return mtx_lock(&mutex->handle) == thrd_success;
 }
 
 bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
 
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
@@ -350,7 +374,7 @@ bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_
 
 void woort_time_recursive_mutex_unlock(woort_TimeRecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     mtx_unlock(&mutex->handle);
 }
 
@@ -363,10 +387,14 @@ struct woort_ConditionVariable
 
 bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
 {
-    if (!out_cv) return false;
+    assert(NULL != out_cv);
 
-    woort_ConditionVariable* cv = (woort_ConditionVariable*)malloc(sizeof(woort_ConditionVariable));
-    if (!cv) return false;
+    woort_ConditionVariable* cv = malloc(sizeof(woort_ConditionVariable));
+    if (!cv)
+    {
+        WOORT_DEBUG("failed to allocate woort_ConditionVariable");
+        return false;
+    }
 
     if (cnd_init(&cv->handle) != thrd_success)
     {
@@ -380,20 +408,22 @@ bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
 
 void woort_condition_variable_destroy(woort_ConditionVariable* cv)
 {
-    if (!cv) return;
+    assert(NULL != cv);
     cnd_destroy(&cv->handle);
     free(cv);
 }
 
 void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mutex)
 {
-    if (!cv || !mutex) return;
+    assert(NULL != cv);
+    assert(NULL != mutex);
     cnd_wait(&cv->handle, &mutex->handle);
 }
 
 bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
 {
-    if (!cv || !mutex) return false;
+    assert(NULL != cv);
+    assert(NULL != mutex);
 
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
@@ -410,14 +440,61 @@ bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mute
 
 void woort_condition_variable_signal(woort_ConditionVariable* cv)
 {
-    if (!cv) return;
+    assert(NULL != cv);
     cnd_signal(&cv->handle);
 }
 
 void woort_condition_variable_broadcast(woort_ConditionVariable* cv)
 {
-    if (!cv) return;
+    assert(NULL != cv);
     cnd_broadcast(&cv->handle);
+}
+
+/* ----------- Thread Local Storage ----------- */
+
+struct woort_TlsKey
+{
+    tss_t handle;
+};
+
+bool woort_tls_create(woort_TlsKey** out_key, woort_TlsDestructor destructor)
+{
+    assert(NULL != out_key);
+
+    woort_TlsKey* key = malloc(sizeof(woort_TlsKey));
+    if (!key)
+    {
+        WOORT_DEBUG("failed to allocate woort_TlsKey");
+        return false;
+    }
+
+    if (tss_create(&key->handle, destructor) != thrd_success)
+    {
+        free(key);
+        return false;
+    }
+
+    *out_key = key;
+    return true;
+}
+
+void woort_tls_destroy(woort_TlsKey* key)
+{
+    assert(NULL != key);
+    tss_delete(key->handle);
+    free(key);
+}
+
+void* woort_tls_get(woort_TlsKey* key)
+{
+    assert(NULL != key);
+    return tss_get(key->handle);
+}
+
+bool woort_tls_set(woort_TlsKey* key, void* value)
+{
+    assert(NULL != key);
+    return tss_set(key->handle, value) == thrd_success;
 }
 
 /* ============================================================================
@@ -452,14 +529,20 @@ bool woort_thread_start(
     void* user_data,
     woort_Thread** out_thread)
 {
-    if (!job || !out_thread) return false;
+    assert(NULL != job);
+    assert(NULL != out_thread);
 
-    woort_Thread* thread = (woort_Thread*)malloc(sizeof(woort_Thread));
-    if (!thread) return false;
+    woort_Thread* thread = malloc(sizeof(woort_Thread));
+    if (!thread)
+    {
+        WOORT_DEBUG("failed to allocate woort_Thread");
+        return false;
+    }
 
-    thread->data = (woort_ThreadData*)malloc(sizeof(woort_ThreadData));
+    thread->data = malloc(sizeof(woort_ThreadData));
     if (!thread->data)
     {
+        WOORT_DEBUG("failed to allocate woort_ThreadData");
         free(thread);
         return false;
     }
@@ -486,20 +569,20 @@ bool woort_thread_start(
     return true;
 }
 
-bool woort_thread_join(woort_Thread* thread)
+void woort_thread_join(woort_Thread* thread)
 {
-    if (!thread) return false;
+    assert(NULL != thread);
 
     DWORD result = WaitForSingleObject(thread->handle, INFINITE);
     if (result != WAIT_OBJECT_0)
     {
-        return false;
+        WOORT_DEBUG("WaitForSingleObject failed with result %lu", (unsigned long)result);
+        abort();
     }
 
     CloseHandle(thread->handle);
     free(thread->data);
     free(thread);
-    return true;
 }
 
 void woort_thread_sleep_ms(uint32_t ms)
@@ -521,10 +604,14 @@ struct woort_Mutex
 
 bool woort_mutex_create(woort_Mutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_Mutex* mutex = (woort_Mutex*)malloc(sizeof(woort_Mutex));
-    if (!mutex) return false;
+    woort_Mutex* mutex = malloc(sizeof(woort_Mutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_Mutex");
+        return false;
+    }
 
     InitializeSRWLock(&mutex->lock);
 
@@ -534,26 +621,26 @@ bool woort_mutex_create(woort_Mutex** out_mutex)
 
 void woort_mutex_destroy(woort_Mutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     /* SRWLock does not need explicit destruction */
     free(mutex);
 }
 
 void woort_mutex_lock(woort_Mutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     AcquireSRWLockExclusive(&mutex->lock);
 }
 
 bool woort_mutex_trylock(woort_Mutex* mutex)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
     return TryAcquireSRWLockExclusive(&mutex->lock) != 0;
 }
 
 void woort_mutex_unlock(woort_Mutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     ReleaseSRWLockExclusive(&mutex->lock);
 }
 
@@ -572,10 +659,14 @@ struct woort_TimeMutex
 
 bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_TimeMutex* mutex = (woort_TimeMutex*)malloc(sizeof(woort_TimeMutex));
-    if (!mutex) return false;
+    woort_TimeMutex* mutex = malloc(sizeof(woort_TimeMutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_TimeMutex");
+        return false;
+    }
 
     InitializeCriticalSection(&mutex->cs);
     mutex->event = CreateEventW(NULL, FALSE, TRUE, NULL);
@@ -592,7 +683,7 @@ bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
 
 void woort_time_mutex_destroy(woort_TimeMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     DeleteCriticalSection(&mutex->cs);
     CloseHandle(mutex->event);
     free(mutex);
@@ -600,14 +691,14 @@ void woort_time_mutex_destroy(woort_TimeMutex* mutex)
 
 void woort_time_mutex_lock(woort_TimeMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     WaitForSingleObject(mutex->event, INFINITE);
     EnterCriticalSection(&mutex->cs);
 }
 
 bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
 
     DWORD result = WaitForSingleObject(mutex->event, (DWORD)timeout_ms);
     if (result == WAIT_OBJECT_0)
@@ -620,7 +711,7 @@ bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
 
 void woort_time_mutex_unlock(woort_TimeMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     LeaveCriticalSection(&mutex->cs);
     SetEvent(mutex->event);
 }
@@ -634,10 +725,14 @@ struct woort_RecursiveMutex
 
 bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_RecursiveMutex* mutex = (woort_RecursiveMutex*)malloc(sizeof(woort_RecursiveMutex));
-    if (!mutex) return false;
+    woort_RecursiveMutex* mutex = malloc(sizeof(woort_RecursiveMutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_RecursiveMutex");
+        return false;
+    }
 
     InitializeCriticalSection(&mutex->cs);
 
@@ -647,26 +742,26 @@ bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
 
 void woort_recursive_mutex_destroy(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     DeleteCriticalSection(&mutex->cs);
     free(mutex);
 }
 
 void woort_recursive_mutex_lock(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     EnterCriticalSection(&mutex->cs);
 }
 
 bool woort_recursive_mutex_trylock(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
     return TryEnterCriticalSection(&mutex->cs) != 0;
 }
 
 void woort_recursive_mutex_unlock(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     LeaveCriticalSection(&mutex->cs);
 }
 
@@ -682,10 +777,14 @@ struct woort_TimeRecursiveMutex
 
 bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_TimeRecursiveMutex* mutex = (woort_TimeRecursiveMutex*)malloc(sizeof(woort_TimeRecursiveMutex));
-    if (!mutex) return false;
+    woort_TimeRecursiveMutex* mutex = malloc(sizeof(woort_TimeRecursiveMutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_TimeRecursiveMutex");
+        return false;
+    }
 
     InitializeCriticalSection(&mutex->cs);
     mutex->event = CreateEventW(NULL, FALSE, TRUE, NULL);
@@ -704,7 +803,7 @@ bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
 
 void woort_time_recursive_mutex_destroy(woort_TimeRecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     DeleteCriticalSection(&mutex->cs);
     CloseHandle(mutex->event);
     free(mutex);
@@ -712,7 +811,7 @@ void woort_time_recursive_mutex_destroy(woort_TimeRecursiveMutex* mutex)
 
 bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
 
     DWORD current_thread = GetCurrentThreadId();
 
@@ -737,7 +836,7 @@ bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
 
 bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
 
     DWORD current_thread = GetCurrentThreadId();
 
@@ -766,7 +865,7 @@ bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_
 
 void woort_time_recursive_mutex_unlock(woort_TimeRecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
 
     EnterCriticalSection(&mutex->cs);
     if (mutex->lock_count > 0)
@@ -790,10 +889,14 @@ struct woort_ConditionVariable
 
 bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
 {
-    if (!out_cv) return false;
+    assert(NULL != out_cv);
 
-    woort_ConditionVariable* cv = (woort_ConditionVariable*)malloc(sizeof(woort_ConditionVariable));
-    if (!cv) return false;
+    woort_ConditionVariable* cv = malloc(sizeof(woort_ConditionVariable));
+    if (!cv)
+    {
+        WOORT_DEBUG("failed to allocate woort_ConditionVariable");
+        return false;
+    }
 
     InitializeConditionVariable(&cv->cv);
 
@@ -803,33 +906,115 @@ bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
 
 void woort_condition_variable_destroy(woort_ConditionVariable* cv)
 {
-    if (!cv) return;
+    assert(NULL != cv);
     /* CONDITION_VARIABLE does not need explicit destruction */
     free(cv);
 }
 
 void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mutex)
 {
-    if (!cv || !mutex) return;
+    assert(NULL != cv);
+    assert(NULL != mutex);
     SleepConditionVariableSRW(&cv->cv, &mutex->lock, INFINITE, 0);
 }
 
 bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
 {
-    if (!cv || !mutex) return false;
+    assert(NULL != cv);
+    assert(NULL != mutex);
     return SleepConditionVariableSRW(&cv->cv, &mutex->lock, (DWORD)timeout_ms, 0) != 0;
 }
 
 void woort_condition_variable_signal(woort_ConditionVariable* cv)
 {
-    if (!cv) return;
+    assert(NULL != cv);
     WakeConditionVariable(&cv->cv);
 }
 
 void woort_condition_variable_broadcast(woort_ConditionVariable* cv)
 {
-    if (!cv) return;
+    assert(NULL != cv);
     WakeAllConditionVariable(&cv->cv);
+}
+
+/* ----------- Thread Local Storage ----------- */
+
+/*
+ * Win32 TLS does not natively support destructors.
+ * We implement a workaround by maintaining a list of TLS keys with destructors
+ * and calling them manually. For simplicity, we store the destructor in the key
+ * structure and expect the user to call woort_tls_destroy before thread exit,
+ * or use DllMain/TLS callbacks for cleanup in more complex scenarios.
+ */
+struct woort_TlsKey
+{
+    DWORD index;
+    woort_TlsDestructor destructor;
+};
+
+bool woort_tls_create(woort_TlsKey** out_key, woort_TlsDestructor destructor)
+{
+    assert(NULL != out_key);
+
+    woort_TlsKey* key = malloc(sizeof(woort_TlsKey));
+    if (!key)
+    {
+        WOORT_DEBUG("failed to allocate woort_TlsKey");
+        return false;
+    }
+
+    key->index = TlsAlloc();
+    if (key->index == TLS_OUT_OF_INDEXES)
+    {
+        WOORT_DEBUG("TlsAlloc failed");
+        free(key);
+        return false;
+    }
+
+    key->destructor = destructor;
+    *out_key = key;
+    return true;
+}
+
+void woort_tls_destroy(woort_TlsKey* key)
+{
+    assert(NULL != key);
+
+    /* Call destructor for current thread's value if set */
+    if (key->destructor)
+    {
+        void* value = TlsGetValue(key->index);
+        if (value != NULL)
+        {
+            key->destructor(value);
+        }
+    }
+
+    TlsFree(key->index);
+    free(key);
+}
+
+void* woort_tls_get(woort_TlsKey* key)
+{
+    assert(NULL != key);
+    return TlsGetValue(key->index);
+}
+
+bool woort_tls_set(woort_TlsKey* key, void* value)
+{
+    assert(NULL != key);
+
+    /* Call destructor for old value if destructor is set */
+    if (key->destructor)
+    {
+        void* old_value = TlsGetValue(key->index);
+        if (old_value != NULL && old_value != value)
+        {
+            key->destructor(old_value);
+        }
+    }
+
+    return TlsSetValue(key->index, value) != 0;
 }
 
 /* ============================================================================
@@ -864,14 +1049,20 @@ bool woort_thread_start(
     void* user_data,
     woort_Thread** out_thread)
 {
-    if (!job || !out_thread) return false;
+    assert(NULL != job);
+    assert(NULL != out_thread);
 
-    woort_Thread* thread = (woort_Thread*)malloc(sizeof(woort_Thread));
-    if (!thread) return false;
+    woort_Thread* thread = malloc(sizeof(woort_Thread));
+    if (!thread)
+    {
+        WOORT_DEBUG("failed to allocate woort_Thread");
+        return false;
+    }
 
-    thread->data = (woort_ThreadData*)malloc(sizeof(woort_ThreadData));
+    thread->data = malloc(sizeof(woort_ThreadData));
     if (!thread->data)
     {
+        WOORT_DEBUG("failed to allocate woort_ThreadData");
         free(thread);
         return false;
     }
@@ -890,18 +1081,19 @@ bool woort_thread_start(
     return true;
 }
 
-bool woort_thread_join(woort_Thread* thread)
+void woort_thread_join(woort_Thread* thread)
 {
-    if (!thread) return false;
+    assert(NULL != thread);
 
-    if (pthread_join(thread->handle, NULL) != 0)
+    int ret = pthread_join(thread->handle, NULL);
+    if (ret != 0)
     {
-        return false;
+        WOORT_DEBUG("pthread_join failed with error %d", ret);
+        abort();
     }
 
     free(thread->data);
     free(thread);
-    return true;
 }
 
 void woort_thread_sleep_ms(uint32_t ms)
@@ -926,10 +1118,14 @@ struct woort_Mutex
 
 bool woort_mutex_create(woort_Mutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_Mutex* mutex = (woort_Mutex*)malloc(sizeof(woort_Mutex));
-    if (!mutex) return false;
+    woort_Mutex* mutex = malloc(sizeof(woort_Mutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_Mutex");
+        return false;
+    }
 
     if (pthread_mutex_init(&mutex->handle, NULL) != 0)
     {
@@ -943,26 +1139,26 @@ bool woort_mutex_create(woort_Mutex** out_mutex)
 
 void woort_mutex_destroy(woort_Mutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_destroy(&mutex->handle);
     free(mutex);
 }
 
 void woort_mutex_lock(woort_Mutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_lock(&mutex->handle);
 }
 
 bool woort_mutex_trylock(woort_Mutex* mutex)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
     return pthread_mutex_trylock(&mutex->handle) == 0;
 }
 
 void woort_mutex_unlock(woort_Mutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_unlock(&mutex->handle);
 }
 
@@ -994,10 +1190,14 @@ static void _woort_get_abs_timeout(struct timespec* ts, uint32_t timeout_ms)
 
 bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_TimeMutex* mutex = (woort_TimeMutex*)malloc(sizeof(woort_TimeMutex));
-    if (!mutex) return false;
+    woort_TimeMutex* mutex = malloc(sizeof(woort_TimeMutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_TimeMutex");
+        return false;
+    }
 
     if (pthread_mutex_init(&mutex->handle, NULL) != 0)
     {
@@ -1011,20 +1211,20 @@ bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
 
 void woort_time_mutex_destroy(woort_TimeMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_destroy(&mutex->handle);
     free(mutex);
 }
 
 void woort_time_mutex_lock(woort_TimeMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_lock(&mutex->handle);
 }
 
 bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
 
 #if defined(__APPLE__)
     /* macOS doesn't have pthread_mutex_timedlock, use polling */
@@ -1049,7 +1249,7 @@ bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
 
 void woort_time_mutex_unlock(woort_TimeMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_unlock(&mutex->handle);
 }
 
@@ -1062,10 +1262,14 @@ struct woort_RecursiveMutex
 
 bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_RecursiveMutex* mutex = (woort_RecursiveMutex*)malloc(sizeof(woort_RecursiveMutex));
-    if (!mutex) return false;
+    woort_RecursiveMutex* mutex = malloc(sizeof(woort_RecursiveMutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_RecursiveMutex");
+        return false;
+    }
 
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -1085,26 +1289,26 @@ bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
 
 void woort_recursive_mutex_destroy(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_destroy(&mutex->handle);
     free(mutex);
 }
 
 void woort_recursive_mutex_lock(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_lock(&mutex->handle);
 }
 
 bool woort_recursive_mutex_trylock(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
     return pthread_mutex_trylock(&mutex->handle) == 0;
 }
 
 void woort_recursive_mutex_unlock(woort_RecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_unlock(&mutex->handle);
 }
 
@@ -1117,10 +1321,14 @@ struct woort_TimeRecursiveMutex
 
 bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
 {
-    if (!out_mutex) return false;
+    assert(NULL != out_mutex);
 
-    woort_TimeRecursiveMutex* mutex = (woort_TimeRecursiveMutex*)malloc(sizeof(woort_TimeRecursiveMutex));
-    if (!mutex) return false;
+    woort_TimeRecursiveMutex* mutex = malloc(sizeof(woort_TimeRecursiveMutex));
+    if (!mutex)
+    {
+        WOORT_DEBUG("failed to allocate woort_TimeRecursiveMutex");
+        return false;
+    }
 
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -1140,20 +1348,20 @@ bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
 
 void woort_time_recursive_mutex_destroy(woort_TimeRecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_destroy(&mutex->handle);
     free(mutex);
 }
 
 bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
     return pthread_mutex_lock(&mutex->handle) == 0;
 }
 
 bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
 {
-    if (!mutex) return false;
+    assert(NULL != mutex);
 
 #if defined(__APPLE__)
     /* macOS doesn't have pthread_mutex_timedlock, use polling */
@@ -1178,7 +1386,7 @@ bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_
 
 void woort_time_recursive_mutex_unlock(woort_TimeRecursiveMutex* mutex)
 {
-    if (!mutex) return;
+    assert(NULL != mutex);
     pthread_mutex_unlock(&mutex->handle);
 }
 
@@ -1191,10 +1399,14 @@ struct woort_ConditionVariable
 
 bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
 {
-    if (!out_cv) return false;
+    assert(NULL != out_cv);
 
-    woort_ConditionVariable* cv = (woort_ConditionVariable*)malloc(sizeof(woort_ConditionVariable));
-    if (!cv) return false;
+    woort_ConditionVariable* cv = malloc(sizeof(woort_ConditionVariable));
+    if (!cv)
+    {
+        WOORT_DEBUG("failed to allocate woort_ConditionVariable");
+        return false;
+    }
 
     if (pthread_cond_init(&cv->handle, NULL) != 0)
     {
@@ -1208,20 +1420,22 @@ bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
 
 void woort_condition_variable_destroy(woort_ConditionVariable* cv)
 {
-    if (!cv) return;
+    assert(NULL != cv);
     pthread_cond_destroy(&cv->handle);
     free(cv);
 }
 
 void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mutex)
 {
-    if (!cv || !mutex) return;
+    assert(NULL != cv);
+    assert(NULL != mutex);
     pthread_cond_wait(&cv->handle, &mutex->handle);
 }
 
 bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
 {
-    if (!cv || !mutex) return false;
+    assert(NULL != cv);
+    assert(NULL != mutex);
 
     struct timespec ts;
     _woort_get_abs_timeout(&ts, timeout_ms);
@@ -1231,14 +1445,61 @@ bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mute
 
 void woort_condition_variable_signal(woort_ConditionVariable* cv)
 {
-    if (!cv) return;
+    assert(NULL != cv);
     pthread_cond_signal(&cv->handle);
 }
 
 void woort_condition_variable_broadcast(woort_ConditionVariable* cv)
 {
-    if (!cv) return;
+    assert(NULL != cv);
     pthread_cond_broadcast(&cv->handle);
+}
+
+/* ----------- Thread Local Storage ----------- */
+
+struct woort_TlsKey
+{
+    pthread_key_t handle;
+};
+
+bool woort_tls_create(woort_TlsKey** out_key, woort_TlsDestructor destructor)
+{
+    assert(NULL != out_key);
+
+    woort_TlsKey* key = malloc(sizeof(woort_TlsKey));
+    if (!key)
+    {
+        WOORT_DEBUG("failed to allocate woort_TlsKey");
+        return false;
+    }
+
+    if (pthread_key_create(&key->handle, destructor) != 0)
+    {
+        free(key);
+        return false;
+    }
+
+    *out_key = key;
+    return true;
+}
+
+void woort_tls_destroy(woort_TlsKey* key)
+{
+    assert(NULL != key);
+    pthread_key_delete(key->handle);
+    free(key);
+}
+
+void* woort_tls_get(woort_TlsKey* key)
+{
+    assert(NULL != key);
+    return pthread_getspecific(key->handle);
+}
+
+bool woort_tls_set(woort_TlsKey* key, void* value)
+{
+    assert(NULL != key);
+    return pthread_setspecific(key->handle, value) == 0;
 }
 
 #endif /* Platform selection */
