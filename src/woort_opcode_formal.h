@@ -14,7 +14,7 @@ typedef struct woort_OpcodeFormal_OP6_26
 
 } woort_OpcodeFormal_OP6_26;
 #define woort_OpcodeFormal_OP6_26_cons(op6) \
-    const woort_OpcodeFormal_OP6_26 v = { .m_op6_2 = ((uint8_t)(op6)) << 2 }
+    (const woort_OpcodeFormal_OP6_26){ .m_op6_2 = ((uint8_t)(op6)) << 2 }
 
 typedef struct woort_OpcodeFormal_OP6_U26
 {
@@ -24,7 +24,7 @@ typedef struct woort_OpcodeFormal_OP6_U26
 
 } woort_OpcodeFormal_OP6_U26;
 #define _woort_OpcodeFormal_OP6_U26_cons(op6, u26)                  \
-    const woort_OpcodeFormal_OP6_U26 v = {                          \
+    (const woort_OpcodeFormal_OP6_U26){                             \
         .m_op6_u26l2 = ((op6) << 2) | (uint8_t)((u26) & 0b011u),    \
         .m_u26h8 = (uint8_t)(((u26) >> 18) & 0xffu),                \
         .m_u26m16 = (uint16_t)(((u26) >> 2) & 0xffffu),             \
@@ -40,7 +40,7 @@ typedef struct woort_OpcodeFormal_OP6_U18_I8
 
 } woort_OpcodeFormal_OP6_U18_I8;
 #define _woort_OpcodeFormal_OP6_U18_I8_cons(op6, u18, i8)               \
-    const woort_OpcodeFormal_OP6_U18_I8 v = {                           \
+    (const woort_OpcodeFormal_OP6_U18_I8){                              \
         .m_op6_u18h2 = ((op6) << 2) | (uint8_t)(((u18) >> 16) & 0b11u), \
         .m_i8 = (i8),                                                   \
         .m_u18l16 = (uint16_t)((u18) & 0xffffu),                        \
@@ -56,7 +56,7 @@ typedef struct woort_OpcodeFormal_OP6M2_U24
 
 } woort_OpcodeFormal_OP6M2_U24;
 #define _woort_OpcodeFormal_OP6M2_U24_cons(op6, m2, u24)    \
-    const woort_OpcodeFormal_OP6M2_U24 v = {                \
+    (const woort_OpcodeFormal_OP6M2_U24){                   \
         .m_op6_m2 = ((op6) << 2) | (m2),                    \
         .m_u24h8 = (uint8_t)(((u24) >> 16) & 0xffu),        \
         .m_u24l16 = (uint16_t)((u24) & 0xffffu),            \
@@ -72,7 +72,7 @@ typedef struct woort_OpcodeFormal_OP6M2_I8_16
 
 } woort_OpcodeFormal_OP6M2_I8_16;
 #define _woort_OpcodeFormal_OP6M2_I8_16_cons(op6, m2, i8)   \
-    const woort_OpcodeFormal_OP6M2_I8_16 v = {              \
+    (const woort_OpcodeFormal_OP6M2_I8_16){                 \
         .m_op6_m2 = ((op6) << 2) | (m2),                    \
         .m_i8 = (i8),                                       \
     }
@@ -88,7 +88,7 @@ typedef struct woort_OpcodeFormal_OP6M2_I8_I8_8
 
 } woort_OpcodeFormal_OP6M2_I8_I8_8;
 #define _woort_OpcodeFormal_OP6M2_I8_I8_8_cons(op6, m2, i8_1, i8_2) \
-    const woort_OpcodeFormal_OP6M2_I8_I8_8 v = {                    \
+    (const woort_OpcodeFormal_OP6M2_I8_I8_8){                       \
         .m_op6_m2 = ((op6) << 2) | (m2),                            \
         .m_i8_1 = (i8_1),                                           \
         .m_i8_2 = (i8_2),                                           \
@@ -104,7 +104,7 @@ typedef struct woort_OpcodeFormal_OP6M2_I8_I16
 
 } woort_OpcodeFormal_OP6M2_I8_I16;
 #define _woort_OpcodeFormal_OP6M2_I8_I16_cons(op6, m2, i8, i16) \
-    const woort_OpcodeFormal_OP6M2_I8_I16 v = {                 \
+    (const woort_OpcodeFormal_OP6M2_I8_I16){                    \
         .m_op6_m2 = ((op6) << 2) | (m2),                        \
         .m_i8 = (i8),                                           \
         .m_i16 = (i16),                                         \
@@ -120,7 +120,7 @@ typedef struct woort_OpcodeFormal_OP6M2_8_I16
 
 } woort_OpcodeFormal_OP6M2_8_I16;
 #define _woort_OpcodeFormal_OP6M2_8_I16_cons(op6, m2, i16) \
-    const woort_OpcodeFormal_OP6M2_8_I16 v = {             \
+    (const woort_OpcodeFormal_OP6M2_8_I16){             \
         .m_op6_m2 = ((op6) << 2) | (m2),                  \
         .m_i16 = (i16),                                   \
     }
@@ -135,7 +135,7 @@ typedef struct woort_OpcodeFormal_OP6M2_I8_U16
 
 } woort_OpcodeFormal_OP6M2_I8_U16;
 #define _woort_OpcodeFormal_OP6M2_I8_U16_cons(op6, m2, i8, u16) \
-    const woort_OpcodeFormal_OP6M2_I8_U16 v = {                 \
+    (const woort_OpcodeFormal_OP6M2_I8_U16){                    \
         .m_op6_m2 = ((op6) << 2) | (m2),                        \
         .m_i8 = (i8),                                           \
         .m_u16 = (u16),                                         \
@@ -152,7 +152,7 @@ typedef struct woort_OpcodeFormal_OP6M2_I8_I8_I8
 
 } woort_OpcodeFormal_OP6M2_I8_I8_I8;
 #define _woort_OpcodeFormal_OP6M2_I8_I8_I8_cons(op6, m2, i8_1, i8_2, i8_3)  \
-    const woort_OpcodeFormal_OP6M2_I8_I8_I8 v = {                           \
+    (const woort_OpcodeFormal_OP6M2_I8_I8_I8){                              \
         .m_op6_m2 = ((op6) << 2) | (m2),                                    \
         .m_i8_1 = (i8_1),                                                   \
         .m_i8_2 = (i8_2),                                                   \
@@ -170,7 +170,7 @@ typedef struct woort_OpcodeFormal_OP6M2_I8_I8_U8
 
 } woort_OpcodeFormal_OP6M2_I8_I8_U8;
 #define _woort_OpcodeFormal_OP6M2_I8_I8_U8_cons(op6, m2, i8_1, i8_2, u8_3)  \
-    const woort_OpcodeFormal_OP6M2_I8_I8_U8 v = {                           \
+    (const woort_OpcodeFormal_OP6M2_I8_I8_U8){                              \
         .m_op6_m2 = ((op6) << 2) | (m2),                                    \
         .m_i8_1 = (i8_1),                                                   \
         .m_i8_2 = (i8_2),                                                   \

@@ -53,16 +53,16 @@ size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
 
 #define WOORT_LIR_EMIT_OP6M2_8_I16(opcode, m2, i16_value)   \
     do{                                                     \
-        woort_OpcodeFormal_OP6M2_8_I16_cons(                \
-            opcode, m2, i16_value);                         \
-        out_bytecode->m_op6m2_8_i16 = v;                    \
+        out_bytecode->m_op6m2_8_i16 =                       \
+            woort_OpcodeFormal_OP6M2_8_I16_cons(            \
+                opcode, m2, i16_value);                     \
     }while(0)
 
 #define WOORT_LIR_EMIT_OP6_U26(opcode, u26_value)           \
     do{                                                     \
-        woort_OpcodeFormal_OP6_U26_cons(                    \
-            opcode, u26_value);                             \
-        out_bytecode->m_op6_u26 = v;                        \
+        out_bytecode->m_op6_u26 =                           \
+            woort_OpcodeFormal_OP6_U26_cons(                \
+                opcode, u26_value);                         \
     }while(0)
 
 void woort_LIR_emit(const woort_LIR* lir, woort_Bytecode* out_bytecode)

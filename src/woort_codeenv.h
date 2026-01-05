@@ -3,11 +3,6 @@
 /*
 woort_codeenv.h
 */
-#if __STDC_NO_ATOMICS__
-#   define woort_atom
-#else
-#   include <stdatomic.h>
-#endif
 
 #include "woort_opcode_formal.h"
 #include "woort_Value.h"

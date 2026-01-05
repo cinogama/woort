@@ -8,25 +8,24 @@ file(GLOB_RECURSE woort_src_hpp *.hpp)
 file(GLOB_RECURSE woort_src_h *.h)
 
 add_library(woort 
-	${woort_src_cpp} 
-	${woort_src_c}
-	${woort_src_hpp}
-	${woort_src_h})
+    ${woort_src_cpp} 
+    ${woort_src_c}
+    ${woort_src_hpp}
+    ${woort_src_h})
 
 set_target_properties(
-	woort PROPERTIES OUTPUT_NAME libwoort)
+    woort PROPERTIES OUTPUT_NAME libwoort)
 set_target_properties(
-	woort PROPERTIES PREFIX "")
+    woort PROPERTIES PREFIX "")
 
 target_link_libraries(woort 
-	PRIVATE woort_options)
+    PRIVATE woort_options)
 
 if (MSVC)
-	# We need to enable C11Atomic support in VS 2022
-	if (MSVC_VERSION LESS 1930)
-		# Donot support C11Atomics before VS 2022
-		message(FATAL_ERROR "MSVC versions before 1930 (VS 2022) are not supported.")
-	elseif (MSVC_VERSION LESS 1950)
-		target_compile_options(woort PRIVATE /experimental:c11atomics)
-	endif()
+
+    # Atomic support for C11 is available after VS 2022 17.5 preview 2
+    # We need to enable C11Atomic support in VS 2022
+    if ((MSVC_VERSION GREATER_EQUAL 1930) AND (MSVC_VERSION LESS 1950))
+        target_compile_options(woort PRIVATE /experimental:c11atomics)
+    endif()
 endif()

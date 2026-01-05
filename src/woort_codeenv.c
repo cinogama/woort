@@ -6,12 +6,13 @@
 #include "woort_codeenv.h"
 #include "woort_spin.h"
 #include "woort_vector.h"
+#include "woort_atomic.h"
 
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
-    woort_Vector /* woort_CodeEnv* */        
-                        m_ordered_codeenvs;
+    woort_Vector /* woort_CodeEnv* */
+        m_ordered_codeenvs;
 
 } *_codeenv_global_ctx = NULL;
 
@@ -25,7 +26,7 @@ bool woort_CodeEnv_bootup(void)
     if (_codeenv_global_ctx == NULL)
         return false;
 
-    woort_RWSpinlock_init(&_codeenv_global_ctx->m_codeenvs_lock);
+    woort_rwspinlock_init(&_codeenv_global_ctx->m_codeenvs_lock);
 
     return true;
 }
@@ -33,7 +34,7 @@ void woort_CodeEnv_shutdown(void)
 {
     assert(_codeenv_global_ctx != NULL);
 
-    woort_RWSpinlock_deinit(&_codeenv_global_ctx->m_codeenvs_lock);
+    woort_rwspinlock_deinit(&_codeenv_global_ctx->m_codeenvs_lock);
 
     free(_codeenv_global_ctx);
 
@@ -42,7 +43,7 @@ void woort_CodeEnv_shutdown(void)
 
 struct woort_CodeEnv
 {
-    atomic_size_t m_refcount;
+    woort_AtomicSize m_refcount;
 
     const woort_Bytecode* m_code_begin;
     const woort_Bytecode* m_code_end;
@@ -53,5 +54,10 @@ struct woort_CodeEnv
 
 void _woort_CodeEnv_upload(woort_CodeEnv* codeenv)
 {
+    assert(_codeenv_global_ctx != NULL
+        && woort_atomic_load_explicit(
+            &codeenv->m_refcount, 
+            WOORT_ATOMIC_MEMORY_ORDER_RELAXED) == 1);
+
 
 }
