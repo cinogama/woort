@@ -1,7 +1,6 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <threads.h>
 
 #include "woort_codeenv.h"
 #include "woort_spin.h"

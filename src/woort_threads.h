@@ -56,11 +56,3 @@ void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mut
 bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms);
 void woort_condition_variable_signal(woort_ConditionVariable* cv);
 void woort_condition_variable_broadcast(woort_ConditionVariable* cv);
-
-typedef struct woort_TlsKey woort_TlsKey;
-typedef void (*woort_TlsDestructor)(void*);
-
-bool woort_tls_create(woort_TlsKey** out_key, woort_TlsDestructor destructor);
-void woort_tls_destroy(woort_TlsKey* key);
-void* woort_tls_get(woort_TlsKey* key);
-bool woort_tls_set(woort_TlsKey* key, void* value);
