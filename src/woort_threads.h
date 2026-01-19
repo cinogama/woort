@@ -56,3 +56,23 @@ void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mut
 bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms);
 void woort_condition_variable_signal(woort_ConditionVariable* cv);
 void woort_condition_variable_broadcast(woort_ConditionVariable* cv);
+
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_THREADS__)
+#   define WOORT_THREADS_USE_C11 1
+#elif defined(_WIN32) || defined(_WIN64)
+#   define WOORT_THREADS_USE_WIN32 1
+#elif defined(__unix__) || defined(__unix) || defined(__APPLE__) || defined(__MACH__)
+#   define WOORT_THREADS_USE_PTHREAD 1
+#else
+#   error "Unsupported platform for threading"
+#endif
+
+#ifdef WOORT_THREADS_USE_C11
+#   define WOORT_THREAD_LOCAL _Thread_local
+#elif defined(WOORT_THREADS_USE_WIN32)
+#   define WOORT_THREAD_LOCAL __declspec(thread)
+#elif defined(WOORT_THREADS_USE_PTHREAD)
+#   define WOORT_THREAD_LOCAL __thread
+#else
+#   define WOORT_THREAD_LOCAL
+#endif

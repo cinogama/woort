@@ -1,0 +1,4 @@
+[submodule "3rd/woomem"]
+	path = 3rd/woomem
+	url = https://git.cinogama.net/cinogamaproject/woomem.git
+	branch = master

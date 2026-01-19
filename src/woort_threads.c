@@ -14,25 +14,6 @@
  * - __STDC_NO_THREADS__ is defined if C11 threads are NOT supported
  * - Some compilers (like MSVC) may not define this but still not support C11 threads
  */
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_THREADS__)
-    /* Try to use C11 threads */
-#   if defined(_MSC_VER)
-        /* MSVC does not support C11 threads even in C11 mode */
-#       define WOORT_THREADS_USE_WIN32 1
-#   elif defined(__APPLE__)
-        /* macOS does not support C11 threads */
-#       define WOORT_THREADS_USE_PTHREAD 1
-#   else
-        /* Assume C11 threads are available */
-#       define WOORT_THREADS_USE_C11 1
-#   endif
-#elif defined(_WIN32) || defined(_WIN64)
-#   define WOORT_THREADS_USE_WIN32 1
-#elif defined(__unix__) || defined(__unix) || defined(__APPLE__) || defined(__MACH__)
-#   define WOORT_THREADS_USE_PTHREAD 1
-#else
-#   error "Unsupported platform for threading"
-#endif
 
 /* ============================================================================
  * Include platform-specific headers

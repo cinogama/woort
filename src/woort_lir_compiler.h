@@ -14,6 +14,7 @@ woort_lir_compiler.h
 #include "woort_vector.h"
 #include "woort_lir.h"
 #include "woort_lir_function.h"
+#include "woort_codeenv.h"
 
 // LIRCompiler.
 typedef struct woort_LIRCompiler
@@ -69,4 +70,5 @@ typedef enum woort_LIRCompiler_CommitResult
 } woort_LIRCompiler_CommitResult;
 
 woort_LIRCompiler_CommitResult woort_LIRCompiler_commit(
-    woort_LIRCompiler* lir_compiler);
+    woort_LIRCompiler* lir_compiler,
+    woort_CodeEnv** out_codeenv);

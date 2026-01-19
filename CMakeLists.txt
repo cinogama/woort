@@ -1,5 +1,6 @@
 ﻿cmake_minimum_required (VERSION 3.13)
 
+project ("woort")
 
 add_library(woort_options INTERFACE)
 target_compile_features(woort_options INTERFACE cxx_std_17)
@@ -16,7 +17,6 @@ if (MSVC)
     target_compile_options(woort_options INTERFACE "/source-charset:utf-8")
 endif()
 
-project ("woort")
-
+add_subdirectory ("3rd/woomem")
 add_subdirectory ("src")
 add_subdirectory ("test")

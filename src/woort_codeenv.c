@@ -6,6 +6,7 @@
 #include "woort_spin.h"
 #include "woort_vector.h"
 #include "woort_atomic.h"
+#include "woort_log.h"
 
 static struct _woort_CodeEnv_GlobalCtx
 {
@@ -23,7 +24,10 @@ bool woort_CodeEnv_bootup(void)
         malloc(sizeof(struct _woort_CodeEnv_GlobalCtx));
 
     if (_codeenv_global_ctx == NULL)
+    {
+        WOORT_DEBUG("Out of memory");
         return false;
+    }
 
     woort_rwspinlock_init(&_codeenv_global_ctx->m_codeenvs_lock);
 
@@ -51,12 +55,54 @@ struct woort_CodeEnv
     size_t       m_constant_and_static_storage_count;
 };
 
-void _woort_CodeEnv_upload(woort_CodeEnv* codeenv)
+bool woort_CodeEnv_create(
+    woort_Vector* /* woort_Bytecode */ moving_bytecodes,
+    woort_Vector* /* woort_Value */ moving_constants,
+    size_t static_storage_count,
+    woort_CodeEnv** out_code_env)
 {
-    assert(_codeenv_global_ctx != NULL
-        && woort_atomic_load_explicit(
-            &codeenv->m_refcount, 
-            WOORT_ATOMIC_MEMORY_ORDER_RELAXED) == 1);
+    woort_CodeEnv* code_env_instance =
+        malloc(sizeof(woort_CodeEnv));
 
+    if (code_env_instance == NULL)
+    {
+        WOORT_DEBUG("Out of memory");
+        return false;
+    }
 
+    woort_atomic_store_explicit(
+        &code_env_instance->m_refcount,
+        0,
+        WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
+
+    size_t code_count;
+    code_env_instance->m_code_begin =
+        woort_vector_move_out(moving_bytecodes, &code_count);
+
+    code_env_instance->m_code_end =
+        code_env_instance->m_code_begin + code_count;
+
+    woort_vector_resize(
+        moving_constants,
+        moving_constants->m_element_size + static_storage_count);
+
+    code_env_instance->m_constant_and_static_storage =
+        woort_vector_move_out(
+            moving_constants,
+            &code_env_instance->m_constant_and_static_storage_count);
+
+    *out_code_env = code_env_instance;
+    return true;
+}
+
+void woort_CodeEnv_destroy(woort_CodeEnv* code_env)
+{
+    assert(0 == woort_atomic_load_explicit(
+        &code_env->m_refcount,
+        WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE));
+
+    free((void*)code_env->m_code_begin);
+    free(code_env->m_constant_and_static_storage);
+    
+    free(code_env);
 }

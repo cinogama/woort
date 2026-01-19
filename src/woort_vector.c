@@ -98,3 +98,14 @@ void* woort_vector_at(woort_Vector* vector, size_t index)
 
     return result;
 }
+void* woort_vector_move_out(woort_Vector* vector, size_t* out_count)
+{
+    *out_count = vector->m_size;
+    void* const result = vector->m_data;
+
+    vector->m_size = 0;
+    vector->m_capacity = 0;
+    vector->m_data = NULL;
+
+    return result;
+}

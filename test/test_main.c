@@ -1,6 +1,10 @@
+#include "woort.h"
+
 #include "woort_lir_compiler.h"
 
 int main(int argc, char ** argv) {
+    woort_init();
+
     woort_LIRCompiler lir_compiler;
 
     for (;;)
@@ -26,9 +30,14 @@ int main(int argc, char ** argv) {
             woort_LIRFunction_emit_push(function, va11);
             woort_LIRFunction_emit_jmp(function, label);
 
-            woort_LIRCompiler_commit(&lir_compiler);
+            woort_CodeEnv* code_env;
+            woort_LIRCompiler_commit(&lir_compiler, &code_env);
+            woort_CodeEnv_destroy(code_env);
         }
         woort_LIRCompiler_deinit(&lir_compiler);
     }
+
+
+    woort_shutdown();
     return 0;
 }

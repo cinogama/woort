@@ -6,6 +6,7 @@
 #include "woort_lir.h"
 #include "woort_lir_function.h"
 #include "woort_util.h"
+#include "woort_codeenv.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -49,11 +50,10 @@ bool _woort_LIRCompiler_emit(
     woort_LIRCompiler* lir_compiler,
     woort_Bytecode bytecode)
 {
-    woort_vector_push_back(
+    return woort_vector_push_back(
         &lir_compiler->m_code_holder,
         1,
         &bytecode);
-    return true;
 }
 
 bool woort_LIRCompiler_allocate_constant(
@@ -157,7 +157,7 @@ bool _woort_LIRCompiler_check_and_update_jcond_lir(
     return false;
 }
 
-void _woort_LIRCompiler_commit_function_codes(
+bool _woort_LIRCompiler_commit_function_codes(
     woort_LIRCompiler* lir_compiler,
     woort_LIRFunction* function)
 {
@@ -170,8 +170,11 @@ void _woort_LIRCompiler_commit_function_codes(
         woort_Bytecode b;
         woort_LIR_emit(current_lir, &b);
 
-        _woort_LIRCompiler_emit(lir_compiler, b);
+        if (!_woort_LIRCompiler_emit(lir_compiler, b))
+            // Out of memory/
+            return false;
     }
+    return true;
 }
 
 woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
@@ -339,21 +342,42 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
     woort_vector_deinit(&jcond_lir_collection);
 
     // 2. All jobs done, emit bytecodes.
-    _woort_LIRCompiler_commit_function_codes(lir_compiler, function);
+    if (!_woort_LIRCompiler_commit_function_codes(
+        lir_compiler, function))
+    {
+        return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
+    }
 
     return WOORT_LIRCOMPILER_COMMIT_RESULT_OK;
 }
 
 woort_LIRCompiler_CommitResult woort_LIRCompiler_commit(
-    woort_LIRCompiler* lir_compiler)
+    woort_LIRCompiler* lir_compiler,
+    woort_CodeEnv** out_codeenv)
 {
     woort_LIRFunction* current_function =
         woort_linklist_iter(&lir_compiler->m_function_list);
 
     while (current_function != NULL)
     {
-        _woort_LIRCompiler_commit_function(lir_compiler, current_function);
+        const woort_LIRCompiler_CommitResult r =
+            _woort_LIRCompiler_commit_function(lir_compiler, current_function);
+
+        if (r != WOORT_LIRCOMPILER_COMMIT_RESULT_OK)
+            // Failed.
+            return r;
+
         current_function = woort_linklist_next(current_function);
+    }
+
+    // All function commited.
+    if (woort_CodeEnv_create(
+        &lir_compiler->m_code_holder,
+        &lir_compiler->m_constant_storage_holder,
+        lir_compiler->m_static_storage_count,
+        out_codeenv))
+    {
+        return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
     }
 
     return WOORT_LIRCOMPILER_COMMIT_RESULT_OK;
