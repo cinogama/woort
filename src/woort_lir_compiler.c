@@ -331,17 +331,20 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
     woort_vector_deinit(&jcond_lir_collection);
 
     // 2. All jobs done, emit bytecodes.
-    assert(stack_usage < UINT16_MAX);
-
-    // PUSH RESERVE STACK_USAGE
-    if (!woort_vector_push_back(
-        &lir_compiler->m_code_holder,
-        1,
-        &woort_OpcodeFormal_OP6M2_8_I16_cons(
-            WOORT_OPCODE_PUSH, 0, stack_usage)))
+    if (stack_usage > 0)
     {
-        // Out of memory.
-        return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
+        assert(stack_usage < UINT16_MAX);
+
+        // PUSH RESERVE STACK_USAGE
+        if (!woort_vector_push_back(
+            &lir_compiler->m_code_holder,
+            1,
+            &woort_OpcodeFormal_OP6M2_8_I16_cons(
+                WOORT_OPCODE_PUSH, 0, stack_usage)))
+        {
+            // Out of memory.
+            return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
+        }
     }
 
     if (!_woort_LIRCompiler_commit_function_codes(

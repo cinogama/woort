@@ -50,17 +50,6 @@ void woort_CodeEnv_shutdown(void)
     _codeenv_global_ctx = NULL;
 }
 
-struct woort_CodeEnv
-{
-    woort_AtomicSize m_refcount;
-
-    const woort_Bytecode* m_code_begin;
-    const woort_Bytecode* m_code_end;
-
-    woort_Value* m_constant_and_static_storage;
-    size_t       m_constant_and_static_storage_count;
-};
-
 WOORT_NODISCARD bool woort_CodeEnv_create(
     woort_Vector* /* woort_Bytecode */ moving_bytecodes,
     woort_Vector* /* woort_Value */ moving_constants,

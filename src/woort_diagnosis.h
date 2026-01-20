@@ -14,3 +14,15 @@ woort_diagnosis.h
     /* 其他编译器，不产生警告 */
     #define WOORT_NODISCARD
 #endif
+
+typedef enum woort_PanicReason
+{
+    WOORT_PANIC_BAD_BYTE_CODE,
+    WOORT_PANIC_STACK_OVER_FLOW,
+
+} woort_PanicReason;
+
+void woort_panic(
+    woort_PanicReason reason,
+    const char* msgfmt, 
+    ...);

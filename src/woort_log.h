@@ -3,7 +3,9 @@
 /*
 woort_log.h
 */
+#include <stdarg.h>
 
+void woort_vlog(const char* format, va_list va);
 void woort_log(const char* format, ...);
 
 #ifdef NDEBUG

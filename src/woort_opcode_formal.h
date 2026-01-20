@@ -204,6 +204,8 @@ typedef struct woort_OpcodeFormal_OP6M2_I8_I8_U8
 
 typedef union woort_Bytecode
 {
+    uint8_t                             m_op6m2;
+
     woort_OpcodeFormal_OP6_26           m_op6_26;
     woort_OpcodeFormal_OP6_U26          m_op6_u26;
     woort_OpcodeFormal_OP6_U18_I8       m_op6_u18_i8;

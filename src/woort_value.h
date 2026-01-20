@@ -24,10 +24,30 @@ typedef struct woort_Function
 
 }woort_Function;
 
+typedef enum woort_CallWay
+{
+    // 一个脚本中的函数调用了另一个（本地的）脚本函数
+    WOORT_CALL_WAY_NORMAL,
+
+    // `可能` 调用了另一个代码环境下的脚本函数，返回时需要额外检查
+    WOORT_CALL_WAY_MAY_FAR,
+
+    // 此调用是由 native 层发起的，
+    WOORT_CALL_WAY_FROM_NATIVE,
+} woort_CallWay;
+typedef struct woort_RetBP
+{
+    woort_CallWay   m_way;
+    uint32_t        m_bp_offset;
+
+} woort_RetBP;
+
 typedef union woort_Value
 {
     woort_Integer   m_integer;
     woort_Real      m_real;
     woort_Function  m_function;
+    woort_RetBP     m_ret_bp;
+    const void*     m_ret_addr;
 
 }woort_Value;
