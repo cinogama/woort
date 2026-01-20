@@ -240,7 +240,7 @@ int _woort_register_start_pos_comparator(const void* a, const void* b)
 }
 
 bool woort_LIRFunction_register_allocation(
-    woort_LIRFunction* function)
+    woort_LIRFunction* function, size_t* out_stack_usage)
 {
     // Mark active range for all registers.
     size_t lir_count = 0;
@@ -346,6 +346,8 @@ bool woort_LIRFunction_register_allocation(
     woort_Vector active_registers;
     woort_vector_init(&active_registers, sizeof(woort_LIRRegister*));
 
+    *out_stack_usage = 0;
+
     bool success = true;
     for (size_t i = 0; i < registers.m_size; ++i)
     {
@@ -382,6 +384,9 @@ bool woort_LIRFunction_register_allocation(
         size_t assigned_offset;
         if (woort_bitset_find_first_unset(&bitset, &assigned_offset))
         {
+            if (*out_stack_usage <= assigned_offset)
+                *out_stack_usage = assigned_offset + 1;
+
             current_register->m_assigned_bp_offset = (int16_t)assigned_offset;
             woort_bitset_set(&bitset, assigned_offset);
             woort_vector_push_back(&active_registers, 1, &current_register);

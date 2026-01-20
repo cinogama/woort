@@ -219,7 +219,8 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
     }
 
     /* Register allocation */
-    if (!woort_LIRFunction_register_allocation(function))
+    size_t stack_usage;
+    if (!woort_LIRFunction_register_allocation(function, &stack_usage))
     {
         WOORT_DEBUG("Failed to allocate registers.");
         return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_REGISTER_ALLOCATION;
