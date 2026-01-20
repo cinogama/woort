@@ -46,16 +46,6 @@ void woort_LIRCompiler_deinit(woort_LIRCompiler* lir_compiler)
     woort_vector_deinit(&lir_compiler->m_code_holder);
 }
 
-bool _woort_LIRCompiler_emit(
-    woort_LIRCompiler* lir_compiler,
-    woort_Bytecode bytecode)
-{
-    return woort_vector_push_back(
-        &lir_compiler->m_code_holder,
-        1,
-        &bytecode);
-}
-
 bool woort_LIRCompiler_allocate_constant(
     woort_LIRCompiler* lir_compiler,
     woort_LIR_ConstantStorage* out_constant_address)
@@ -167,10 +157,8 @@ bool _woort_LIRCompiler_commit_function_codes(
         current_lir = woort_linklist_next(current_lir))
     {
         // Emit bytecode.
-        woort_Bytecode b;
-        woort_LIR_emit(current_lir, &b);
-
-        if (!_woort_LIRCompiler_emit(lir_compiler, b))
+        if (!woort_LIR_emit_to_bytecode_list(
+            current_lir, &lir_compiler->m_code_holder))
             // Out of memory/
             return false;
     }
@@ -343,6 +331,19 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
     woort_vector_deinit(&jcond_lir_collection);
 
     // 2. All jobs done, emit bytecodes.
+    assert(stack_usage < UINT16_MAX);
+
+    // PUSH RESERVE STACK_USAGE
+    if (!woort_vector_push_back(
+        &lir_compiler->m_code_holder,
+        1,
+        &woort_OpcodeFormal_OP6M2_8_I16_cons(
+            WOORT_OPCODE_PUSH, 0, stack_usage)))
+    {
+        // Out of memory.
+        return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
+    }
+
     if (!_woort_LIRCompiler_commit_function_codes(
         lir_compiler, function))
     {

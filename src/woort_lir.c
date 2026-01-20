@@ -5,6 +5,7 @@
 #include "woort_log.h"
 #include "woort_opcode.h"
 #include "woort_opcode_formal.h"
+#include "woort_vector.h"
 
 void woort_LIR_update_static_storage(
     woort_LIR* lir, size_t constant_count)
@@ -51,21 +52,29 @@ size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
     return 1;
 }
 
+#define WOORT_LIR_EMIT_BYTECODE_TO_LIST(BC) \
+    do {                                    \
+        if (!woort_vector_push_back(        \
+            modifing_bytecode_list,         \
+            1,                              \
+            &BC))                           \
+        {                                   \
+            return false;                   \
+        }                                   \
+    } while (0)
+
 #define WOORT_LIR_EMIT_OP6M2_8_I16(opcode, m2, i16_value)   \
-    do{                                                     \
-        out_bytecode->m_op6m2_8_i16 =                       \
-            woort_OpcodeFormal_OP6M2_8_I16_cons(            \
-                opcode, m2, i16_value);                     \
-    }while(0)
+    WOORT_LIR_EMIT_BYTECODE_TO_LIST(                        \
+        woort_OpcodeFormal_OP6M2_8_I16_cons(                \
+                opcode, m2, i16_value))
 
 #define WOORT_LIR_EMIT_OP6_U26(opcode, u26_value)           \
-    do{                                                     \
-        out_bytecode->m_op6_u26 =                           \
+    WOORT_LIR_EMIT_BYTECODE_TO_LIST(                        \
             woort_OpcodeFormal_OP6_U26_cons(                \
-                opcode, u26_value);                         \
-    }while(0)
+                opcode, u26_value))                         
 
-void woort_LIR_emit(const woort_LIR* lir, woort_Bytecode* out_bytecode)
+bool woort_LIR_emit_to_bytecode_list(
+    const woort_LIR* lir, woort_Vector /* woort_Bytecode */* modifing_bytecode_list)
 {
     switch (lir->m_opcode)
     {
@@ -168,4 +177,6 @@ void woort_LIR_emit(const woort_LIR* lir, woort_Bytecode* out_bytecode)
         WOORT_DEBUG("Unsupported LIR opcode in emit: %d", (int)lir->m_opcode);
         abort();
     }
+
+    return true;
 }

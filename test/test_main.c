@@ -32,7 +32,7 @@ int main(int argc, char ** argv) {
 
             woort_CodeEnv* code_env;
             woort_LIRCompiler_commit(&lir_compiler, &code_env);
-            woort_CodeEnv_destroy(code_env);
+            woort_CodeEnv_unshare(code_env);
         }
         woort_LIRCompiler_deinit(&lir_compiler);
     }

@@ -1,2 +1,2 @@
-// #include "woort_vm.h"
+#include "woort_vm.h"
 

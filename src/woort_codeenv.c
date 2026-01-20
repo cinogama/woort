@@ -72,7 +72,7 @@ bool woort_CodeEnv_create(
 
     woort_atomic_store_explicit(
         &code_env_instance->m_refcount,
-        0,
+        1,
         WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
 
     size_t code_count;
@@ -95,14 +95,25 @@ bool woort_CodeEnv_create(
     return true;
 }
 
-void woort_CodeEnv_destroy(woort_CodeEnv* code_env)
+void woort_CodeEnv_share(woort_CodeEnv* code_env)
 {
-    assert(0 == woort_atomic_load_explicit(
+    woort_atomic_fetch_add_explicit(
         &code_env->m_refcount,
-        WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE));
+        1,
+        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
-    free((void*)code_env->m_code_begin);
-    free(code_env->m_constant_and_static_storage);
-    
-    free(code_env);
+}
+void woort_CodeEnv_unshare(woort_CodeEnv* code_env)
+{
+    if (1 == woort_atomic_fetch_sub_explicit(
+        &code_env->m_refcount,
+        1,
+        WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL))
+    {
+        // Drop if last owner released.
+        free((void*)code_env->m_code_begin);
+        free(code_env->m_constant_and_static_storage);
+
+        free(code_env);
+    }
 }

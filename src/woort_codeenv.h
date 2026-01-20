@@ -21,4 +21,5 @@ bool woort_CodeEnv_create(
     size_t static_storage_count,
     woort_CodeEnv** out_code_env);
 
-void woort_CodeEnv_destroy(woort_CodeEnv* code_env);
+void woort_CodeEnv_share(woort_CodeEnv* code_env);
+void woort_CodeEnv_unshare(woort_CodeEnv* code_env);
