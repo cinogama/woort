@@ -23,3 +23,6 @@ bool woort_CodeEnv_create(
 
 void woort_CodeEnv_share(woort_CodeEnv* code_env);
 void woort_CodeEnv_unshare(woort_CodeEnv* code_env);
+
+bool woort_CodeEnv_find(
+    const woort_Bytecode* addr, woort_CodeEnv** out_code_env);

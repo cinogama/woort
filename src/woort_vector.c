@@ -98,6 +98,23 @@ void* woort_vector_at(woort_Vector* vector, size_t index)
 
     return result;
 }
+void woort_vector_erase_at(woort_Vector* vector, size_t index)
+{
+    if (index >= vector->m_size)
+        return; // Index out of bounds, do nothing.
+
+    // 如果不是最后一个元素，需要移动后续元素
+    if (index < vector->m_size - 1)
+    {
+        size_t elements_to_move = vector->m_size - index - 1;
+        void* dest = vector->m_data + index * vector->m_element_size;
+        void* src = vector->m_data + (index + 1) * vector->m_element_size;
+        memmove(dest, src, elements_to_move * vector->m_element_size);
+    }
+
+    // 减少大小
+    vector->m_size--;
+}
 void* woort_vector_move_out(woort_Vector* vector, size_t* out_count)
 {
     *out_count = vector->m_size;
