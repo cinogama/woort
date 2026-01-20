@@ -11,7 +11,8 @@
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
-    woort_Vector        m_codeenvs;  // 存储 woort_CodeEnv* 指针
+    woort_Vector /* woort_CodeEnv* */
+                        m_codeenvs; 
 
 } *_codeenv_global_ctx = NULL;
 
