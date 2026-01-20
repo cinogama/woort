@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-bool woort_bitset_init(woort_Bitset* bitset, size_t bit_count)
+WOORT_NODISCARD bool woort_bitset_init(woort_Bitset* bitset, size_t bit_count)
 {
     bitset->m_bit_count = bit_count;
     bitset->m_word_count = (bit_count + 63) / 64;
@@ -35,14 +35,14 @@ void woort_bitset_reset(woort_Bitset* bitset, size_t index)
     bitset->m_data[index / 64] &= ~(1ULL << (index % 64));
 }
 
-bool woort_bitset_test(const woort_Bitset* bitset, size_t index)
+WOORT_NODISCARD bool woort_bitset_test(const woort_Bitset* bitset, size_t index)
 {
     if (index >= bitset->m_bit_count)
         return false;
     return (bitset->m_data[index / 64] & (1ULL << (index % 64))) != 0;
 }
 
-bool woort_bitset_find_first_unset(const woort_Bitset* bitset, size_t* out_index)
+WOORT_NODISCARD bool woort_bitset_find_first_unset(const woort_Bitset* bitset, size_t* out_index)
 {
     for (size_t i = 0; i < bitset->m_word_count; ++i)
     {

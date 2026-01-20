@@ -52,7 +52,7 @@ void woort_spinlock_lock(woort_Spinlock* lock)
     }    
 }
 
-bool woort_spinlock_trylock(woort_Spinlock* lock)
+WOORT_NODISCARD bool woort_spinlock_trylock(woort_Spinlock* lock)
 {
     return !woort_atomic_flag_test_and_set_explicit(
         &lock->m_flag,
@@ -102,7 +102,7 @@ void woort_rwspinlock_read_lock(woort_RWSpinlock* lock)
         WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
 }
 
-bool woort_rwspinlock_try_read_lock(woort_RWSpinlock* lock)
+WOORT_NODISCARD bool woort_rwspinlock_try_read_lock(woort_RWSpinlock* lock)
 {
     int expected = woort_atomic_load_explicit(
         &lock->m_state,
@@ -150,7 +150,7 @@ void woort_rwspinlock_write_lock(woort_RWSpinlock* lock)
         WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
 }
 
-bool woort_rwspinlock_try_write_lock(woort_RWSpinlock* lock)
+WOORT_NODISCARD bool woort_rwspinlock_try_write_lock(woort_RWSpinlock* lock)
 {
     int expected = 0;
 

@@ -4,6 +4,8 @@
 woort_lir.h
 */
 
+#include "woort_diagnosis.h"
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -408,7 +410,7 @@ NOTE: This method is used by the ir-compiler when submitting a function to calcu
     for each LIR, but temporarily does not consider the extra length expansion introduced by conditional
     jump instructions during long-range jumps: these will be calculated later.
 */
-size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir);
+WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir);
 
-bool woort_LIR_emit_to_bytecode_list(
+WOORT_NODISCARD bool woort_LIR_emit_to_bytecode_list(
     const woort_LIR* lir, woort_Vector /* woort_Bytecode */* modifing_bytecode_list);

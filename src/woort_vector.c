@@ -24,7 +24,7 @@ void woort_vector_deinit(woort_Vector* vector)
     }
 }
 
-bool woort_vector_reserve(woort_Vector* vector, size_t new_capacity)
+WOORT_NODISCARD bool woort_vector_reserve(woort_Vector* vector, size_t new_capacity)
 {
     if (new_capacity <= vector->m_capacity)
         return true; // No need to reserve.
@@ -49,14 +49,14 @@ bool woort_vector_reserve(woort_Vector* vector, size_t new_capacity)
     vector->m_data = new_data;
     return true;
 }
-bool woort_vector_resize(woort_Vector* vector, size_t new_size)
+WOORT_NODISCARD bool woort_vector_resize(woort_Vector* vector, size_t new_size)
 {
     if (!woort_vector_reserve(vector, new_size))
         return false;
     vector->m_size = new_size;
     return true;
 }
-bool woort_vector_emplace_back(woort_Vector* vector, size_t count, void** out_element)
+WOORT_NODISCARD bool woort_vector_emplace_back(woort_Vector* vector, size_t count, void** out_element)
 {
     if (!woort_vector_reserve(vector, vector->m_size + count))
         return false;
@@ -67,7 +67,7 @@ bool woort_vector_emplace_back(woort_Vector* vector, size_t count, void** out_el
 
     return true;
 }
-bool woort_vector_push_back(woort_Vector* vector, size_t count, const void* element)
+WOORT_NODISCARD bool woort_vector_push_back(woort_Vector* vector, size_t count, const void* element)
 {
     void* new_element;
     if (!woort_vector_emplace_back(vector, count, &new_element))
@@ -79,7 +79,7 @@ void woort_vector_clear(woort_Vector* vector)
 {
     vector->m_size = 0;
 }
-bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element)
+WOORT_NODISCARD bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element)
 {
     if (index >= vector->m_size)
     {
@@ -90,7 +90,7 @@ bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element)
         (void*)(vector->m_data + index * vector->m_element_size);
     return true;
 }
-void* woort_vector_at(woort_Vector* vector, size_t index)
+WOORT_NODISCARD void* woort_vector_at(woort_Vector* vector, size_t index)
 {
     void* result;
     if (!woort_vector_index(vector, index, &result))

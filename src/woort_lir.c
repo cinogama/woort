@@ -28,7 +28,7 @@ void woort_LIR_update_static_storage(
         break;
     }
 }
-size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
+WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
 {
     const size_t UINT18_MAX = (1 << 18) - 1;
     switch (lir->m_opcode)
@@ -73,7 +73,7 @@ size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
             woort_OpcodeFormal_OP6_U26_cons(                \
                 opcode, u26_value))                         
 
-bool woort_LIR_emit_to_bytecode_list(
+WOORT_NODISCARD bool woort_LIR_emit_to_bytecode_list(
     const woort_LIR* lir, woort_Vector /* woort_Bytecode */* modifing_bytecode_list)
 {
     switch (lir->m_opcode)

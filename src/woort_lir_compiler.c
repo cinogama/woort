@@ -46,28 +46,28 @@ void woort_LIRCompiler_deinit(woort_LIRCompiler* lir_compiler)
     woort_vector_deinit(&lir_compiler->m_code_holder);
 }
 
-bool woort_LIRCompiler_allocate_constant(
+WOORT_NODISCARD bool woort_LIRCompiler_allocate_constant(
     woort_LIRCompiler* lir_compiler,
     woort_LIR_ConstantStorage* out_constant_address)
 {
+    *out_constant_address =
+        (woort_LIR_ConstantStorage)
+        lir_compiler->m_constant_storage_holder.m_size;
+
     void* _useless_storage;
     if (!woort_vector_emplace_back(
         &lir_compiler->m_constant_storage_holder,
         1,
-        &lir_compiler))
+        &_useless_storage))
     {
         // Allocation failed.
         return false;
     }
 
     (void)_useless_storage;
-    *out_constant_address =
-        (woort_LIR_ConstantStorage)
-        lir_compiler->m_constant_storage_holder.m_size;
-
     return true;
 }
-bool woort_LIRCompiler_allocate_static_storage(
+WOORT_NODISCARD bool woort_LIRCompiler_allocate_static_storage(
     woort_LIRCompiler* lir_compiler,
     woort_LIR_StaticStorage* out_static_storage_address)
 {
@@ -77,7 +77,7 @@ bool woort_LIRCompiler_allocate_static_storage(
     return true;
 }
 
-bool woort_LIRCompiler_get_constant(
+WOORT_NODISCARD bool woort_LIRCompiler_get_constant(
     woort_LIRCompiler* lir_compiler,
     woort_LIR_ConstantStorage constant_address,
     woort_Value** out_constant_storage)
@@ -86,7 +86,7 @@ bool woort_LIRCompiler_get_constant(
     if (!woort_vector_index(
         &lir_compiler->m_constant_storage_holder,
         (size_t)constant_address,
-        &constant_storage))
+        (void**)&constant_storage))
     {
         // Invalid constant address.
         WOORT_DEBUG("Invalid constant address.");
@@ -96,13 +96,13 @@ bool woort_LIRCompiler_get_constant(
     return true;
 }
 
-bool woort_LIRCompiler_add_function(
+WOORT_NODISCARD bool woort_LIRCompiler_add_function(
     woort_LIRCompiler* lir_compiler,
     woort_LIRFunction** out_function)
 {
     woort_LIRFunction* new_function;
     if (!woort_linklist_emplace_back(
-        &lir_compiler->m_function_list, &new_function))
+        &lir_compiler->m_function_list, (void**)&new_function))
     {
         // Failed to allocate function.
         return false;
@@ -353,7 +353,7 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
     return WOORT_LIRCOMPILER_COMMIT_RESULT_OK;
 }
 
-woort_LIRCompiler_CommitResult woort_LIRCompiler_commit(
+WOORT_NODISCARD woort_LIRCompiler_CommitResult woort_LIRCompiler_commit(
     woort_LIRCompiler* lir_compiler,
     woort_CodeEnv** out_codeenv)
 {

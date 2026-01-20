@@ -40,7 +40,7 @@ bool _woort_LIRFunction_append_lir(woort_LIRFunction* function, woort_LIR** out_
 {
     woort_LIR* new_lir;
     if (!woort_linklist_emplace_back(
-        &function->m_lir_list, &new_lir))
+        &function->m_lir_list, (void**)&new_lir))
     {
         // Failed to allocate LIR.
         return false;
@@ -81,13 +81,13 @@ bool _woort_LIRFunction_append_lir(woort_LIRFunction* function, woort_LIR** out_
     return true;
 }
 
-bool woort_LIRFunction_alloc_label(
+WOORT_NODISCARD bool woort_LIRFunction_alloc_label(
     woort_LIRFunction* function,
     woort_LIRLabel** out_label)
 {
     woort_LIRLabel* new_label;
     if (!woort_linklist_emplace_back(
-        &function->m_label_list, &new_label))
+        &function->m_label_list, (void**)&new_label))
     {
         // Failed to allocate label.
         return false;
@@ -102,13 +102,13 @@ bool woort_LIRFunction_alloc_label(
     return true;
 }
 
-bool woort_LIRFunction_alloc_register(
+WOORT_NODISCARD bool woort_LIRFunction_alloc_register(
     woort_LIRFunction* function,
     woort_LIRRegister** out_register)
 {
     woort_LIRRegister* new_register;
     if (!woort_linklist_emplace_back(
-        &function->m_register_list, &new_register))
+        &function->m_register_list, (void**)&new_register))
     {
         // Failed to allocate register.
         return false;
@@ -122,7 +122,7 @@ bool woort_LIRFunction_alloc_register(
     return true;
 }
 
-bool woort_LIRFunction_get_argument_register(
+WOORT_NODISCARD bool woort_LIRFunction_get_argument_register(
     woort_LIRFunction* function,
     uint16_t index,
     woort_LIRRegister** out_register)
@@ -183,7 +183,7 @@ bool woort_LIRFunction_get_argument_register(
     return true;
 }
 
-bool woort_LIRFunction_bind(
+WOORT_NODISCARD bool woort_LIRFunction_bind(
     woort_LIRFunction* function,
     woort_LIRLabel* label)
 {
@@ -202,11 +202,10 @@ bool woort_LIRFunction_bind(
     }
 #endif
 
-    woort_vector_push_back(
+    return woort_vector_push_back(
         &function->m_pending_labels_to_bind,
         1,
-        &label);
-    return true;
+        (void**)&label);
 }
 
 void _woort_LIRRegister_mark_register_active_range(
@@ -239,7 +238,7 @@ int _woort_register_start_pos_comparator(const void* a, const void* b)
     return 0;
 }
 
-bool woort_LIRFunction_register_allocation(
+WOORT_NODISCARD bool woort_LIRFunction_register_allocation(
     woort_LIRFunction* function, size_t* out_stack_usage)
 {
     // Mark active range for all registers.
@@ -322,6 +321,8 @@ bool woort_LIRFunction_register_allocation(
     woort_Vector registers;
     woort_vector_init(&registers, sizeof(woort_LIRRegister*));
 
+    bool success = true;
+
     for (
         woort_LIRRegister* current_register = woort_linklist_iter(&function->m_register_list);
         current_register != NULL;
@@ -329,80 +330,92 @@ bool woort_LIRFunction_register_allocation(
     {
         if (current_register->m_alive_range[0] != SIZE_MAX)
         {
-            woort_vector_push_back(&registers, 1, &current_register);
+            if (!woort_vector_push_back(&registers, 1, &current_register))
+            {
+                // Out of memory.
+                success = false;
+                break;
+            }
         }
     }
 
-    // Sort registers by start position.
-    qsort(
-        registers.m_data,
-        registers.m_size,
-        sizeof(woort_LIRRegister*),
-        _woort_register_start_pos_comparator);
-
-    woort_Bitset bitset;
-    woort_bitset_init(&bitset, INT16_MAX);
-
-    woort_Vector active_registers;
-    woort_vector_init(&active_registers, sizeof(woort_LIRRegister*));
-
-    *out_stack_usage = 0;
-
-    bool success = true;
-    for (size_t i = 0; i < registers.m_size; ++i)
+    if (success)
     {
-        woort_LIRRegister* current_register = *(woort_LIRRegister**)woort_vector_at(&registers, i);
+        // Sort registers by start position.
+        qsort(
+            registers.m_data,
+            registers.m_size,
+            sizeof(woort_LIRRegister*),
+            _woort_register_start_pos_comparator);
 
-        // Expire old intervals.
-        for (size_t j = 0; j < active_registers.m_size; )
+        woort_Bitset bitset;
+        woort_bitset_init(&bitset, INT16_MAX);
+
+        woort_Vector active_registers;
+        woort_vector_init(&active_registers, sizeof(woort_LIRRegister*));
+
+        *out_stack_usage = 0;
+
+        for (size_t i = 0; i < registers.m_size; ++i)
         {
-            woort_LIRRegister* active_register = *(woort_LIRRegister**)woort_vector_at(&active_registers, j);
-            if (active_register->m_alive_range[1] < current_register->m_alive_range[0])
-            {
-                // Expired.
-                woort_bitset_reset(&bitset, (size_t)active_register->m_assigned_bp_offset);
+            woort_LIRRegister* current_register = *(woort_LIRRegister**)woort_vector_at(&registers, i);
 
-                // Remove from active list.
-                // Swap with last element and pop back.
-                if (j != active_registers.m_size - 1)
+            // Expire old intervals.
+            for (size_t j = 0; j < active_registers.m_size; )
+            {
+                woort_LIRRegister* active_register = *(woort_LIRRegister**)woort_vector_at(&active_registers, j);
+                if (active_register->m_alive_range[1] < current_register->m_alive_range[0])
                 {
-                    woort_LIRRegister** last_element =
-                        (woort_LIRRegister**)woort_vector_at(&active_registers, active_registers.m_size - 1);
-                    woort_LIRRegister** current_element =
-                        (woort_LIRRegister**)woort_vector_at(&active_registers, j);
-                    *current_element = *last_element;
+                    // Expired.
+                    woort_bitset_reset(&bitset, (size_t)active_register->m_assigned_bp_offset);
+
+                    // Remove from active list.
+                    // Swap with last element and pop back.
+                    if (j != active_registers.m_size - 1)
+                    {
+                        woort_LIRRegister** last_element =
+                            (woort_LIRRegister**)woort_vector_at(&active_registers, active_registers.m_size - 1);
+                        woort_LIRRegister** current_element =
+                            (woort_LIRRegister**)woort_vector_at(&active_registers, j);
+                        *current_element = *last_element;
+                    }
+                    active_registers.m_size--;
                 }
-                active_registers.m_size--;
+                else
+                {
+                    ++j;
+                }
+            }
+
+            // Allocate register.
+            size_t assigned_offset;
+            if (woort_bitset_find_first_unset(&bitset, &assigned_offset))
+            {
+                if (*out_stack_usage <= assigned_offset)
+                    *out_stack_usage = assigned_offset + 1;
+
+                current_register->m_assigned_bp_offset = (int16_t)assigned_offset;
+                woort_bitset_set(&bitset, assigned_offset);
+                if (!woort_vector_push_back(&active_registers, 1, &current_register))
+                {
+                    // Out of memory.
+                    success = false;
+                    break;
+                }
             }
             else
             {
-                ++j;
+                // Failed to allocate register.
+                WOORT_DEBUG("Failed to allocate register.");
+                success = false;
+
+                break;
             }
         }
 
-        // Allocate register.
-        size_t assigned_offset;
-        if (woort_bitset_find_first_unset(&bitset, &assigned_offset))
-        {
-            if (*out_stack_usage <= assigned_offset)
-                *out_stack_usage = assigned_offset + 1;
-
-            current_register->m_assigned_bp_offset = (int16_t)assigned_offset;
-            woort_bitset_set(&bitset, assigned_offset);
-            woort_vector_push_back(&active_registers, 1, &current_register);
-        }
-        else
-        {
-            // Failed to allocate register.
-            WOORT_DEBUG("Failed to allocate register.");
-            success = false;
-
-            break;
-        }
+        woort_vector_deinit(&active_registers);
+        woort_bitset_deinit(&bitset);
     }
-
-    woort_vector_deinit(&active_registers);
-    woort_bitset_deinit(&bitset);
     woort_vector_deinit(&registers);
 
     return success;
@@ -420,7 +433,7 @@ bool woort_LIRFunction_register_allocation(
     WOORT_LIR_OP_FORMAL_T(LIROP)* opnums = &new_lir->m_opnums.m_##LIROP                   
 
 
-bool woort_LIRFunction_emit_loadconst(
+WOORT_NODISCARD bool woort_LIRFunction_emit_loadconst(
     woort_LIRFunction* function,
     woort_LIRRegister* aim_r,
     woort_LIR_ConstantStorage src_c)
@@ -433,7 +446,7 @@ bool woort_LIRFunction_emit_loadconst(
     return true;
 }
 
-bool woort_LIRFunction_emit_loadglobal(
+WOORT_NODISCARD bool woort_LIRFunction_emit_loadglobal(
     woort_LIRFunction* function,
     woort_LIRRegister* aim_r,
     woort_LIR_StaticStorage src_s)
@@ -446,7 +459,7 @@ bool woort_LIRFunction_emit_loadglobal(
     return true;
 }
 
-bool woort_LIRFunction_emit_store(
+WOORT_NODISCARD bool woort_LIRFunction_emit_store(
     woort_LIRFunction* function,
     woort_LIR_StaticStorage aim_s,
     woort_LIRRegister* src_r)
@@ -458,7 +471,7 @@ bool woort_LIRFunction_emit_store(
     return true;
 }
 
-bool woort_LIRFunction_emit_push(
+WOORT_NODISCARD bool woort_LIRFunction_emit_push(
     woort_LIRFunction* function,
     woort_LIRRegister* src_r)
 {
@@ -468,7 +481,7 @@ bool woort_LIRFunction_emit_push(
     return true;
 }
 
-bool woort_LIRFunction_emit_jmp(
+WOORT_NODISCARD bool woort_LIRFunction_emit_jmp(
     woort_LIRFunction* function,
     woort_LIRLabel* target_label)
 {

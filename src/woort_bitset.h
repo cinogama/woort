@@ -4,6 +4,8 @@
 woort_bitset.h
 */
 
+#include "woort_diagnosis.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -23,4 +25,4 @@ void woort_bitset_set(woort_Bitset* bitset, size_t index);
 void woort_bitset_reset(woort_Bitset* bitset, size_t index);
 bool woort_bitset_test(const woort_Bitset* bitset, size_t index);
 
-bool woort_bitset_find_first_unset(const woort_Bitset* bitset, size_t* out_index);
+WOORT_NODISCARD bool woort_bitset_find_first_unset(const woort_Bitset* bitset, size_t* out_index);

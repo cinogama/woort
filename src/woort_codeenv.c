@@ -16,7 +16,7 @@ static struct _woort_CodeEnv_GlobalCtx
 
 } *_codeenv_global_ctx = NULL;
 
-bool woort_CodeEnv_bootup(void)
+WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
 {
     assert(_codeenv_global_ctx == NULL);
 
@@ -61,12 +61,20 @@ struct woort_CodeEnv
     size_t       m_constant_and_static_storage_count;
 };
 
-bool woort_CodeEnv_create(
+WOORT_NODISCARD bool woort_CodeEnv_create(
     woort_Vector* /* woort_Bytecode */ moving_bytecodes,
     woort_Vector* /* woort_Value */ moving_constants,
     size_t static_storage_count,
     woort_CodeEnv** out_code_env)
 {
+    if (!woort_vector_resize(
+        moving_constants,
+        moving_constants->m_element_size + static_storage_count))
+    {
+        // Out of memory.
+        return false;
+    }
+
     woort_CodeEnv* code_env_instance =
         malloc(sizeof(woort_CodeEnv));
 
@@ -88,10 +96,6 @@ bool woort_CodeEnv_create(
     code_env_instance->m_code_end =
         code_env_instance->m_code_begin + code_count;
 
-    woort_vector_resize(
-        moving_constants,
-        moving_constants->m_element_size + static_storage_count);
-
     code_env_instance->m_constant_and_static_storage =
         woort_vector_move_out(
             moving_constants,
@@ -99,11 +103,18 @@ bool woort_CodeEnv_create(
 
     // 将新创建的 CodeEnv 注册到全局容器
     woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
-    woort_vector_push_back(
+    bool register_result = woort_vector_push_back(
         &_codeenv_global_ctx->m_codeenvs,
         1,
         &code_env_instance);
     woort_rwspinlock_write_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
+
+    if (!register_result)
+    {
+        // Out of memory.
+        woort_CodeEnv_unshare(code_env_instance);
+        return false;
+    }
 
     *out_code_env = code_env_instance;
     return true;
@@ -117,7 +128,7 @@ void woort_CodeEnv_share(woort_CodeEnv* code_env)
         WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 }
 
-static void _woort_CodeEnv_destroy(woort_CodeEnv* code_env)
+void _woort_CodeEnv_destroy(woort_CodeEnv* code_env)
 {
     // 先从全局容器中移除该 CodeEnv
     woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
@@ -156,7 +167,7 @@ void woort_CodeEnv_unshare(woort_CodeEnv* code_env)
     }
 }
 
-bool woort_CodeEnv_find(
+WOORT_NODISCARD bool woort_CodeEnv_find(
     const woort_Bytecode* addr, woort_CodeEnv** out_code_env)
 {
     // 获取读锁，允许多线程并发查找

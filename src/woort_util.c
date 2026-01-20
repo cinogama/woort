@@ -3,7 +3,7 @@
 
 #include "woort_util.h"
 
-size_t woort_util_abs_diff(
+WOORT_NODISCARD size_t woort_util_abs_diff(
     size_t a,
     size_t b)
 {

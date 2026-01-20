@@ -3,6 +3,8 @@
 /*
 woort_lir_function.h
 */
+#include "woort_diagnosis.h"
+
 #include <stdbool.h>
 
 #include "woort_lir.h"
@@ -28,15 +30,15 @@ typedef struct woort_LIRFunction
 void woort_LIRFunction_init(woort_LIRFunction* function);
 void woort_LIRFunction_deinit(woort_LIRFunction* function);
 
-bool woort_LIRFunction_alloc_label(
+WOORT_NODISCARD bool woort_LIRFunction_alloc_label(
     woort_LIRFunction* function,
     woort_LIRLabel** out_label);
 
-bool woort_LIRFunction_alloc_register(
+WOORT_NODISCARD bool woort_LIRFunction_alloc_register(
     woort_LIRFunction* function,
     woort_LIRRegister** out_register);
 
-bool woort_LIRFunction_get_argument_register(
+WOORT_NODISCARD bool woort_LIRFunction_get_argument_register(
     woort_LIRFunction* function,
     uint16_t index,
     woort_LIRRegister** out_register);
@@ -45,30 +47,30 @@ typedef void(*woort_LIRFunction_CommitCallback)(
     woort_LIRFunction* function,
     void* user_data);
 
-bool woort_LIRFunction_register_allocation(
+WOORT_NODISCARD bool woort_LIRFunction_register_allocation(
     woort_LIRFunction* function, size_t* out_stack_usage);
 
 /* LIR Emit */
 
-bool woort_LIRFunction_bind(
+WOORT_NODISCARD bool woort_LIRFunction_bind(
     woort_LIRFunction* function,
     woort_LIRLabel* label);
 
-bool woort_LIRFunction_emit_loadconst(
+WOORT_NODISCARD bool woort_LIRFunction_emit_loadconst(
     woort_LIRFunction* function,
     woort_LIRRegister* aim_r,
     woort_LIR_ConstantStorage src_c);
-bool woort_LIRFunction_emit_loadglobal(
+WOORT_NODISCARD bool woort_LIRFunction_emit_loadglobal(
     woort_LIRFunction* function,
     woort_LIRRegister* aim_r,
     woort_LIR_StaticStorage src_s);
-bool woort_LIRFunction_emit_store(
+WOORT_NODISCARD bool woort_LIRFunction_emit_store(
     woort_LIRFunction* function,
     woort_LIR_StaticStorage aim_s,
     woort_LIRRegister* src_r);
-bool woort_LIRFunction_emit_push(
+WOORT_NODISCARD bool woort_LIRFunction_emit_push(
     woort_LIRFunction* function,
     woort_LIRRegister* src_r);
-bool woort_LIRFunction_emit_jmp(
+WOORT_NODISCARD bool woort_LIRFunction_emit_jmp(
     woort_LIRFunction* function,
     woort_LIRLabel* target_label);

@@ -60,7 +60,7 @@ static int _woort_thread_entry_c11(void* arg)
     return 0;
 }
 
-bool woort_thread_start(
+WOORT_NODISCARD bool woort_thread_start(
     woort_ThreadJobFunc job,
     void* user_data,
     woort_Thread** out_thread)
@@ -132,7 +132,7 @@ struct woort_Mutex
     mtx_t handle;
 };
 
-bool woort_mutex_create(woort_Mutex** out_mutex)
+WOORT_NODISCARD bool woort_mutex_create(woort_Mutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -166,7 +166,7 @@ void woort_mutex_lock(woort_Mutex* mutex)
     mtx_lock(&mutex->handle);
 }
 
-bool woort_mutex_trylock(woort_Mutex* mutex)
+WOORT_NODISCARD bool woort_mutex_trylock(woort_Mutex* mutex)
 {
     assert(NULL != mutex);
     return mtx_trylock(&mutex->handle) == thrd_success;
@@ -185,7 +185,7 @@ struct woort_TimeMutex
     mtx_t handle;
 };
 
-bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
+WOORT_NODISCARD bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -219,7 +219,7 @@ void woort_time_mutex_lock(woort_TimeMutex* mutex)
     mtx_lock(&mutex->handle);
 }
 
-bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
+WOORT_NODISCARD bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
 {
     assert(NULL != mutex);
 
@@ -249,7 +249,7 @@ struct woort_RecursiveMutex
     mtx_t handle;
 };
 
-bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
+WOORT_NODISCARD bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -283,7 +283,7 @@ void woort_recursive_mutex_lock(woort_RecursiveMutex* mutex)
     mtx_lock(&mutex->handle);
 }
 
-bool woort_recursive_mutex_trylock(woort_RecursiveMutex* mutex)
+WOORT_NODISCARD bool woort_recursive_mutex_trylock(woort_RecursiveMutex* mutex)
 {
     assert(NULL != mutex);
     return mtx_trylock(&mutex->handle) == thrd_success;
@@ -302,7 +302,7 @@ struct woort_TimeRecursiveMutex
     mtx_t handle;
 };
 
-bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
+WOORT_NODISCARD bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -330,13 +330,13 @@ void woort_time_recursive_mutex_destroy(woort_TimeRecursiveMutex* mutex)
     free(mutex);
 }
 
-bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
+WOORT_NODISCARD bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
 {
     assert(NULL != mutex);
     return mtx_lock(&mutex->handle) == thrd_success;
 }
 
-bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
+WOORT_NODISCARD bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
 {
     assert(NULL != mutex);
 
@@ -366,7 +366,7 @@ struct woort_ConditionVariable
     cnd_t handle;
 };
 
-bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
+WOORT_NODISCARD bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
 {
     assert(NULL != out_cv);
 
@@ -401,7 +401,7 @@ void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mut
     cnd_wait(&cv->handle, &mutex->handle);
 }
 
-bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
+WOORT_NODISCARD bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
 {
     assert(NULL != cv);
     assert(NULL != mutex);
@@ -458,7 +458,7 @@ static DWORD WINAPI _woort_thread_entry_win32(LPVOID arg)
     return 0;
 }
 
-bool woort_thread_start(
+WOORT_NODISCARD bool woort_thread_start(
     woort_ThreadJobFunc job,
     void* user_data,
     woort_Thread** out_thread)
@@ -536,7 +536,7 @@ struct woort_Mutex
     SRWLOCK lock;
 };
 
-bool woort_mutex_create(woort_Mutex** out_mutex)
+WOORT_NODISCARD bool woort_mutex_create(woort_Mutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -566,7 +566,7 @@ void woort_mutex_lock(woort_Mutex* mutex)
     AcquireSRWLockExclusive(&mutex->lock);
 }
 
-bool woort_mutex_trylock(woort_Mutex* mutex)
+WOORT_NODISCARD bool woort_mutex_trylock(woort_Mutex* mutex)
 {
     assert(NULL != mutex);
     return TryAcquireSRWLockExclusive(&mutex->lock) != 0;
@@ -591,7 +591,7 @@ struct woort_TimeMutex
     HANDLE event;
 };
 
-bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
+WOORT_NODISCARD bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -630,7 +630,7 @@ void woort_time_mutex_lock(woort_TimeMutex* mutex)
     EnterCriticalSection(&mutex->cs);
 }
 
-bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
+WOORT_NODISCARD bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
 {
     assert(NULL != mutex);
 
@@ -657,7 +657,7 @@ struct woort_RecursiveMutex
     CRITICAL_SECTION cs;
 };
 
-bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
+WOORT_NODISCARD bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -687,7 +687,7 @@ void woort_recursive_mutex_lock(woort_RecursiveMutex* mutex)
     EnterCriticalSection(&mutex->cs);
 }
 
-bool woort_recursive_mutex_trylock(woort_RecursiveMutex* mutex)
+WOORT_NODISCARD bool woort_recursive_mutex_trylock(woort_RecursiveMutex* mutex)
 {
     assert(NULL != mutex);
     return TryEnterCriticalSection(&mutex->cs) != 0;
@@ -709,7 +709,7 @@ struct woort_TimeRecursiveMutex
     int lock_count;
 };
 
-bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
+WOORT_NODISCARD bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -743,7 +743,7 @@ void woort_time_recursive_mutex_destroy(woort_TimeRecursiveMutex* mutex)
     free(mutex);
 }
 
-bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
+WOORT_NODISCARD bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
 {
     assert(NULL != mutex);
 
@@ -768,7 +768,7 @@ bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
     return true;
 }
 
-bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
+WOORT_NODISCARD bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
 {
     assert(NULL != mutex);
 
@@ -821,7 +821,7 @@ struct woort_ConditionVariable
     CONDITION_VARIABLE cv;
 };
 
-bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
+WOORT_NODISCARD bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
 {
     assert(NULL != out_cv);
 
@@ -852,7 +852,7 @@ void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mut
     SleepConditionVariableSRW(&cv->cv, &mutex->lock, INFINITE, 0);
 }
 
-bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
+WOORT_NODISCARD bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
 {
     assert(NULL != cv);
     assert(NULL != mutex);
@@ -898,7 +898,7 @@ static void* _woort_thread_entry_pthread(void* arg)
     return NULL;
 }
 
-bool woort_thread_start(
+WOORT_NODISCARD bool woort_thread_start(
     woort_ThreadJobFunc job,
     void* user_data,
     woort_Thread** out_thread)
@@ -970,7 +970,7 @@ struct woort_Mutex
     pthread_mutex_t handle;
 };
 
-bool woort_mutex_create(woort_Mutex** out_mutex)
+WOORT_NODISCARD bool woort_mutex_create(woort_Mutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -1004,7 +1004,7 @@ void woort_mutex_lock(woort_Mutex* mutex)
     pthread_mutex_lock(&mutex->handle);
 }
 
-bool woort_mutex_trylock(woort_Mutex* mutex)
+WOORT_NODISCARD bool woort_mutex_trylock(woort_Mutex* mutex)
 {
     assert(NULL != mutex);
     return pthread_mutex_trylock(&mutex->handle) == 0;
@@ -1042,7 +1042,7 @@ static void _woort_get_abs_timeout(struct timespec* ts, uint32_t timeout_ms)
     }
 }
 
-bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
+WOORT_NODISCARD bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -1076,7 +1076,7 @@ void woort_time_mutex_lock(woort_TimeMutex* mutex)
     pthread_mutex_lock(&mutex->handle);
 }
 
-bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
+WOORT_NODISCARD bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
 {
     assert(NULL != mutex);
 
@@ -1114,7 +1114,7 @@ struct woort_RecursiveMutex
     pthread_mutex_t handle;
 };
 
-bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
+WOORT_NODISCARD bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -1154,7 +1154,7 @@ void woort_recursive_mutex_lock(woort_RecursiveMutex* mutex)
     pthread_mutex_lock(&mutex->handle);
 }
 
-bool woort_recursive_mutex_trylock(woort_RecursiveMutex* mutex)
+WOORT_NODISCARD bool woort_recursive_mutex_trylock(woort_RecursiveMutex* mutex)
 {
     assert(NULL != mutex);
     return pthread_mutex_trylock(&mutex->handle) == 0;
@@ -1173,7 +1173,7 @@ struct woort_TimeRecursiveMutex
     pthread_mutex_t handle;
 };
 
-bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
+WOORT_NODISCARD bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex)
 {
     assert(NULL != out_mutex);
 
@@ -1207,13 +1207,13 @@ void woort_time_recursive_mutex_destroy(woort_TimeRecursiveMutex* mutex)
     free(mutex);
 }
 
-bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
+WOORT_NODISCARD bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex)
 {
     assert(NULL != mutex);
     return pthread_mutex_lock(&mutex->handle) == 0;
 }
 
-bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
+WOORT_NODISCARD bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
 {
     assert(NULL != mutex);
 
@@ -1251,7 +1251,7 @@ struct woort_ConditionVariable
     pthread_cond_t handle;
 };
 
-bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
+WOORT_NODISCARD bool woort_condition_variable_create(woort_ConditionVariable** out_cv)
 {
     assert(NULL != out_cv);
 
@@ -1286,7 +1286,7 @@ void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mut
     pthread_cond_wait(&cv->handle, &mutex->handle);
 }
 
-bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
+WOORT_NODISCARD bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
 {
     assert(NULL != cv);
     assert(NULL != mutex);
