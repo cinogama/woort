@@ -160,6 +160,16 @@ bool _woort_LIRCompiler_commit_function_codes(
     return true;
 }
 
+WOORT_NODISCARD bool woort_LIRCompiler_emit_code(
+    woort_LIRCompiler* lir_compiler,
+    woort_Bytecode bc)
+{
+    return woort_vector_push_back(
+        &lir_compiler->m_code_holder,
+        1,
+        &bc);
+}
+
 woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
     woort_LIRCompiler* lir_compiler,
     woort_LIRFunction* function)
@@ -331,10 +341,9 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
         assert(stack_usage < UINT16_MAX);
 
         // PUSH RESERVE STACK_USAGE
-        if (!woort_vector_push_back(
-            &lir_compiler->m_code_holder,
-            1,
-            &woort_OpcodeFormal_OP6M2_8_I16_cons(
+        if (!woort_LIRCompiler_emit_code(
+            lir_compiler,
+            woort_OpcodeFormal_OP6_M2_BC16_cons(
                 WOORT_OPCODE_PUSH, 0, stack_usage)))
         {
             // Out of memory.

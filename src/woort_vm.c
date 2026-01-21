@@ -184,22 +184,23 @@ WOORT_NODISCARD woort_VMRuntime_CallStatus _woort_VMRuntime_dispatch(
 _label_continue_execution:
     for (;;)
     {
-#define WOORT_VM_CASE_OP6M2(CODE, MODE) (((CODE) << 2) | MODE)
-#define WOORT_VM_CASE_OP6(CODE)         \
-    WOORT_VM_CASE_OP6M2(CODE, 0):       \
-    case WOORT_VM_CASE_OP6M2(CODE, 1):  \
-    case WOORT_VM_CASE_OP6M2(CODE, 2):  \
-    case WOORT_VM_CASE_OP6M2(CODE, 3)
+#define WOORT_VM_CASE_OP6_M2(CODE, MODE)    \
+    woort_OpcodeFormal_OP6_M2_cons(CODE, MODE)
+#define WOORT_VM_CASE_OP6(CODE)             \
+    WOORT_VM_CASE_OP6_M2(CODE, 0):          \
+    case WOORT_VM_CASE_OP6_M2(CODE, 1):     \
+    case WOORT_VM_CASE_OP6_M2(CODE, 2):     \
+    case WOORT_VM_CASE_OP6_M2(CODE, 3)
 
-        switch (rt_ip->m_op6m2)
+        const woort_Bytecode c = *rt_ip;
+
+        switch (WOORT_BYTECODE_OPM8_MASK & c)
         {
         // PUSH M2
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_PUSH, 0):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 0):
         {
             // PUSH RESERVE STACK
-            const uint32_t reserve_stack_sz = (uint32_t)(
-                (rt_ip->m_op6m2_u24.m_u24h8 << 16)
-                | rt_ip->m_op6m2_u24.m_u24l16);
+            const uint32_t reserve_stack_sz = WOORT_BYTECODE(ABC24, c);
 
             rt_sp -= reserve_stack_sz;
             if (/* UNLIKELY */ rt_sp < rt_stack)
@@ -210,194 +211,87 @@ _label_continue_execution:
             ++rt_ip;
             break;
         }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_PUSH, 1):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 1):
         {
             // PUSH C24
             if (rt_sp >= rt_stack)
             {
-                *(rt_sp--) = rt_sb[
-                    (rt_ip->m_op6m2_u24.m_u24h8 << 8) 
-                        | rt_ip->m_op6m2_u24.m_u24l16];
+                *(rt_sp--) = rt_sb[WOORT_BYTECODE(ABC24, c)];
                 ++rt_ip;
                 break;
             }
             else
                 WOORT_VM_THROW(stack_overflow);
         }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_PUSH, 2):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 2):
         {
             // PUSH R16
             if (rt_sp >= rt_stack)
             {
-                *(rt_sp--) = rt_sb[rt_ip->m_op6m2_8_i16.m_i16];
+                *(rt_sp--) = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
                 ++rt_ip;
                 break;
             }
             else
                 WOORT_VM_THROW(stack_overflow);
         }
-        //case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_PUSH, 3):
-        //{
-        //    // PUSH C24 EX_C26
-        //    if (rt_sp >= rt_stack)
-        //    {
-        //        *(rt_sp--) = rt_sb[
-        //            (((rt_ip->m_op6m2_u24.m_u24h8 << 8)
-        //                | rt_ip->m_op6m2_u24.m_u24l16) << 26)
-        //                | rt_ip[1].m_op6_u26.
-        //            ];
-        //        ++rt_ip;
-        //        break;
-        //    }
-        //    else
-        //        WOORT_VM_THROW(stack_overflow);
-        //}
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 3):
+        {
+            // PUSH C24 EX_C26
+            if (rt_sp >= rt_stack)
+            {
+                *(rt_sp--) = rt_sb[
+                    (((uint64_t)WOORT_BYTECODE(ABC24, c)) << 26) 
+                        | (uint64_t)WOORT_BYTECODE(MABC26, rt_ip[1])];
+                rt_ip += 2;
+                break;
+            }
+            else
+                WOORT_VM_THROW(stack_overflow);
+        }
         // POP M2
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_POP, 0):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 0):
         {
             // POP N
-            const uint32_t reserve_stack_sz = (uint32_t)(
-                (rt_ip->m_op6m2_u24.m_u24h8 << 16)
-                | rt_ip->m_op6m2_u24.m_u24l16);
-
-            rt_sp += reserve_stack_sz;
+            rt_sp += WOORT_BYTECODE(ABC24, c);
 
             ++rt_ip;
             break;
         }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_POP, 2):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 2):
         {
             // POP R16
-            rt_sb[rt_ip->m_op6m2_8_i16.m_i16] = *(++rt_sp);
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = *(++rt_sp);
             ++rt_ip;
             break;
         }
 
         // LOAD
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_LOAD, 0):
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_LOAD):
         {
-            rt_sb[rt_ip->m_op6_u18_i8.m_i8] = rt_env_data[rt_ip->m_op6_u18_i8.m_u18l16];
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)] = 
+                rt_env_data[WOORT_BYTECODE(MAB18, c)];
             ++rt_ip;
             break;
         }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_LOAD, 1):
-        {
-            rt_sb[rt_ip->m_op6_u18_i8.m_i8] = rt_env_data[0x010000u + rt_ip->m_op6_u18_i8.m_u18l16];
-            ++rt_ip;
-            break;
-        }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_LOAD, 2):
-        {
-            rt_sb[rt_ip->m_op6_u18_i8.m_i8] = rt_env_data[0x020000u + rt_ip->m_op6_u18_i8.m_u18l16];
-            ++rt_ip;
-            break;
-        }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_LOAD, 3):
-        {
-            rt_sb[rt_ip->m_op6_u18_i8.m_i8] = rt_env_data[0x030000u + rt_ip->m_op6_u18_i8.m_u18l16];
-            ++rt_ip;
-            break;
-        }
-
         // STORE
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_STORE, 0):
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_STORE):
         {
-            rt_env_data[rt_ip->m_op6_u18_i8.m_u18l16] = rt_sb[rt_ip->m_op6_u18_i8.m_i8];
+            rt_env_data[WOORT_BYTECODE(MAB18, c)] = 
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)];
             ++rt_ip;
             break;
         }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_STORE, 1):
-        {
-            rt_env_data[0x010000u + rt_ip->m_op6_u18_i8.m_u18l16] = rt_sb[rt_ip->m_op6_u18_i8.m_i8];
-            ++rt_ip;
-            break;
-        }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_STORE, 2):
-        {
-            rt_env_data[0x020000u + rt_ip->m_op6_u18_i8.m_u18l16] = rt_sb[rt_ip->m_op6_u18_i8.m_i8];
-            ++rt_ip;
-            break;
-        }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_STORE, 3):
-        {
-            rt_env_data[0x030000u + rt_ip->m_op6_u18_i8.m_u18l16] = rt_sb[rt_ip->m_op6_u18_i8.m_i8];
-            ++rt_ip;
-            break;
-        }
-
         // JMP
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_JMP, 0):
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JMP):
         {
-            const uint32_t jump_offset_u24 = (uint32_t)(
-                (rt_ip->m_op6_u26.m_u26m8 << 16)
-                | rt_ip->m_op6_u26.m_u26l16);
-
-            rt_ip += jump_offset_u24;
+            rt_ip += WOORT_BYTECODE(MABC26, c);
             break;
         }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_JMP, 1):
-        {
-            const uint32_t jump_offset_u24 = (uint32_t)(
-                (rt_ip->m_op6_u26.m_u26m8 << 16)
-                | rt_ip->m_op6_u26.m_u26l16);
-
-            rt_ip += 0x01000000u + jump_offset_u24;
-            break;
-        }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_JMP, 2):
-        {
-            const uint32_t jump_offset_u24 = (uint32_t)(
-                (rt_ip->m_op6_u26.m_u26m8 << 16)
-                | rt_ip->m_op6_u26.m_u26l16);
-
-            rt_ip += 0x02000000u + jump_offset_u24;
-            break;
-        }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_JMP, 3):
-        {
-            const uint32_t jump_offset_u24 = (uint32_t)(
-                (rt_ip->m_op6_u26.m_u26m8 << 16)
-                | rt_ip->m_op6_u26.m_u26l16);
-
-            rt_ip += 0x03000000u + jump_offset_u24;
-            break;
-        }
-
         // JMPBACK
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_JMPGC, 0):
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JMPGC):
         {
-            const uint32_t jump_offset_u24 = (uint32_t)(
-                (rt_ip->m_op6_u26.m_u26m8 << 16)
-                | rt_ip->m_op6_u26.m_u26l16);
-
-            rt_ip -= jump_offset_u24;
-            break;
-        }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_JMPGC, 1):
-        {
-            const uint32_t jump_offset_u24 = (uint32_t)(
-                (rt_ip->m_op6_u26.m_u26m8 << 16)
-                | rt_ip->m_op6_u26.m_u26l16);
-
-            rt_ip -= 0x01000000u + jump_offset_u24;
-            break;
-        }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_JMPGC, 2):
-        {
-            const uint32_t jump_offset_u24 = (uint32_t)(
-                (rt_ip->m_op6_u26.m_u26m8 << 16)
-                | rt_ip->m_op6_u26.m_u26l16);
-
-            rt_ip -= 0x02000000u + jump_offset_u24;
-            break;
-        }
-        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_JMPGC, 3):
-        {
-            const uint32_t jump_offset_u24 = (uint32_t)(
-                (rt_ip->m_op6_u26.m_u26m8 << 16)
-                | rt_ip->m_op6_u26.m_u26l16);
-
-            rt_ip -= 0x03000000u + jump_offset_u24;
+            rt_ip -= WOORT_BYTECODE(MABC26, c);
             break;
         }
         default:
@@ -414,7 +308,7 @@ _label_exception_handler_stack_overflow:
     if (/* UNLIKELY */ !_woort_VMRuntime_extern_stack(vm))
     {
         WOORT_VM_SYNC_STATE_AND_PANIC(
-            WOORT_PANIC_STACK_OVER_FLOW,
+            WOORT_PANIC_STACK_OVERFLOW,
             "Stack overflow.");
     }
     WOORT_VM_HANDLED();

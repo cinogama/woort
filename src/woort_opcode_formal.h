@@ -14,235 +14,92 @@ typedef uint32_t woort_Bytecode;
 #define WOORT_BYTECODE_A8_MASK 0x00ff0000u
 #define WOORT_BYTECODE_B8_MASK 0x0000ff00u
 #define WOORT_BYTECODE_C8_MASK 0x000000ffu
-const uint32_t WOORT_BYTECODE_AB16_MASK =
-    WOORT_BYTECODE_A8_MASK
-    | WOORT_BYTECODE_B8_MASK;
-const uint32_t WOORT_BYTECODE_ABC24_MASK =
-    WOORT_BYTECODE_A8_MASK
-    | WOORT_BYTECODE_B8_MASK
-    | WOORT_BYTECODE_C8_MASK;
-const uint32_t WOORT_BYTECODE_MAB18_MASK =
-    WOORT_BYTECODE_M2_MASK
-    | WOORT_BYTECODE_A8_MASK
-    | WOORT_BYTECODE_B8_MASK;
-const uint32_t WOORT_BYTECODE_MABC26_MASK =
-    WOORT_BYTECODE_M2_MASK
-    | WOORT_BYTECODE_A8_MASK
-    | WOORT_BYTECODE_B8_MASK
-    | WOORT_BYTECODE_C8_MASK;
+#define WOORT_BYTECODE_OPM8_MASK    \
+    (WOORT_BYTECODE_OP6_MASK        \
+    | WOORT_BYTECODE_M2_MASK)
+#define WOORT_BYTECODE_BC16_MASK    \
+    (WOORT_BYTECODE_B8_MASK         \
+    | WOORT_BYTECODE_C8_MASK)
+#define WOORT_BYTECODE_ABC24_MASK   \
+    (WOORT_BYTECODE_A8_MASK         \
+    | WOORT_BYTECODE_B8_MASK        \
+    | WOORT_BYTECODE_C8_MASK)
+#define WOORT_BYTECODE_MAB18_MASK   \
+    (WOORT_BYTECODE_M2_MASK         \
+    | WOORT_BYTECODE_A8_MASK        \
+    | WOORT_BYTECODE_B8_MASK)
+#define WOORT_BYTECODE_MABC26_MASK  \
+    (WOORT_BYTECODE_M2_MASK         \
+    | WOORT_BYTECODE_A8_MASK        \
+    | WOORT_BYTECODE_B8_MASK        \
+    | WOORT_BYTECODE_C8_MASK)
 
+#define WOORT_BYTECODE_OP6_SHIFT 26
+#define WOORT_BYTECODE_M2_SHIFT 24
+#define WOORT_BYTECODE_A8_SHIFT 16
+#define WOORT_BYTECODE_B8_SHIFT 8
+#define WOORT_BYTECODE_C8_SHIFT 0
+#define WOORT_BYTECODE_OPM8_SHIFT 24
+#define WOORT_BYTECODE_BC16_SHIFT 0
+#define WOORT_BYTECODE_ABC24_SHIFT 0
+#define WOORT_BYTECODE_MAB18_SHIFT 8
+#define WOORT_BYTECODE_MABC26_SHIFT 0
 
+#define WOORT_MAKE_BYTECODE(FORMAL, V) (woort_Bytecode)(    \
+    (((uint32_t)(V) << WOORT_BYTECODE_##FORMAL##_SHIFT) & WOORT_BYTECODE_##FORMAL##_MASK))
 
-typedef struct woort_OpcodeFormal_OP6_26
-{
-    _Alignas(4) uint8_t     m_op6_2;
-    char                    m_24[3];
+#define WOORT_BYTECODE(FORMAL, BYTECODE) (uint32_t)(        \
+    ((woort_Bytecode)(BYTECODE) & WOORT_BYTECODE_##FORMAL##_MASK) >> WOORT_BYTECODE_##FORMAL##_SHIFT)
 
-} woort_OpcodeFormal_OP6_26;
-#define woort_OpcodeFormal_OP6_26_cons(op6) \
-    (woort_Bytecode){.m_op6_26 = (const woort_OpcodeFormal_OP6_26){ .m_op6_2 = ((uint8_t)(op6)) << 2 }}
+#define woort_OpcodeFormal_OP6_cons(op6)                    \
+    WOORT_MAKE_BYTECODE(OP6, op6)
 
-typedef struct woort_OpcodeFormal_OP6_U26
-{
-    _Alignas(4) uint8_t     m_op6_u26h2;
-    uint8_t                 m_u26m8;
-    uint16_t                m_u26l16;
+#define woort_OpcodeFormal_OP6_M2_cons(op6, m2)             \
+    WOORT_MAKE_BYTECODE(OP6, op6)                           \
+    | WOORT_MAKE_BYTECODE(M2, m2)
 
-} woort_OpcodeFormal_OP6_U26;
-#define _woort_OpcodeFormal_OP6_U26_cons(op6, u26)                              \
-    (woort_Bytecode){                                                           \
-        .m_op6_u26 = (const woort_OpcodeFormal_OP6_U26){                        \
-            .m_op6_u26h2 = (uint8_t)(((op6) << 2) | (((u26) >> 24) & 0b011u)),  \
-            .m_u26m8 = (uint8_t)((u26) >> 16),                                  \
-            .m_u26l16 = (uint16_t)(u26),                                        \
-        }                                                                       \
-    }
-#define woort_OpcodeFormal_OP6_U26_cons(op6, u26)                               \
-    _woort_OpcodeFormal_OP6_U26_cons((uint8_t)(op6), (uint32_t)(u26))
+#define woort_OpcodeFormal_OP6_MABC26_cons(op6, u26)        \
+    WOORT_MAKE_BYTECODE(OP6, op6)                           \
+    | WOORT_MAKE_BYTECODE(MABC26, u26)
 
-typedef struct woort_OpcodeFormal_OP6_U18_I8
-{
-    _Alignas(4) uint8_t     m_op6_u18h2;
-    int8_t                  m_i8;
-    uint16_t                m_u18l16;
+#define woort_OpcodeFormal_OP6_MAB18_C8_cons(op6, mab18, c8)\
+    WOORT_MAKE_BYTECODE(OP6, op6)                           \
+    | WOORT_MAKE_BYTECODE(MAB18, mab18)                     \
+    | WOORT_MAKE_BYTECODE(C8, c8)
 
-} woort_OpcodeFormal_OP6_U18_I8;
-#define _woort_OpcodeFormal_OP6_U18_I8_cons(op6, u18, i8)                       \
-    (woort_Bytecode){                                                           \
-        .m_op6_u18_i8 = (const woort_OpcodeFormal_OP6_U18_I8){                  \
-            .m_op6_u18h2 = (uint8_t)(((op6) << 2) | (((u18) >> 16) & 0b11u)),   \
-            .m_i8 = (i8),                                                       \
-            .m_u18l16 = (uint16_t)(u18),                                        \
-        }                                                                       \
-    }
-#define woort_OpcodeFormal_OP6_U18_I8_cons(op6, u18, i8)                        \
-    _woort_OpcodeFormal_OP6_U18_I8_cons((uint8_t)(op6), (uint32_t)(u18), (int8_t)(i8))
+#define woort_OpcodeFormal_OP6_M2_ABC24_cons(op6, m2, abc24)\
+    WOORT_MAKE_BYTECODE(OP6, op6)                           \
+    | WOORT_MAKE_BYTECODE(M2, m2)                           \
+    | WOORT_MAKE_BYTECODE(ABC24, abc24)    
 
-typedef struct woort_OpcodeFormal_OP6M2_U24
-{
-    _Alignas(4) uint8_t     m_op6_m2;
-    uint8_t                 m_u24h8;
-    uint16_t                m_u24l16;
+#define woort_OpcodeFormal_OP6_M2_C8_cons(op6, m2, c8)      \
+    WOORT_MAKE_BYTECODE(OP6, op6)                           \
+    | WOORT_MAKE_BYTECODE(M2, m2)                           \
+    | WOORT_MAKE_BYTECODE(C8, c8)
 
-} woort_OpcodeFormal_OP6M2_U24;
-#define _woort_OpcodeFormal_OP6M2_U24_cons(op6, m2, u24)        \
-    (woort_Bytecode){                                           \
-        .m_op6m2_u24 = (const woort_OpcodeFormal_OP6M2_U24){    \
-            .m_op6_m2 = ((op6) << 2) | (m2),                    \
-            .m_u24h8 = (uint8_t)(((u24) >> 16)),        \
-            .m_u24l16 = (uint16_t)(u24),            \
-        }                                                       \
-    }
-#define woort_OpcodeFormal_OP6M2_U24_cons(op6, m2, u24)         \
-    _woort_OpcodeFormal_OP6M2_U24_cons((uint8_t)(op6), (uint8_t)(m2), (uint32_t)(u24))
+#define woort_OpcodeFormal_OP6_M2_B8_C8_cons(op6, m2, b8, c8)\
+     WOORT_MAKE_BYTECODE(OP6, op6)                          \
+    | WOORT_MAKE_BYTECODE(M2, m2)                           \
+    | WOORT_MAKE_BYTECODE(B8, b8)                           \
+    | WOORT_MAKE_BYTECODE(C8, c8)
 
-typedef struct woort_OpcodeFormal_OP6M2_I8_16
-{
-    _Alignas(4) uint8_t     m_op6_m2;
-    int8_t                  m_i8;
-    char                    m_16[2];
+#define woort_OpcodeFormal_OP6_M2_A8_BC16_cons(op6, m2, a8, bc16)\
+     WOORT_MAKE_BYTECODE(OP6, op6)                          \
+    | WOORT_MAKE_BYTECODE(M2, m2)                           \
+    | WOORT_MAKE_BYTECODE(A8, a8)                           \
+    | WOORT_MAKE_BYTECODE(BC16, bc16)
 
-} woort_OpcodeFormal_OP6M2_I8_16;
-#define _woort_OpcodeFormal_OP6M2_I8_16_cons(op6, m2, i8)           \
-    (woort_Bytecode){                                               \
-        .m_op6m2_i8_16 = (const woort_OpcodeFormal_OP6M2_I8_16){    \
-            .m_op6_m2 = (uint8_t)((op6) << 2) | (m2),                        \
-            .m_i8 = (i8),                                           \
-        }                                                           \
-    }
-#define woort_OpcodeFormal_OP6M2_I8_16_cons(op6, m2, i8)            \
-    _woort_OpcodeFormal_OP6M2_I8_16_cons((uint8_t)(op6), (uint8_t)(m2), (int8_t)(i8))
+#define woort_OpcodeFormal_OP6_M2_BC16_cons(op6, m2, bc16)  \
+    WOORT_MAKE_BYTECODE(OP6, op6)                           \
+    | WOORT_MAKE_BYTECODE(M2, m2)                           \
+    | WOORT_MAKE_BYTECODE(BC16, bc16)
 
-typedef struct woort_OpcodeFormal_OP6M2_I8_I8_8
-{
-    _Alignas(4) uint8_t     m_op6_m2;
-    int8_t                  m_i8_1;
-    int8_t                  m_i8_2;
-    char                    m_8[1];
-
-} woort_OpcodeFormal_OP6M2_I8_I8_8;
-#define _woort_OpcodeFormal_OP6M2_I8_I8_8_cons(op6, m2, i8_1, i8_2)     \
-    (woort_Bytecode){                                                   \
-        .m_op6m2_i8_i8_8 = (const woort_OpcodeFormal_OP6M2_I8_I8_8){    \
-            .m_op6_m2 = (uint8_t)(((op6) << 2) | (m2)),                 \
-            .m_i8_1 = (i8_1),                                           \
-            .m_i8_2 = (i8_2),                                           \
-        }                                                               \
-    }
-#define woort_OpcodeFormal_OP6M2_I8_I8_8_cons(op6, m2, i8_1, i8_2)      \
-    _woort_OpcodeFormal_OP6M2_I8_I8_8_cons((uint8_t)(op6), (uint8_t)(m2), (int8_t)(i8_1), (int8_t)(i8_2))
-
-typedef struct woort_OpcodeFormal_OP6M2_I8_I16
-{
-    _Alignas(4) uint8_t     m_op6_m2;
-    int8_t                  m_i8;
-    int16_t                 m_i16;
-
-} woort_OpcodeFormal_OP6M2_I8_I16;
-#define _woort_OpcodeFormal_OP6M2_I8_I16_cons(op6, m2, i8, i16)     \
-    (woort_Bytecode){                                               \
-        .m_op6m2_i8_i16 = (const woort_OpcodeFormal_OP6M2_I8_I16){  \
-            .m_op6_m2 = (uint8_t)(((op6) << 2) | (m2)),             \
-            .m_i8 = (i8),                                           \
-            .m_i16 = (i16),                                         \
-        }                                                           \
-    }
-#define woort_OpcodeFormal_OP6M2_I8_I16_cons(op6, m2, i8, i16)      \
-    _woort_OpcodeFormal_OP6M2_I8_I16_cons((uint8_t)(op6), (uint8_t)(m2), (int8_t)(i8), (int16_t)(i16))
-
-typedef struct woort_OpcodeFormal_OP6M2_8_I16
-{
-    _Alignas(4) uint8_t     m_op6_m2;
-    char                    m_8[1];
-    int16_t                 m_i16;
-
-} woort_OpcodeFormal_OP6M2_8_I16;
-#define _woort_OpcodeFormal_OP6M2_8_I16_cons(op6, m2, i16)          \
-    (woort_Bytecode){                                               \
-        .m_op6m2_8_i16 = (const woort_OpcodeFormal_OP6M2_8_I16){    \
-            .m_op6_m2 = (uint8_t)(((op6) << 2) | (m2)),             \
-            .m_i16 = (i16),                                         \
-        }                                                           \
-    }
-#define woort_OpcodeFormal_OP6M2_8_I16_cons(op6, m2, i16)           \
-    _woort_OpcodeFormal_OP6M2_8_I16_cons((uint8_t)(op6), (uint8_t)(m2), (int16_t)(i16))
-
-typedef struct woort_OpcodeFormal_OP6M2_I8_U16
-{
-    _Alignas(4) uint8_t     m_op6_m2;
-    int8_t                  m_i8;
-    uint16_t                m_u16;
-
-} woort_OpcodeFormal_OP6M2_I8_U16;
-#define _woort_OpcodeFormal_OP6M2_I8_U16_cons(op6, m2, i8, u16)     \
-    (woort_Bytecode){                                               \
-        .m_op6m2_i8_u16 = (const woort_OpcodeFormal_OP6M2_I8_U16){  \
-            .m_op6_m2 = (uint8_t)(((op6) << 2) | (m2)),             \
-            .m_i8 = (i8),                                           \
-            .m_u16 = (u16),                                         \
-        }                                                           \
-    }
-#define woort_OpcodeFormal_OP6M2_I8_U16_cons(op6, m2, i8, u16)      \
-    _woort_OpcodeFormal_OP6M2_I8_U16_cons((uint8_t)(op6), (uint8_t)(m2), (int8_t)(i8), (uint16_t)(u16))
-
-typedef struct woort_OpcodeFormal_OP6M2_I8_I8_I8
-{
-    _Alignas(4) uint8_t     m_op6_m2;
-    int8_t                  m_i8_1;
-    int8_t                  m_i8_2;
-    int8_t                  m_i8_3;
-
-} woort_OpcodeFormal_OP6M2_I8_I8_I8;
-#define _woort_OpcodeFormal_OP6M2_I8_I8_I8_cons(op6, m2, i8_1, i8_2, i8_3)  \
-    (woort_Bytecode){                                                       \
-        .m_op6m2_i8_i8_i8 = (const woort_OpcodeFormal_OP6M2_I8_I8_I8){      \
-            .m_op6_m2 = (uint8_t)(((op6) << 2) | (m2)),                \
-            .m_i8_1 = (i8_1),                                               \
-            .m_i8_2 = (i8_2),                                               \
-            .m_i8_3 = (i8_3),                                               \
-        }                                                                   \
-    }
-#define woort_OpcodeFormal_OP6M2_I8_I8_I8_cons(op6, m2, i8_1, i8_2, i8_3)   \
-    _woort_OpcodeFormal_OP6M2_I8_I8_I8_cons((uint8_t)(op6), (uint8_t)(m2), (int8_t)(i8_1), (int8_t)(i8_2), (int8_t)(i8_3))
-
-typedef struct woort_OpcodeFormal_OP6M2_I8_I8_U8
-{
-    _Alignas(4) uint8_t     m_op6_m2;
-    int8_t                  m_i8_1;
-    int8_t                  m_i8_2;
-    uint8_t                 m_u8_3;
-
-} woort_OpcodeFormal_OP6M2_I8_I8_U8;
-#define _woort_OpcodeFormal_OP6M2_I8_I8_U8_cons(op6, m2, i8_1, i8_2, u8_3)  \
-    (woort_Bytecode){                                                       \
-        .m_op6m2_i8_i8_u8 = (const woort_OpcodeFormal_OP6M2_I8_I8_U8){      \
-            .m_op6_m2 = (uint8_t)(((op6) << 2) | (m2)),                     \
-            .m_i8_1 = (i8_1),                                               \
-            .m_i8_2 = (i8_2),                                               \
-            .m_u8_3 = (u8_3),                                               \
-        }                                                                   \
-    }
-#define woort_OpcodeFormal_OP6M2_I8_I8_U8_cons(op6, m2, i8_1, i8_2, u8_3)   \
-    _woort_OpcodeFormal_OP6M2_I8_I8_U8_cons((uint8_t)(op6), (uint8_t)(m2), (int8_t)(i8_1), (int8_t)(i8_2), (uint8_t)(u8_3))
+#define woort_OpcodeFormal_OP6_M2_A8_B8_C8_cons(op6, m2, a8, b8, c8)\
+    WOORT_MAKE_BYTECODE(OP6, op6)                           \
+    | WOORT_MAKE_BYTECODE(M2, m2)                           \
+    | WOORT_MAKE_BYTECODE(A8, a8)                           \
+    | WOORT_MAKE_BYTECODE(B8, b8)                           \
+    | WOORT_MAKE_BYTECODE(C8, c8)                           
 
 #define woort_OpCodeFormal_cons(FORMAL, ...) \
     woort_OpcodeFormal_FORMAL##_cons(__VA_ARGS__)
-
-typedef union woort_Bytecode
-{
-    uint8_t                             m_op6m2;
-
-    woort_OpcodeFormal_OP6_26           m_op6_26;
-    woort_OpcodeFormal_OP6_U26          m_op6_u26;
-    woort_OpcodeFormal_OP6_U18_I8       m_op6_u18_i8;
-
-    woort_OpcodeFormal_OP6M2_U24        m_op6m2_u24;
-    woort_OpcodeFormal_OP6M2_8_I16      m_op6m2_8_i16;
-    woort_OpcodeFormal_OP6M2_I8_16      m_op6m2_i8_16;
-    woort_OpcodeFormal_OP6M2_I8_U16     m_op6m2_i8_u16;
-    woort_OpcodeFormal_OP6M2_I8_I16     m_op6m2_i8_i16;
-    woort_OpcodeFormal_OP6M2_I8_I8_8    m_op6m2_i8_i8_8;
-    woort_OpcodeFormal_OP6M2_I8_I8_U8   m_op6m2_i8_i8_u8;
-    woort_OpcodeFormal_OP6M2_I8_I8_I8   m_op6m2_i8_i8_i8;
-
-}woort_Bytecode;

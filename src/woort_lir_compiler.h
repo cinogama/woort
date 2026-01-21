@@ -69,6 +69,10 @@ typedef enum woort_LIRCompiler_CommitResult
 
 } woort_LIRCompiler_CommitResult;
 
+WOORT_NODISCARD bool woort_LIRCompiler_emit_code(
+    woort_LIRCompiler* lir_compiler,
+    woort_Bytecode bc);
+
 WOORT_NODISCARD woort_LIRCompiler_CommitResult woort_LIRCompiler_commit(
     woort_LIRCompiler* lir_compiler,
     woort_CodeEnv** out_codeenv);

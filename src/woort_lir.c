@@ -55,34 +55,33 @@ WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
 
 #define WOORT_LIR_EMIT_BYTECODE_TO_LIST(BC)     \
     do {                                        \
-        if (!woort_vector_push_back(            \
-            &modifing_compiler->m_code_holder,  \
-            1,                                  \
-            &BC))                               \
+        if (!woort_LIRCompiler_emit_code(       \
+            modifing_compiler,                  \
+            BC))                                \
         {                                       \
             return false;                       \
         }                                       \
     } while (0)
 
-#define WOORT_LIR_EMIT_OP6_U26(opcode, u26_value)  \
-    WOORT_LIR_EMIT_BYTECODE_TO_LIST(                            \
-            woort_OpcodeFormal_OP6_U26_cons(                 \
-                opcode, u26_value))            
-
-#define WOORT_LIR_EMIT_OP6_U18_I8(opcode, u18_value, i8_value)  \
-    WOORT_LIR_EMIT_BYTECODE_TO_LIST(                            \
-            woort_OpcodeFormal_OP6_U18_I8_cons(                 \
-                opcode, u18_value, i8_value))            
-
-#define WOORT_LIR_EMIT_OP6M2_8_I16(opcode, m2, i16_value)   \
+#define WOORT_LIR_EMIT_OP6_MABC26(op6, mabc26)              \
     WOORT_LIR_EMIT_BYTECODE_TO_LIST(                        \
-        woort_OpcodeFormal_OP6M2_8_I16_cons(                \
-                opcode, m2, i16_value))
+            woort_OpcodeFormal_OP6_MABC26_cons(             \
+                op6, mabc26))            
 
-#define WOORT_LIR_EMIT_OP6M2_U24(opcode, m2, u24_value)     \
+#define WOORT_LIR_EMIT_OP6_MAB18_C8(op6, mab18, c8)         \
     WOORT_LIR_EMIT_BYTECODE_TO_LIST(                        \
-        woort_OpcodeFormal_OP6M2_U24_cons(                  \
-                opcode, m2, u24_value))
+            woort_OpcodeFormal_OP6_MAB18_C8_cons(           \
+                op6, mab18, c8))            
+
+#define WOORT_LIR_EMIT_OP6_M2_BC16(op6, m2, bc16)           \
+    WOORT_LIR_EMIT_BYTECODE_TO_LIST(                        \
+        woort_OpcodeFormal_OP6_M2_BC16_cons(                \
+                op6, m2, bc16))
+
+#define WOORT_LIR_EMIT_OP6_M2_ABC24(op6, m2, abc24)         \
+    WOORT_LIR_EMIT_BYTECODE_TO_LIST(                        \
+        woort_OpcodeFormal_OP6_M2_ABC24_cons(               \
+                op6, m2, abc24))
 
 WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
     const woort_LIR* lir, struct woort_LIRCompiler* modifing_compiler)
@@ -106,7 +105,7 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
                 && register_stack_offset <= INT8_MAX)
             {
                 // Fast way.
-                WOORT_LIR_EMIT_OP6_U18_I8(
+                WOORT_LIR_EMIT_OP6_MAB18_C8(
                     WOORT_OPCODE_LOAD,
                     data_index,
                     register_stack_offset);
@@ -121,11 +120,11 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
                 && data_index <= /* UINT44_MAX */ 0xfffffffffffu)
             {
                 // Fast way.
-                WOORT_LIR_EMIT_OP6_U18_I8(
+                WOORT_LIR_EMIT_OP6_MAB18_C8(
                     WOORT_OPCODE_LOADEX,
                     (data_index & ~LOW_26_BIT_MASK) >> 26,
                     register_stack_offset);
-                WOORT_LIR_EMIT_OP6_U26(
+                WOORT_LIR_EMIT_OP6_MABC26(
                     WOORT_OPCODE_NOP,
                     data_index & LOW_26_BIT_MASK);
 
@@ -136,14 +135,14 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
         // Slow way.
         if (data_index <= /* UINT24_MAX */ 0xffffffu)
         {
-            WOORT_LIR_EMIT_OP6M2_U24(
+            WOORT_LIR_EMIT_OP6_M2_ABC24(
                 WOORT_OPCODE_PUSH, 1, data_index);
         }
         else if (data_index <= /* UINT50_MAX */ 0x3ffffffffffffu)
         {
-            WOORT_LIR_EMIT_OP6M2_U24(
+            WOORT_LIR_EMIT_OP6_M2_ABC24(
                 WOORT_OPCODE_PUSH, 3, (data_index & ~LOW_26_BIT_MASK) >> 26);
-            WOORT_LIR_EMIT_OP6_U26(
+            WOORT_LIR_EMIT_OP6_MABC26(
                 WOORT_OPCODE_NOP,
                 data_index & LOW_26_BIT_MASK);
         }
@@ -153,7 +152,7 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
             return false;
         }
 
-        WOORT_LIR_EMIT_OP6M2_8_I16(
+        WOORT_LIR_EMIT_OP6_M2_BC16(
             WOORT_OPCODE_POP, 2, register_stack_offset);
         break;
     }
@@ -169,7 +168,7 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
                 && register_stack_offset <= INT8_MAX)
             {
                 // Fast way.
-                WOORT_LIR_EMIT_OP6_U18_I8(
+                WOORT_LIR_EMIT_OP6_MAB18_C8(
                     WOORT_OPCODE_STORE,
                     data_index,
                     register_stack_offset);
@@ -184,11 +183,11 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
                 && data_index <= /* UINT44_MAX */ 0xfffffffffffu)
             {
                 // Fast way.
-                WOORT_LIR_EMIT_OP6_U18_I8(
+                WOORT_LIR_EMIT_OP6_MAB18_C8(
                     WOORT_OPCODE_STOREEX,
                     (data_index & ~LOW_26_BIT_MASK) >> 26,
                     register_stack_offset);
-                WOORT_LIR_EMIT_OP6_U26(
+                WOORT_LIR_EMIT_OP6_MABC26(
                     WOORT_OPCODE_NOP,
                     data_index & LOW_26_BIT_MASK);
 
@@ -197,19 +196,19 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
         }
 
         // Slow way.
-        WOORT_LIR_EMIT_OP6M2_8_I16(
+        WOORT_LIR_EMIT_OP6_M2_BC16(
             WOORT_OPCODE_PUSH, 2, register_stack_offset);
 
         if (data_index <= /* UINT24_MAX */ 0xffffffu)
         {
-            WOORT_LIR_EMIT_OP6M2_U24(
+            WOORT_LIR_EMIT_OP6_M2_ABC24(
                 WOORT_OPCODE_POP, 1, data_index);
         }
         else if (data_index <= /* UINT50_MAX */ 0x3ffffffffffffu)
         {
-            WOORT_LIR_EMIT_OP6M2_U24(
+            WOORT_LIR_EMIT_OP6_M2_ABC24(
                 WOORT_OPCODE_POP, 3, (data_index & ~LOW_26_BIT_MASK) >> 26);
-            WOORT_LIR_EMIT_OP6_U26(
+            WOORT_LIR_EMIT_OP6_MABC26(
                 WOORT_OPCODE_NOP,
                 data_index & LOW_26_BIT_MASK);
         }
@@ -223,7 +222,7 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
     }
     case WOORT_LIR_OPCODE_PUSH:
     {
-        WOORT_LIR_EMIT_OP6M2_8_I16(
+        WOORT_LIR_EMIT_OP6_M2_BC16(
             WOORT_OPCODE_PUSH, 2,
             lir->m_opnums.m_PUSH.m_r->m_assigned_bp_offset);
 
@@ -232,7 +231,7 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
     case WOORT_LIR_OPCODE_PUSHCS:
     case WOORT_LIR_OPCODE_POP:
     {
-        WOORT_LIR_EMIT_OP6M2_8_I16(
+        WOORT_LIR_EMIT_OP6_M2_BC16(
             WOORT_OPCODE_POP, 2,
             lir->m_opnums.m_PUSH.m_r->m_assigned_bp_offset);
 
@@ -254,14 +253,14 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
         if (jump_target_offset <= lir->m_fact_bytecode_offset)
         {
             // Is jump back.
-            WOORT_LIR_EMIT_OP6_U26(
+            WOORT_LIR_EMIT_OP6_MABC26(
                 WOORT_OPCODE_JMPGC,
                 lir->m_fact_bytecode_offset - jump_target_offset);
         }
         else
         {
             // Is jump forward.
-            WOORT_LIR_EMIT_OP6_U26(
+            WOORT_LIR_EMIT_OP6_MABC26(
                 WOORT_OPCODE_JMP,
                 jump_target_offset - lir->m_fact_bytecode_offset);
         }
