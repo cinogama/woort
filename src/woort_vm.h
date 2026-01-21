@@ -28,9 +28,7 @@ typedef struct woort_VMRuntime
 typedef enum woort_VMRuntime_CallStatus
 {
     WOORT_VM_CALL_STATUS_NORMAL,
-
     WOORT_VM_CALL_STATUS_TBD_BAD_STATUS,
-
 
 } woort_VMRuntime_CallStatus;
 

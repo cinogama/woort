@@ -17,8 +17,8 @@ woort_diagnosis.h
 
 typedef enum woort_PanicReason
 {
-    WOORT_PANIC_BAD_BYTE_CODE,
-    WOORT_PANIC_STACK_OVER_FLOW,
+    WOORT_PANIC_BAD_BYTE_CODE = 0xD001,
+    WOORT_PANIC_STACK_OVER_FLOW = 0xD002,
 
 } woort_PanicReason;
 

@@ -42,9 +42,8 @@ void woort_LIRCompiler_deinit(woort_LIRCompiler* lir_compiler);
 WOORT_NODISCARD bool woort_LIRCompiler_allocate_constant(
     woort_LIRCompiler* lir_compiler, 
     woort_LIR_ConstantStorage* out_constant_address);
-WOORT_NODISCARD bool woort_LIRCompiler_allocate_static_storage(
-    woort_LIRCompiler* lir_compiler,
-    woort_LIR_StaticStorage* out_static_storage_address);
+WOORT_NODISCARD woort_LIR_StaticStorage woort_LIRCompiler_allocate_static_storage(
+    woort_LIRCompiler* lir_compiler);
 
 /*
 NOTE: The returned pointer is valid until the next call to

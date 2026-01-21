@@ -21,8 +21,11 @@ typedef struct woort_CodeEnv {
     const woort_Bytecode* m_code_begin;
     const woort_Bytecode* m_code_end;
 
-    woort_Value* m_constant_and_static_storage;
-    size_t       m_constant_and_static_storage_count;
+    woort_Value* m_data_begin;
+    woort_Value* m_data_end;
+
+    size_t m_constant_count;
+    size_t m_static_count;
 } woort_CodeEnv;
 
 WOORT_NODISCARD bool woort_CodeEnv_create(

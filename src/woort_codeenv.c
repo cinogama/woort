@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <memory.h>
 
 #include "woort_codeenv.h"
 #include "woort_spin.h"
@@ -12,7 +13,7 @@ static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
     woort_Vector /* woort_CodeEnv* */
-                        m_codeenvs; 
+        m_codeenvs;
 
 } *_codeenv_global_ctx = NULL;
 
@@ -58,7 +59,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 {
     if (!woort_vector_resize(
         moving_constants,
-        moving_constants->m_element_size + static_storage_count))
+        moving_constants->m_size + static_storage_count))
     {
         // Out of memory.
         return false;
@@ -85,10 +86,24 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     code_env_instance->m_code_end =
         code_env_instance->m_code_begin + code_count;
 
-    code_env_instance->m_constant_and_static_storage =
+    size_t constant_and_static_count;
+    code_env_instance->m_data_begin =
         woort_vector_move_out(
             moving_constants,
-            &code_env_instance->m_constant_and_static_storage_count);
+            &constant_and_static_count);
+    code_env_instance->m_data_end =
+        code_env_instance->m_data_begin + constant_and_static_count;
+
+    code_env_instance->m_constant_count =
+        constant_and_static_count - static_storage_count;
+    code_env_instance->m_static_count = static_storage_count;
+
+
+    // Fill 0 for static storage:
+    memset(
+        &code_env_instance->m_data_begin[code_env_instance->m_constant_count],
+        0,
+        static_storage_count * sizeof(woort_Value));
 
     // 将新创建的 CodeEnv 注册到全局容器
     woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
@@ -121,13 +136,13 @@ void _woort_CodeEnv_destroy(woort_CodeEnv* code_env)
 {
     // 先从全局容器中移除该 CodeEnv
     woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
-    
+
     size_t count = _codeenv_global_ctx->m_codeenvs.m_size;
     for (size_t i = 0; i < count; ++i)
     {
         woort_CodeEnv** ptr = (woort_CodeEnv**)woort_vector_at(
             &_codeenv_global_ctx->m_codeenvs, i);
-        
+
         if (*ptr == code_env)
         {
             // 找到目标，使用 erase_at 删除
@@ -135,12 +150,12 @@ void _woort_CodeEnv_destroy(woort_CodeEnv* code_env)
             break;
         }
     }
-    
+
     woort_rwspinlock_write_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
 
     // 释放 CodeEnv 占用的资源
     free((void*)code_env->m_code_begin);
-    free(code_env->m_constant_and_static_storage);
+    free(code_env->m_data_begin);
     free(code_env);
 }
 
@@ -161,15 +176,15 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
 {
     // 获取读锁，允许多线程并发查找
     woort_rwspinlock_read_lock(&_codeenv_global_ctx->m_codeenvs_lock);
-    
+
     size_t count = _codeenv_global_ctx->m_codeenvs.m_size;
     for (size_t i = 0; i < count; ++i)
     {
         woort_CodeEnv** ptr = (woort_CodeEnv**)woort_vector_at(
             &_codeenv_global_ctx->m_codeenvs, i);
-        
+
         woort_CodeEnv* code_env = *ptr;
-        
+
         // 检查地址是否在该 CodeEnv 的代码区间内
         if (addr >= code_env->m_code_begin && addr < code_env->m_code_end)
         {
@@ -178,7 +193,7 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
             return true;
         }
     }
-    
+
     woort_rwspinlock_read_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
     return false;
 }

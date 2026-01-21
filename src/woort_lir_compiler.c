@@ -67,14 +67,10 @@ WOORT_NODISCARD bool woort_LIRCompiler_allocate_constant(
     (void)_useless_storage;
     return true;
 }
-WOORT_NODISCARD bool woort_LIRCompiler_allocate_static_storage(
-    woort_LIRCompiler* lir_compiler,
-    woort_LIR_StaticStorage* out_static_storage_address)
+WOORT_NODISCARD woort_LIR_StaticStorage woort_LIRCompiler_allocate_static_storage(
+    woort_LIRCompiler* lir_compiler)
 {
-    *out_static_storage_address =
-        (woort_LIR_StaticStorage)
-        lir_compiler->m_static_storage_count++;
-    return true;
+    return (woort_LIR_StaticStorage)lir_compiler->m_static_storage_count++;
 }
 
 WOORT_NODISCARD bool woort_LIRCompiler_get_constant(
@@ -157,8 +153,7 @@ bool _woort_LIRCompiler_commit_function_codes(
         current_lir = woort_linklist_next(current_lir))
     {
         // Emit bytecode.
-        if (!woort_LIR_emit_to_bytecode_list(
-            current_lir, &lir_compiler->m_code_holder))
+        if (!woort_LIR_emit_to_lir_compiler(current_lir, lir_compiler))
             // Out of memory/
             return false;
     }
@@ -376,7 +371,7 @@ WOORT_NODISCARD woort_LIRCompiler_CommitResult woort_LIRCompiler_commit(
     }
 
     // All function commited.
-    if (woort_CodeEnv_create(
+    if (!woort_CodeEnv_create(
         &lir_compiler->m_code_holder,
         &lir_compiler->m_constant_storage_holder,
         lir_compiler->m_static_storage_count,

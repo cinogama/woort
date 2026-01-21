@@ -412,5 +412,5 @@ NOTE: This method is used by the ir-compiler when submitting a function to calcu
 */
 WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir);
 
-WOORT_NODISCARD bool woort_LIR_emit_to_bytecode_list(
-    const woort_LIR* lir, woort_Vector /* woort_Bytecode */* modifing_bytecode_list);
+WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
+    const woort_LIR* lir, struct woort_LIRCompiler* modifing_compiler);

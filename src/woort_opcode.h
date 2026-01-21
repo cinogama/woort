@@ -10,20 +10,21 @@ typedef enum woort_Opcode
 
     WOORT_OPCODE_LOAD,               // OP6 C18 S8
     WOORT_OPCODE_STORE,              // OP6 C18 S8
-    WOORT_OPCODE_LOADEX,             // OP6 C18L S8   EX_C26H
-    WOORT_OPCODE_STOREEX,            // OP6 C18L S8   EX_C26H
+    WOORT_OPCODE_LOADEX,             // OP6 C18H S8   EX_C26L
+    WOORT_OPCODE_STOREEX,            // OP6 C18H S8   EX_C26L
 
     WOORT_OPCODE_PUSH,
     // OP6 M2 
-    //     0:   _8 COUNT16
+    //     0:   COUNT24
     //     1:   C24
     //     2:   _8 S16
+    //     3:   C24H EX_C26L
     WOORT_OPCODE_POP,
     // OP6 M2 
-    //      0:  _8 COUNT16
+    //      0:  COUNT24
     //      1:  C24
     //      2:  _8 S16
-
+    //      3:  C24H EX_C26L
     WOORT_OPCODE_CAST,
     // OP6 M2
     //     0(ItoR):   S8, S8, _8
