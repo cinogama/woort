@@ -210,10 +210,24 @@ _label_continue_execution:
             ++rt_ip;
             break;
         }
+        case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_PUSH, 1):
+        {
+            // PUSH C24
+            if (rt_sp >= rt_stack)
+            {
+                *(rt_sp--) = rt_sb[
+                    (rt_ip->m_op6m2_u24.m_u24h8 << 8) 
+                        | rt_ip->m_op6m2_u24.m_u24l16];
+                ++rt_ip;
+                break;
+            }
+            else
+                WOORT_VM_THROW(stack_overflow);
+        }
         case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_PUSH, 2):
         {
             // PUSH R16
-            if (/* UNLIKELY */ rt_sp >= rt_stack)
+            if (rt_sp >= rt_stack)
             {
                 *(rt_sp--) = rt_sb[rt_ip->m_op6m2_8_i16.m_i16];
                 ++rt_ip;
@@ -222,7 +236,22 @@ _label_continue_execution:
             else
                 WOORT_VM_THROW(stack_overflow);
         }
-
+        //case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_PUSH, 3):
+        //{
+        //    // PUSH C24 EX_C26
+        //    if (rt_sp >= rt_stack)
+        //    {
+        //        *(rt_sp--) = rt_sb[
+        //            (((rt_ip->m_op6m2_u24.m_u24h8 << 8)
+        //                | rt_ip->m_op6m2_u24.m_u24l16) << 26)
+        //                | rt_ip[1].m_op6_u26.
+        //            ];
+        //        ++rt_ip;
+        //        break;
+        //    }
+        //    else
+        //        WOORT_VM_THROW(stack_overflow);
+        //}
         // POP M2
         case WOORT_VM_CASE_OP6M2(WOORT_OPCODE_POP, 0):
         {
