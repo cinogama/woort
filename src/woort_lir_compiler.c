@@ -147,17 +147,18 @@ bool _woort_LIRCompiler_commit_function_codes(
     woort_LIRCompiler* lir_compiler,
     woort_LIRFunction* function)
 {
-    for (
-        woort_LIR* current_lir = woort_linklist_iter(&function->m_lir_list);
-        current_lir != NULL;
-        current_lir = woort_linklist_next(current_lir))
-    {
-        // Emit bytecode.
-        if (!woort_LIR_emit_to_lir_compiler(current_lir, lir_compiler))
-            // Out of memory/
-            return false;
-    }
-    return true;
+    //for (
+    //    woort_LIR* current_lir = woort_linklist_iter(
+    //        &function->m_lir_list);
+    //    current_lir != NULL;
+    //    current_lir = woort_linklist_next(current_lir))
+    //{
+    //    // Emit bytecode.
+    //    if (!woort_LIR_emit_to_lir_compiler(current_lir, lir_compiler))
+    //        // Out of memory/
+    //        return false;
+    //}
+    //return true;
 }
 
 WOORT_NODISCARD bool woort_LIRCompiler_emit_code(
@@ -174,188 +175,188 @@ woort_LIRCompiler_CommitResult _woort_LIRCompiler_commit_function(
     woort_LIRCompiler* lir_compiler,
     woort_LIRFunction* function)
 {
-    woort_LIR* const lir =
-        woort_linklist_iter(&function->m_lir_list);
+    //woort_LIR* const lir =
+    //    woort_linklist_iter(&function->m_lir_list);
 
-    /* Check */
-    // 0. Check if jumping label is valid.
-    for (
-        woort_LIR* current_lir = lir;
-        current_lir != NULL;
-        current_lir = woort_linklist_next(current_lir))
-    {
-        woort_LIRLabel* target_label = NULL;
-        switch (current_lir->m_opnum_formal)
-        {
-        case WOORT_LIR_OPNUMFORMAL_LABEL:
-            target_label = current_lir->m_opnums.m_label.m_label;
-            break;
-        case WOORT_LIR_OPNUMFORMAL_R_LABEL:
-            target_label = current_lir->m_opnums.m_r_label.m_label;
-            break;
-        case WOORT_LIR_OPNUMFORMAL_R_R_LABEL:
-            target_label = current_lir->m_opnums.m_r_r_label.m_label;
-            break;
-        default:
-            break;
-        }
+    ///* Check */
+    //// 0. Check if jumping label is valid.
+    //for (
+    //    woort_LIR* current_lir = lir;
+    //    current_lir != NULL;
+    //    current_lir = woort_linklist_next(current_lir))
+    //{
+    //    woort_LIRLabel* target_label = NULL;
+    //    switch (current_lir->m_opnum_formal)
+    //    {
+    //    case WOORT_LIR_OPNUMFORMAL_LABEL:
+    //        target_label = current_lir->m_opnums.m_label.m_label;
+    //        break;
+    //    case WOORT_LIR_OPNUMFORMAL_R_LABEL:
+    //        target_label = current_lir->m_opnums.m_r_label.m_label;
+    //        break;
+    //    case WOORT_LIR_OPNUMFORMAL_R_R_LABEL:
+    //        target_label = current_lir->m_opnums.m_r_r_label.m_label;
+    //        break;
+    //    default:
+    //        break;
+    //    }
 
-        if (target_label != NULL
-            && target_label->m_binded_lir == NULL)
-        {
-            // Unbound label.
-            WOORT_DEBUG(
-                "Trying to jump to unbound label `%p` when committing LIR function.",
-                target_label);
-            return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_UNBOUND_LABEL;
-        }
-    }
+    //    if (target_label != NULL
+    //        && target_label->m_binded_lir == NULL)
+    //    {
+    //        // Unbound label.
+    //        WOORT_DEBUG(
+    //            "Trying to jump to unbound label `%p` when committing LIR function.",
+    //            target_label);
+    //        return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_UNBOUND_LABEL;
+    //    }
+    //}
 
-    /* Register allocation */
-    size_t stack_usage;
-    if (!woort_LIRFunction_register_allocation(function, &stack_usage))
-    {
-        WOORT_DEBUG("Failed to allocate registers.");
-        return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_REGISTER_ALLOCATION;
-    }
+    ///* Register allocation */
+    //size_t stack_usage;
+    //if (!woort_LIRFunction_register_allocation(function, &stack_usage))
+    //{
+    //    WOORT_DEBUG("Failed to allocate registers.");
+    //    return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_REGISTER_ALLOCATION;
+    //}
 
-    /* Commit */
-    // 0. Mark base offset for this function.
-    size_t current_bytecode_offset = lir_compiler->m_code_holder.m_size;
-    for (
-        woort_LIR* current_lir = lir;
-        current_lir != NULL;
-        current_lir = woort_linklist_next(current_lir))
-    {
-        // Update static storage references.
-        woort_LIR_update_static_storage(
-            current_lir,
-            lir_compiler->m_constant_storage_holder.m_size);
+    ///* Commit */
+    //// 0. Mark base offset for this function.
+    //size_t current_bytecode_offset = lir_compiler->m_code_holder.m_size;
+    //for (
+    //    woort_LIR* current_lir = lir;
+    //    current_lir != NULL;
+    //    current_lir = woort_linklist_next(current_lir))
+    //{
+    //    // Update static storage references.
+    //    woort_LIR_update_static_storage(
+    //        current_lir,
+    //        lir_compiler->m_constant_storage_holder.m_size);
 
-        current_lir->m_fact_bytecode_offset = current_bytecode_offset;
+    //    current_lir->m_fact_bytecode_offset = current_bytecode_offset;
 
-        current_bytecode_offset +=
-            woort_LIR_ir_length_exclude_jmp(current_lir);
-    }
+    //    current_bytecode_offset +=
+    //        woort_LIR_ir_length_exclude_jmp(current_lir);
+    //}
 
-    // 1. Fetch & Update and insert extended jump instructions.
-    /*
-    NOTE:
-    Because conditional jump instructions have other operands occupying instruction space,
-    it is easy for the target location to exceed the jump range limit of the instruction.
-    Therefore, we need to record these instructions and check if they need to be updated.
-    */
-    woort_Vector /* woort_LIR* */ jcond_lir_collection;
-    woort_vector_init(&jcond_lir_collection, sizeof(woort_LIR*));
-    {
-        for (
-            woort_LIR* current_lir = lir;
-            current_lir != NULL;
-            current_lir = woort_linklist_next(current_lir))
-        {
-            switch (current_lir->m_opcode)
-            {
-            case WOORT_LIR_OPCODE_JNZ:
-            case WOORT_LIR_OPCODE_JZ:
-            case WOORT_LIR_OPCODE_JEQ:
-            case WOORT_LIR_OPCODE_JNEQ:
-                if (!woort_vector_push_back(&jcond_lir_collection, 1, &current_lir))
-                {
-                    // Failed to record jcond lir.
-                    woort_vector_deinit(&jcond_lir_collection);
-                    return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
-                }
-                break;
-            default:
-                assert(
-                    current_lir->m_opnum_formal != WOORT_LIR_OPNUMFORMAL_R_LABEL
-                    && current_lir->m_opnum_formal != WOORT_LIR_OPNUMFORMAL_R_R_LABEL);
-                break;
-            }
-        }
+    //// 1. Fetch & Update and insert extended jump instructions.
+    ///*
+    //NOTE:
+    //Because conditional jump instructions have other operands occupying instruction space,
+    //it is easy for the target location to exceed the jump range limit of the instruction.
+    //Therefore, we need to record these instructions and check if they need to be updated.
+    //*/
+    //woort_Vector /* woort_LIR* */ jcond_lir_collection;
+    //woort_vector_init(&jcond_lir_collection, sizeof(woort_LIR*));
+    //{
+    //    for (
+    //        woort_LIR* current_lir = lir;
+    //        current_lir != NULL;
+    //        current_lir = woort_linklist_next(current_lir))
+    //    {
+    //        switch (current_lir->m_opcode)
+    //        {
+    //        case WOORT_LIR_OPCODE_JNZ:
+    //        case WOORT_LIR_OPCODE_JZ:
+    //        case WOORT_LIR_OPCODE_JEQ:
+    //        case WOORT_LIR_OPCODE_JNEQ:
+    //            if (!woort_vector_push_back(&jcond_lir_collection, 1, &current_lir))
+    //            {
+    //                // Failed to record jcond lir.
+    //                woort_vector_deinit(&jcond_lir_collection);
+    //                return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
+    //            }
+    //            break;
+    //        default:
+    //            assert(
+    //                current_lir->m_opnum_formal != WOORT_LIR_OPNUMFORMAL_R_LABEL
+    //                && current_lir->m_opnum_formal != WOORT_LIR_OPNUMFORMAL_R_R_LABEL);
+    //            break;
+    //        }
+    //    }
 
-        // Ok, check if the jump range is exceeded.
-        for (size_t i = 0; i < jcond_lir_collection.m_size; )
-        {
-            woort_LIR* const current_jcond_lir =
-                *(woort_LIR**)woort_vector_at(&jcond_lir_collection, i);
+    //    // Ok, check if the jump range is exceeded.
+    //    for (size_t i = 0; i < jcond_lir_collection.m_size; )
+    //    {
+    //        woort_LIR* const current_jcond_lir =
+    //            *(woort_LIR**)woort_vector_at(&jcond_lir_collection, i);
 
-            switch (current_jcond_lir->m_opnum_formal)
-            {
-            case WOORT_LIR_OPNUMFORMAL_R_LABEL:
-                if (!current_jcond_lir->m_opnums.m_r_label.m_externed)
-                {
-                    woort_LIR* const jmp_target_lir =
-                        current_jcond_lir->m_opnums.m_r_label.m_label->m_binded_lir;
+    //        switch (current_jcond_lir->m_opnum_formal)
+    //        {
+    //        case WOORT_LIR_OPNUMFORMAL_R_LABEL:
+    //            if (!current_jcond_lir->m_opnums.m_r_label.m_externed)
+    //            {
+    //                woort_LIR* const jmp_target_lir =
+    //                    current_jcond_lir->m_opnums.m_r_label.m_label->m_binded_lir;
 
-                    if (_woort_LIRCompiler_check_and_update_jcond_lir(
-                        current_jcond_lir,
-                        jmp_target_lir,
-                        UINT16_MAX))
-                    {
-                        // Too far to jump directly, need to extern.
-                        current_jcond_lir->m_opnums.m_r_label.m_externed = true;
+    //                if (_woort_LIRCompiler_check_and_update_jcond_lir(
+    //                    current_jcond_lir,
+    //                    jmp_target_lir,
+    //                    UINT16_MAX))
+    //                {
+    //                    // Too far to jump directly, need to extern.
+    //                    current_jcond_lir->m_opnums.m_r_label.m_externed = true;
 
-                        // Restart checking from the beginning.
-                        i = 0;
-                        continue;
-                    }
-                }
-                break;
-            case WOORT_LIR_OPNUMFORMAL_R_R_LABEL:
-                if (!current_jcond_lir->m_opnums.m_r_r_label.m_externed)
-                {
-                    woort_LIR* const jmp_target_lir =
-                        current_jcond_lir->m_opnums.m_r_r_label.m_label->m_binded_lir;
+    //                    // Restart checking from the beginning.
+    //                    i = 0;
+    //                    continue;
+    //                }
+    //            }
+    //            break;
+    //        case WOORT_LIR_OPNUMFORMAL_R_R_LABEL:
+    //            if (!current_jcond_lir->m_opnums.m_r_r_label.m_externed)
+    //            {
+    //                woort_LIR* const jmp_target_lir =
+    //                    current_jcond_lir->m_opnums.m_r_r_label.m_label->m_binded_lir;
 
-                    if (_woort_LIRCompiler_check_and_update_jcond_lir(
-                        current_jcond_lir,
-                        jmp_target_lir,
-                        UINT8_MAX))
-                    {
-                        // Too far to jump directly, need to extern.
-                        current_jcond_lir->m_opnums.m_r_r_label.m_externed = true;
+    //                if (_woort_LIRCompiler_check_and_update_jcond_lir(
+    //                    current_jcond_lir,
+    //                    jmp_target_lir,
+    //                    UINT8_MAX))
+    //                {
+    //                    // Too far to jump directly, need to extern.
+    //                    current_jcond_lir->m_opnums.m_r_r_label.m_externed = true;
 
-                        // Restart checking from the beginning.
-                        i = 0;
-                        continue;
-                    }
-                }
-                break;
-            default:
-                WOORT_DEBUG(
-                    "Internal error: invalid jcond lir opnum formal `%d`.",
-                    current_jcond_lir->m_opnum_formal);
-                abort();
-            }
+    //                    // Restart checking from the beginning.
+    //                    i = 0;
+    //                    continue;
+    //                }
+    //            }
+    //            break;
+    //        default:
+    //            WOORT_DEBUG(
+    //                "Internal error: invalid jcond lir opnum formal `%d`.",
+    //                current_jcond_lir->m_opnum_formal);
+    //            abort();
+    //        }
 
-            // Go ahead~!
-            ++i;
-        }
-    }
-    woort_vector_deinit(&jcond_lir_collection);
+    //        // Go ahead~!
+    //        ++i;
+    //    }
+    //}
+    //woort_vector_deinit(&jcond_lir_collection);
 
-    // 2. All jobs done, emit bytecodes.
-    if (stack_usage > 0)
-    {
-        assert(stack_usage < UINT16_MAX);
+    //// 2. All jobs done, emit bytecodes.
+    //if (stack_usage > 0)
+    //{
+    //    assert(stack_usage < UINT16_MAX);
 
-        // PUSH RESERVE STACK_USAGE
-        if (!woort_LIRCompiler_emit_code(
-            lir_compiler,
-            woort_OpcodeFormal_OP6_M2_BC16_cons(
-                WOORT_OPCODE_PUSH, 0, stack_usage)))
-        {
-            // Out of memory.
-            return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
-        }
-    }
+    //    // PUSH RESERVE STACK_USAGE
+    //    if (!woort_LIRCompiler_emit_code(
+    //        lir_compiler,
+    //        woort_OpcodeFormal_OP6_M2_BC16_cons(
+    //            WOORT_OPCODE_PUSH, 0, stack_usage)))
+    //    {
+    //        // Out of memory.
+    //        return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
+    //    }
+    //}
 
-    if (!_woort_LIRCompiler_commit_function_codes(
-        lir_compiler, function))
-    {
-        return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
-    }
+    //if (!_woort_LIRCompiler_commit_function_codes(
+    //    lir_compiler, function))
+    //{
+    //    return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
+    //}
 
     return WOORT_LIRCOMPILER_COMMIT_RESULT_OK;
 }

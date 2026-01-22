@@ -37,6 +37,16 @@ WOORT_NODISCARD bool woort_LIRFunction_alloc_register(
     woort_LIRFunction* function,
     woort_LIRRegister** out_register);
 
+WOORT_NODISCARD bool woort_LIRFunction_load_constant(
+    woort_LIRFunction* function,
+    woort_LIR_ConstantStorage constant_storage,
+    woort_LIRRegister** out_register);
+
+WOORT_NODISCARD bool woort_LIRFunction_load_static(
+    woort_LIRFunction* function,
+    woort_LIR_StaticStorage static_storage,
+    woort_LIRRegister** out_register);
+
 WOORT_NODISCARD bool woort_LIRFunction_get_argument_register(
     woort_LIRFunction* function,
     uint16_t index,

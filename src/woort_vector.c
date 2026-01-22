@@ -98,10 +98,10 @@ WOORT_NODISCARD void* woort_vector_at(woort_Vector* vector, size_t index)
 
     return result;
 }
-void woort_vector_erase_at(woort_Vector* vector, size_t index)
+WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index)
 {
     if (index >= vector->m_size)
-        return; // Index out of bounds, do nothing.
+        return false; // Index out of bounds, do nothing.
 
     // 如果不是最后一个元素，需要移动后续元素
     if (index < vector->m_size - 1)
@@ -114,6 +114,7 @@ void woort_vector_erase_at(woort_Vector* vector, size_t index)
 
     // 减少大小
     vector->m_size--;
+    return true;
 }
 void* woort_vector_move_out(woort_Vector* vector, size_t* out_count)
 {

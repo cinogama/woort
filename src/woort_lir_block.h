@@ -24,7 +24,7 @@ typedef struct woort_LIRBlock
         m_cond;
     /* OPTIONAL */ struct woort_LIRBlock* 
         m_cond_next_block;
-    /* OPTIONAL, NULL if last block */ struct woort_LIRBlock*
+    /* OPTIONAL, NULL if exit block */ struct woort_LIRBlock*
         m_next_block;
 
 } woort_LIRBlock;
@@ -32,12 +32,16 @@ typedef struct woort_LIRBlock
 void woort_LIRBlock_init(woort_LIRBlock* block, woort_LIRBlockId id);
 void woort_LIRBlock_deinit(woort_LIRBlock* block);
 
-void woort_LIRBlock_jmp(
+WOORT_NODISCARD bool woort_LIRBlock_jmp(
     woort_LIRBlock* block,
     woort_LIRBlock* dst_block);
 
-void woort_LIRBlock_cond_jmp(
+WOORT_NODISCARD bool woort_LIRBlock_cond_jmp(
     woort_LIRBlock* block,
     woort_LIRRegister* cond,
     woort_LIRBlock* dst_block_if_cond,
     woort_LIRBlock* dst_block_else);
+
+// LIR Emit.
+
+WOORT_NODISCARD 

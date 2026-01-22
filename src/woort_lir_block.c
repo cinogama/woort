@@ -21,12 +21,11 @@ void woort_LIRBlock_deinit(woort_LIRBlock* block)
     Block instance will be freed by LIRFunction.
     We dont need free them here.
     */
-
     woort_vector_deinit(&block->m_lir_list);
     woort_vector_deinit(&block->m_prev_blocks);
 }
 
-void woort_LIRBlock_jmp(
+WOORT_NODISCARD bool woort_LIRBlock_jmp(
     woort_LIRBlock* block,
     woort_LIRBlock* dst_block)
 {
@@ -34,10 +33,17 @@ void woort_LIRBlock_jmp(
         block->m_next_block == NULL
         && block->m_cond == NULL
         && block->m_cond_next_block == NULL);
+
+    if (!woort_vector_push_back(&dst_block->m_prev_blocks, 1, &block))
+        // Out of memory.
+        return false;   
+
     block->m_next_block = dst_block;
+
+    return true;
 }
 
-void woort_LIRBlock_cond_jmp(
+WOORT_NODISCARD bool woort_LIRBlock_cond_jmp(
     woort_LIRBlock* block,
     woort_LIRRegister* cond,
     woort_LIRBlock* dst_block_if_cond,
@@ -48,7 +54,22 @@ void woort_LIRBlock_cond_jmp(
         && block->m_cond == NULL
         && block->m_cond_next_block == NULL);
 
+    if (!woort_vector_push_back(&dst_block_if_cond->m_prev_blocks, 1, &block))
+        // Out of memory.
+        return false;
+
+    if (!woort_vector_push_back(&dst_block_else->m_prev_blocks, 1, &block))
+    {
+        // Out of memory.
+        woort_vector_pop_back(&dst_block_if_cond->m_prev_blocks);
+        return false;
+    }
+
     block->m_cond = cond;
     block->m_cond_next_block = dst_block_if_cond;
     block->m_next_block = dst_block_else;
+
+    return true;
 }
+
+

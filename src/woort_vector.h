@@ -32,7 +32,8 @@ void woort_vector_clear(woort_Vector* vector);
 WOORT_NODISCARD bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element);
 WOORT_NODISCARD void* woort_vector_at(woort_Vector* vector, size_t index);
 
-void woort_vector_erase_at(woort_Vector* vector, size_t index);
+WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index);
+void woort_vector_pop_back(woort_Vector* vector);
 
 /* OPTIONAL, Null if empty. */ void* woort_vector_move_out(
     woort_Vector* vector, size_t* out_count);

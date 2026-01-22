@@ -146,7 +146,7 @@ void _woort_CodeEnv_destroy(woort_CodeEnv* code_env)
         if (*ptr == code_env)
         {
             // 找到目标，使用 erase_at 删除
-            woort_vector_erase_at(&_codeenv_global_ctx->m_codeenvs, i);
+            (void)woort_vector_erase_at(&_codeenv_global_ctx->m_codeenvs, i);
             break;
         }
     }
