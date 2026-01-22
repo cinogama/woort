@@ -92,9 +92,9 @@ typedef enum woort_Opcode
     WOORT_OPCODE_OPSALGS,            // OP6 M2 S8 S8 S8
     WOORT_OPCODE_OPSREN,             // OP6 M2 S8 S8 S8
     WOORT_OPCODE_OPLAON,             // OP6 M2 S8 S8 S8(Exclude NOT)
-    WOORT_OPCODE_OPCIASMD,           // OP6 M2 S8 S8 _8
-    WOORT_OPCODE_OPCRASMD,           // OP6 M2 S8 S8 _8
-    WOORT_OPCODE_OPCSAI,             // OP6 M2 S8 S8 _8
+    WOORT_OPCODE_OPCIASMD,           // OP6 M2 _8 S8 S8
+    WOORT_OPCODE_OPCRASMD,           // OP6 M2 _8 S8 S8
+    WOORT_OPCODE_OPCSAI,             // OP6 M2 _8 S8 S8
     WOORT_OPCODE_OPCLAON,            // OP6 M2 S8 S8(Exclude NOT) _8
 
 } woort_Opcode;

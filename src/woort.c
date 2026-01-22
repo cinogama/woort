@@ -17,7 +17,7 @@ void woort_init(void)
 }
 void woort_shutdown(void)
 {
-    woomem_shutdown();
-
     woort_CodeEnv_shutdown();
+
+    woomem_shutdown();
 }
