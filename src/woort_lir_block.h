@@ -8,8 +8,12 @@ woort_lir_block.h
 
 #include <stdbool.h>
 
+typedef size_t woort_LIRBlockId;
+
 typedef struct woort_LIRBlock
 {
+    woort_LIRBlockId m_id;
+
     // LIR codes
     woort_Vector /* woort_LIR */ m_lir_list;
 
@@ -25,7 +29,7 @@ typedef struct woort_LIRBlock
 
 } woort_LIRBlock;
 
-void woort_LIRBlock_init(woort_LIRBlock* block);
+void woort_LIRBlock_init(woort_LIRBlock* block, woort_LIRBlockId id);
 void woort_LIRBlock_deinit(woort_LIRBlock* block);
 
 void woort_LIRBlock_jmp(

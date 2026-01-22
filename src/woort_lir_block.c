@@ -3,8 +3,10 @@
 
 #include <assert.h>
 
-void woort_LIRBlock_init(woort_LIRBlock* block)
+void woort_LIRBlock_init(woort_LIRBlock* block, woort_LIRBlockId id)
 {
+    block->m_id = id;
+
     woort_vector_init(&block->m_lir_list, sizeof(woort_LIR));
     woort_vector_init(&block->m_prev_blocks, sizeof(woort_LIRBlock*));
 

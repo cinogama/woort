@@ -57,6 +57,10 @@ WOORT_NODISCARD bool woort_LIRFunction_alloc_block(
         return false;
     }
 
+    woort_LIRBlock_init(
+        new_block, 
+        (woort_LIRBlockId)function->m_created_blocks.m_size);
+
     if (!woort_vector_push_back(
         &function->m_created_blocks, 
         1,
@@ -67,7 +71,6 @@ WOORT_NODISCARD bool woort_LIRFunction_alloc_block(
         return false;
     }
 
-    woort_LIRBlock_init(new_block);
     *out_block = new_block;
 
     return true;
