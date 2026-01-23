@@ -61,6 +61,7 @@ WOORT_NODISCARD bool woort_linklist_push_back(woort_LinkList* list, const void* 
     memcpy(storage, data, list->m_element_size);
     return true;
 }
+
 void woort_linklist_clear(woort_LinkList* list)
 {
     woort_linklist_deinit(list);
@@ -89,14 +90,14 @@ WOORT_NODISCARD bool woort_linklist_index(woort_LinkList* list, size_t index, vo
     return true;
 }
 
-/* OPTIONAL */ void* woort_linklist_iter(woort_LinkList* list)
+WOORT_NODISCARD /* OPTIONAL */ void* woort_linklist_iter(woort_LinkList* list)
 {
     if (list->m_head == NULL)
         return NULL;
 
     return list->m_head->m_storage;
 }
-/* OPTIONAL */ void* woort_linklist_next(void* iterator)
+WOORT_NODISCARD /* OPTIONAL */ void* woort_linklist_next(void* iterator)
 {
     woort_LinkList_Node* current_node =
         (woort_LinkList_Node*)(

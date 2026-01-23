@@ -14,14 +14,37 @@ woort_lir.h
 #include "woort_opcode_formal.h"
 #include "woort_vector.h"
 
+// Constant.
+typedef uint64_t woort_LIR_ConstantStorage;
+
+// Static storage.
+typedef uint64_t woort_LIR_StaticStorage;
+
+
+typedef enum woort_LIRRegisterType
+{
+    WOORT_LIRREGISTER_NORMAL,
+    WOORT_LIRREGISTER_ARGUMENT,
+    WOORT_LIRREGISTER_CONSTANT,
+    WOORT_LIRREGISTER_STATIC,
+
+} woort_LIRRegisterType;
+
 // Register.
 typedef struct woort_LIRRegister
 {
     /* NOTE: SIZE_MAX means not active */
-    size_t m_alive_range[2];
+    /* Final lir offsets */ size_t m_alive_range[2];
 
     /* Used in finalized only. */
     int16_t m_assigned_bp_offset;
+
+    woort_LIRRegisterType m_type;
+    union
+    {
+        woort_LIR_ConstantStorage m_constant;
+        woort_LIR_StaticStorage m_static;
+    };
 
 }woort_LIRRegister;
 
@@ -34,12 +57,6 @@ typedef struct woort_LIRLabel
     struct woort_LIR* m_binded_lir;
 
 }woort_LIRLabel;
-
-// Constant.
-typedef uint64_t woort_LIR_ConstantStorage;
-
-// Static storage.
-typedef uint64_t woort_LIR_StaticStorage;
 
 typedef struct woort_LIR_CS
 {

@@ -104,7 +104,12 @@ WOORT_NODISCARD bool woort_LIRCompiler_add_function(
         return false;
     }
 
-    woort_LIRFunction_init(new_function);
+    if (!woort_LIRFunction_init(new_function))
+    {
+        // Out of memory.
+        woort_linklist_push_back
+        return false;
+    }
 
     *out_function = new_function;
     return true;
@@ -159,6 +164,7 @@ bool _woort_LIRCompiler_commit_function_codes(
     //        return false;
     //}
     //return true;
+    return false;
 }
 
 WOORT_NODISCARD bool woort_LIRCompiler_emit_code(
