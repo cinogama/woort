@@ -12,7 +12,8 @@ woort_linklist.h
 
 typedef struct woort_LinkList_Node
 {
-    struct woort_LinkList_Node* m_next;
+    /* OPTIONAL */ struct woort_LinkList_Node* m_prev;
+    /* OPTIONAL */ struct woort_LinkList_Node* m_next;
 
     _Alignas(8)
         char m_storage[];
@@ -21,10 +22,10 @@ typedef struct woort_LinkList_Node
 
 typedef struct woort_LinkList
 {
-    woort_LinkList_Node* m_head;
-    woort_LinkList_Node* m_tail;
+    /* OPTIONAL */ woort_LinkList_Node* m_head;
+    /* OPTIONAL */ woort_LinkList_Node* m_tail;
 
-    size_t               m_element_size;
+    size_t m_element_size;
 
 } woort_LinkList;
 
@@ -36,6 +37,7 @@ WOORT_NODISCARD bool woort_linklist_push_back(woort_LinkList* list, const void* 
 void woort_linklist_clear(woort_LinkList* list);
 
 WOORT_NODISCARD bool woort_linklist_index(woort_LinkList* list, size_t index, void** out_storage);
+void woort_linklist_erase(woort_LinkList* list, void* storage);
 
 WOORT_NODISCARD /* OPTIONAL */ void* woort_linklist_iter(woort_LinkList* list);
 WOORT_NODISCARD /* OPTIONAL */ void* woort_linklist_next(void* iterator);

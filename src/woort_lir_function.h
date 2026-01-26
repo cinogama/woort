@@ -22,11 +22,11 @@ typedef struct woort_LIRFunction
 
     woort_Vector /* woort_LIRBlock* */ 
         m_created_blocks;
-    woort_LIRBlock* m_entry_block;
+    woort_LIRBlock m_entry_block;
 
 }woort_LIRFunction;
 
-WOORT_NODISCARD bool woort_LIRFunction_init(woort_LIRFunction* function);
+void woort_LIRFunction_init(woort_LIRFunction* function);
 void woort_LIRFunction_deinit(woort_LIRFunction* function);
 
 WOORT_NODISCARD bool woort_LIRFunction_alloc_block(

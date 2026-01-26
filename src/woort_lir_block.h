@@ -5,6 +5,7 @@ woort_lir_block.h
 */
 #include "woort_diagnosis.h"
 #include "woort_lir.h"
+#include "woort_hashmap.h"
 
 #include <stdbool.h>
 
@@ -27,6 +28,8 @@ typedef struct woort_LIRBlock
     /* OPTIONAL, NULL if exit block */ struct woort_LIRBlock*
         m_next_block;
 
+    woort_HashMap /* woort_LIRRegister*, woort_LIRBlock_RegisterAliveRange */
+        m_block_local_register_active_range;
 } woort_LIRBlock;
 
 void woort_LIRBlock_init(woort_LIRBlock* block, woort_LIRBlockId id);

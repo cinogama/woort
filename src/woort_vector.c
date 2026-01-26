@@ -37,7 +37,7 @@ WOORT_NODISCARD bool woort_vector_reserve(woort_Vector* vector, size_t new_capac
         else
             vector->m_capacity *= 2;
     }
-    void* new_data = realloc(
+    void* const new_data = realloc(
         vector->m_data,
         vector->m_capacity * vector->m_element_size);
     if (new_data == NULL)
@@ -61,8 +61,7 @@ WOORT_NODISCARD bool woort_vector_emplace_back(woort_Vector* vector, size_t coun
     if (!woort_vector_reserve(vector, vector->m_size + count))
         return false;
 
-    *out_element =
-        (void*)(vector->m_data + vector->m_size * vector->m_element_size);
+    *out_element = vector->m_data + vector->m_size * vector->m_element_size;
     vector->m_size += count;
 
     return true;
@@ -86,8 +85,7 @@ WOORT_NODISCARD bool woort_vector_index(woort_Vector* vector, size_t index, void
         WOORT_DEBUG("Index out of bounds.");
         return false;
     }
-    *out_element =
-        (void*)(vector->m_data + index * vector->m_element_size);
+    *out_element = vector->m_data + index * vector->m_element_size;
     return true;
 }
 WOORT_NODISCARD void* woort_vector_at(woort_Vector* vector, size_t index)
@@ -106,9 +104,9 @@ WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index)
     // 如果不是最后一个元素，需要移动后续元素
     if (index < vector->m_size - 1)
     {
-        size_t elements_to_move = vector->m_size - index - 1;
-        void* dest = vector->m_data + index * vector->m_element_size;
-        void* src = vector->m_data + (index + 1) * vector->m_element_size;
+        const size_t elements_to_move = vector->m_size - index - 1;
+        void* const dest = vector->m_data + index * vector->m_element_size;
+        const void* const src = vector->m_data + (index + 1) * vector->m_element_size;
         memmove(dest, src, elements_to_move * vector->m_element_size);
     }
 

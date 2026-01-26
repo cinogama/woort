@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <memory.h>
+#include <assert.h>
 
 #include "woort_linklist.h"
 #include "woort_log.h"
@@ -39,11 +40,15 @@ WOORT_NODISCARD bool woort_linklist_emplace_back(woort_LinkList* list, void** ou
     if (NULL == list->m_tail)
     {
         // Is first node.
+        new_node->m_prev = NULL;
+
         list->m_head = new_node;
         list->m_tail = new_node;
     }
     else
     {
+        new_node->m_prev = list->m_tail;
+
         list->m_tail->m_next = new_node;
         list->m_tail = new_node;
     }
@@ -90,6 +95,33 @@ WOORT_NODISCARD bool woort_linklist_index(woort_LinkList* list, size_t index, vo
     return true;
 }
 
+void woort_linklist_erase(woort_LinkList* list, void* storage)
+{
+    const woort_LinkList_Node* const erasing_node = 
+        (const woort_LinkList_Node*)(
+            (char*)storage - offsetof(woort_LinkList_Node, m_storage));
+
+    if (erasing_node->m_next == NULL)
+    {
+        // Is last node.
+        assert(list->m_tail == erasing_node);
+        list->m_tail = erasing_node->m_prev;
+    }
+    else
+        erasing_node->m_next->m_prev = erasing_node->m_prev;
+   
+    if (erasing_node->m_prev == NULL)
+    {
+        // Is first node.
+        assert(list->m_head == erasing_node);
+        list->m_head = erasing_node->m_next;
+    }
+    else
+        erasing_node->m_prev->m_next = erasing_node->m_next;
+
+    free((void*)erasing_node);
+}
+
 WOORT_NODISCARD /* OPTIONAL */ void* woort_linklist_iter(woort_LinkList* list)
 {
     if (list->m_head == NULL)
@@ -99,7 +131,7 @@ WOORT_NODISCARD /* OPTIONAL */ void* woort_linklist_iter(woort_LinkList* list)
 }
 WOORT_NODISCARD /* OPTIONAL */ void* woort_linklist_next(void* iterator)
 {
-    woort_LinkList_Node* current_node =
+    woort_LinkList_Node* const current_node =
         (woort_LinkList_Node*)(
             (char*)iterator - offsetof(woort_LinkList_Node, m_storage));
 

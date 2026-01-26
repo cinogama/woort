@@ -58,21 +58,17 @@ typedef struct woort_LIRLabel
 
 }woort_LIRLabel;
 
-typedef struct woort_LIR_CS
-{
-    bool m_is_constant;
-    union {
-        woort_LIR_ConstantStorage m_constant;
-        woort_LIR_StaticStorage   m_static;
-    };
+/*
+ATTENTION: 
 
-}woort_LIR_CS;
+    If new formal added, following function must be check:
 
+    * woort_LIRBlock_emit_lir
+    * 
+
+*/
 typedef enum woort_LIR_OpnumFormal
 {
-    WOORT_LIR_OPNUMFORMAL_CS,
-    WOORT_LIR_OPNUMFORMAL_CS_R,
-    WOORT_LIR_OPNUMFORMAL_S_R,
     WOORT_LIR_OPNUMFORMAL_R,
     WOORT_LIR_OPNUMFORMAL_R_R,
     WOORT_LIR_OPNUMFORMAL_R_R_R,
@@ -83,26 +79,6 @@ typedef enum woort_LIR_OpnumFormal
     WOORT_LIR_OPNUMFORMAL_LABEL,
 
 } woort_LIR_OpnumFormal;
-
-typedef struct woort_LIR_OpnumFormal_CS
-{
-    woort_LIR_CS m_cs;
-
-} woort_LIR_OpnumFormal_CS;
-
-typedef struct woort_LIR_OpnumFormal_CS_R
-{
-    woort_LIR_CS m_cs;
-    woort_LIRRegister* m_r;
-
-} woort_LIR_OpnumFormal_CS_R;
-
-typedef struct woort_LIR_OpnumFormal_S_R
-{
-    woort_LIR_StaticStorage m_s;
-    woort_LIRRegister* m_r;
-
-} woort_LIR_OpnumFormal_S_R;
 
 typedef struct woort_LIR_OpnumFormal_R
 {
@@ -190,12 +166,8 @@ enum value here, you also need to:
 */
 typedef enum woort_LIR_Opcode
 {
-    WOORT_LIR_OPCODE_LOAD,
-    WOORT_LIR_OPCODE_STORE,
     WOORT_LIR_OPCODE_PUSH,
-    WOORT_LIR_OPCODE_PUSHCS,
     WOORT_LIR_OPCODE_POP,
-    WOORT_LIR_OPCODE_POPCS,
     WOORT_LIR_OPCODE_CASTITOR,
     WOORT_LIR_OPCODE_CASTITOS,
     WOORT_LIR_OPCODE_CASTRTOI,
@@ -250,12 +222,8 @@ typedef enum woort_LIR_Opcode
 
 } woort_LIR_Opcode;
 
-#define WOORT_LIR_OPNUM_FORMAL_LOAD CS_R
-#define WOORT_LIR_OPNUM_FORMAL_STORE S_R
 #define WOORT_LIR_OPNUM_FORMAL_PUSH R
-#define WOORT_LIR_OPNUM_FORMAL_PUSHCS CS
 #define WOORT_LIR_OPNUM_FORMAL_POP R
-#define WOORT_LIR_OPNUM_FORMAL_POPCS CS
 #define WOORT_LIR_OPNUM_FORMAL_CASTITOR R_R
 #define WOORT_LIR_OPNUM_FORMAL_CASTITOS R_R
 #define WOORT_LIR_OPNUM_FORMAL_CASTRTOI R_R
@@ -327,9 +295,6 @@ typedef enum woort_LIR_Opcode
 
 typedef union woort_LIR_Opnums
 {
-    woort_LIR_OpnumFormal_CS m_cs;
-    woort_LIR_OpnumFormal_CS_R m_cs_r;
-    woort_LIR_OpnumFormal_S_R m_s_r;
     woort_LIR_OpnumFormal_R m_r;
     woort_LIR_OpnumFormal_R_R m_r_r;
     woort_LIR_OpnumFormal_R_R_R m_r_r_r;
@@ -339,12 +304,8 @@ typedef union woort_LIR_Opnums
     woort_LIR_OpnumFormal_R_R_LABEL m_r_r_label;
     woort_LIR_OpnumFormal_LABEL m_label;
 
-    WOORT_LIR_OPNUM_FORMAL_DEFINE(LOAD);
-    WOORT_LIR_OPNUM_FORMAL_DEFINE(STORE);
     WOORT_LIR_OPNUM_FORMAL_DEFINE(PUSH);
-    WOORT_LIR_OPNUM_FORMAL_DEFINE(PUSHCS);
     WOORT_LIR_OPNUM_FORMAL_DEFINE(POP);
-    WOORT_LIR_OPNUM_FORMAL_DEFINE(POPCS);
     WOORT_LIR_OPNUM_FORMAL_DEFINE(CASTITOR);
     WOORT_LIR_OPNUM_FORMAL_DEFINE(CASTITOS);
     WOORT_LIR_OPNUM_FORMAL_DEFINE(CASTRTOI);

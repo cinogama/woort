@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-WOORT_NODISCARD bool woort_LIRFunction_init(woort_LIRFunction* function)
+void woort_LIRFunction_init(woort_LIRFunction* function)
 {
     woort_linklist_init(
         &function->m_register_list,
@@ -23,8 +23,7 @@ WOORT_NODISCARD bool woort_LIRFunction_init(woort_LIRFunction* function)
         &function->m_created_blocks,
         sizeof(woort_LIRBlock*));
 
-    return woort_LIRFunction_alloc_block(
-        function, &function->m_entry_block);
+    woort_LIRBlock_init(&function->m_entry_block, 0);
 }
 void woort_LIRFunction_deinit(woort_LIRFunction* function)
 {
@@ -40,7 +39,7 @@ void woort_LIRFunction_deinit(woort_LIRFunction* function)
         woort_LIRBlock_deinit(block_to_free);
         free(block_to_free);
     }
-
+    woort_LIRBlock_deinit(&function->m_entry_block);
     woort_linklist_deinit(&function->m_register_list);
     woort_vector_deinit(&function->m_argument_registers);
     woort_vector_deinit(&function->m_created_blocks);
@@ -57,10 +56,6 @@ WOORT_NODISCARD bool woort_LIRFunction_alloc_block(
         return false;
     }
 
-    woort_LIRBlock_init(
-        new_block, 
-        (woort_LIRBlockId)function->m_created_blocks.m_size);
-
     if (!woort_vector_push_back(
         &function->m_created_blocks, 
         1,
@@ -71,6 +66,9 @@ WOORT_NODISCARD bool woort_LIRFunction_alloc_block(
         return false;
     }
 
+    woort_LIRBlock_init(
+        new_block,
+        (woort_LIRBlockId)function->m_created_blocks.m_size);
     *out_block = new_block;
 
     return true;
@@ -193,75 +191,3 @@ WOORT_NODISCARD bool woort_LIRFunction_register_allocation(
     // Mark active range for all registers.
     return false;
 }
-//
-//#define WOORT_LIR_FUNCTION_EMIT_LIR(LIROP)                          \
-//    woort_LIR* new_lir;                                         \
-//    if (!_woort_LIRFunction_append_lir(function, &new_lir))     \
-//    {                                                           \
-//        /* Failed to append LIR. */                            \
-//        return false;                                           \
-//    }                                                           \
-//    new_lir->m_opcode = WOORT_LIR_OPCODE_##LIROP;               \
-//    new_lir->m_opnum_formal = WOORT_LIR_OP_FORMAL_KIND(LIROP);  \
-//    WOORT_LIR_OP_FORMAL_T(LIROP)* opnums = &new_lir->m_opnums.m_##LIROP                   
-//
-//
-//WOORT_NODISCARD bool woort_LIRFunction_emit_loadconst(
-//    woort_LIRFunction* function,
-//    woort_LIRRegister* aim_r,
-//    woort_LIR_ConstantStorage src_c)
-//{
-//    WOORT_LIR_FUNCTION_EMIT_LIR(LOAD);
-//    opnums->m_r = aim_r;
-//    opnums->m_cs.m_is_constant = true;
-//    opnums->m_cs.m_constant = src_c;
-//
-//    return true;
-//}
-//
-//WOORT_NODISCARD bool woort_LIRFunction_emit_loadglobal(
-//    woort_LIRFunction* function,
-//    woort_LIRRegister* aim_r,
-//    woort_LIR_StaticStorage src_s)
-//{
-//    WOORT_LIR_FUNCTION_EMIT_LIR(LOAD);
-//    opnums->m_r = aim_r;
-//    opnums->m_cs.m_is_constant = false;
-//    opnums->m_cs.m_static = src_s;
-//
-//    return true;
-//}
-//
-//WOORT_NODISCARD bool woort_LIRFunction_emit_store(
-//    woort_LIRFunction* function,
-//    woort_LIR_StaticStorage aim_s,
-//    woort_LIRRegister* src_r)
-//{
-//    WOORT_LIR_FUNCTION_EMIT_LIR(STORE);
-//    opnums->m_r = src_r;
-//    opnums->m_s = aim_s;
-//
-//    return true;
-//}
-//
-//WOORT_NODISCARD bool woort_LIRFunction_emit_push(
-//    woort_LIRFunction* function,
-//    woort_LIRRegister* src_r)
-//{
-//    WOORT_LIR_FUNCTION_EMIT_LIR(PUSH);
-//    opnums->m_r = src_r;
-//
-//    return true;
-//}
-//
-//WOORT_NODISCARD bool woort_LIRFunction_emit_jmp(
-//    woort_LIRFunction* function,
-//    woort_LIRLabel* target_label)
-//{
-//    WOORT_LIR_FUNCTION_EMIT_LIR(JMP);
-//    opnums->m_label = target_label;
-//
-//    return true;
-//}
-//
-//#undef WOORT_LIR_FUNCTION_EMIT_LIR
