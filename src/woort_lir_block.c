@@ -173,14 +173,15 @@ WOORT_NODISCARD bool _woort_LIRBlock_scan_block_list(
     woort_LIRBlock* block,
     woort_Vector* modify_blocks)
 {
-    woort_Vector block_stack;
-    woort_vector_init(&block_stack, sizeof(woort_LIRBlock*));
+    // BFS
+    woort_LinkList block_stack;
+    woort_linklist_init(&block_stack, sizeof(woort_LIRBlock*));
 
-    if (!woort_vector_push_back(&block_stack, 1, &modify_blocks))
+    if (!woort_linklist_push_back(&block_stack, &modify_blocks))
     {
         // Out of memory.
 
-        woort_vector_deinit(&block_stack);
+        woort_linklist_deinit(&block_stack);
         return false;
     }
 
@@ -195,13 +196,15 @@ WOORT_NODISCARD bool _woort_LIRBlock_scan_block_list(
     bool ok = true;
     do
     {
-        woort_LIRBlock* const current_block =
-            *(woort_LIRBlock**)woort_vector_at(
-                &block_stack, block_stack.m_size - 1);
+        woort_LIRBlock* const current_block;
 
-        woort_vector_pop_back(&block_stack);
+        if (!woort_linklist_front(&block_stack, &current_block))
+            // Finished.
+            break;
 
-        int _useless = NULL;
+        (void)woort_linklist_pop_front(&block_stack);
+
+        int _useless = 0;
         switch (woort_hashmap_insert(&walked_map, &current_block, &_useless))
         {
         case WOORT_HASHMAP_RESULT_OK:
@@ -209,11 +212,11 @@ WOORT_NODISCARD bool _woort_LIRBlock_scan_block_list(
             {
                 // Walk through all next block.
                 if ((current_block->m_cond_next_block != NULL
-                    && !woort_vector_push_back(
-                        &block_stack, 1, &current_block->m_cond_next_block))
+                    && !woort_linklist_push_back(
+                        &block_stack, &current_block->m_cond_next_block))
                     || (current_block->m_next_block != NULL
-                        && !woort_vector_push_back(
-                            &block_stack, 1, &current_block->m_next_block)))
+                        && !woort_linklist_push_back(
+                            &block_stack, &current_block->m_next_block)))
                 {
                     // Out of memory.
                     ok = false;
@@ -230,37 +233,47 @@ WOORT_NODISCARD bool _woort_LIRBlock_scan_block_list(
             ok = false;
             break;
         }
-    } while (block_stack.m_size != 0 && ok);
+    } while (ok);
 
     woort_hashmap_deinit(&walked_map);
-    woort_vector_deinit(&block_stack);
+    woort_linklist_deinit(&block_stack);
     return ok;
 }
 
-WOORT_NODISCARD bool woort_LIRBlock_register_assign(woort_LIRBlock* entry_block)
+typedef struct woort_LIRBlock_BlockedRegisterActivePoint
+{
+    size_t m_block_id;
+    size_t m_lir_id;
+
+} woort_LIRBlock_BlockedRegisterActivePoint;
+
+WOORT_NODISCARD bool woort_LIRBlock_register_assign(
+    woort_LIRBlock* entry_block)
 {
     // 1. Get all nodes.
     woort_Vector all_blocks;
     woort_vector_init(&all_blocks, sizeof(woort_LIRBlock*));
 
-    if (!_woort_LIRBlock_scan_block_list(entry_block , &all_blocks))
+    if (!_woort_LIRBlock_scan_block_list(entry_block, &all_blocks))
     {
         // Out of memory.
         woort_vector_deinit(&all_blocks);
         return false;
     }
 
-    // 2. Scan all block to mark all register
+    // 2. Scan all block to mark all register.
     do
     {
-        woort_LIRBlock** index = (woort_LIRBlock**)all_blocks.m_data;
-        for (woort_LIRBlock** const end = index + all_blocks.m_size;
+        size_t block_id = 0;
+        for (woort_LIRBlock
+            ** index = (woort_LIRBlock**)all_blocks.m_data,
+            ** const end = index + all_blocks.m_size;
             index != end;
-            ++index)
+            ++index, ++block_id)
         {
             woort_LIRBlock* const this_block = *index;
 
-            this_block
+            this_block;
         }
 
     } while (true);

@@ -67,6 +67,48 @@ WOORT_NODISCARD bool woort_linklist_push_back(woort_LinkList* list, const void* 
     return true;
 }
 
+WOORT_NODISCARD bool woort_linklist_emplace_front(woort_LinkList* list, void** out_storage)
+{
+    woort_LinkList_Node* new_node =
+        malloc(sizeof(woort_LinkList_Node) + list->m_element_size);
+
+    if (NULL == new_node)
+    {
+        WOORT_DEBUG("Allocation failed.");
+        return false;
+    }
+
+    new_node->m_prev = NULL;
+
+    if (NULL == list->m_head)
+    {
+        // Is first node.
+        new_node->m_next = NULL;
+
+        list->m_head = new_node;
+        list->m_tail = new_node;
+    }
+    else
+    {
+        new_node->m_next = list->m_head;
+
+        list->m_head->m_prev = new_node;
+        list->m_head = new_node;
+    }
+
+    *out_storage = new_node->m_storage;
+    return true;
+}
+WOORT_NODISCARD bool woort_linklist_push_front(woort_LinkList* list, const void* data)
+{
+    void* storage;
+    if (!woort_linklist_emplace_front(list, &storage))
+        return false;
+
+    memcpy(storage, data, list->m_element_size);
+    return true;
+}
+
 void woort_linklist_clear(woort_LinkList* list)
 {
     woort_linklist_deinit(list);
@@ -138,4 +180,58 @@ WOORT_NODISCARD /* OPTIONAL */ void* woort_linklist_next(void* iterator)
     if (current_node->m_next == NULL)
         return NULL;
     return current_node->m_next->m_storage;
+}
+
+WOORT_NODISCARD bool woort_linklist_front(woort_LinkList* list, void** out_storage)
+{
+    if (list->m_head == NULL)
+        return false;
+
+    *out_storage = list->m_head->m_storage;
+    return true;
+}
+WOORT_NODISCARD bool woort_linklist_back(woort_LinkList* list, void** out_storage)
+{
+    if (list->m_tail == NULL)
+        return false;
+
+    *out_storage = list->m_tail->m_storage;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_linklist_pop_front(woort_LinkList* list)
+{
+    /* OPTIONAL */ woort_LinkList_Node* const head = list->m_head;
+    if (head == NULL)
+        return false;
+
+    if (head->m_next != NULL)
+    {
+        head->m_next->m_prev = NULL;
+        list->m_head = head->m_next;
+    }
+    else
+        // Only one node in list.
+        list->m_head = list->m_tail = NULL;
+
+    free(head);
+    return true;
+}
+WOORT_NODISCARD bool woort_linklist_pop_back(woort_LinkList* list)
+{
+    /* OPTIONAL */ woort_LinkList_Node* const tail = list->m_tail;
+    if (tail == NULL)
+        return false;
+
+    if (tail->m_next != NULL)
+    {
+        tail->m_prev->m_next = NULL;
+        list->m_tail = tail->m_prev;
+    }
+    else
+        // Only one node in list.
+        list->m_head = list->m_tail = NULL;
+
+    free(tail);
+    return true;
 }
