@@ -34,6 +34,13 @@ void woort_linklist_deinit(woort_LinkList* list);
 
 WOORT_NODISCARD bool woort_linklist_emplace_back(woort_LinkList* list, void** out_storage);
 WOORT_NODISCARD bool woort_linklist_push_back(woort_LinkList* list, const void* data);
+
+WOORT_NODISCARD bool woort_linklist_front(woort_LinkList* list, void** out_storage);
+WOORT_NODISCARD bool woort_linklist_back(woort_LinkList* list, void** out_storage);
+
+WOORT_NODISCARD bool woort_linklist_pop_front(woort_LinkList* list);
+WOORT_NODISCARD bool woort_linklist_pop_back(woort_LinkList* list);
+
 void woort_linklist_clear(woort_LinkList* list);
 
 WOORT_NODISCARD bool woort_linklist_index(woort_LinkList* list, size_t index, void** out_storage);

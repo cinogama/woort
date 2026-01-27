@@ -8,51 +8,6 @@
 #include "woort_vector.h"
 #include "woort_lir_compiler.h"
 
-void woort_LIR_update_static_storage(
-    woort_LIR* lir, size_t constant_count)
-{
-    switch (lir->m_opnum_formal)
-    {
-    case WOORT_LIR_OPNUMFORMAL_CS:
-        if (!lir->m_opnums.m_cs.m_cs.m_is_constant)
-            lir->m_opnums.m_cs.m_cs.m_static += constant_count;
-        break;
-    case WOORT_LIR_OPNUMFORMAL_CS_R:
-        if (!lir->m_opnums.m_cs_r.m_cs.m_is_constant)
-            lir->m_opnums.m_cs_r.m_cs.m_static += constant_count;
-        break;
-    case WOORT_LIR_OPNUMFORMAL_S_R:
-        lir->m_opnums.m_s_r.m_s += constant_count;
-        break;
-    default:
-        // No static storage to update.
-        break;
-    }
-}
-WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
-{
-    const size_t UINT18_MAX = (1 << 18) - 1;
-    switch (lir->m_opcode)
-    {
-    case WOORT_LIR_OPCODE_LOAD:
-        if (lir->m_opnums.m_LOAD.m_cs.m_is_constant)
-        {
-            if (lir->m_opnums.m_LOAD.m_cs.m_constant > UINT18_MAX)
-                return 2;
-        }
-        else if (lir->m_opnums.m_LOAD.m_cs.m_static > UINT18_MAX)
-            return 2;
-        break;
-    case WOORT_LIR_OPCODE_STORE:
-        if (lir->m_opnums.m_STORE.m_s > UINT18_MAX)
-            return 2;
-        break;
-    default:
-        break;
-    }
-    return 1;
-}
-
 #define WOORT_LIR_EMIT_BYTECODE_TO_LIST(BC)     \
     do {                                        \
         if (!woort_LIRCompiler_emit_code(       \
@@ -90,136 +45,6 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
 
     switch (lir->m_opcode)
     {
-    case WOORT_LIR_OPCODE_LOAD:
-    {
-        const uint16_t register_stack_offset =
-            lir->m_opnums.m_LOAD.m_r->m_assigned_bp_offset;
-        const uint64_t data_index =
-            lir->m_opnums.m_LOAD.m_cs.m_is_constant
-            ? lir->m_opnums.m_LOAD.m_cs.m_constant
-            : lir->m_opnums.m_LOAD.m_cs.m_static;
-
-        if (data_index <= /* UINT18_MAX */ 0x3ffffu)
-        {
-            if (register_stack_offset >= INT8_MIN
-                && register_stack_offset <= INT8_MAX)
-            {
-                // Fast way.
-                WOORT_LIR_EMIT_OP6_MAB18_C8(
-                    WOORT_OPCODE_LOAD,
-                    data_index,
-                    register_stack_offset);
-
-                break;
-            }
-        }
-        else
-        {
-            if (register_stack_offset >= INT8_MIN
-                && register_stack_offset <= INT8_MAX
-                && data_index <= /* UINT44_MAX */ 0xfffffffffffu)
-            {
-                // Fast way.
-                WOORT_LIR_EMIT_OP6_MAB18_C8(
-                    WOORT_OPCODE_LOADEX,
-                    (data_index & ~LOW_26_BIT_MASK) >> 26,
-                    register_stack_offset);
-                WOORT_LIR_EMIT_OP6_MABC26(
-                    WOORT_OPCODE_NOP,
-                    data_index & LOW_26_BIT_MASK);
-
-                break;
-            }
-        }
-
-        // Slow way.
-        if (data_index <= /* UINT24_MAX */ 0xffffffu)
-        {
-            WOORT_LIR_EMIT_OP6_M2_ABC24(
-                WOORT_OPCODE_PUSH, 1, data_index);
-        }
-        else if (data_index <= /* UINT50_MAX */ 0x3ffffffffffffu)
-        {
-            WOORT_LIR_EMIT_OP6_M2_ABC24(
-                WOORT_OPCODE_PUSH, 3, (data_index & ~LOW_26_BIT_MASK) >> 26);
-            WOORT_LIR_EMIT_OP6_MABC26(
-                WOORT_OPCODE_NOP,
-                data_index & LOW_26_BIT_MASK);
-        }
-        else
-        {
-            WOORT_DEBUG("Constant/static addressing out of range.");
-            return false;
-        }
-
-        WOORT_LIR_EMIT_OP6_M2_BC16(
-            WOORT_OPCODE_POP, 2, register_stack_offset);
-        break;
-    }
-    case WOORT_LIR_OPCODE_STORE:
-    {
-        const uint16_t register_stack_offset =
-            lir->m_opnums.m_STORE.m_r->m_assigned_bp_offset;
-        const uint64_t data_index = lir->m_opnums.m_STORE.m_s;
-
-        if (data_index <= /* UINT18_MAX */ 0x3ffffu)
-        {
-            if (register_stack_offset >= INT8_MIN
-                && register_stack_offset <= INT8_MAX)
-            {
-                // Fast way.
-                WOORT_LIR_EMIT_OP6_MAB18_C8(
-                    WOORT_OPCODE_STORE,
-                    data_index,
-                    register_stack_offset);
-
-                break;
-            }
-        }
-        else
-        {
-            if (register_stack_offset >= INT8_MIN
-                && register_stack_offset <= INT8_MAX
-                && data_index <= /* UINT44_MAX */ 0xfffffffffffu)
-            {
-                // Fast way.
-                WOORT_LIR_EMIT_OP6_MAB18_C8(
-                    WOORT_OPCODE_STOREEX,
-                    (data_index & ~LOW_26_BIT_MASK) >> 26,
-                    register_stack_offset);
-                WOORT_LIR_EMIT_OP6_MABC26(
-                    WOORT_OPCODE_NOP,
-                    data_index & LOW_26_BIT_MASK);
-
-                break;
-            }
-        }
-
-        // Slow way.
-        WOORT_LIR_EMIT_OP6_M2_BC16(
-            WOORT_OPCODE_PUSH, 2, register_stack_offset);
-
-        if (data_index <= /* UINT24_MAX */ 0xffffffu)
-        {
-            WOORT_LIR_EMIT_OP6_M2_ABC24(
-                WOORT_OPCODE_POP, 1, data_index);
-        }
-        else if (data_index <= /* UINT50_MAX */ 0x3ffffffffffffu)
-        {
-            WOORT_LIR_EMIT_OP6_M2_ABC24(
-                WOORT_OPCODE_POP, 3, (data_index & ~LOW_26_BIT_MASK) >> 26);
-            WOORT_LIR_EMIT_OP6_MABC26(
-                WOORT_OPCODE_NOP,
-                data_index & LOW_26_BIT_MASK);
-        }
-        else
-        {
-            WOORT_DEBUG("Constant/static addressing out of range.");
-            return false;
-        }
-
-        break;
-    }
     case WOORT_LIR_OPCODE_PUSH:
     {
         WOORT_LIR_EMIT_OP6_M2_BC16(
@@ -228,7 +53,6 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
 
         break;
     }
-    case WOORT_LIR_OPCODE_PUSHCS:
     case WOORT_LIR_OPCODE_POP:
     {
         WOORT_LIR_EMIT_OP6_M2_BC16(
@@ -237,7 +61,6 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
 
         break;
     }
-    case WOORT_LIR_OPCODE_POPCS:
     case WOORT_LIR_OPCODE_CASTITOR:
     case WOORT_LIR_OPCODE_CASTITOS:
     case WOORT_LIR_OPCODE_CASTRTOI:

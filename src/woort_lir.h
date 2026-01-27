@@ -72,8 +72,8 @@ typedef enum woort_LIR_OpnumFormal
     WOORT_LIR_OPNUMFORMAL_R,
     WOORT_LIR_OPNUMFORMAL_R_R,
     WOORT_LIR_OPNUMFORMAL_R_R_R,
-    WOORT_LIR_OPNUMFORMAL_R_R_COUNT16,
-    WOORT_LIR_OPNUMFORMAL_R_COUNT16,
+    WOORT_LIR_OPNUMFORMAL_R_R_COUNT,
+    WOORT_LIR_OPNUMFORMAL_R_COUNT,
     WOORT_LIR_OPNUMFORMAL_R_R_LABEL,
     WOORT_LIR_OPNUMFORMAL_R_LABEL,
     WOORT_LIR_OPNUMFORMAL_LABEL,
@@ -100,19 +100,19 @@ typedef struct woort_LIR_OpnumFormal_R_R_R
     woort_LIRRegister* m_r3;
 } woort_LIR_OpnumFormal_R_R_R;
 
-typedef struct woort_LIR_OpnumFormal_R_R_COUNT16
+typedef struct woort_LIR_OpnumFormal_R_R_COUNT
 {
     woort_LIRRegister* m_r1;
     woort_LIRRegister* m_r2;
-    uint16_t          m_count16;
-} woort_LIR_OpnumFormal_R_R_COUNT16;
+    uint32_t           m_count;
+} woort_LIR_OpnumFormal_R_R_COUNT;
 
-typedef struct woort_LIR_OpnumFormal_R_COUNT16
+typedef struct woort_LIR_OpnumFormal_R_COUNT
 {
     woort_LIRRegister* m_r;
-    uint16_t          m_count16;
+    uint32_t            m_count;
 
-} woort_LIR_OpnumFormal_R_COUNT16;
+} woort_LIR_OpnumFormal_R_COUNT;
 
 typedef struct woort_LIR_OpnumFormal_R_LABEL
 {
@@ -236,11 +236,11 @@ typedef enum woort_LIR_Opcode
 #define WOORT_LIR_OPNUM_FORMAL_CALLNWO R_R
 #define WOORT_LIR_OPNUM_FORMAL_CALLNFP R_R
 #define WOORT_LIR_OPNUM_FORMAL_CALL R_R
-#define WOORT_LIR_OPNUM_FORMAL_RET R_COUNT16
-#define WOORT_LIR_OPNUM_FORMAL_MKARR R_COUNT16
-#define WOORT_LIR_OPNUM_FORMAL_MKMAP R_COUNT16
-#define WOORT_LIR_OPNUM_FORMAL_MKSTRUCT R_COUNT16
-#define WOORT_LIR_OPNUM_FORMAL_MKCLOSURE R_R_COUNT16
+#define WOORT_LIR_OPNUM_FORMAL_RET R_COUNT
+#define WOORT_LIR_OPNUM_FORMAL_MKARR R_COUNT
+#define WOORT_LIR_OPNUM_FORMAL_MKMAP R_COUNT
+#define WOORT_LIR_OPNUM_FORMAL_MKSTRUCT R_COUNT
+#define WOORT_LIR_OPNUM_FORMAL_MKCLOSURE R_R_COUNT
 #define WOORT_LIR_OPNUM_FORMAL_ADDI R_R_R
 #define WOORT_LIR_OPNUM_FORMAL_SUBI R_R_R
 #define WOORT_LIR_OPNUM_FORMAL_MULI R_R_R
@@ -298,8 +298,8 @@ typedef union woort_LIR_Opnums
     woort_LIR_OpnumFormal_R m_r;
     woort_LIR_OpnumFormal_R_R m_r_r;
     woort_LIR_OpnumFormal_R_R_R m_r_r_r;
-    woort_LIR_OpnumFormal_R_R_COUNT16 m_r_r_count16;
-    woort_LIR_OpnumFormal_R_COUNT16 m_r_count16;
+    woort_LIR_OpnumFormal_R_R_COUNT m_r_r_count;
+    woort_LIR_OpnumFormal_R_COUNT m_r_count;
     woort_LIR_OpnumFormal_R_LABEL m_r_label;
     woort_LIR_OpnumFormal_R_R_LABEL m_r_r_label;
     woort_LIR_OpnumFormal_LABEL m_label;
@@ -378,17 +378,7 @@ typedef struct woort_LIR
 
 }woort_LIR;
 
-/*
-NOTE: Since static storage shares the same addressing mechanism as constants, this method must be used to
-    update the offset of the static storage space.
-*/
-void woort_LIR_update_static_storage(woort_LIR* lir, size_t constant_count);
-/*
-NOTE: This method is used by the ir-compiler when submitting a function to calculate the IR length required
-    for each LIR, but temporarily does not consider the extra length expansion introduced by conditional
-    jump instructions during long-range jumps: these will be calculated later.
-*/
-WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir);
+
 
 WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
     const woort_LIR* lir, struct woort_LIRCompiler* modifing_compiler);
