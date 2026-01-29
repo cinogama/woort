@@ -409,8 +409,11 @@ void woort_LIR_update_static_storage(woort_LIR* lir, size_t constant_count);
 NOTE: This method is used by the ir-compiler when submitting a function to calculate the IR length required
     for each LIR, but temporarily does not consider the extra length expansion introduced by conditional
     jump instructions during long-range jumps: these will be calculated later.
+
+    Return 0 means bad.
 */
-WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir);
+WOORT_NODISCARD /* May 0 if failed. */ size_t woort_LIR_ir_length_exclude_jmp(
+    const woort_LIR* lir);
 
 WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
     const woort_LIR* lir, struct woort_LIRCompiler* modifing_compiler);

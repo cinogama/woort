@@ -33,9 +33,9 @@ int main(int argc, char** argv) {
         woort_LIRLabel* label;
         (void)woort_LIRFunction_alloc_label(function, &label);
 
-        (void)woort_LIRFunction_bind(function, label);
         //(void)woort_LIRFunction_emit_push(function, arg0);
         (void)woort_LIRFunction_emit_loadconst(function, val0, c0);
+        (void)woort_LIRFunction_bind(function, label);
         (void)woort_LIRFunction_emit_store(function, s0, val0);
         (void)woort_LIRFunction_emit_jmp(function, label);
 

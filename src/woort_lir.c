@@ -8,6 +8,12 @@
 #include "woort_vector.h"
 #include "woort_lir_compiler.h"
 
+const size_t UINT18_MAX = ((size_t)1 << 18) - 1;
+const size_t UINT24_MAX = ((size_t)1 << 24) - 1;
+const size_t UINT26_MAX = ((size_t)1 << 26) - 1;
+const size_t UINT44_MAX = ((size_t)1 << 44) - 1;
+const size_t UINT50_MAX = ((size_t)1 << 50) - 1;
+
 void woort_LIR_update_static_storage(
     woort_LIR* lir, size_t constant_count)
 {
@@ -31,18 +37,45 @@ void woort_LIR_update_static_storage(
 }
 WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
 {
-    const size_t UINT18_MAX = (1 << 18) - 1;
     switch (lir->m_opcode)
     {
     case WOORT_LIR_OPCODE_LOAD:
-        if (lir->m_opnums.m_LOAD.m_cs.m_is_constant)
+    {
+        const uint16_t register_stack_offset =
+            lir->m_opnums.m_LOAD.m_r->m_assigned_bp_offset;
+        const uint64_t data_index =
+            lir->m_opnums.m_LOAD.m_cs.m_is_constant
+            ? lir->m_opnums.m_LOAD.m_cs.m_constant
+            : lir->m_opnums.m_LOAD.m_cs.m_static;
+
+        if (data_index <= UINT18_MAX)
         {
-            if (lir->m_opnums.m_LOAD.m_cs.m_constant > UINT18_MAX)
+            if (register_stack_offset >= INT8_MIN
+                && register_stack_offset <= INT8_MAX)
+                // Normal
+                break;
+        }
+        else
+        {
+            if (register_stack_offset >= INT8_MIN
+                && register_stack_offset <= INT8_MAX
+                && data_index <= UINT44_MAX)
+                // Far way, LOADEXT.
                 return 2;
         }
-        else if (lir->m_opnums.m_LOAD.m_cs.m_static > UINT18_MAX)
+
+        // Very slow, use push & pop.
+        if (data_index <= UINT24_MAX)
             return 2;
+        else if (data_index <= UINT50_MAX)
+            return 3;
+        else
+        {
+            WOORT_DEBUG("Constant/static addressing out of range.");
+            return 0;
+        }
         break;
+    }
     case WOORT_LIR_OPCODE_STORE:
         if (lir->m_opnums.m_STORE.m_s > UINT18_MAX)
             return 2;
@@ -99,7 +132,7 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
             ? lir->m_opnums.m_LOAD.m_cs.m_constant
             : lir->m_opnums.m_LOAD.m_cs.m_static;
 
-        if (data_index <= /* UINT18_MAX */ 0x3ffffu)
+        if (data_index <= UINT18_MAX)
         {
             if (register_stack_offset >= INT8_MIN
                 && register_stack_offset <= INT8_MAX)
@@ -117,7 +150,7 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
         {
             if (register_stack_offset >= INT8_MIN
                 && register_stack_offset <= INT8_MAX
-                && data_index <= /* UINT44_MAX */ 0xfffffffffffu)
+                && data_index <= UINT44_MAX)
             {
                 // Fast way.
                 WOORT_LIR_EMIT_OP6_MAB18_C8(
@@ -133,12 +166,12 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
         }
 
         // Slow way.
-        if (data_index <= /* UINT24_MAX */ 0xffffffu)
+        if (data_index <= UINT24_MAX)
         {
             WOORT_LIR_EMIT_OP6_M2_ABC24(
                 WOORT_OPCODE_PUSH, 1, data_index);
         }
-        else if (data_index <= /* UINT50_MAX */ 0x3ffffffffffffu)
+        else if (data_index <= UINT50_MAX)
         {
             WOORT_LIR_EMIT_OP6_M2_ABC24(
                 WOORT_OPCODE_PUSH, 3, (data_index & ~LOW_26_BIT_MASK) >> 26);
@@ -162,7 +195,7 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
             lir->m_opnums.m_STORE.m_r->m_assigned_bp_offset;
         const uint64_t data_index = lir->m_opnums.m_STORE.m_s;
 
-        if (data_index <= /* UINT18_MAX */ 0x3ffffu)
+        if (data_index <= UINT18_MAX)
         {
             if (register_stack_offset >= INT8_MIN
                 && register_stack_offset <= INT8_MAX)
@@ -180,7 +213,7 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
         {
             if (register_stack_offset >= INT8_MIN
                 && register_stack_offset <= INT8_MAX
-                && data_index <= /* UINT44_MAX */ 0xfffffffffffu)
+                && data_index <= UINT44_MAX)
             {
                 // Fast way.
                 WOORT_LIR_EMIT_OP6_MAB18_C8(
@@ -199,12 +232,12 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
         WOORT_LIR_EMIT_OP6_M2_BC16(
             WOORT_OPCODE_PUSH, 2, register_stack_offset);
 
-        if (data_index <= /* UINT24_MAX */ 0xffffffu)
+        if (data_index <= UINT24_MAX)
         {
             WOORT_LIR_EMIT_OP6_M2_ABC24(
                 WOORT_OPCODE_POP, 1, data_index);
         }
-        else if (data_index <= /* UINT50_MAX */ 0x3ffffffffffffu)
+        else if (data_index <= UINT50_MAX)
         {
             WOORT_LIR_EMIT_OP6_M2_ABC24(
                 WOORT_OPCODE_POP, 3, (data_index & ~LOW_26_BIT_MASK) >> 26);
