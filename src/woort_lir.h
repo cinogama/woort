@@ -14,37 +14,14 @@ woort_lir.h
 #include "woort_opcode_formal.h"
 #include "woort_vector.h"
 
-// Constant.
-typedef uint64_t woort_LIR_ConstantStorage;
-
-// Static storage.
-typedef uint64_t woort_LIR_StaticStorage;
-
-
-typedef enum woort_LIRRegisterType
-{
-    WOORT_LIRREGISTER_NORMAL,
-    WOORT_LIRREGISTER_ARGUMENT,
-    WOORT_LIRREGISTER_CONSTANT,
-    WOORT_LIRREGISTER_STATIC,
-
-} woort_LIRRegisterType;
-
 // Register.
 typedef struct woort_LIRRegister
 {
     /* NOTE: SIZE_MAX means not active */
-    /* Final lir offsets */ size_t m_alive_range[2];
+    size_t m_alive_range[2];
 
     /* Used in finalized only. */
     int16_t m_assigned_bp_offset;
-
-    woort_LIRRegisterType m_type;
-    union
-    {
-        woort_LIR_ConstantStorage m_constant;
-        woort_LIR_StaticStorage m_static;
-    };
 
 }woort_LIRRegister;
 
@@ -58,27 +35,57 @@ typedef struct woort_LIRLabel
 
 }woort_LIRLabel;
 
-/*
-ATTENTION: 
+// Constant.
+typedef uint64_t woort_LIR_ConstantStorage;
 
-    If new formal added, following function must be check:
+// Static storage.
+typedef uint64_t woort_LIR_StaticStorage;
 
-    * woort_LIRBlock_emit_lir
-    * 
+typedef struct woort_LIR_CS
+{
+    bool m_is_constant;
+    union {
+        woort_LIR_ConstantStorage m_constant;
+        woort_LIR_StaticStorage   m_static;
+    };
 
-*/
+}woort_LIR_CS;
+
 typedef enum woort_LIR_OpnumFormal
 {
+    WOORT_LIR_OPNUMFORMAL_CS,
+    WOORT_LIR_OPNUMFORMAL_CS_R,
+    WOORT_LIR_OPNUMFORMAL_S_R,
     WOORT_LIR_OPNUMFORMAL_R,
     WOORT_LIR_OPNUMFORMAL_R_R,
     WOORT_LIR_OPNUMFORMAL_R_R_R,
-    WOORT_LIR_OPNUMFORMAL_R_R_COUNT,
-    WOORT_LIR_OPNUMFORMAL_R_COUNT,
+    WOORT_LIR_OPNUMFORMAL_R_R_COUNT16,
+    WOORT_LIR_OPNUMFORMAL_R_COUNT16,
     WOORT_LIR_OPNUMFORMAL_R_R_LABEL,
     WOORT_LIR_OPNUMFORMAL_R_LABEL,
     WOORT_LIR_OPNUMFORMAL_LABEL,
 
 } woort_LIR_OpnumFormal;
+
+typedef struct woort_LIR_OpnumFormal_CS
+{
+    woort_LIR_CS m_cs;
+
+} woort_LIR_OpnumFormal_CS;
+
+typedef struct woort_LIR_OpnumFormal_CS_R
+{
+    woort_LIR_CS m_cs;
+    woort_LIRRegister* m_r;
+
+} woort_LIR_OpnumFormal_CS_R;
+
+typedef struct woort_LIR_OpnumFormal_S_R
+{
+    woort_LIR_StaticStorage m_s;
+    woort_LIRRegister* m_r;
+
+} woort_LIR_OpnumFormal_S_R;
 
 typedef struct woort_LIR_OpnumFormal_R
 {
@@ -100,19 +107,19 @@ typedef struct woort_LIR_OpnumFormal_R_R_R
     woort_LIRRegister* m_r3;
 } woort_LIR_OpnumFormal_R_R_R;
 
-typedef struct woort_LIR_OpnumFormal_R_R_COUNT
+typedef struct woort_LIR_OpnumFormal_R_R_COUNT16
 {
     woort_LIRRegister* m_r1;
     woort_LIRRegister* m_r2;
-    uint32_t           m_count;
-} woort_LIR_OpnumFormal_R_R_COUNT;
+    uint16_t          m_count16;
+} woort_LIR_OpnumFormal_R_R_COUNT16;
 
-typedef struct woort_LIR_OpnumFormal_R_COUNT
+typedef struct woort_LIR_OpnumFormal_R_COUNT16
 {
     woort_LIRRegister* m_r;
-    uint32_t            m_count;
+    uint16_t          m_count16;
 
-} woort_LIR_OpnumFormal_R_COUNT;
+} woort_LIR_OpnumFormal_R_COUNT16;
 
 typedef struct woort_LIR_OpnumFormal_R_LABEL
 {
@@ -166,8 +173,12 @@ enum value here, you also need to:
 */
 typedef enum woort_LIR_Opcode
 {
+    WOORT_LIR_OPCODE_LOAD,
+    WOORT_LIR_OPCODE_STORE,
     WOORT_LIR_OPCODE_PUSH,
+    WOORT_LIR_OPCODE_PUSHCS,
     WOORT_LIR_OPCODE_POP,
+    WOORT_LIR_OPCODE_POPCS,
     WOORT_LIR_OPCODE_CASTITOR,
     WOORT_LIR_OPCODE_CASTITOS,
     WOORT_LIR_OPCODE_CASTRTOI,
@@ -222,8 +233,12 @@ typedef enum woort_LIR_Opcode
 
 } woort_LIR_Opcode;
 
+#define WOORT_LIR_OPNUM_FORMAL_LOAD CS_R
+#define WOORT_LIR_OPNUM_FORMAL_STORE S_R
 #define WOORT_LIR_OPNUM_FORMAL_PUSH R
+#define WOORT_LIR_OPNUM_FORMAL_PUSHCS CS
 #define WOORT_LIR_OPNUM_FORMAL_POP R
+#define WOORT_LIR_OPNUM_FORMAL_POPCS CS
 #define WOORT_LIR_OPNUM_FORMAL_CASTITOR R_R
 #define WOORT_LIR_OPNUM_FORMAL_CASTITOS R_R
 #define WOORT_LIR_OPNUM_FORMAL_CASTRTOI R_R
@@ -236,11 +251,11 @@ typedef enum woort_LIR_Opcode
 #define WOORT_LIR_OPNUM_FORMAL_CALLNWO R_R
 #define WOORT_LIR_OPNUM_FORMAL_CALLNFP R_R
 #define WOORT_LIR_OPNUM_FORMAL_CALL R_R
-#define WOORT_LIR_OPNUM_FORMAL_RET R_COUNT
-#define WOORT_LIR_OPNUM_FORMAL_MKARR R_COUNT
-#define WOORT_LIR_OPNUM_FORMAL_MKMAP R_COUNT
-#define WOORT_LIR_OPNUM_FORMAL_MKSTRUCT R_COUNT
-#define WOORT_LIR_OPNUM_FORMAL_MKCLOSURE R_R_COUNT
+#define WOORT_LIR_OPNUM_FORMAL_RET R_COUNT16
+#define WOORT_LIR_OPNUM_FORMAL_MKARR R_COUNT16
+#define WOORT_LIR_OPNUM_FORMAL_MKMAP R_COUNT16
+#define WOORT_LIR_OPNUM_FORMAL_MKSTRUCT R_COUNT16
+#define WOORT_LIR_OPNUM_FORMAL_MKCLOSURE R_R_COUNT16
 #define WOORT_LIR_OPNUM_FORMAL_ADDI R_R_R
 #define WOORT_LIR_OPNUM_FORMAL_SUBI R_R_R
 #define WOORT_LIR_OPNUM_FORMAL_MULI R_R_R
@@ -295,17 +310,24 @@ typedef enum woort_LIR_Opcode
 
 typedef union woort_LIR_Opnums
 {
+    woort_LIR_OpnumFormal_CS m_cs;
+    woort_LIR_OpnumFormal_CS_R m_cs_r;
+    woort_LIR_OpnumFormal_S_R m_s_r;
     woort_LIR_OpnumFormal_R m_r;
     woort_LIR_OpnumFormal_R_R m_r_r;
     woort_LIR_OpnumFormal_R_R_R m_r_r_r;
-    woort_LIR_OpnumFormal_R_R_COUNT m_r_r_count;
-    woort_LIR_OpnumFormal_R_COUNT m_r_count;
+    woort_LIR_OpnumFormal_R_R_COUNT16 m_r_r_count16;
+    woort_LIR_OpnumFormal_R_COUNT16 m_r_count16;
     woort_LIR_OpnumFormal_R_LABEL m_r_label;
     woort_LIR_OpnumFormal_R_R_LABEL m_r_r_label;
     woort_LIR_OpnumFormal_LABEL m_label;
 
+    WOORT_LIR_OPNUM_FORMAL_DEFINE(LOAD);
+    WOORT_LIR_OPNUM_FORMAL_DEFINE(STORE);
     WOORT_LIR_OPNUM_FORMAL_DEFINE(PUSH);
+    WOORT_LIR_OPNUM_FORMAL_DEFINE(PUSHCS);
     WOORT_LIR_OPNUM_FORMAL_DEFINE(POP);
+    WOORT_LIR_OPNUM_FORMAL_DEFINE(POPCS);
     WOORT_LIR_OPNUM_FORMAL_DEFINE(CASTITOR);
     WOORT_LIR_OPNUM_FORMAL_DEFINE(CASTITOS);
     WOORT_LIR_OPNUM_FORMAL_DEFINE(CASTRTOI);
@@ -378,7 +400,17 @@ typedef struct woort_LIR
 
 }woort_LIR;
 
-
+/*
+NOTE: Since static storage shares the same addressing mechanism as constants, this method must be used to
+    update the offset of the static storage space.
+*/
+void woort_LIR_update_static_storage(woort_LIR* lir, size_t constant_count);
+/*
+NOTE: This method is used by the ir-compiler when submitting a function to calculate the IR length required
+    for each LIR, but temporarily does not consider the extra length expansion introduced by conditional
+    jump instructions during long-range jumps: these will be calculated later.
+*/
+WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir);
 
 WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
     const woort_LIR* lir, struct woort_LIRCompiler* modifing_compiler);
