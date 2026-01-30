@@ -11,6 +11,7 @@
 const size_t UINT18_MAX = ((size_t)1 << 18) - 1;
 const size_t UINT24_MAX = ((size_t)1 << 24) - 1;
 const size_t UINT26_MAX = ((size_t)1 << 26) - 1;
+const size_t UINT36_MAX = ((size_t)1 << 36) - 1;
 const size_t UINT44_MAX = ((size_t)1 << 44) - 1;
 const size_t UINT50_MAX = ((size_t)1 << 50) - 1;
 
@@ -35,55 +36,179 @@ void woort_LIR_update_static_storage(
         break;
     }
 }
-WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
+
+WOORT_NODISCARD bool _woort_LIR_is_near_stack(woort_RegisterStorageId storage)
 {
+    return storage >= INT8_MIN
+        && storage <= INT8_MAX;
+}
+
+typedef enum _woort_LIR_ir_extern_formal
+{
+    WOOIR_LIR_IR_EXTERN_FORMAL_BAD,
+    WOOIR_LIR_IR_EXTERN_FORMAL_NORMAL,
+    WOOIR_LIR_IR_EXTERN_FORMAL_EXTERN_COMMAND,
+    WOOIR_LIR_IR_EXTERN_FORMAL_COMMAND_2,
+    WOOIR_LIR_IR_EXTERN_FORMAL_COMMAND_3,
+    WOOIR_LIR_IR_EXTERN_FORMAL_COMMAND_4,
+}_woort_LIR_ir_extern_formal;
+
+_woort_LIR_ir_extern_formal _woort_LIR_ir_get_cmd_extern_formal(
+    const woort_LIR* lir)
+{
+    /*
+    Special command.
+    */
     switch (lir->m_opcode)
     {
     case WOORT_LIR_OPCODE_LOAD:
     {
-        const uint16_t register_stack_offset =
+        const woort_RegisterStorageId register_stack_offset =
             lir->m_opnums.m_LOAD.m_r->m_assigned_bp_offset;
         const uint64_t data_index =
             lir->m_opnums.m_LOAD.m_cs.m_is_constant
             ? lir->m_opnums.m_LOAD.m_cs.m_constant
             : lir->m_opnums.m_LOAD.m_cs.m_static;
 
-        if (data_index <= UINT18_MAX)
-        {
-            if (register_stack_offset >= INT8_MIN
-                && register_stack_offset <= INT8_MAX)
-                // Normal
-                break;
-        }
-        else
-        {
-            if (register_stack_offset >= INT8_MIN
-                && register_stack_offset <= INT8_MAX
-                && data_index <= UINT44_MAX)
-                // Far way, LOADEXT.
-                return 2;
-        }
+        if (data_index <= UINT18_MAX
+            && register_stack_offset >= INT8_MIN
+            && register_stack_offset <= INT8_MAX)
+            // Use fast normal formal.
+            return WOOIR_LIR_IR_EXTERN_FORMAL_NORMAL;
 
-        // Very slow, use push & pop.
-        if (data_index <= UINT24_MAX)
-            return 2;
-        else if (data_index <= UINT50_MAX)
-            return 3;
-        else
-        {
-            WOORT_DEBUG("Constant/static addressing out of range.");
-            return 0;
-        }
-        break;
+        // Use extern formal.
+        return WOOIR_LIR_IR_EXTERN_FORMAL_NORMAL;
     }
     case WOORT_LIR_OPCODE_STORE:
-        if (lir->m_opnums.m_STORE.m_s > UINT18_MAX)
-            return 2;
+    {
+        const woort_RegisterStorageId register_stack_offset =
+            lir->m_opnums.m_STORE.m_r->m_assigned_bp_offset;
+        const uint64_t data_index = lir->m_opnums.m_STORE.m_s;
+
+        if (data_index <= UINT18_MAX
+            && register_stack_offset >= INT8_MIN
+            && register_stack_offset <= INT8_MAX)
+            // Use fast normal formal.
+            return WOOIR_LIR_IR_EXTERN_FORMAL_NORMAL;
+
+        // Use extern formal.
+        return WOOIR_LIR_IR_EXTERN_FORMAL_NORMAL;
+    }
+    default:
+        break;
+    }
+
+    /*
+    Far register load.
+    */
+    size_t far_register_count = 0;
+    switch (lir->m_opnum_formal)
+    {
+    case WOORT_LIR_OPNUMFORMAL_CS_R:
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_cs_r.m_r->m_assigned_bp_offset))
+            ++far_register_count;
+        break;
+    case WOORT_LIR_OPNUMFORMAL_S_R:
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_s_r.m_r->m_assigned_bp_offset))
+            ++far_register_count;
+        break;
+    case WOORT_LIR_OPNUMFORMAL_R:
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r.m_r->m_assigned_bp_offset))
+            ++far_register_count;
+        break;
+    case WOORT_LIR_OPNUMFORMAL_R_R:
+        if (!_woort_LIR_is_near_stack(lir->m_opnums.m_r_r.m_r1->m_assigned_bp_offset))
+            ++far_register_count;
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r_r.m_r2->m_assigned_bp_offset))
+            ++far_register_count;
+        break;
+    case WOORT_LIR_OPNUMFORMAL_R_R_R:
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r_r_r.m_r1->m_assigned_bp_offset))
+            ++far_register_count;
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r_r_r.m_r2->m_assigned_bp_offset))
+            ++far_register_count;
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r_r_r.m_r3->m_assigned_bp_offset))
+            ++far_register_count;
+        break;
+    case WOORT_LIR_OPNUMFORMAL_R_COUNT16:
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r_count16.m_r->m_assigned_bp_offset))
+            ++far_register_count;
+        break;
+    case WOORT_LIR_OPNUMFORMAL_R_R_COUNT16:
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r_r_count16.m_r1->m_assigned_bp_offset))
+            ++far_register_count;
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r_r_count16.m_r2->m_assigned_bp_offset))
+            ++far_register_count;
+        break;
+    case WOORT_LIR_OPNUMFORMAL_R_LABEL:
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r_label.m_r->m_assigned_bp_offset))
+            ++far_register_count;
+        break;
+    case WOORT_LIR_OPNUMFORMAL_R_R_LABEL:
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r_r_label.m_r1->m_assigned_bp_offset))
+            ++far_register_count;
+        if (!_woort_LIR_is_near_stack(
+            lir->m_opnums.m_r_r_label.m_r2->m_assigned_bp_offset))
+            ++far_register_count;
         break;
     default:
         break;
     }
-    return 1;
+
+    switch (far_register_count)
+    {
+    case 0:
+        return WOOIR_LIR_IR_EXTERN_FORMAL_NORMAL;
+    case 1:
+        return WOOIR_LIR_IR_EXTERN_FORMAL_COMMAND_2;
+    case 2:
+        return WOOIR_LIR_IR_EXTERN_FORMAL_COMMAND_3;
+    case 3:
+        return WOOIR_LIR_IR_EXTERN_FORMAL_COMMAND_4;
+    default:
+        WOORT_DEBUG("Too much far register count: %d.", (int)far_register_count);
+        return WOOIR_LIR_IR_EXTERN_FORMAL_BAD;
+    }
+
+    // Cannot be here.
+    abort();
+}
+
+WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
+{
+    const _woort_LIR_ir_extern_formal f =
+        _woort_LIR_ir_get_cmd_extern_formal(lir);
+
+    switch (f)
+    {
+    case WOOIR_LIR_IR_EXTERN_FORMAL_BAD:
+        break;
+    case WOOIR_LIR_IR_EXTERN_FORMAL_NORMAL:
+        return 1;
+    case WOOIR_LIR_IR_EXTERN_FORMAL_EXTERN_COMMAND:
+    case WOOIR_LIR_IR_EXTERN_FORMAL_COMMAND_2:
+        return 2;
+    case WOOIR_LIR_IR_EXTERN_FORMAL_COMMAND_3:
+        return 3;
+    case WOOIR_LIR_IR_EXTERN_FORMAL_COMMAND_4:
+        return 4;
+    default:
+        WOORT_DEBUG("Bad ir extern formal: %d.", (int)f);
+        break;
+    }
+    return 0;
 }
 
 #define WOORT_LIR_EMIT_BYTECODE_TO_LIST(BC)     \
@@ -96,25 +221,54 @@ WOORT_NODISCARD size_t woort_LIR_ir_length_exclude_jmp(const woort_LIR* lir)
         }                                       \
     } while (0)
 
-#define WOORT_LIR_EMIT_OP6_MABC26(op6, mabc26)              \
-    WOORT_LIR_EMIT_BYTECODE_TO_LIST(                        \
-            woort_OpcodeFormal_OP6_MABC26_cons(             \
-                op6, mabc26))            
-
-#define WOORT_LIR_EMIT_OP6_MAB18_C8(op6, mab18, c8)         \
-    WOORT_LIR_EMIT_BYTECODE_TO_LIST(                        \
-            woort_OpcodeFormal_OP6_MAB18_C8_cons(           \
-                op6, mab18, c8))            
-
-#define WOORT_LIR_EMIT_OP6_M2_BC16(op6, m2, bc16)           \
-    WOORT_LIR_EMIT_BYTECODE_TO_LIST(                        \
-        woort_OpcodeFormal_OP6_M2_BC16_cons(                \
-                op6, m2, bc16))
-
-#define WOORT_LIR_EMIT_OP6_M2_ABC24(op6, m2, abc24)         \
-    WOORT_LIR_EMIT_BYTECODE_TO_LIST(                        \
-        woort_OpcodeFormal_OP6_M2_ABC24_cons(               \
-                op6, m2, abc24))
+//WOORT_NODISCARD woort_RegisterStorageId woort_LIR_preload_register_to_read(
+//    struct woort_LIRCompiler* modifing_compiler,
+//    const woort_LIRRegister* r,
+//    woort_RegisterStorageId regid)
+//{
+//    if (_woort_LIR_is_near_stack(r->m_assigned_bp_offset))
+//        return r->m_assigned_bp_offset;
+//    else
+//    {
+//        WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+//            woort_OpCodeFormal_cons(
+//                OP6_M2_A8_BC16,
+//                WOORT_OPCODE_MOV,
+//                1,
+//                regid,
+//                r->m_assigned_bp_offset));
+//
+//        return regid;
+//    }
+//}
+//
+//WOORT_NODISCARD woort_RegisterStorageId woort_LIR_preload_register_to_write(
+//    struct woort_LIRCompiler* modifing_compiler,
+//    const woort_LIRRegister* r,
+//    woort_RegisterStorageId regid)
+//{
+//    if (_woort_LIR_is_near_stack(r->m_assigned_bp_offset))
+//        return r->m_assigned_bp_offset;
+//    else
+//        return regid;
+//}
+//
+//WOORT_NODISCARD bool woort_LIR_apply_register_to_write(
+//    struct woort_LIRCompiler* modifing_compiler,
+//    const woort_LIRRegister* r,
+//    woort_RegisterStorageId regid)
+//{
+//    if (!_woort_LIR_is_near_stack(r->m_assigned_bp_offset))
+//    {
+//        WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+//            woort_OpCodeFormal_cons(
+//                OP6_M2_A8_BC16,
+//                WOORT_OPCODE_MOV,
+//                0,
+//                regid,
+//                r->m_assigned_bp_offset));
+//    }
+//}
 
 WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
     const woort_LIR* lir, struct woort_LIRCompiler* modifing_compiler)
@@ -125,148 +279,102 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
     {
     case WOORT_LIR_OPCODE_LOAD:
     {
-        const uint16_t register_stack_offset =
+        const int16_t register_stack_offset =
             lir->m_opnums.m_LOAD.m_r->m_assigned_bp_offset;
         const uint64_t data_index =
             lir->m_opnums.m_LOAD.m_cs.m_is_constant
             ? lir->m_opnums.m_LOAD.m_cs.m_constant
             : lir->m_opnums.m_LOAD.m_cs.m_static;
 
-        if (data_index <= UINT18_MAX)
+        const _woort_LIR_ir_extern_formal f =
+            _woort_LIR_ir_get_cmd_extern_formal(lir);
+
+        switch (f)
         {
-            if (register_stack_offset >= INT8_MIN
-                && register_stack_offset <= INT8_MAX)
-            {
-                // Fast way.
-                WOORT_LIR_EMIT_OP6_MAB18_C8(
+        case WOOIR_LIR_IR_EXTERN_FORMAL_NORMAL:
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_MAB18_C8,
                     WOORT_OPCODE_LOAD,
                     data_index,
-                    register_stack_offset);
-
-                break;
-            }
-        }
-        else
-        {
-            if (register_stack_offset >= INT8_MIN
-                && register_stack_offset <= INT8_MAX
-                && data_index <= UINT44_MAX)
-            {
-                // Fast way.
-                WOORT_LIR_EMIT_OP6_MAB18_C8(
+                    register_stack_offset));
+            break;
+        case WOOIR_LIR_IR_EXTERN_FORMAL_EXTERN_COMMAND:
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_MA10_BC16,
                     WOORT_OPCODE_LOADEX,
                     (data_index & ~LOW_26_BIT_MASK) >> 26,
-                    register_stack_offset);
-                WOORT_LIR_EMIT_OP6_MABC26(
+                    register_stack_offset));
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_MABC26,
                     WOORT_OPCODE_NOP,
-                    data_index & LOW_26_BIT_MASK);
-
-                break;
-            }
+                    data_index & LOW_26_BIT_MASK));
+            break;
+        default:
+            WOORT_DEBUG("Bad ir extern formal: %d for lir LOAD.", (int)f);
+            break;
         }
-
-        // Slow way.
-        if (data_index <= UINT24_MAX)
-        {
-            WOORT_LIR_EMIT_OP6_M2_ABC24(
-                WOORT_OPCODE_PUSH, 1, data_index);
-        }
-        else if (data_index <= UINT50_MAX)
-        {
-            WOORT_LIR_EMIT_OP6_M2_ABC24(
-                WOORT_OPCODE_PUSH, 3, (data_index & ~LOW_26_BIT_MASK) >> 26);
-            WOORT_LIR_EMIT_OP6_MABC26(
-                WOORT_OPCODE_NOP,
-                data_index & LOW_26_BIT_MASK);
-        }
-        else
-        {
-            WOORT_DEBUG("Constant/static addressing out of range.");
-            return false;
-        }
-
-        WOORT_LIR_EMIT_OP6_M2_BC16(
-            WOORT_OPCODE_POP, 2, register_stack_offset);
         break;
     }
     case WOORT_LIR_OPCODE_STORE:
     {
-        const uint16_t register_stack_offset =
+        const int16_t register_stack_offset =
             lir->m_opnums.m_STORE.m_r->m_assigned_bp_offset;
         const uint64_t data_index = lir->m_opnums.m_STORE.m_s;
 
-        if (data_index <= UINT18_MAX)
+        const _woort_LIR_ir_extern_formal f =
+            _woort_LIR_ir_get_cmd_extern_formal(lir);
+
+        switch (f)
         {
-            if (register_stack_offset >= INT8_MIN
-                && register_stack_offset <= INT8_MAX)
-            {
-                // Fast way.
-                WOORT_LIR_EMIT_OP6_MAB18_C8(
+        case WOOIR_LIR_IR_EXTERN_FORMAL_NORMAL:
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_MAB18_C8,
                     WOORT_OPCODE_STORE,
                     data_index,
-                    register_stack_offset);
-
-                break;
-            }
-        }
-        else
-        {
-            if (register_stack_offset >= INT8_MIN
-                && register_stack_offset <= INT8_MAX
-                && data_index <= UINT44_MAX)
-            {
-                // Fast way.
-                WOORT_LIR_EMIT_OP6_MAB18_C8(
+                    register_stack_offset));
+            break;
+        case WOOIR_LIR_IR_EXTERN_FORMAL_EXTERN_COMMAND:
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_MA10_BC16,
                     WOORT_OPCODE_STOREEX,
                     (data_index & ~LOW_26_BIT_MASK) >> 26,
-                    register_stack_offset);
-                WOORT_LIR_EMIT_OP6_MABC26(
+                    register_stack_offset));
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_MABC26,
                     WOORT_OPCODE_NOP,
-                    data_index & LOW_26_BIT_MASK);
-
-                break;
-            }
-        }
-
-        // Slow way.
-        WOORT_LIR_EMIT_OP6_M2_BC16(
-            WOORT_OPCODE_PUSH, 2, register_stack_offset);
-
-        if (data_index <= UINT24_MAX)
-        {
-            WOORT_LIR_EMIT_OP6_M2_ABC24(
-                WOORT_OPCODE_POP, 1, data_index);
-        }
-        else if (data_index <= UINT50_MAX)
-        {
-            WOORT_LIR_EMIT_OP6_M2_ABC24(
-                WOORT_OPCODE_POP, 3, (data_index & ~LOW_26_BIT_MASK) >> 26);
-            WOORT_LIR_EMIT_OP6_MABC26(
-                WOORT_OPCODE_NOP,
-                data_index & LOW_26_BIT_MASK);
-        }
-        else
-        {
-            WOORT_DEBUG("Constant/static addressing out of range.");
-            return false;
+                    data_index & LOW_26_BIT_MASK));
+            break;
+        default:
+            WOORT_DEBUG("Bad ir extern formal: %d for lir STORE.", (int)f);
+            break;
         }
 
         break;
     }
     case WOORT_LIR_OPCODE_PUSH:
     {
-        WOORT_LIR_EMIT_OP6_M2_BC16(
-            WOORT_OPCODE_PUSH, 2,
-            lir->m_opnums.m_PUSH.m_r->m_assigned_bp_offset);
+        WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+            woort_OpCodeFormal_cons(
+                OP6_M2_BC16,
+                WOORT_OPCODE_PUSH, 2,
+                lir->m_opnums.m_PUSH.m_r->m_assigned_bp_offset));
 
         break;
     }
     case WOORT_LIR_OPCODE_PUSHCS:
     case WOORT_LIR_OPCODE_POP:
     {
-        WOORT_LIR_EMIT_OP6_M2_BC16(
-            WOORT_OPCODE_POP, 2,
-            lir->m_opnums.m_PUSH.m_r->m_assigned_bp_offset);
+        WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+            woort_OpCodeFormal_cons(
+                OP6_M2_BC16,
+                WOORT_OPCODE_POP, 2,
+                lir->m_opnums.m_PUSH.m_r->m_assigned_bp_offset));
 
         break;
     }
@@ -286,16 +394,20 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
         if (jump_target_offset <= lir->m_fact_bytecode_offset)
         {
             // Is jump back.
-            WOORT_LIR_EMIT_OP6_MABC26(
-                WOORT_OPCODE_JMPGC,
-                lir->m_fact_bytecode_offset - jump_target_offset);
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_MABC26,
+                    WOORT_OPCODE_JMPGC,
+                    lir->m_fact_bytecode_offset - jump_target_offset));
         }
         else
         {
             // Is jump forward.
-            WOORT_LIR_EMIT_OP6_MABC26(
-                WOORT_OPCODE_JMP,
-                jump_target_offset - lir->m_fact_bytecode_offset);
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_MABC26,
+                    WOORT_OPCODE_JMP,
+                    jump_target_offset - lir->m_fact_bytecode_offset));
         }
         break;
     }
@@ -311,7 +423,31 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
     case WOORT_LIR_OPCODE_MKMAP:
     case WOORT_LIR_OPCODE_MKSTRUCT:
     case WOORT_LIR_OPCODE_MKCLOSURE:
+        abort();
     case WOORT_LIR_OPCODE_ADDI:
+    {
+       /* _WOORT_PREFETCH_OPNUM_ABT(lir->m_opnums.m_ADDI);
+
+        if (t == a)
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_M2_B8_C8,
+                    WOORT_OPCODE_OPCIASMD, 0, b, t));
+        else if (t == b)
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_M2_B8_C8,
+                    WOORT_OPCODE_OPCIASMD, 0, a, t));
+        else
+            WOORT_LIR_EMIT_BYTECODE_TO_LIST(
+                woort_OpCodeFormal_cons(
+                    OP6_M2_A8_B8_C8,
+                    WOORT_OPCODE_OPIASMD, 0, a, b, t));
+
+        _WOORT_APPLY_OPNUM_T(lir->m_opnums.m_ADDI);*/
+
+        break;
+    }
     case WOORT_LIR_OPCODE_SUBI:
     case WOORT_LIR_OPCODE_MULI:
     case WOORT_LIR_OPCODE_DIVI:
@@ -345,6 +481,7 @@ WOORT_NODISCARD bool woort_LIR_emit_to_lir_compiler(
     case WOORT_LIR_OPCODE_LOR:
     case WOORT_LIR_OPCODE_LAND:
     case WOORT_LIR_OPCODE_LNOT:
+        abort();
     default:
         WOORT_DEBUG("Unsupported LIR opcode in emit: %d", (int)lir->m_opcode);
         abort();

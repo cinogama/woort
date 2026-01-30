@@ -14,6 +14,8 @@ woort_lir.h
 #include "woort_opcode_formal.h"
 #include "woort_vector.h"
 
+typedef int16_t woort_RegisterStorageId;
+
 // Register.
 typedef struct woort_LIRRegister
 {
@@ -21,7 +23,7 @@ typedef struct woort_LIRRegister
     size_t m_alive_range[2];
 
     /* Used in finalized only. */
-    int16_t m_assigned_bp_offset;
+    woort_RegisterStorageId m_assigned_bp_offset;
 
 }woort_LIRRegister;
 
@@ -105,19 +107,21 @@ typedef struct woort_LIR_OpnumFormal_R_R_R
     woort_LIRRegister* m_r1;
     woort_LIRRegister* m_r2;
     woort_LIRRegister* m_r3;
+
 } woort_LIR_OpnumFormal_R_R_R;
 
 typedef struct woort_LIR_OpnumFormal_R_R_COUNT16
 {
     woort_LIRRegister* m_r1;
     woort_LIRRegister* m_r2;
-    uint16_t          m_count16;
+    uint16_t m_count16;
+
 } woort_LIR_OpnumFormal_R_R_COUNT16;
 
 typedef struct woort_LIR_OpnumFormal_R_COUNT16
 {
     woort_LIRRegister* m_r;
-    uint16_t          m_count16;
+    uint16_t m_count16;
 
 } woort_LIR_OpnumFormal_R_COUNT16;
 

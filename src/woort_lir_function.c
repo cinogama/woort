@@ -339,6 +339,9 @@ WOORT_NODISCARD bool woort_LIRFunction_register_allocation(
         }
     }
 
+    woort_Bitset bitset;
+    success = success && woort_bitset_init(&bitset, INT16_MAX - 3);
+
     if (success)
     {
         // Sort registers by start position.
@@ -348,9 +351,6 @@ WOORT_NODISCARD bool woort_LIRFunction_register_allocation(
             sizeof(woort_LIRRegister*),
             _woort_register_start_pos_comparator);
 
-        woort_Bitset bitset;
-        woort_bitset_init(&bitset, INT16_MAX);
-
         woort_Vector active_registers;
         woort_vector_init(&active_registers, sizeof(woort_LIRRegister*));
 
@@ -358,25 +358,40 @@ WOORT_NODISCARD bool woort_LIRFunction_register_allocation(
 
         for (size_t i = 0; i < registers.m_size; ++i)
         {
-            woort_LIRRegister* current_register = *(woort_LIRRegister**)woort_vector_at(&registers, i);
+            woort_LIRRegister* const current_register =
+                *(woort_LIRRegister**)woort_vector_at(&registers, i);
 
             // Expire old intervals.
             for (size_t j = 0; j < active_registers.m_size; )
             {
-                woort_LIRRegister* active_register = *(woort_LIRRegister**)woort_vector_at(&active_registers, j);
+                const woort_LIRRegister* const active_register =
+                    *(woort_LIRRegister**)woort_vector_at(&active_registers, j);
                 if (active_register->m_alive_range[1] < current_register->m_alive_range[0])
                 {
                     // Expired.
-                    woort_bitset_reset(&bitset, (size_t)active_register->m_assigned_bp_offset);
+
+                    // m_assigned_bp_offset CANNOT be assigned to reserved-place.
+                    assert(active_register->m_assigned_bp_offset != INT8_MIN
+                        && active_register->m_assigned_bp_offset != INT8_MIN + 1
+                        && active_register->m_assigned_bp_offset != INT8_MIN + 2);
+
+                    (void)woort_bitset_reset(
+                        &bitset,
+                        (size_t)(
+                            active_register->m_assigned_bp_offset < INT8_MIN + 3
+                            ? active_register->m_assigned_bp_offset + 3
+                            : active_register->m_assigned_bp_offset));
 
                     // Remove from active list.
                     // Swap with last element and pop back.
                     if (j != active_registers.m_size - 1)
                     {
-                        woort_LIRRegister** last_element =
-                            (woort_LIRRegister**)woort_vector_at(&active_registers, active_registers.m_size - 1);
-                        woort_LIRRegister** current_element =
-                            (woort_LIRRegister**)woort_vector_at(&active_registers, j);
+                        woort_LIRRegister* const * const last_element =
+                            (woort_LIRRegister**)woort_vector_at(
+                                &active_registers, active_registers.m_size - 1);
+                        woort_LIRRegister** const current_element =
+                            (woort_LIRRegister**)woort_vector_at(
+                                &active_registers, j);
                         *current_element = *last_element;
                     }
                     active_registers.m_size--;
@@ -394,8 +409,15 @@ WOORT_NODISCARD bool woort_LIRFunction_register_allocation(
                 if (*out_stack_usage <= assigned_offset)
                     *out_stack_usage = assigned_offset + 1;
 
-                current_register->m_assigned_bp_offset = (int16_t)assigned_offset;
-                woort_bitset_set(&bitset, assigned_offset);
+                const woort_RegisterStorageId assigned_bp_offset = 
+                    -(int16_t)assigned_offset;
+
+                if (assigned_bp_offset < INT8_MIN + 3)
+                    current_register->m_assigned_bp_offset = assigned_bp_offset - 3;
+                else
+                    current_register->m_assigned_bp_offset = assigned_bp_offset;
+
+                (void)woort_bitset_set(&bitset, assigned_offset);
                 if (!woort_vector_push_back(&active_registers, 1, &current_register))
                 {
                     // Out of memory.

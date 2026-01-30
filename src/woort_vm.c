@@ -192,8 +192,7 @@ _label_continue_execution:
     case WOORT_VM_CASE_OP6_M2(CODE, 2):     \
     case WOORT_VM_CASE_OP6_M2(CODE, 3)
 
-        const woort_Bytecode c = *rt_ip;
-
+        register const woort_Bytecode c = *rt_ip;
         switch (WOORT_BYTECODE_OPM8_MASK & c)
         {
         // PUSH M2
@@ -282,6 +281,50 @@ _label_continue_execution:
             ++rt_ip;
             break;
         }
+        // ADDI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 0):
+        {
+            // ADDI
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                + rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+
+            ++rt_ip;
+            break;
+        }
+        // SUBI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 1):
+        {
+            // SUBI
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                - rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+
+            ++rt_ip;
+            break;
+        }
+        // MULI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 2):
+        {
+            // MULI
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                * rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+
+            ++rt_ip;
+            break;
+        }
+        // DIVI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 3):
+        {
+            // DIVI
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                / rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+
+            ++rt_ip;
+            break;
+        }
         // JMP
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_JMP):
         {
@@ -294,12 +337,17 @@ _label_continue_execution:
             rt_ip -= WOORT_BYTECODE(MABC26, c);
             break;
         }
+        // NOP(EXT DATA)
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_NOP):
+        {
+            ++rt_ip;
+            break;
+        }
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
         }
     }
-
     // Ok
     return WOORT_VM_CALL_STATUS_NORMAL;
 

@@ -1,4 +1,6 @@
 #include "woort_bitset.h"
+#include "woort_log.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -6,8 +8,14 @@ WOORT_NODISCARD bool woort_bitset_init(woort_Bitset* bitset, size_t bit_count)
 {
     bitset->m_bit_count = bit_count;
     bitset->m_word_count = (bit_count + 63) / 64;
+
     bitset->m_data = (uint64_t*)calloc(bitset->m_word_count, sizeof(uint64_t));
-    return bitset->m_data != NULL;
+    if (bitset->m_data == NULL)
+    {
+        WOORT_DEBUG("Out of memory.");
+        return false;
+    }
+    return true;
 }
 
 void woort_bitset_deinit(woort_Bitset* bitset)
@@ -21,18 +29,22 @@ void woort_bitset_deinit(woort_Bitset* bitset)
     bitset->m_word_count = 0;
 }
 
-void woort_bitset_set(woort_Bitset* bitset, size_t index)
+WOORT_NODISCARD bool woort_bitset_set(woort_Bitset* bitset, size_t index)
 {
     if (index >= bitset->m_bit_count)
-        return;
+        return false;
+
     bitset->m_data[index / 64] |= (1ULL << (index % 64));
+    return true;
 }
 
-void woort_bitset_reset(woort_Bitset* bitset, size_t index)
+WOORT_NODISCARD bool woort_bitset_reset(woort_Bitset* bitset, size_t index)
 {
     if (index >= bitset->m_bit_count)
-        return;
+        return false;
+
     bitset->m_data[index / 64] &= ~(1ULL << (index % 64));
+    return true;
 }
 
 WOORT_NODISCARD bool woort_bitset_test(const woort_Bitset* bitset, size_t index)
