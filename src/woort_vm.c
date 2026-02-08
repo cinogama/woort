@@ -1,3 +1,5 @@
+#include "woort.h"
+
 #include "woort_vm.h"
 #include "woort_threads.h"
 #include "woort_value.h"
@@ -17,6 +19,7 @@ const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
 WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm)
 {
     // Init stack state.
+    vm->m_stack_realloc_version = 0;
     vm->m_stack = malloc(
         WOORT_VM_DEFAULT_STACK_BEGIN_SIZE * sizeof(woort_Value));
 
@@ -43,14 +46,14 @@ void woort_VMRuntime_deinit(woort_VMRuntime* vm)
     }
 }
 
-WOORT_NODISCARD woort_VMRuntime_CallStatus _woort_VMRuntime_dispatch(
+WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
     woort_VMRuntime* vm);
 
-WOORT_NODISCARD woort_VMRuntime_CallStatus woort_VMRuntime_invoke(
+WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     woort_VMRuntime* vm, const woort_Bytecode* func)
 {
     if (!woort_CodeEnv_find(func, &vm->m_env))
-        return WOORT_VM_CALL_STATUS_TBD_BAD_STATUS;
+        return WOORT_VM_CALL_STATUS_ABORTED;
 
     // Push call stack info here.
     /*
@@ -109,10 +112,13 @@ bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     vm->m_stack = new_stack;
     vm->m_stack_end = new_stack_end;
 
+    // Update stack version.
+    ++vm->m_stack_realloc_version;
+
     return true;
 }
 
-WOORT_NODISCARD woort_VMRuntime_CallStatus _woort_VMRuntime_dispatch(
+WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
     woort_VMRuntime* vm)
 {
     assert(vm->m_ip != NULL);
@@ -125,7 +131,7 @@ WOORT_NODISCARD woort_VMRuntime_CallStatus _woort_VMRuntime_dispatch(
         2) 虚拟机发生异常
         3）调用非 JIT 的本机函数
         4) 本机函数（包含 JIT和非JIT 函数）在返回 RESYNC 请求之前
-    执行正同步时，需要同步 ip, sb, sp 和 env；
+    执行正同步时，需要同步 ip, sb, sp；
 
     RESYNC（反同步）:
     反同步，放弃当前虚拟机状态，从虚拟机实例上重新提取。
@@ -137,15 +143,14 @@ WOORT_NODISCARD woort_VMRuntime_CallStatus _woort_VMRuntime_dispatch(
 #define WOORT_VM_SYNC_STATE()                   \
     do{                                         \
         vm->m_ip = rt_ip;                       \
-        vm->m_stack = rt_stack;                 \
         vm->m_sp = rt_sp;                       \
         vm->m_sb = rt_sb;                       \
-        vm->m_env = rt_env;                     \
     }while(0)
 #define WOORT_VM_RESYNC_STATE()                 \
     do{                                         \
         rt_ip = vm->m_ip;                       \
         rt_stack = vm->m_stack;                 \
+        rt_stack_end = vm->m_stack_end;         \
         rt_sp = vm->m_sp;                       \
         rt_sb = vm->m_sb;                       \
         rt_env = vm->m_env;                     \
@@ -157,6 +162,17 @@ WOORT_NODISCARD woort_VMRuntime_CallStatus _woort_VMRuntime_dispatch(
     do{                                     \
         WOORT_VM_SYNC_STATE();              \
         woort_panic(__VA_ARGS__);           \
+    }while(0)
+#define WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(OLD_VERSION)    \
+    do{                                                                     \
+        if (/* Unlikely */ OLD_VERSION != vm->m_stack_realloc_version)      \
+        {                                                                   \
+            /* Stack updated during native function. */                 \
+            rt_sp = vm->m_stack_end - (rt_stack_end - rt_sp);               \
+            rt_sb = vm->m_stack_end - (rt_stack_end - rt_sb);               \
+            rt_stack = vm->m_stack;                                         \
+            rt_stack_end = vm->m_stack_end;                                 \
+        }                                                                   \
     }while(0)
 
 #define WOORT_VM_THROW(NAME)                    \
@@ -170,13 +186,15 @@ WOORT_NODISCARD woort_VMRuntime_CallStatus _woort_VMRuntime_dispatch(
         goto _label_continue_execution;         \
     }while(0)
 
+    const woort_Bytecode* rt_ip = vm->m_ip;
+
     const woort_CodeEnv* rt_env = vm->m_env;
     const woort_Bytecode* rt_env_code = rt_env->m_code_begin;
     const woort_Bytecode* rt_env_code_end = rt_env->m_code_end;
     woort_Value* rt_env_data = rt_env->m_data_begin;
 
-    const woort_Bytecode* rt_ip = vm->m_ip;
     woort_Value* rt_stack = vm->m_stack;
+    woort_Value* rt_stack_end = vm->m_stack_end;
     woort_Value* rt_sp = vm->m_sp;
     woort_Value* rt_sb = vm->m_sb;
 
@@ -195,158 +213,407 @@ _label_continue_execution:
         register const woort_Bytecode c = *rt_ip;
         switch (WOORT_BYTECODE_OPM8_MASK & c)
         {
-        // PUSH M2
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 0):
-        {
-            // PUSH RESERVE STACK
-            const uint32_t reserve_stack_sz = WOORT_BYTECODE(ABC24, c);
-
-            rt_sp -= reserve_stack_sz;
-            if (/* UNLIKELY */ rt_sp < rt_stack)
-            {
-                rt_sp += reserve_stack_sz;
-                WOORT_VM_THROW(stack_overflow);
-            }
-            ++rt_ip;
-            break;
-        }
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 1):
-        {
-            // PUSH C24
-            if (rt_sp >= rt_stack)
-            {
-                *(rt_sp--) = rt_sb[WOORT_BYTECODE(ABC24, c)];
-                ++rt_ip;
-                break;
-            }
-            else
-                WOORT_VM_THROW(stack_overflow);
-        }
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 2):
-        {
-            // PUSH R16
-            if (rt_sp >= rt_stack)
-            {
-                *(rt_sp--) = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
-                ++rt_ip;
-                break;
-            }
-            else
-                WOORT_VM_THROW(stack_overflow);
-        }
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 3):
-        {
-            // PUSH C24 EX_C26
-            if (rt_sp >= rt_stack)
-            {
-                *(rt_sp--) = rt_sb[
-                    (((uint64_t)WOORT_BYTECODE(ABC24, c)) << 26) 
-                        | (uint64_t)WOORT_BYTECODE(MABC26, rt_ip[1])];
-                rt_ip += 2;
-                break;
-            }
-            else
-                WOORT_VM_THROW(stack_overflow);
-        }
-        // POP M2
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 0):
-        {
-            // POP N
-            rt_sp += WOORT_BYTECODE(ABC24, c);
-
-            ++rt_ip;
-            break;
-        }
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 2):
-        {
-            // POP R16
-            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = *(++rt_sp);
-            ++rt_ip;
-            break;
-        }
-
-        // LOAD
+            // LOAD
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_LOAD):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)] = 
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)] =
                 rt_env_data[WOORT_BYTECODE(MAB18, c)];
-            ++rt_ip;
             break;
         }
         // STORE
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_STORE):
         {
-            rt_env_data[WOORT_BYTECODE(MAB18, c)] = 
+            rt_env_data[WOORT_BYTECODE(MAB18, c)] =
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)];
-            ++rt_ip;
             break;
         }
-        // ADDI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 0):
+        // LOADEX
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_LOADEX):
         {
-            // ADDI
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
-                + rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] =
+                rt_env_data[rt_ip[1]];
 
-            ++rt_ip;
-            break;
+            rt_ip += 2;
+            continue;
         }
-        // SUBI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 1):
+        // STOREEX
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_STOREEX):
         {
-            // SUBI
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
-                - rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            rt_env_data[rt_ip[1]] =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
 
-            ++rt_ip;
+            rt_ip += 2;
+            continue;
+        }
+        // MOVLD
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_MOV, 0):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(A8, c)]
+                = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
             break;
         }
-        // MULI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 2):
+        // MOVST
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_MOV, 1):
         {
-            // MULI
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
-                * rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)]
+                = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)];
+            break;
+        }
+        // MOVLDEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_MOV, 2):
+        {
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)]
+                = rt_sb[(int32_t)rt_ip[1]];
 
-            ++rt_ip;
-            break;
+            rt_ip += 2;
+            continue;
         }
-        // DIVI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 3):
+        // MOVSTEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_MOV, 3):
         {
-            // DIVI
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
-                / rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            rt_sb[(int32_t)rt_ip[1]]
+                = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
 
-            ++rt_ip;
+            rt_ip += 2;
+            continue;
+        }
+        // PUSHRCHK
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHCHK, 0):
+        {
+            // PUSH RESERVE STACK
+            const uint32_t reserve_stack_sz = WOORT_BYTECODE(ABC24, c);
+
+            rt_sp -= reserve_stack_sz;
+            if (rt_sp >= rt_stack)
+                break;
+
+            rt_sp += reserve_stack_sz;
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // PUSHSCHK
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHCHK, 1):
+        {
+            if (rt_sp >= rt_stack)
+            {
+                *(rt_sp--) = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
+                break;
+            }
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // PUSHCCHK
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHCHK, 2):
+        {
+            if (rt_sp >= rt_stack)
+            {
+                *(rt_sp--) = rt_env_data[WOORT_BYTECODE(ABC24, c)];
+                break;
+            }
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // PUSHCCHKEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHCHK, 3):
+        {
+            if (rt_sp >= rt_stack)
+            {
+                *(rt_sp--) = rt_env_data[rt_ip[1]];
+
+                rt_ip += 2;
+                continue;
+            }
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // ASSURESSZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 0):
+        {
+            if (rt_sp - WOORT_BYTECODE(ABC24, c) >= rt_stack)
+                break;
+
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // PUSHSCHK
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 1):
+        {
+            assert(rt_sp >= rt_stack);
+
+            *(rt_sp--) = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
             break;
         }
-        // JMP
-        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JMP):
+        // PUSHCCHK
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 2):
         {
-            rt_ip += WOORT_BYTECODE(MABC26, c);
+            assert(rt_sp >= rt_stack);
+
+            *(rt_sp--) = rt_env_data[WOORT_BYTECODE(ABC24, c)];
             break;
         }
-        // JMPBACK
-        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JMPGC):
+        // PUSHCCHKEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 3):
         {
-            rt_ip -= WOORT_BYTECODE(MABC26, c);
+            assert(rt_sp >= rt_stack);
+
+            *(rt_sp--) = rt_env_data[rt_ip[1]];
+
+            rt_ip += 2;
+            continue;
+        }
+        // POPR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 0):
+        {
+            rt_sp += WOORT_BYTECODE(ABC24, c);
+
+            assert(rt_sp <= rt_sb);
             break;
         }
-        // NOP(EXT DATA)
-        case WOORT_VM_CASE_OP6(WOORT_OPCODE_NOP):
+        // POPS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 1):
         {
-            ++rt_ip;
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = *(++rt_sp);
+
+            assert(rt_sp <= rt_sb);
+            break;
+        }
+        // POPC
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 2):
+        {
+            rt_env_data[WOORT_BYTECODE(ABC24, c)] = *(++rt_sp);
+
+            assert(rt_sp <= rt_sb);
+            break;
+        }
+        // POPCEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 3):
+        {
+            rt_env_data[rt_ip[1]] = *(++rt_sp);
+            
+            assert(rt_sp <= rt_sb);
+
+            rt_ip += 2;
+            continue;
+        }
+        // TODO: WOORT_OPCODE_CASTI
+        // TODO: WOORT_OPCODE_CASTR
+        // TODO: WOORT_OPCODE_CASTS
+
+        // CALLNWO
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_CALLNWO):
+        {
+            rt_sp -= 2;
+            if (rt_sp >= rt_stack)
+            {
+                rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
+                rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                rt_sp[2].m_ret_addr = rt_ip + 1;
+
+                rt_sb = rt_sp;
+
+                // Check for assuring invoke script function.
+                assert(rt_env_data[WOORT_BYTECODE(MABC26, c)].m_function.m_type ==
+                    WOORT_FUNCTION_TYPE_SCRIPT);
+
+                rt_ip = (const woort_Bytecode*)rt_env_data[
+                    WOORT_BYTECODE(MABC26, c)].m_function.m_address;
+                continue;
+            }
+
+            rt_sp += 2;
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // CALLNFP
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_CALLNFP):
+        {
+            rt_sp -= 2;
+            if (rt_sp >= rt_stack)
+            {
+                rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
+                rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                rt_sp[2].m_ret_addr = rt_ip + 1;
+
+                rt_sb = rt_sp;
+
+                // Check for assuring invoke native function.
+                assert(rt_env_data[WOORT_BYTECODE(MABC26, c)].m_function.m_type ==
+                    WOORT_FUNCTION_TYPE_NATIVE);
+
+                const woort_NativeFunction function =
+                    (woort_NativeFunction)rt_env_data[
+                        WOORT_BYTECODE(MABC26, c)].m_function.m_address;
+
+                WOORT_VM_SYNC_STATE();
+
+                const uint32_t stack_version_before_native_call = vm->m_stack_realloc_version;
+                const woort_VmCallStatus status = function(vm, rt_sp + 3);
+                /*
+                ATTENTION:
+                        本机调用发生之后，只可能返回到当前调用栈所在的虚拟机函数；
+                    不必考虑 rt_env 改变的情况，因为即便 rt_env 发生改变，回
+                    到此处时，也应当回到旧的 rt_env，所以不需要更新它们。
+
+                        但是，栈空间完全可能在本机调用期间发生改变，在旧版本（1.15
+                    之前）的 Woolang 中，栈空间的更新由调调用方负责检查和标记：
+                    现在这部分工作由被用方负责。
+                */
+
+                WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(
+                    stack_version_before_native_call);
+
+                if (status == WOORT_VM_CALL_STATUS_NORMAL)
+                {
+                    // Ok, continue execute.
+                    break;
+                }
+                return status;
+            }
+
+            rt_sp += 2;
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // CALLNJIT
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_CALLNJIT):
+        {
+            rt_sp -= 2;
+            if (rt_sp >= rt_stack)
+            {
+                rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
+                rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                rt_sp[2].m_ret_addr = rt_ip + 1;
+
+                rt_sb = rt_sp;
+
+                // Check for assuring invoke jit function.
+                assert(rt_env_data[WOORT_BYTECODE(MABC26, c)].m_function.m_type ==
+                    WOORT_FUNCTION_TYPE_JIT);
+
+                const woort_NativeFunction jit_function =
+                    (woort_NativeFunction)rt_env_data[
+                        WOORT_BYTECODE(MABC26, c)].m_function.m_address;
+
+                const woort_VmCallStatus status = jit_function(vm, rt_sp + 3);
+                switch (status)
+                {
+                case WOORT_VM_CALL_STATUS_RESYNC:
+                    WOORT_VM_RESYNC_STATE();
+                    break;
+                case WOORT_VM_CALL_STATUS_NORMAL:
+                    break;
+                default:
+                    return status;
+                }
+
+                // Ok, continue execute.
+                break;
+            }
+
+            rt_sp += 2;
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // TODO: WOORT_OPCODE_CALL
+
+        // RET
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 0):
+        {
+            rt_sp = rt_sb;
+            rt_sb = rt_stack_end - rt_sp[1].m_ret_bp.m_bp_offset;
+            rt_ip = rt_sp[2].m_ret_addr;
+
+            switch (rt_sp[1].m_ret_bp.m_way)
+            {
+            case WOORT_CALL_WAY_NEAR:
+                break;
+            case WOORT_CALL_WAY_FROM_NATIVE:
+                return WOORT_VM_CALL_STATUS_NORMAL;
+            case WOORT_CALL_WAY_FAR:
+            {
+                // Try resync far ip.
+                ++rt_ip;
+                WOORT_VM_THROW(env_updated);
+            }
+            default:
+                // Cannot be here.
+                WOORT_VM_SYNC_STATE_AND_PANIC(
+                    WOORT_PANIC_BAD_CALLSTACK,
+                    "Bad callstack, unexpected call way(%x).",
+                    (uint32_t)rt_sp[1].m_ret_bp.m_way);
+            }
+            break;
+        }
+        // RETVS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 1):
+        {
+            rt_sp = rt_sb;
+            rt_sb = rt_stack_end - rt_sp[1].m_ret_bp.m_bp_offset;
+            rt_ip = rt_sp[2].m_ret_addr;
+
+            /* 此处使用 rt_sp 寻址，因为这是上一层调用栈的 bp */
+            rt_sp[2] = rt_sp[(int16_t)WOORT_BYTECODE(BC16, c)];
+
+            switch (rt_sp[1].m_ret_bp.m_way)
+            {
+            case WOORT_CALL_WAY_NEAR:
+                break;
+            case WOORT_CALL_WAY_FROM_NATIVE:
+                return WOORT_VM_CALL_STATUS_NORMAL;
+            case WOORT_CALL_WAY_FAR:
+            {
+                // Try resync far ip.
+                ++rt_ip;
+                WOORT_VM_THROW(env_updated);
+            }
+            default:
+                // Cannot be here.
+                WOORT_VM_SYNC_STATE_AND_PANIC(
+                    WOORT_PANIC_BAD_CALLSTACK,
+                    "Bad callstack, unexpected call way(%x).",
+                    (uint32_t)rt_sp[1].m_ret_bp.m_way);
+            }
+            break;
+        }
+        // RETVC
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 2):
+        {
+            rt_sp = rt_sb;
+            rt_sb = rt_stack_end - rt_sp[1].m_ret_bp.m_bp_offset;
+            rt_ip = rt_sp[2].m_ret_addr;
+
+            rt_sp[2] = rt_env_data[WOORT_BYTECODE(ABC24, c)];
+
+            switch (rt_sp[1].m_ret_bp.m_way)
+            {
+            case WOORT_CALL_WAY_NEAR:
+                break;
+            case WOORT_CALL_WAY_FROM_NATIVE:
+                return WOORT_VM_CALL_STATUS_NORMAL;
+            case WOORT_CALL_WAY_FAR:
+            {
+                // Try resync far ip.
+                ++rt_ip;
+                WOORT_VM_THROW(env_updated);
+            }
+            default:
+                // Cannot be here.
+                WOORT_VM_SYNC_STATE_AND_PANIC(
+                    WOORT_PANIC_BAD_CALLSTACK,
+                    "Bad callstack, unexpected call way(%x).",
+                    (uint32_t)rt_sp[1].m_ret_bp.m_way);
+            }
+            break;
+        }
+        // RESULT
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_RESULT):
+        {
+            rt_sb[WOORT_BYTECODE(BC16, c)] = rt_sp[2];
+            rt_sp += 2 + WOORT_BYTECODE(MA10, c);
+
+            assert(rt_sp <= rt_sb);
+
             break;
         }
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
         }
+
+        // Move forward to next command.
+        ++rt_ip;
     }
     // Ok
     return WOORT_VM_CALL_STATUS_NORMAL;
@@ -361,11 +628,20 @@ _label_exception_handler_stack_overflow:
     }
     WOORT_VM_HANDLED();
 
+_label_exception_handler_env_updated:
+    if (/* UNLIKELY */ !woort_CodeEnv_find(vm->m_ip, &vm->m_env))
+    {
+        WOORT_VM_SYNC_STATE_AND_PANIC(
+            WOORT_PANIC_CODE_ENV_NOT_FOUND,
+            "Cannot find code environment from `%p`.", vm->m_ip);
+    }
+    WOORT_VM_HANDLED();
+
 _label_exception_handler_bad_command:
     // Bad command.
     WOORT_VM_SYNC_STATE_AND_PANIC(
         WOORT_PANIC_BAD_BYTE_CODE,
         "Bad command(%x).",
         *(uint32_t*)rt_ip);
-    return WOORT_VM_CALL_STATUS_TBD_BAD_STATUS;
+    return WOORT_VM_CALL_STATUS_ABORTED;
 }

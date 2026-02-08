@@ -27,12 +27,12 @@ typedef struct woort_Function
 typedef enum woort_CallWay
 {
     // 一个脚本中的函数调用了另一个（本地的）脚本函数
-    WOORT_CALL_WAY_NORMAL,
+    WOORT_CALL_WAY_NEAR,
 
-    // `可能` 调用了另一个代码环境下的脚本函数，返回时需要额外检查
-    WOORT_CALL_WAY_MAY_FAR,
+    // 调用了另一个代码环境下的脚本函数，返回时需要额外检查
+    WOORT_CALL_WAY_FAR,
 
-    // 此调用是由 native 层发起的，
+    // 此调用是由 native 层发起的，返回时需要终止解释器执行
     WOORT_CALL_WAY_FROM_NATIVE,
 } woort_CallWay;
 typedef struct woort_RetBP
@@ -51,3 +51,6 @@ typedef union woort_Value
     const void*     m_ret_addr;
 
 }woort_Value;
+
+_Static_assert(sizeof(woort_Value) == sizeof(woort_value), 
+    "woort_Value and woort_value must have the same size");

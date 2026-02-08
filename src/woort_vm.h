@@ -4,6 +4,8 @@
 woort_vm.h
 */
 
+#include "woort.h"
+
 #include "woort_diagnosis.h"
 #include "woort_value.h"
 #include "woort_opcode_formal.h"
@@ -14,6 +16,7 @@ woort_vm.h
 typedef struct woort_VMRuntime
 {
     // VM Runtime status.
+    uint32_t                m_stack_realloc_version;
     woort_Value*            m_stack;
     // NOTE: m_stack_end 指向栈空间的尾后位置，不可访问其中的内容
     woort_Value*            m_stack_end; 
@@ -25,15 +28,8 @@ typedef struct woort_VMRuntime
 
 } woort_VMRuntime;
 
-typedef enum woort_VMRuntime_CallStatus
-{
-    WOORT_VM_CALL_STATUS_NORMAL,
-    WOORT_VM_CALL_STATUS_TBD_BAD_STATUS,
-
-} woort_VMRuntime_CallStatus;
-
 WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm);
 void woort_VMRuntime_deinit(woort_VMRuntime* vm);
 
-WOORT_NODISCARD woort_VMRuntime_CallStatus woort_VMRuntime_invoke(
+WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     woort_VMRuntime* vm, const woort_Bytecode* func);
