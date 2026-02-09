@@ -21,6 +21,7 @@ typedef enum woort_PanicReason
     WOORT_PANIC_STACK_OVERFLOW = 0xD002,
     WOORT_PANIC_CODE_ENV_NOT_FOUND = 0xD003,
     WOORT_PANIC_BAD_CALLSTACK = 0xD004,
+    WOORT_PANIC_BAD_TYPE = 0xD005,
 
 } woort_PanicReason;
 

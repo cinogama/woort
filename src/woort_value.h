@@ -4,25 +4,29 @@
 woort_value.h
 */
 
+#include "woort.h"
+
+#include "woort_diagnosis.h"
+
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 typedef int64_t woort_Integer;
 typedef double woort_Real;
+typedef uint64_t woort_DynBox;
+typedef uint32_t woort_Bytecode;
 
-typedef enum woort_FunctionType
+typedef enum woort_RuntimeFunction_Kind
 {
-    WOORT_FUNCTION_TYPE_SCRIPT,
-    WOORT_FUNCTION_TYPE_NATIVE,
-    WOORT_FUNCTION_TYPE_JIT,
+    WOORT_RUNTIME_FUNCTION_KIND_CLOSURE = 0,
+    WOORT_RUNTIME_FUNCTION_KIND_SCRIPT,
+    WOORT_RUNTIME_FUNCTION_KIND_NATIVE,
+    WOORT_RUNTIME_FUNCTION_KIND_JIT,
 
-}woort_FunctionType;
-typedef struct woort_Function
-{
-    int64_t    m_type : 2;
-    int64_t    m_address : 62;
+}woort_RuntimeFunction_Kind;
 
-}woort_Function;
+typedef uint64_t woort_RuntimeFunction;
 
 typedef enum woort_CallWay
 {
@@ -32,8 +36,9 @@ typedef enum woort_CallWay
     // 调用了另一个代码环境下的脚本函数，返回时需要额外检查
     WOORT_CALL_WAY_FAR,
 
-    // 此调用是由 native 层发起的，返回时需要终止解释器执行
+    // 此调用是由 native 层发起的，返回时需要中断解释器执行
     WOORT_CALL_WAY_FROM_NATIVE,
+
 } woort_CallWay;
 typedef struct woort_RetBP
 {
@@ -42,15 +47,56 @@ typedef struct woort_RetBP
 
 } woort_RetBP;
 
+typedef enum woort_DynBox_ValueType
+{
+    WOORT_DYNBOX_VALUE_TYPE_GCINSTANCE = 0,
+    WOORT_DYNBOX_VALUE_TYPE_EXTERNED,
+    WOORT_DYNBOX_VALUE_TYPE_INTEGER,
+    WOORT_DYNBOX_VALUE_TYPE_REAL,
+    WOORT_DYNBOX_VALUE_TYPE_CLOSURE,
+    WOORT_DYNBOX_VALUE_TYPE_SCRIPT_FUNCTION,
+    WOORT_DYNBOX_VALUE_TYPE_NATIVE_FUNCTION,
+    WOORT_DYNBOX_VALUE_TYPE_JIT_FUNCTION,
+} woort_DynBox_ValueType;
+
 typedef union woort_Value
 {
-    woort_Integer   m_integer;
-    woort_Real      m_real;
-    woort_Function  m_function;
-    woort_RetBP     m_ret_bp;
-    const void*     m_ret_addr;
+    woort_Integer           m_integer;
+    woort_Real              m_real;
+    const woort_Bytecode* m_script_function;
+    woort_NativeFunction    m_native_or_jit_function;
+    woort_RuntimeFunction   m_runtime_function;
+
+    woort_DynBox            m_dynamic;
+
+    woort_RetBP             m_ret_bp;
+    const void* m_ret_addr;
 
 }woort_Value;
 
-_Static_assert(sizeof(woort_Value) == sizeof(woort_value), 
+_Static_assert(sizeof(woort_Value) == sizeof(woort_value),
     "woort_Value and woort_value must have the same size");
+
+void woort_DynBox_box(
+    woort_Value val,
+    woort_DynBox_ValueType type,
+    woort_DynBox* modifing_box);
+
+WOORT_NODISCARD bool woort_DynBox_try_unbox(
+    woort_DynBox box,
+    woort_Value* val,
+    woort_DynBox_ValueType expected_type);
+
+#define woort_RuntimeFunction_kind(function) (      \
+    (woort_RuntimeFunction_Kind)(                           \
+        ((woort_RuntimeFunction)(function)) >> 62))
+
+#define woort_RuntimeFunction_target(function) (    \
+    (void*)(                                        \
+        ((woort_RuntimeFunction)(function))         \
+            & 0x3fff'ffff'ffff'ffffull))    
+
+#define woort_RuntimeFunction_pack(kind, target)    \
+    (woort_RuntimeFunction)(                        \
+        ((uint64_t)kind << 62)                      \
+            | (uint64_t)(target))

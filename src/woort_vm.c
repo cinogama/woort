@@ -384,7 +384,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 3):
         {
             rt_env_data[rt_ip[1]] = *(++rt_sp);
-            
+
             assert(rt_sp <= rt_sb);
 
             rt_ip += 2;
@@ -406,12 +406,7 @@ _label_continue_execution:
 
                 rt_sb = rt_sp;
 
-                // Check for assuring invoke script function.
-                assert(rt_env_data[WOORT_BYTECODE(MABC26, c)].m_function.m_type ==
-                    WOORT_FUNCTION_TYPE_SCRIPT);
-
-                rt_ip = (const woort_Bytecode*)rt_env_data[
-                    WOORT_BYTECODE(MABC26, c)].m_function.m_address;
+                rt_ip = rt_env_data[WOORT_BYTECODE(MABC26, c)].m_script_function;
                 continue;
             }
 
@@ -430,18 +425,17 @@ _label_continue_execution:
 
                 rt_sb = rt_sp;
 
-                // Check for assuring invoke native function.
-                assert(rt_env_data[WOORT_BYTECODE(MABC26, c)].m_function.m_type ==
-                    WOORT_FUNCTION_TYPE_NATIVE);
+                const woort_NativeFunction native_function =
+                    rt_env_data[WOORT_BYTECODE(MABC26, c)].m_native_or_jit_function;
 
-                const woort_NativeFunction function =
-                    (woort_NativeFunction)rt_env_data[
-                        WOORT_BYTECODE(MABC26, c)].m_function.m_address;
+                // 设置 rt_ip，这样可以追踪到完整的调用栈
+                rt_ip = (const woort_Bytecode*)native_function;
 
                 WOORT_VM_SYNC_STATE();
 
                 const uint32_t stack_version_before_native_call = vm->m_stack_realloc_version;
-                const woort_VmCallStatus status = function(vm, rt_sp + 3);
+                const woort_VmCallStatus status = native_function(vm, rt_sp + 3);
+
                 /*
                 ATTENTION:
                         本机调用发生之后，只可能返回到当前调用栈所在的虚拟机函数；
@@ -452,14 +446,16 @@ _label_continue_execution:
                     之前）的 Woolang 中，栈空间的更新由调调用方负责检查和标记：
                     现在这部分工作由被用方负责。
                 */
-
                 WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(
                     stack_version_before_native_call);
+
+                // Restore return place.
+                rt_ip = rt_sb[2].m_ret_addr;
 
                 if (status == WOORT_VM_CALL_STATUS_NORMAL)
                 {
                     // Ok, continue execute.
-                    break;
+                    continue;
                 }
                 return status;
             }
@@ -479,13 +475,8 @@ _label_continue_execution:
 
                 rt_sb = rt_sp;
 
-                // Check for assuring invoke jit function.
-                assert(rt_env_data[WOORT_BYTECODE(MABC26, c)].m_function.m_type ==
-                    WOORT_FUNCTION_TYPE_JIT);
-
                 const woort_NativeFunction jit_function =
-                    (woort_NativeFunction)rt_env_data[
-                        WOORT_BYTECODE(MABC26, c)].m_function.m_address;
+                    rt_env_data[WOORT_BYTECODE(MABC26, c)].m_native_or_jit_function;
 
                 const woort_VmCallStatus status = jit_function(vm, rt_sp + 3);
                 switch (status)
@@ -643,7 +634,7 @@ _label_continue_execution:
         // JFCONDEQ
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 2):
         {
-            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer 
+            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 == rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
             {
                 rt_ip += WOORT_BYTECODE(C8, c);
@@ -711,8 +702,27 @@ _label_continue_execution:
         // BOXDYN
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 0):
         {
-            TODO;
+            woort_DynBox_box(
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
+                (woort_DynBox_ValueType)WOORT_BYTECODE(A8, c),
+                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
+
             break;
+        }
+        // UNBOXDYN
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 1):
+        {
+            if (woort_DynBox_try_unbox(
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic,
+                (woort_DynBox_ValueType)WOORT_BYTECODE(A8, c),
+                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]))
+            {
+                // Type matched.
+                break;
+            }
+
+            // Bad type.
+            WOORT_VM_THROW(bad_type);
         }
 
         default:
@@ -744,6 +754,13 @@ _label_exception_handler_env_updated:
             "Cannot find code environment from `%p`.", vm->m_ip);
     }
     WOORT_VM_HANDLED();
+
+_label_exception_handler_bad_type:
+    // Bad command.
+    WOORT_VM_SYNC_STATE_AND_PANIC(
+        WOORT_PANIC_BAD_TYPE,
+        "Bad type.");
+    return WOORT_VM_CALL_STATUS_ABORTED;
 
 _label_exception_handler_bad_command:
     // Bad command.

@@ -3,11 +3,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "woort_value.h"
+
 /*
 woort_opcode_formal.h
 */
-
-typedef uint32_t woort_Bytecode;
 
 #define WOORT_BYTECODE_OP6_MASK 0xfc000000u
 #define WOORT_BYTECODE_M2_MASK 0x03000000u
