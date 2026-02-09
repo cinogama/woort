@@ -600,13 +600,121 @@ _label_continue_execution:
         // RESULT
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_RESULT):
         {
-            rt_sb[WOORT_BYTECODE(BC16, c)] = rt_sp[2];
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = rt_sp[2];
             rt_sp += 2 + WOORT_BYTECODE(MA10, c);
 
             assert(rt_sp <= rt_sb);
 
             break;
         }
+        // JMPF
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JMP):
+        {
+            rt_ip = rt_env_code + WOORT_BYTECODE(MABC26, c);
+            continue;
+        }
+        // JMPB
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JMPGC):
+        {
+            rt_ip = rt_env_code + WOORT_BYTECODE(MABC26, c);
+            // TODO: GC CHECKPOINT HERE
+            continue;
+        }
+        // JFCONDNZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 0):
+        {
+            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer != 0)
+            {
+                rt_ip += WOORT_BYTECODE(BC16, c);
+                continue;
+            }
+            break;
+        }
+        // JFCONDZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 1):
+        {
+            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer == 0)
+            {
+                rt_ip += WOORT_BYTECODE(BC16, c);
+                continue;
+            }
+            break;
+        }
+        // JFCONDEQ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 2):
+        {
+            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer 
+                == rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip += WOORT_BYTECODE(C8, c);
+                continue;
+            }
+            break;
+        }
+        // JFCONDNE
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 3):
+        {
+            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                != rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip += WOORT_BYTECODE(C8, c);
+                continue;
+            }
+            break;
+        }
+        // JBCONDNZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 0):
+        {
+            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer != 0)
+            {
+                rt_ip -= WOORT_BYTECODE(BC16, c);
+                continue;
+            }
+            break;
+        }
+        // JBCONDZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 1):
+        {
+            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer == 0)
+            {
+                rt_ip -= WOORT_BYTECODE(BC16, c);
+                continue;
+            }
+            break;
+        }
+        // JBCONDEQ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 2):
+        {
+            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                == rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip -= WOORT_BYTECODE(C8, c);
+                continue;
+            }
+            break;
+        }
+        // JBCONDNE
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 3):
+        {
+            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                != rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip -= WOORT_BYTECODE(C8, c);
+                continue;
+            }
+            break;
+        }
+        // TODO: WOORT_OPCODE_CONS
+        // TODO: WOORT_OPCODE_CONSEX
+        // TODO: WOORT_OPCODE_MKCLOS
+
+        // BOXDYN
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 0):
+        {
+            TODO;
+            break;
+        }
+
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
