@@ -1,5 +1,7 @@
 #include "woort.h"
 
+#include "woomem.h"
+
 #include "woort_vm.h"
 #include "woort_threads.h"
 #include "woort_value.h"
@@ -116,6 +118,19 @@ bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     ++vm->m_stack_realloc_version;
 
     return true;
+}
+
+void woort_VMRuntime_mark_stack(woort_VMRuntime* vm)
+{
+    for (woort_Value* svp = vm->m_sp + 1;
+        svp < vm->m_stack_end;
+        ++svp)
+    {
+        woomem_Bool becoming_old;
+
+        TODO;
+        woomem_try_mark_self((intptr_t)svp->m_gcinstance, &becoming_old);
+    }
 }
 
 WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
@@ -433,8 +448,11 @@ _label_continue_execution:
 
                 WOORT_VM_SYNC_STATE();
 
-                const uint32_t stack_version_before_native_call = vm->m_stack_realloc_version;
-                const woort_VmCallStatus status = native_function(vm, rt_sp + 3);
+                const uint32_t stack_version_before_native_call = 
+                    vm->m_stack_realloc_version;
+
+                const woort_VmCallStatus status = native_function(
+                    vm, (woort_value*)(rt_sp + 3));
 
                 /*
                 ATTENTION:
@@ -478,7 +496,9 @@ _label_continue_execution:
                 const woort_NativeFunction jit_function =
                     rt_env_data[WOORT_BYTECODE(MABC26, c)].m_native_or_jit_function;
 
-                const woort_VmCallStatus status = jit_function(vm, rt_sp + 3);
+                const woort_VmCallStatus status = 
+                    jit_function(vm, (woort_value*)(rt_sp + 3));
+
                 switch (status)
                 {
                 case WOORT_VM_CALL_STATUS_RESYNC:
@@ -699,32 +719,50 @@ _label_continue_execution:
         // TODO: WOORT_OPCODE_CONSEX
         // TODO: WOORT_OPCODE_MKCLOS
 
-        // BOXDYN
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 0):
-        {
-            woort_DynBox_box(
-                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
-                (woort_DynBox_ValueType)WOORT_BYTECODE(A8, c),
-                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
+        //// BOXDYN
+        //case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 0):
+        //{
+        //    woort_DynBox_box(
+        //        (woort_DynBox_ValueType)WOORT_BYTECODE(A8, c),
+        //        rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
+        //        &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
-            break;
-        }
-        // UNBOXDYN
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 1):
-        {
-            if (woort_DynBox_try_unbox(
-                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic,
-                (woort_DynBox_ValueType)WOORT_BYTECODE(A8, c),
-                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]))
-            {
-                // Type matched.
-                break;
-            }
+        //    break;
+        //}
+        //// UNBOXDYN
+        //case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 1):
+        //{
+        //    if (woort_DynBox_try_unbox(
+        //        (woort_DynBox_ValueType)WOORT_BYTECODE(A8, c),
+        //        rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic,
+        //        &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]))
+        //    {
+        //        // Type matched.
+        //        break;
+        //    }
 
-            // Bad type.
-            WOORT_VM_THROW(bad_type);
-        }
+        //    // Bad type.
+        //    WOORT_VM_THROW(bad_type);
+        //}
+        //// CHECKDYN
+        //case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 2):
+        //{
+        //    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+        //        woort_DynBox_check(
+        //            rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic,
+        //            (woort_DynBox_ValueType)WOORT_BYTECODE(A8, c));
+        //    break;
+        //}
+        //// PUSHDYN
+        //case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 3):
+        //{
+        //    woort_DynBox_box(
+        //        (woort_DynBox_ValueType)WOORT_BYTECODE(A8, c),
+        //        rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
+        //        rt_sp++);
 
+        //    break;
+        //}
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);

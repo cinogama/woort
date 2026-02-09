@@ -53,17 +53,42 @@ typedef enum woort_DynBox_ValueType
     WOORT_DYNBOX_VALUE_TYPE_EXTERNED,
     WOORT_DYNBOX_VALUE_TYPE_INTEGER,
     WOORT_DYNBOX_VALUE_TYPE_REAL,
-    WOORT_DYNBOX_VALUE_TYPE_CLOSURE,
+    WOORT_DYNBOX_VALUE_TYPE_BOOL,
     WOORT_DYNBOX_VALUE_TYPE_SCRIPT_FUNCTION,
     WOORT_DYNBOX_VALUE_TYPE_NATIVE_FUNCTION,
     WOORT_DYNBOX_VALUE_TYPE_JIT_FUNCTION,
+
+    // Use this flag for pack/unpack/check:
+    //  * WOORT_DYNBOX_VALUE_TYPE_SCRIPT_FUNCTION
+    //  * WOORT_DYNBOX_VALUE_TYPE_NATIVE_FUNCTION
+    //  * WOORT_DYNBOX_VALUE_TYPE_JIT_FUNCTION
+    WOORT_DYNBOX_VALUE_TYPE_RUTIME_FUNCTION,
+
+    // Externed:
+    WOORT_DYNBOX_VALUE_TYPE_EXTERN_NIL,
+    WOORT_DYNBOX_VALUE_TYPE_EXTERN_STRING,
+    WOORT_DYNBOX_VALUE_TYPE_EXTERN_STRUCT,
+    WOORT_DYNBOX_VALUE_TYPE_EXTERN_VEC,
+    WOORT_DYNBOX_VALUE_TYPE_EXTERN_MAP,
+    WOORT_DYNBOX_VALUE_TYPE_EXTERN_CLOSURE,
+
+
 } woort_DynBox_ValueType;
+
+/*
+            H                           L
+INTEGER:    | ValueStorage 62 | 1 | 0 |
+REAL:       |   ValueStorage 63   | 1 |
+
+
+*/
 
 typedef union woort_Value
 {
+    void*                   m_gcinstance;
     woort_Integer           m_integer;
     woort_Real              m_real;
-    const woort_Bytecode* m_script_function;
+    const woort_Bytecode*   m_script_function;
     woort_NativeFunction    m_native_or_jit_function;
     woort_RuntimeFunction   m_runtime_function;
 
@@ -78,14 +103,18 @@ _Static_assert(sizeof(woort_Value) == sizeof(woort_value),
     "woort_Value and woort_value must have the same size");
 
 void woort_DynBox_box(
-    woort_Value val,
     woort_DynBox_ValueType type,
+    woort_Value val,
     woort_DynBox* modifing_box);
 
+WOORT_NODISCARD bool woort_DynBox_check(
+    woort_DynBox_ValueType expected_type,
+    woort_DynBox box);
+
 WOORT_NODISCARD bool woort_DynBox_try_unbox(
+    woort_DynBox_ValueType expected_type,
     woort_DynBox box,
-    woort_Value* val,
-    woort_DynBox_ValueType expected_type);
+    woort_Value* out_val);
 
 #define woort_RuntimeFunction_kind(function) (      \
     (woort_RuntimeFunction_Kind)(                           \

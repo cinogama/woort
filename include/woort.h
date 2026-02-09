@@ -93,7 +93,7 @@ extern "C" {
     } woort_VmCallStatus, woort_api;
 
     typedef struct woort_VMRuntime* woort_vm;
-    typedef struct woort_value { char _storage[8]; } woort_value;
+    typedef struct woort_value { char _[8]; } woort_value;
 
     typedef woort_api(*woort_NativeFunction)(woort_vm vm, woort_value* args);
 

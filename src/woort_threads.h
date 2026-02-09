@@ -47,7 +47,7 @@ void woort_recursive_mutex_unlock(woort_RecursiveMutex* mutex);
 
 WOORT_NODISCARD bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex);
 void woort_time_recursive_mutex_destroy(woort_TimeRecursiveMutex* mutex);
-bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex);
+WOORT_NODISCARD bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex);
 WOORT_NODISCARD bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms);
 void woort_time_recursive_mutex_unlock(woort_TimeRecursiveMutex* mutex);
 
