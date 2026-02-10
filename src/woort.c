@@ -7,7 +7,7 @@
 
 void woort_init(void)
 {
-    woomem_init(NULL, NULL, NULL);
+    woomem_init(NULL, NULL, NULL, NULL);
 
     if (!woort_CodeEnv_bootup())
     {
