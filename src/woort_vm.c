@@ -8,27 +8,43 @@
 #include "woort_log.h"
 #include "woort_codeenv.h"
 #include "woort_opcode.h"
+#include "woort_hashmap.h"
 
 #include <assert.h>
 #include <stdlib.h>
 #include <memory.h>
+
+// woort_Alive
 
 WOORT_THREAD_LOCAL woort_VMRuntime* t_this_thread_vm = NULL;
 
 const size_t WOORT_VM_DEFAULT_STACK_BEGIN_SIZE = 32;
 const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
 
+
 WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm)
 {
+    vm->m_hangup_c = 0;
+
+    if (!woort_mutex_create(&vm->m_hangup_mx))
+        vm->m_hangup_mx = NULL;
+
+    if (!woort_condition_variable_create(&vm->m_hangup_cv))
+        vm->m_hangup_cv = NULL;
+
     // Init stack state.
     vm->m_stack_realloc_version = 0;
-    vm->m_stack = malloc(
-        WOORT_VM_DEFAULT_STACK_BEGIN_SIZE * sizeof(woort_Value));
+    vm->m_stack =
+        woomem_alloc_attrib(
+            WOORT_VM_DEFAULT_STACK_BEGIN_SIZE * sizeof(woort_Value),
+            WOOMEM_GC_UNIT_TYPE_NEED_SWEEP | WOOMEM_GC_UNIT_TYPE_AUTO_MARK);
 
-    if (vm->m_stack == NULL)
+    if (vm->m_stack == NULL 
+        || vm->m_hangup_mx == NULL 
+        || vm->m_hangup_cv == NULL)
     {
         WOORT_DEBUG("Out of memory");
-        return false;
+        goto _label_failed_to_init;
     }
 
     vm->m_stack_end = vm->m_stack + WOORT_VM_DEFAULT_STACK_BEGIN_SIZE;
@@ -39,13 +55,20 @@ WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm)
     vm->m_env = NULL;
 
     return true;
+
+_label_failed_to_init:
+    return false;
 }
 void woort_VMRuntime_deinit(woort_VMRuntime* vm)
 {
     if (vm->m_stack != NULL)
-    {
-        free(vm->m_stack);
-    }
+        woomem_free(vm->m_stack);
+
+    if (vm->m_hangup_mx != NULL)
+        woort_mutex_destroy(vm->m_hangup_mx);
+
+    if (vm->m_hangup_cv != NULL)
+        woort_condition_variable_destroy(vm->m_hangup_cv);
 }
 
 WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
@@ -120,17 +143,30 @@ bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     return true;
 }
 
-void woort_VMRuntime_mark_stack(woort_VMRuntime* vm)
+void _woort_VMRuntime_hangup(woort_VMRuntime* vm)
 {
-    for (woort_Value* svp = vm->m_sp + 1;
-        svp < vm->m_stack_end;
-        ++svp)
+    woort_mutex_lock(vm->m_hangup_mx);
+    ++vm->m_hangup_c;
+    do
     {
-        woomem_Bool becoming_old;
+        if (0 == vm->m_hangup_c)
+            break;
 
-        TODO;
-        woomem_try_mark_self((intptr_t)svp->m_gcinstance, &becoming_old);
-    }
+        woort_condition_variable_wait(vm->m_hangup_cv, vm->m_hangup_mx);
+    } while (true);
+    woort_mutex_unlock(vm->m_hangup_mx);
+}
+
+void woort_VMRuntime_wakeup(woort_VMRuntime* vm)
+{
+    woort_mutex_lock(vm->m_hangup_mx);
+    do
+    {
+        --vm->m_hangup_c;
+        woort_condition_variable_signal(vm->m_hangup_cv);
+
+    } while (0);
+    woort_mutex_unlock(vm->m_hangup_mx);
 }
 
 WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
@@ -448,7 +484,7 @@ _label_continue_execution:
 
                 WOORT_VM_SYNC_STATE();
 
-                const uint32_t stack_version_before_native_call = 
+                const uint32_t stack_version_before_native_call =
                     vm->m_stack_realloc_version;
 
                 const woort_VmCallStatus status = native_function(
@@ -496,7 +532,7 @@ _label_continue_execution:
                 const woort_NativeFunction jit_function =
                     rt_env_data[WOORT_BYTECODE(MABC26, c)].m_native_or_jit_function;
 
-                const woort_VmCallStatus status = 
+                const woort_VmCallStatus status =
                     jit_function(vm, (woort_value*)(rt_sp + 3));
 
                 switch (status)
@@ -807,4 +843,25 @@ _label_exception_handler_bad_command:
         "Bad command(%x).",
         *(uint32_t*)rt_ip);
     return WOORT_VM_CALL_STATUS_ABORTED;
+}
+
+WOORT_NODISCARD bool woort_VMRuntime_request_set(
+    woort_VMRuntime* vm, woort_VMRuntime_CheckRequestMask check_mask)
+{
+    return 0 == (check_mask & woort_atomic_fetch_or_explicit(
+        &vm->m_check_request_mask, check_mask, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
+}
+
+WOORT_NODISCARD bool woort_VMRuntime_request_check(
+    woort_VMRuntime* vm, woort_VMRuntime_CheckRequestMask check_mask)
+{
+    return 0 != (check_mask & woort_atomic_load_explicit(
+        &vm->m_check_request_mask, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
+}
+
+WOORT_NODISCARD bool woort_VMRuntime_request_accept(
+    woort_VMRuntime* vm, woort_VMRuntime_CheckRequestMask check_mask)
+{
+    return 0 != (check_mask & woort_atomic_fetch_and_explicit(
+        &vm->m_check_request_mask, ~check_mask, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
 }

@@ -424,7 +424,7 @@ static inline void* woort_atomic_load_ptr(woort_AtomicPtr* obj)
 
 /* woort_atomic_load_explicit with memory order */
 #define woort_atomic_load_explicit(obj, order) \
-    (woort_atomic_load(obj) + 0 * (int)(order))
+    (woort_atomic_load(obj))
 
 /* ============================================================================
  * woort_atomic_fetch_add / woort_atomic_fetch_add_explicit
@@ -531,7 +531,7 @@ static inline uint64_t woort_atomic_fetch_add_uint64(woort_AtomicUInt64* obj, ui
 
 /* woort_atomic_fetch_add_explicit with memory order */
 #define woort_atomic_fetch_add_explicit(obj, value, order) \
-    (woort_atomic_fetch_add(obj, value) + 0 * (int)(order))
+    (woort_atomic_fetch_add(obj, value))
 
 /* ============================================================================
  * woort_atomic_fetch_sub / woort_atomic_fetch_sub_explicit
@@ -638,7 +638,7 @@ static inline uint64_t woort_atomic_fetch_sub_uint64(woort_AtomicUInt64* obj, ui
 
 /* woort_atomic_fetch_sub_explicit with memory order */
 #define woort_atomic_fetch_sub_explicit(obj, value, order) \
-    (woort_atomic_fetch_sub(obj, value) + 0 * (int)(order))
+    (woort_atomic_fetch_sub(obj, value))
 
 /* ============================================================================
  * woort_atomic_fetch_or / woort_atomic_fetch_or_explicit
@@ -745,7 +745,7 @@ static inline uint64_t woort_atomic_fetch_or_uint64(woort_AtomicUInt64* obj, uin
 
 /* woort_atomic_fetch_or_explicit with memory order */
 #define woort_atomic_fetch_or_explicit(obj, value, order) \
-    (woort_atomic_fetch_or(obj, value) + 0 * (int)(order))
+    (woort_atomic_fetch_or(obj, value))
 
 /* ============================================================================
  * woort_atomic_fetch_xor / woort_atomic_fetch_xor_explicit
@@ -852,7 +852,7 @@ static inline uint64_t woort_atomic_fetch_xor_uint64(woort_AtomicUInt64* obj, ui
 
 /* woort_atomic_fetch_xor_explicit with memory order */
 #define woort_atomic_fetch_xor_explicit(obj, value, order) \
-    (woort_atomic_fetch_xor(obj, value) + 0 * (int)(order))
+    (woort_atomic_fetch_xor(obj, value))
 
 /* ============================================================================
  * woort_atomic_fetch_and / woort_atomic_fetch_and_explicit
@@ -959,7 +959,7 @@ static inline uint64_t woort_atomic_fetch_and_uint64(woort_AtomicUInt64* obj, ui
 
 /* woort_atomic_fetch_and_explicit with memory order */
 #define woort_atomic_fetch_and_explicit(obj, value, order) \
-    (woort_atomic_fetch_and(obj, value) + 0 * (int)(order))
+    (woort_atomic_fetch_and(obj, value))
 
 /* ============================================================================
  * woort_atomic_compare_exchange_strong / weak
@@ -1140,7 +1140,7 @@ static inline int woort_atomic_compare_exchange_strong_ptr(woort_AtomicPtr* obj,
 
 /* woort_atomic_compare_exchange_strong_explicit with memory order */
 #define woort_atomic_compare_exchange_strong_explicit(obj, expected, desired, success, failure) \
-    (woort_atomic_compare_exchange_strong(obj, expected, desired) + 0 * ((int)(success) + (int)(failure)))
+    (woort_atomic_compare_exchange_strong(obj, expected, desired))
 
 /* ============================================================================
  * woort_atomic_compare_exchange_weak
@@ -1225,7 +1225,7 @@ static inline int woort_atomic_compare_exchange_weak_ptr(woort_AtomicPtr* obj, v
 
 /* woort_atomic_compare_exchange_weak_explicit with memory order */
 #define woort_atomic_compare_exchange_weak_explicit(obj, expected, desired, success, failure) \
-    (woort_atomic_compare_exchange_weak(obj, expected, desired) + 0 * ((int)(success) + (int)(failure)))
+    (woort_atomic_compare_exchange_weak(obj, expected, desired))
 
 /* ============================================================================
  * woort_atomic_thread_fence / woort_atomic_signal_fence
