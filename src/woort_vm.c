@@ -14,13 +14,10 @@
 #include <stdlib.h>
 #include <memory.h>
 
-// woort_Alive
-
 WOORT_THREAD_LOCAL woort_VMRuntime* t_this_thread_vm = NULL;
 
 const size_t WOORT_VM_DEFAULT_STACK_BEGIN_SIZE = 32;
 const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
-
 
 WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm)
 {
@@ -53,6 +50,10 @@ WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm)
     // Init runtime state.
     vm->m_ip = NULL;
     vm->m_env = NULL;
+    woort_atomic_store_explicit(
+        &vm->m_check_request_mask,
+        WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE,
+        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
     return true;
 
@@ -492,13 +493,13 @@ _label_continue_execution:
 
                 /*
                 ATTENTION:
-                        本机调用发生之后，只可能返回到当前调用栈所在的虚拟机函数；
-                    不必考虑 rt_env 改变的情况，因为即便 rt_env 发生改变，回
-                    到此处时，也应当回到旧的 rt_env，所以不需要更新它们。
+                    本机调用发生之后，只可能返回到当前调用栈所在的虚拟机函数；
+                不必考虑 rt_env 改变的情况，因为即便 rt_env 发生改变，回
+                到此处时，也应当回到旧的 rt_env，所以不需要更新它们。
 
-                        但是，栈空间完全可能在本机调用期间发生改变，在旧版本（1.15
-                    之前）的 Woolang 中，栈空间的更新由调调用方负责检查和标记：
-                    现在这部分工作由被用方负责。
+                    但是，栈空间完全可能在本机调用期间发生改变，在旧版本（1.15
+                之前）的 Woolang 中，栈空间的更新由调用方负责检查和标记：
+                现在这部分工作由被调用方负责。
                 */
                 WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(
                     stack_version_before_native_call);
@@ -571,8 +572,12 @@ _label_continue_execution:
             case WOORT_CALL_WAY_FAR:
             {
                 // Try resync far ip.
-                ++rt_ip;
-                WOORT_VM_THROW(env_updated);
+                if (rt_ip < rt_env_code || rt_ip >= rt_env_code_end)
+                {
+                    ++rt_ip;
+                    WOORT_VM_THROW(env_updated);
+                }
+                break;
             }
             default:
                 // Cannot be here.
@@ -602,8 +607,12 @@ _label_continue_execution:
             case WOORT_CALL_WAY_FAR:
             {
                 // Try resync far ip.
-                ++rt_ip;
-                WOORT_VM_THROW(env_updated);
+                if (rt_ip < rt_env_code || rt_ip >= rt_env_code_end)
+                {
+                    ++rt_ip;
+                    WOORT_VM_THROW(env_updated);
+                }
+                break;
             }
             default:
                 // Cannot be here.
@@ -632,8 +641,12 @@ _label_continue_execution:
             case WOORT_CALL_WAY_FAR:
             {
                 // Try resync far ip.
-                ++rt_ip;
-                WOORT_VM_THROW(env_updated);
+                if (rt_ip < rt_env_code || rt_ip >= rt_env_code_end)
+                {
+                    ++rt_ip;
+                    WOORT_VM_THROW(env_updated);
+                }
+                break;
             }
             default:
                 // Cannot be here.
@@ -807,7 +820,9 @@ _label_continue_execution:
         // Move forward to next command.
         ++rt_ip;
     }
-    // Ok
+
+    // Ok, finished.
+    WOORT_VM_SYNC_STATE();
     return WOORT_VM_CALL_STATUS_NORMAL;
 
 _label_exception_handler_stack_overflow:
@@ -864,4 +879,51 @@ WOORT_NODISCARD bool woort_VMRuntime_request_accept(
 {
     return 0 != (check_mask & woort_atomic_fetch_and_explicit(
         &vm->m_check_request_mask, ~check_mask, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
+}
+
+void woort_VMRuntime_gc_check_after_sync(woort_VMRuntime* vm)
+{
+    if (woort_VMRuntime_request_check(vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
+    {
+        // In check request.
+        woomem_checkpoint();
+
+        // Mark stack as gray.
+        woomem_try_mark_unit(vm->m_stack);
+        TODO;
+        woort_VMRuntime_request_accept(vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK);
+    }
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap_running_vm(
+    /* OPTIONAL */ woort_VMRuntime* vm)
+{
+    if (t_this_thread_vm == vm)
+        return vm;
+
+    woort_VMRuntime* const last_vm = t_this_thread_vm;
+
+    if (last_vm != NULL)
+    {
+        const bool r = woort_VMRuntime_request_set(
+            last_vm, 
+            WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE);
+
+        (void)r;
+        assert(r);
+    }
+    t_this_thread_vm = vm;
+    if (vm != NULL)
+    {
+        const bool r = woort_VMRuntime_request_accept(
+            vm,
+            WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE);
+
+        if (!r)
+        {
+            woort_panic(WOORT_PANIC_REENTRY_GC_SCOPE, 
+                "VM %p already in running, cannot entry it again.", vm);
+        }
+    }
+    return last_vm;
 }

@@ -16,9 +16,49 @@ woort_vm.h
 
 typedef enum woort_VMRuntime_CheckRequestMask
 {
-    WOORT_VMRUNTIME_CHECK_REQUEST_GC_SYNC = 1 << 0,
-    WOORT_VMRUNTIME_CHECK_REQUEST_OCCUPYING = 1 << 1,
-    WOORT_VMRUNTIME_CHECK_REQUEST_ABORT = 1 << 2,
+    /*
+    ABORT
+    虚拟机状态发生错误而无法继续
+        * JIT 运行时：
+        * 解释执行运行时：
+            无法处理此状态，使用 WOORT_VM_CALL_STATUS_ABORTED 结束调用
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_ABORT = 1 << 0,
+
+    /*
+    STACK_OCCUPYING
+    虚拟机栈正在被内部重新分配或外部读取，在正式地执行操作期间，此请求
+    必须被设置，如果设置失败，应当自旋地重试，直到设置成功
+        * JIT 运行时：
+        * 解释执行运行时：
+            接收，然后挂起，直到 STACK_OCCUPYING 结束，外部占用方负责拉
+            起虚拟机。
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING = 1 << 1,
+    
+    /*
+    GC_CHECK
+    GC 工作线程将向所有正在运行中的 RootVM 发起此请求
+        * JIT 运行时：
+        * 解释执行运行时：
+            接受此请求，如果成功接受，执行自我标记（标记栈起始地址和全局
+            区）。
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK = 1 << 2,
+
+    /*
+    GC_LEAVE
+    如果虚拟机暂时脱离 GC 作用域，该标记将被设置，如果 GC 工作线程尝试标
+    记不在作用域内的的 VM，将通过 STACK_OCCUPYING 请求，然后执行代理的标
+    记操作。
+
+    任一线程同时只能有一个 VM 处于运行状态，切换此标记只能通过旋转操作执
+    行。
+        * JIT 运行时：
+        * 解释执行运行时：
+            不应当出现此情况，PANIC 终止
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE = 1 << 3,
 
 }woort_VMRuntime_CheckRequestMask;
 
@@ -48,6 +88,13 @@ void woort_VMRuntime_deinit(woort_VMRuntime* vm);
 
 WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     woort_VMRuntime* vm, const woort_Bytecode* func);
+
+/////////////////////////////////////////////////////////
+
+WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap_running_vm(
+    /* OPTIONAL */ woort_VMRuntime* vm);
+
+void woort_VMRuntime_gc_check_after_sync(woort_VMRuntime* vm);
 
 /////////////////////////////////////////////////////////
 

@@ -31,10 +31,12 @@ void woort_spinlock_unlock(woort_Spinlock* lock);
 
 typedef struct woort_RWSpinlock
 {
-    // Positive value: number of readers holding the lock.
-    // -1: a writer is holding the lock.
-    // 0: lock is free.
-    woort_AtomicInt32 m_state;
+    // Bit 31 (0x80000000): Write lock indicator - set when a writer holds or waits for the lock
+    // Bits 0-30: Reader count - number of readers currently holding the lock
+    // 0: lock is free
+    // 0x80000000u: writer holds the lock
+    // Other values: readers holding the lock
+    woort_AtomicUInt32 m_state;
 } woort_RWSpinlock;
 
 // Initialize a read-write spinlock.
