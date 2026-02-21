@@ -9,6 +9,8 @@
 #include "woort_atomic.h"
 #include "woort_log.h"
 
+#include "woomem.h"
+
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
@@ -52,19 +54,11 @@ void woort_CodeEnv_shutdown(void)
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_create(
-    woort_Vector* /* woort_Bytecode */ moving_bytecodes,
-    woort_Vector* /* woort_Value */ moving_constants,
-    size_t static_storage_count,
+    const woort_Bytecode* bytecodes,
+    size_t bytecodes_length,
+    size_t constant_and_static_storage_count,
     woort_CodeEnv** out_code_env)
 {
-    if (!woort_vector_resize(
-        moving_constants,
-        moving_constants->m_size + static_storage_count))
-    {
-        // Out of memory.
-        return false;
-    }
-
     woort_CodeEnv* code_env_instance =
         malloc(sizeof(woort_CodeEnv));
 
@@ -77,33 +71,47 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     woort_atomic_store_explicit(
         &code_env_instance->m_refcount,
         1,
-        WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
+        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
-    size_t code_count;
-    code_env_instance->m_code_begin =
-        woort_vector_move_out(moving_bytecodes, &code_count);
+    code_env_instance->m_code_begin = 
+        malloc(bytecodes_length * sizeof(woort_Bytecode));
+    code_env_instance->m_data_begin =
+        woomem_alloc_attrib(
+            constant_and_static_storage_count * sizeof(woort_Value),
+            WOOMEM_GC_UNIT_TYPE_AUTO_MARK);
+
+    if (code_env_instance->m_code_begin == NULL
+        || code_env_instance->m_data_begin == NULL)
+    {
+        WOORT_DEBUG("Out of memory");
+
+        free(code_env_instance);
+
+        if (code_env_instance->m_code_begin != NULL)
+            free(code_env_instance->m_code_begin);
+
+        if (code_env_instance->m_data_begin != NULL)
+            woomem_free(code_env_instance->m_data_begin);
+
+        return false;
+    }
 
     code_env_instance->m_code_end =
-        code_env_instance->m_code_begin + code_count;
+        code_env_instance->m_code_begin + bytecodes_length;
 
-    size_t constant_and_static_count;
-    code_env_instance->m_data_begin =
-        woort_vector_move_out(
-            moving_constants,
-            &constant_and_static_count);
     code_env_instance->m_data_end =
-        code_env_instance->m_data_begin + constant_and_static_count;
+        code_env_instance->m_data_begin + constant_and_static_storage_count;
 
-    code_env_instance->m_constant_count =
-        constant_and_static_count - static_storage_count;
-    code_env_instance->m_static_count = static_storage_count;
-
+    memcpy(
+        code_env_instance->m_code_begin, 
+        bytecodes,
+        bytecodes_length * sizeof(woort_Bytecode));
 
     // Fill 0 for static storage:
     memset(
         &code_env_instance->m_data_begin[code_env_instance->m_constant_count],
         0,
-        static_storage_count * sizeof(woort_Value));
+        constant_and_static_storage_count * sizeof(woort_Value));
 
     // 将新创建的 CodeEnv 注册到全局容器
     woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
@@ -155,7 +163,7 @@ void _woort_CodeEnv_destroy(woort_CodeEnv* code_env)
 
     // 释放 CodeEnv 占用的资源
     free((void*)code_env->m_code_begin);
-    free(code_env->m_data_begin);
+    woomem_free(code_env->m_data_begin);
     free(code_env);
 }
 
@@ -196,4 +204,8 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
 
     woort_rwspinlock_read_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
     return false;
+}
+
+void _woort_CodeEnv_gc_mark_all_envs()
+{
 }

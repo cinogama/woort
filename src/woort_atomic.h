@@ -60,49 +60,6 @@ typedef enum woort_atomic_MemoryOrder
 #endif
 
 /* ============================================================================
- * Memory barrier
- * ============================================================================ */
-
-static inline void woort_atomic_compiler_barrier(void)
-{
-#if defined(WOORT_ATOMIC_MSVC)
-    _ReadWriteBarrier();
-#elif defined(WOORT_ATOMIC_GCC)
-    __asm__ __volatile__("" ::: "memory");
-#endif
-}
-
-static inline void woort_atomic_memory_barrier(woort_atomic_MemoryOrder order)
-{
-#if defined(WOORT_ATOMIC_MSVC)
-    (void)order;
-    _ReadWriteBarrier();
-#   if defined(_M_IX86) || defined(_M_X64)
-    _mm_mfence();
-#   elif defined(_M_ARM) || defined(_M_ARM64)
-    __dmb(_ARM_BARRIER_ISH);
-#   endif
-#elif defined(WOORT_ATOMIC_GCC)
-    switch (order)
-    {
-    case WOORT_ATOMIC_MEMORY_ORDER_RELAXED:
-        break;
-    case WOORT_ATOMIC_MEMORY_ORDER_CONSUME:
-    case WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE:
-        __atomic_thread_fence(__ATOMIC_ACQUIRE);
-        break;
-    case WOORT_ATOMIC_MEMORY_ORDER_RELEASE:
-        __atomic_thread_fence(__ATOMIC_RELEASE);
-        break;
-    case WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL:
-    case WOORT_ATOMIC_MEMORY_ORDER_SEQ_CST:
-        __atomic_thread_fence(__ATOMIC_SEQ_CST);
-        break;
-    }
-#endif
-}
-
-/* ============================================================================
  * woort_AtomicFlag and related operations
  * ============================================================================ */
 

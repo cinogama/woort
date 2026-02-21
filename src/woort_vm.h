@@ -47,6 +47,20 @@ typedef enum woort_VMRuntime_CheckRequestMask
     WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK = 1 << 2,
 
     /*
+    GC_PROCESSING
+    当前 VM 正在被执行标记；如果是 VM 自己发起的标记，GC 线程应当在稍后跳
+    过此 VM，否则应当代理标记。如果 VM 在被代理标记期间发起运行，应当暂停
+    执行。
+        * JIT 运行时：
+        * 解释执行运行时：
+            接收，然后挂起，直到 GC_PROCESSING 结束，外部占用方负责拉
+            起虚拟机。
+        * 如果是 GC 工作线程设置此标记失败，此时说明 VM 已经接收 GC_CHECK
+        请求，等待 VM 完成标记。
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING = 1 << 3,
+
+    /*
     GC_LEAVE
     如果虚拟机暂时脱离 GC 作用域，该标记将被设置，如果 GC 工作线程尝试标
     记不在作用域内的的 VM，将通过 STACK_OCCUPYING 请求，然后执行代理的标
@@ -58,7 +72,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
         * 解释执行运行时：
             不应当出现此情况，PANIC 终止
     */
-    WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE = 1 << 3,
+    WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE = 1 << 4,
 
 }woort_VMRuntime_CheckRequestMask;
 
@@ -94,7 +108,11 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
 WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap_running_vm(
     /* OPTIONAL */ woort_VMRuntime* vm);
 
-void woort_VMRuntime_gc_check_after_sync(woort_VMRuntime* vm);
+void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm);
+
+void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm);
+
+void woort_VMRuntime_gc_checkpoint(woort_VMRuntime* vm);
 
 /////////////////////////////////////////////////////////
 

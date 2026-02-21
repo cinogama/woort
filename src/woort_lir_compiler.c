@@ -379,8 +379,12 @@ WOORT_NODISCARD woort_LIRCompiler_CommitResult woort_LIRCompiler_commit(
         current_function = woort_linklist_next(current_function);
     }
 
+    // TODO;
+    abort();
+    return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
+
     // All function commited.
-    if (!woort_CodeEnv_create(
+   /* if (!woort_CodeEnv_create(
         &lir_compiler->m_code_holder,
         &lir_compiler->m_constant_storage_holder,
         lir_compiler->m_static_storage_count,
@@ -389,5 +393,5 @@ WOORT_NODISCARD woort_LIRCompiler_CommitResult woort_LIRCompiler_commit(
         return WOORT_LIRCOMPILER_COMMIT_RESULT_FAILED_OUT_OF_MEMORY;
     }
 
-    return WOORT_LIRCOMPILER_COMMIT_RESULT_OK;
+    return WOORT_LIRCOMPILER_COMMIT_RESULT_OK;*/
 }

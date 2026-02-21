@@ -29,9 +29,9 @@ typedef struct woort_CodeEnv {
 } woort_CodeEnv;
 
 WOORT_NODISCARD bool woort_CodeEnv_create(
-    woort_Vector* /* woort_Bytecode */ moving_bytecodes,
-    woort_Vector* /* woort_Value */ moving_constants,
-    size_t static_storage_count,
+    const woort_Bytecode* bytecodes,
+    size_t bytecodes_length,
+    size_t constant_and_static_storage_count,
     woort_CodeEnv** out_code_env);
 
 void woort_CodeEnv_share(woort_CodeEnv* code_env);

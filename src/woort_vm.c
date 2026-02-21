@@ -34,10 +34,10 @@ WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm)
     vm->m_stack =
         woomem_alloc_attrib(
             WOORT_VM_DEFAULT_STACK_BEGIN_SIZE * sizeof(woort_Value),
-            WOOMEM_GC_UNIT_TYPE_NEED_SWEEP | WOOMEM_GC_UNIT_TYPE_AUTO_MARK);
+            WOOMEM_GC_UNIT_TYPE_AUTO_MARK);
 
-    if (vm->m_stack == NULL 
-        || vm->m_hangup_mx == NULL 
+    if (vm->m_stack == NULL
+        || vm->m_hangup_mx == NULL
         || vm->m_hangup_cv == NULL)
     {
         WOORT_DEBUG("Out of memory");
@@ -121,7 +121,9 @@ bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     }
 
     const size_t new_stack_size = current_stack_size * 2;
-    woort_Value* const new_stack = realloc(vm->m_stack, new_stack_size * sizeof(woort_Value));
+    woort_Value* const new_stack = 
+        woomem_realloc(vm->m_stack, new_stack_size * sizeof(woort_Value));
+
     if (new_stack == NULL)
     {
         WOORT_DEBUG("Out of memory.");
@@ -881,17 +883,62 @@ WOORT_NODISCARD bool woort_VMRuntime_request_accept(
         &vm->m_check_request_mask, ~check_mask, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
 }
 
-void woort_VMRuntime_gc_check_after_sync(woort_VMRuntime* vm)
+void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
 {
-    if (woort_VMRuntime_request_check(vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
-    {
-        // In check request.
-        woomem_checkpoint();
+    woomem_try_mark_unit(vm->m_stack);
+    woomem_try_mark_unit(vm->m_env);
+}
 
-        // Mark stack as gray.
-        woomem_try_mark_unit(vm->m_stack);
-        TODO;
-        woort_VMRuntime_request_accept(vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK);
+void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
+{
+    if (woort_VMRuntime_request_set(
+        vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+    {
+        const bool self_marking = woort_VMRuntime_request_accept(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK);
+
+        if (self_marking)
+        {
+            // Mark vm by it self.
+            woort_VMRuntime_mark_vm_after_sync(vm);
+        }
+        // else: VM has been marked, do nothing.
+
+        if (!woort_VMRuntime_request_accept(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+        {
+            if (!self_marking)
+            {
+                // NOTE: 有非常非常微小的概率，上一轮的 GC 检查点执行到此处时，下一轮
+                //      的 GC 已经开始并接收到 GC_PROCESSING 正在阻塞等待。
+                //      此处需要执行重标记，然后唤起 GC 工作线程
+
+                // Mark vm by it self.
+                woort_VMRuntime_mark_vm_after_sync(vm);
+            }
+            woort_VMRuntime_wakeup(vm);
+        }
+    }
+    else
+    {
+        // GC Work thread is processing this vm mark.
+        if (woort_VMRuntime_request_accept(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+        {
+            // Wait until processing end.
+            _woort_VMRuntime_hangup(vm);
+        }
+    }
+}
+
+void woort_VMRuntime_gc_checkpoint(woort_VMRuntime* vm)
+{
+    if (woort_VMRuntime_request_check(
+        vm, 
+        WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING
+        | WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
+    {
+        woort_VMRuntime_handle_gc_check_request_and_mark(vm);
     }
 }
 
@@ -906,7 +953,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap_running_vm(
     if (last_vm != NULL)
     {
         const bool r = woort_VMRuntime_request_set(
-            last_vm, 
+            last_vm,
             WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE);
 
         (void)r;
@@ -915,13 +962,14 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap_running_vm(
     t_this_thread_vm = vm;
     if (vm != NULL)
     {
+        woort_VMRuntime_gc_checkpoint(vm);
         const bool r = woort_VMRuntime_request_accept(
             vm,
             WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE);
 
         if (!r)
         {
-            woort_panic(WOORT_PANIC_REENTRY_GC_SCOPE, 
+            woort_panic(WOORT_PANIC_REENTRY_GC_SCOPE,
                 "VM %p already in running, cannot entry it again.", vm);
         }
     }
