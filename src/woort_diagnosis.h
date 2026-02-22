@@ -23,7 +23,7 @@ typedef enum woort_PanicReason
     WOORT_PANIC_BAD_CALLSTACK = 0xD004,
     WOORT_PANIC_BAD_TYPE = 0xD005,
     WOORT_PANIC_REENTRY_GC_SCOPE = 0xD006,
-
+    WOORT_PANIC_BAD_VM_REQUEST = 0xD007,
 } woort_PanicReason;
 
 void woort_panic(

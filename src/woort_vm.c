@@ -110,6 +110,28 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     return _woort_VMRuntime_dispatch(vm);
 }
 
+void _woort_VMRuntime_request_checkpoint(woort_VMRuntime* vm)
+{
+    const uint32_t request_mask = woort_atomic_load_explicit(
+        &vm->m_check_request_mask,
+        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
+
+    if (request_mask != 0)
+    {
+        if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
+        {
+            TODO;
+        }
+        else
+        {
+            woort_panic(
+                WOORT_PANIC_BAD_VM_REQUEST,
+                "Bad vm request: %x",
+                request_mask);
+        }
+    }
+}
+
 bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
 {
     const size_t current_stack_size = vm->m_stack_end - vm->m_stack;
@@ -121,7 +143,7 @@ bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     }
 
     const size_t new_stack_size = current_stack_size * 2;
-    woort_Value* const new_stack = 
+    woort_Value* const new_stack =
         woomem_realloc(vm->m_stack, new_stack_size * sizeof(woort_Value));
 
     if (new_stack == NULL)
@@ -239,6 +261,15 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
         WOORT_VM_RESYNC_STATE();                \
         goto _label_continue_execution;         \
     }while(0)
+#define WOORT_VM_CHECKPOINT()                               \
+    do {                                                    \
+        if (/* Unlikely */ 0 != woort_atomic_load_explicit( \
+            &vm->m_check_request_mask,                      \
+            WOORT_ATOMIC_MEMORY_ORDER_RELAXED))             \
+        {                                                   \
+            WOORT_VM_THROW(checkpoint);                     \
+        }                                                   \
+    } while (0)
 
     const woort_Bytecode* rt_ip = vm->m_ip;
 
@@ -251,6 +282,8 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
     woort_Value* rt_stack_end = vm->m_stack_end;
     woort_Value* rt_sp = vm->m_sp;
     woort_Value* rt_sb = vm->m_sb;
+
+    WOORT_VM_CHECKPOINT();
 
     // Ok
 _label_continue_execution:
@@ -679,7 +712,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_JMPGC):
         {
             rt_ip = rt_env_code + WOORT_BYTECODE(MABC26, c);
-            // TODO: GC CHECKPOINT HERE
+            WOORT_VM_CHECKPOINT();
             continue;
         }
         // JFCONDNZ
@@ -730,6 +763,7 @@ _label_continue_execution:
             if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer != 0)
             {
                 rt_ip -= WOORT_BYTECODE(BC16, c);
+                WOORT_VM_CHECKPOINT();
                 continue;
             }
             break;
@@ -740,6 +774,7 @@ _label_continue_execution:
             if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer == 0)
             {
                 rt_ip -= WOORT_BYTECODE(BC16, c);
+                WOORT_VM_CHECKPOINT();
                 continue;
             }
             break;
@@ -751,6 +786,7 @@ _label_continue_execution:
                 == rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
             {
                 rt_ip -= WOORT_BYTECODE(C8, c);
+                WOORT_VM_CHECKPOINT();
                 continue;
             }
             break;
@@ -762,6 +798,7 @@ _label_continue_execution:
                 != rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
             {
                 rt_ip -= WOORT_BYTECODE(C8, c);
+                WOORT_VM_CHECKPOINT();
                 continue;
             }
             break;
@@ -827,39 +864,51 @@ _label_continue_execution:
     WOORT_VM_SYNC_STATE();
     return WOORT_VM_CALL_STATUS_NORMAL;
 
-_label_exception_handler_stack_overflow:
-    // Stack used up, try extern.
-    if (/* UNLIKELY */ !_woort_VMRuntime_extern_stack(vm))
+#define WOORT_VM_EXCEPTION_LABEL(NAME) _label_exception_handler_##NAME
+    WOORT_VM_EXCEPTION_LABEL(checkpoint) :
     {
-        WOORT_VM_SYNC_STATE_AND_PANIC(
-            WOORT_PANIC_STACK_OVERFLOW,
-            "Stack overflow.");
+        _woort_VMRuntime_request_checkpoint(vm);
+        WOORT_VM_HANDLED();
     }
-    WOORT_VM_HANDLED();
-
-_label_exception_handler_env_updated:
-    if (/* UNLIKELY */ !woort_CodeEnv_find(vm->m_ip, &vm->m_env))
+    WOORT_VM_EXCEPTION_LABEL(stack_overflow) :
     {
-        WOORT_VM_SYNC_STATE_AND_PANIC(
-            WOORT_PANIC_CODE_ENV_NOT_FOUND,
-            "Cannot find code environment from `%p`.", vm->m_ip);
+        // Stack used up, try extern.
+        if (/* UNLIKELY */ !_woort_VMRuntime_extern_stack(vm))
+        {
+            WOORT_VM_SYNC_STATE_AND_PANIC(
+                WOORT_PANIC_STACK_OVERFLOW,
+                "Stack overflow.");
+        }
+        WOORT_VM_HANDLED();
     }
-    WOORT_VM_HANDLED();
-
-_label_exception_handler_bad_type:
-    // Bad command.
-    WOORT_VM_SYNC_STATE_AND_PANIC(
-        WOORT_PANIC_BAD_TYPE,
-        "Bad type.");
-    return WOORT_VM_CALL_STATUS_ABORTED;
-
-_label_exception_handler_bad_command:
-    // Bad command.
-    WOORT_VM_SYNC_STATE_AND_PANIC(
-        WOORT_PANIC_BAD_BYTE_CODE,
-        "Bad command(%x).",
-        *(uint32_t*)rt_ip);
-    return WOORT_VM_CALL_STATUS_ABORTED;
+    WOORT_VM_EXCEPTION_LABEL(env_updated) :
+    {
+        if (/* UNLIKELY */ !woort_CodeEnv_find(vm->m_ip, &vm->m_env))
+        {
+            WOORT_VM_SYNC_STATE_AND_PANIC(
+                WOORT_PANIC_CODE_ENV_NOT_FOUND,
+                "Cannot find code environment from `%p`.", vm->m_ip);
+        }
+        WOORT_VM_HANDLED();
+    }
+    WOORT_VM_EXCEPTION_LABEL(bad_type) :
+    {
+        // Bad command.
+        WOORT_VM_SYNC_STATE_AND_PANIC(
+            WOORT_PANIC_BAD_TYPE,
+            "Bad type.");
+        return WOORT_VM_CALL_STATUS_ABORTED;
+    }
+    WOORT_VM_EXCEPTION_LABEL(bad_command) :
+    {
+        // Bad command.
+        WOORT_VM_SYNC_STATE_AND_PANIC(
+            WOORT_PANIC_BAD_BYTE_CODE,
+            "Bad command(%x).",
+            *(uint32_t*)rt_ip);
+        return WOORT_VM_CALL_STATUS_ABORTED;
+    }
+#undef WOORT_VM_EXCEPTION_LABEL
 }
 
 WOORT_NODISCARD bool woort_VMRuntime_request_set(
@@ -934,7 +983,7 @@ void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
 void woort_VMRuntime_gc_checkpoint(woort_VMRuntime* vm)
 {
     if (woort_VMRuntime_request_check(
-        vm, 
+        vm,
         WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING
         | WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
     {
