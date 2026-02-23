@@ -32,9 +32,7 @@ WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm)
     // Init stack state.
     vm->m_stack_realloc_version = 0;
     vm->m_stack =
-        woomem_alloc_attrib(
-            WOORT_VM_DEFAULT_STACK_BEGIN_SIZE * sizeof(woort_Value),
-            WOOMEM_GC_UNIT_TYPE_AUTO_MARK);
+        malloc(WOORT_VM_DEFAULT_STACK_BEGIN_SIZE * sizeof(woort_Value));
 
     if (vm->m_stack == NULL
         || vm->m_hangup_mx == NULL
@@ -63,7 +61,7 @@ _label_failed_to_init:
 void woort_VMRuntime_deinit(woort_VMRuntime* vm)
 {
     if (vm->m_stack != NULL)
-        woomem_free(vm->m_stack);
+        free(vm->m_stack);
 
     if (vm->m_hangup_mx != NULL)
         woort_mutex_destroy(vm->m_hangup_mx);
@@ -144,7 +142,7 @@ bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
 
     const size_t new_stack_size = current_stack_size * 2;
     woort_Value* const new_stack =
-        woomem_realloc(vm->m_stack, new_stack_size * sizeof(woort_Value));
+        malloc(new_stack_size * sizeof(woort_Value));
 
     if (new_stack == NULL)
     {
@@ -153,7 +151,8 @@ bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     }
 
     // Move stack data from head to tail.
-    memcpy(new_stack + current_stack_size, new_stack, current_stack_size);
+    memcpy(new_stack + current_stack_size, vm->m_stack, current_stack_size);
+    free(vm->m_stack);
 
     // Update vm state.
     woort_Value* const new_stack_end = new_stack + new_stack_size;
@@ -934,8 +933,14 @@ WOORT_NODISCARD bool woort_VMRuntime_request_accept(
 
 void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
 {
-    woomem_try_mark_unit(vm->m_stack);
-    woomem_try_mark_unit(vm->m_env);
+    // Make sure all write to stack visable.
+    woort_atomic_thread_fence(
+        WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
+
+    woomem_try_mark_unit_range(
+        (intptr_t)vm->m_sp,
+        (intptr_t)vm->m_stack_end);
+    woomem_try_mark_unit((intptr_t)vm->m_env);
 }
 
 void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
