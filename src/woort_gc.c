@@ -1,3 +1,5 @@
+#include "woomem.h"
+
 #include "woort_gc.h"
 #include "woort_vm.h"
 #include "woort_hashmap.h"
@@ -8,12 +10,15 @@
 
 #include <stdbool.h>
 #include <assert.h>
+#include <stdlib.h>
 
 woort_RWSpinlock g_root_vms_to_mark_mx;
 woort_HashMap /* struct woort_VMRuntime* */ g_root_vms_to_mark;
 
 void woort_GC_bootup(void)
 {
+    woomem_init(NULL, NULL, NULL, &woort_GC_start_gc_callback, NULL);
+
     woort_rwspinlock_init(&g_root_vms_to_mark_mx);
     woort_hashmap_init(
         &g_root_vms_to_mark,
@@ -26,6 +31,8 @@ void woort_GC_shutdown(void)
 {
     woort_rwspinlock_deinit(&g_root_vms_to_mark_mx);
     woort_hashmap_deinit(&g_root_vms_to_mark);
+
+    woomem_shutdown();
 }
 
 WOORT_NODISCARD bool woort_GC_register_root_vm(struct woort_VMRuntime* vmruntime)
@@ -167,8 +174,4 @@ void woort_GC_start_gc_callback(void* /* useless */_useless)
             NULL);
     }
     woort_rwspinlock_read_unlock(&g_root_vms_to_mark_mx);
-}
-void woort_GC_end_gc_callback(void* /* useless */_useless)
-{
-    (void)_useless;
 }

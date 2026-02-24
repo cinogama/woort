@@ -138,7 +138,10 @@ void _woort_VMRuntime_request_checkpoint(woort_VMRuntime* vm)
     {
         if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
         {
-            TODO;
+            woort_panic(
+                WOORT_PANIC_ABORTED,
+                "Aborted vm.",
+                request_mask);
         }
         else
         {

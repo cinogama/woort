@@ -14,4 +14,3 @@ WOORT_NODISCARD bool woort_GC_register_root_vm(struct woort_VMRuntime* vmruntime
 void woort_GC_unregister_root_vm(struct woort_VMRuntime* vmruntime);
 
 void woort_GC_start_gc_callback(void* /* useless */);
-void woort_GC_end_gc_callback(void* /* useless */);

@@ -88,7 +88,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         free(code_env_instance);
 
         if (code_env_instance->m_code_begin != NULL)
-            free(code_env_instance->m_code_begin);
+            free((void*)code_env_instance->m_code_begin);
 
         if (code_env_instance->m_data_begin != NULL)
             woomem_free(code_env_instance->m_data_begin);

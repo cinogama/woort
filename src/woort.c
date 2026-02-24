@@ -1,13 +1,13 @@
 #include "woort.h"
-#include "woomem.h"
 #include "woort_codeenv.h"
 #include "woort_log.h"
+#include "woort_gc.h"
 
 #include <stdlib.h>
 
 void woort_init(void)
 {
-    woomem_init(NULL, NULL, NULL, NULL, NULL);
+    woort_GC_bootup();
 
     if (!woort_CodeEnv_bootup())
     {
@@ -19,5 +19,5 @@ void woort_shutdown(void)
 {
     woort_CodeEnv_shutdown();
 
-    woomem_shutdown();
+    woort_GC_shutdown();
 }
