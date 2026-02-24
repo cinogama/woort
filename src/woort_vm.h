@@ -97,8 +97,8 @@ typedef struct woort_VMRuntime
 
 } woort_VMRuntime;
 
-WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm);
-void woort_VMRuntime_deinit(woort_VMRuntime* vm);
+WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm);
+void woort_VMRuntime_destroy(woort_VMRuntime* vm);
 
 WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     woort_VMRuntime* vm, const woort_Bytecode* func);
@@ -124,6 +124,8 @@ WOORT_NODISCARD bool woort_VMRuntime_request_check(
 
 WOORT_NODISCARD bool woort_VMRuntime_request_accept(
     woort_VMRuntime* vm, woort_VMRuntime_CheckRequestMask check_mask);
+
+void woort_VMRuntime_hangup(woort_VMRuntime* vm);
 
 void woort_VMRuntime_wakeup(woort_VMRuntime* vm);
 

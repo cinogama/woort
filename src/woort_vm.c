@@ -9,6 +9,7 @@
 #include "woort_codeenv.h"
 #include "woort_opcode.h"
 #include "woort_hashmap.h"
+#include "woort_gc.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -19,8 +20,27 @@ WOORT_THREAD_LOCAL woort_VMRuntime* t_this_thread_vm = NULL;
 const size_t WOORT_VM_DEFAULT_STACK_BEGIN_SIZE = 32;
 const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
 
-WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm)
+void _woort_VMRuntime_destroy(woort_VMRuntime* vm)
 {
+    if (vm->m_stack != NULL)
+        free(vm->m_stack);
+
+    if (vm->m_hangup_mx != NULL)
+        woort_mutex_destroy(vm->m_hangup_mx);
+
+    if (vm->m_hangup_cv != NULL)
+        woort_condition_variable_destroy(vm->m_hangup_cv);
+}
+
+WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
+{
+    woort_VMRuntime* vm = malloc(sizeof(woort_VMRuntime));
+    if (vm == NULL)
+    {
+        WOORT_DEBUG("Out of memory");
+        return false;
+    }
+
     vm->m_hangup_c = 0;
 
     if (!woort_mutex_create(&vm->m_hangup_mx))
@@ -53,21 +73,21 @@ WOORT_NODISCARD bool woort_VMRuntime_init(woort_VMRuntime* vm)
         WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE,
         WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
+    if (!woort_GC_register_root_vm(vm))
+        // Failed to register root.
+        goto _label_failed_to_init;
+
+    *out_vm = vm;
     return true;
 
 _label_failed_to_init:
+    _woort_VMRuntime_destroy(vm);
     return false;
 }
-void woort_VMRuntime_deinit(woort_VMRuntime* vm)
+void woort_VMRuntime_destroy(woort_VMRuntime* vm)
 {
-    if (vm->m_stack != NULL)
-        free(vm->m_stack);
-
-    if (vm->m_hangup_mx != NULL)
-        woort_mutex_destroy(vm->m_hangup_mx);
-
-    if (vm->m_hangup_cv != NULL)
-        woort_condition_variable_destroy(vm->m_hangup_cv);
+    woort_GC_unregister_root_vm(vm);
+    _woort_VMRuntime_destroy(vm);
 }
 
 WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
@@ -167,7 +187,7 @@ bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     return true;
 }
 
-void _woort_VMRuntime_hangup(woort_VMRuntime* vm)
+void woort_VMRuntime_hangup(woort_VMRuntime* vm)
 {
     woort_mutex_lock(vm->m_hangup_mx);
     ++vm->m_hangup_c;
@@ -937,10 +957,11 @@ void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
     woort_atomic_thread_fence(
         WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
 
-    woomem_try_mark_unit_range(
-        (intptr_t)vm->m_sp,
-        (intptr_t)vm->m_stack_end);
     woomem_try_mark_unit((intptr_t)vm->m_env);
+
+    // TODO: Optimize for fast marking.
+    for (const void** p = (void**)(vm->m_sp + 1); p < (void**)vm->m_stack_end; ++p)
+        woomem_try_mark_unit((intptr_t)*p);
 }
 
 void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
@@ -980,7 +1001,7 @@ void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
             vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
         {
             // Wait until processing end.
-            _woort_VMRuntime_hangup(vm);
+            woort_VMRuntime_hangup(vm);
         }
     }
 }
