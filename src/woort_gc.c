@@ -7,6 +7,8 @@
 #include "woort_spin.h"
 #include "woort_diagnosis.h"
 #include "woort_log.h"
+#include "woort_gc_units.h"
+#include "woort_codeenv.h"
 
 #include <stdbool.h>
 #include <assert.h>
@@ -15,9 +17,31 @@
 woort_RWSpinlock g_root_vms_to_mark_mx;
 woort_HashMap /* struct woort_VMRuntime* */ g_root_vms_to_mark;
 
+void woort_GC_marker_callback(
+    woomem_UserContext /* useless */_useless, void* unit)
+{
+    (void)_useless;
+
+    woort_GCUnit* gcunit = unit;
+    gcunit->m_proxy->m_marker(gcunit);
+}
+void woort_GC_destroier_callback(
+    woomem_UserContext /* useless */_useless, void* unit)
+{
+    (void)_useless;
+
+    woort_GCUnit* gcunit = unit;
+    gcunit->m_proxy->m_destructor(gcunit);
+}
+
 void woort_GC_bootup(void)
 {
-    woomem_init(NULL, NULL, NULL, &woort_GC_start_gc_callback, NULL);
+    woomem_init(
+        NULL, 
+        &woort_GC_marker_callback, 
+        &woort_GC_destroier_callback,
+        &woort_GC_start_gc_callback, 
+        NULL);
 
     woort_rwspinlock_init(&g_root_vms_to_mark_mx);
     woort_hashmap_init(
@@ -174,4 +198,6 @@ void woort_GC_start_gc_callback(void* /* useless */_useless)
             NULL);
     }
     woort_rwspinlock_read_unlock(&g_root_vms_to_mark_mx);
+
+    woort_CodeEnv_GC_mark_all_envs();
 }

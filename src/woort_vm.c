@@ -90,68 +90,6 @@ void woort_VMRuntime_destroy(woort_VMRuntime* vm)
     _woort_VMRuntime_destroy(vm);
 }
 
-WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
-    woort_VMRuntime* vm);
-
-WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
-    woort_VMRuntime* vm, const woort_Bytecode* func)
-{
-    if (!woort_CodeEnv_find(func, &vm->m_env))
-        return WOORT_VM_CALL_STATUS_ABORTED;
-
-    // Push call stack info here.
-    /*
-        [  SP AFTER CALL ]
-        [  CALL CONTEXT  ] ==> {
-        [ CLOSUER UNPACK ]          [   RETURN ADDRESS    ]
-        [   ARGUMENTS    ]          [ CALLSTACK TYPE & BP ]
-                                }
-    */
-
-    // Reserve sp
-    vm->m_sp -= 3;
-
-    // Set call way and bp offset.
-    vm->m_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FROM_NATIVE;
-    vm->m_sp[1].m_ret_bp.m_bp_offset =
-        (uint32_t)(vm->m_stack_end - vm->m_sb);
-
-    // Set ret addr (Only for trace).
-    vm->m_sp[2].m_ret_addr = vm->m_ip /* trace from current. */;
-
-    // Sync bp to sp.
-    vm->m_sb = vm->m_sp;
-
-    // Set target ip.
-    vm->m_ip = func;
-
-    return _woort_VMRuntime_dispatch(vm);
-}
-
-void _woort_VMRuntime_request_checkpoint(woort_VMRuntime* vm)
-{
-    const uint32_t request_mask = woort_atomic_load_explicit(
-        &vm->m_check_request_mask,
-        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
-
-    if (request_mask != 0)
-    {
-        if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
-        {
-            woort_panic(
-                WOORT_PANIC_ABORTED,
-                "Aborted vm.",
-                request_mask);
-        }
-        else
-        {
-            woort_panic(
-                WOORT_PANIC_BAD_VM_REQUEST,
-                "Bad vm request: %x",
-                request_mask);
-        }
-    }
-}
 
 bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
 {
@@ -188,6 +126,86 @@ bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     ++vm->m_stack_realloc_version;
 
     return true;
+}
+
+WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
+    woort_VMRuntime* vm);
+
+WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
+    woort_VMRuntime* vm, const woort_Bytecode* func)
+{
+    if (!woort_CodeEnv_find(func, &vm->m_env))
+        return WOORT_VM_CALL_STATUS_ABORTED;
+
+    // Push call stack info here.
+    /*
+        [  SP AFTER CALL ]
+        [  CALL CONTEXT  ] ==> {
+        [ CLOSUER UNPACK ]          [   RETURN ADDRESS    ]
+        [   ARGUMENTS    ]          [ CALLSTACK TYPE & BP ]
+                                }
+    */
+
+    woort_VMRuntime* last_running_vm =
+        woort_VMRuntime_swap_running_vm(vm);
+
+    // Reserve sp
+    if (vm->m_sp - 3 < vm->m_stack)
+    {
+        // Stack size not enough.
+        while (!_woort_VMRuntime_extern_stack(vm))
+        {
+            woort_panic(
+                WOORT_PANIC_STACK_OVERFLOW,
+                "Stack overflow.");
+        }
+    }
+
+    vm->m_sp -= 3;
+
+    // Set call way and bp offset.
+    vm->m_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FROM_NATIVE;
+    vm->m_sp[1].m_ret_bp.m_bp_offset =
+        (uint32_t)(vm->m_stack_end - vm->m_sb);
+
+    // Set ret addr (Only for trace).
+    vm->m_sp[2].m_ret_addr = vm->m_ip /* trace from current. */;
+
+    // Sync bp to sp.
+    vm->m_sb = vm->m_sp;
+
+    // Set target ip.
+    vm->m_ip = func;
+
+    woort_VmCallStatus r = _woort_VMRuntime_dispatch(vm);
+    (void)woort_VMRuntime_swap_running_vm(last_running_vm);
+
+    return r;
+}
+
+void _woort_VMRuntime_request_checkpoint(woort_VMRuntime* vm)
+{
+    const uint32_t request_mask = woort_atomic_load_explicit(
+        &vm->m_check_request_mask,
+        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
+
+    if (request_mask != 0)
+    {
+        if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
+        {
+            woort_panic(
+                WOORT_PANIC_ABORTED,
+                "Aborted vm.",
+                request_mask);
+        }
+        else
+        {
+            woort_panic(
+                WOORT_PANIC_BAD_VM_REQUEST,
+                "Bad vm request: %x",
+                request_mask);
+        }
+    }
 }
 
 void woort_VMRuntime_hangup(woort_VMRuntime* vm)
@@ -895,7 +913,7 @@ _label_continue_execution:
     WOORT_VM_EXCEPTION_LABEL(stack_overflow) :
     {
         // Stack used up, try extern.
-        if (/* UNLIKELY */ !_woort_VMRuntime_extern_stack(vm))
+        while (/* UNLIKELY */ !_woort_VMRuntime_extern_stack(vm))
         {
             WOORT_VM_SYNC_STATE_AND_PANIC(
                 WOORT_PANIC_STACK_OVERFLOW,

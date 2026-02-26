@@ -14,10 +14,39 @@
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
-    woort_Vector /* woort_CodeEnv* */
-        m_codeenvs;
+    woort_Vector /* woort_CodeEnv* */ m_codeenvs;
+
+    woort_GCUnitProxy   m_proxy;
 
 } *_codeenv_global_ctx = NULL;
+
+void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
+{
+    woort_CodeEnv* code_env = unit;
+    assert(code_env->m_gc_unit.m_proxy == &_codeenv_global_ctx->m_proxy);
+
+    // 先从全局容器中移除该 CodeEnv
+    woort_rwspinlock_write_lock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
+
+    size_t count = _codeenv_global_ctx->m_codeenvs.m_size;
+    for (size_t i = 0; i < count; ++i)
+    {
+        woort_CodeEnv** ptr = (woort_CodeEnv**)woort_vector_at(
+            &_codeenv_global_ctx->m_codeenvs, i);
+
+        if (*ptr == code_env)
+        {
+            // 找到目标，使用 erase_at 删除
+            (void)woort_vector_erase_at(&_codeenv_global_ctx->m_codeenvs, i);
+            break;
+        }
+    }
+
+    woort_rwspinlock_write_unlock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
+}
+
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
 {
@@ -37,6 +66,10 @@ WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
     // 初始化存储 CodeEnv 指针的 Vector
     woort_vector_init(&_codeenv_global_ctx->m_codeenvs, sizeof(woort_CodeEnv*));
 
+    _codeenv_global_ctx->m_proxy.m_marker = NULL;
+    _codeenv_global_ctx->m_proxy.m_destructor =
+        &_woort_CodeEnv_GC_destroy;
+
     return true;
 }
 void woort_CodeEnv_shutdown(void)
@@ -55,76 +88,69 @@ void woort_CodeEnv_shutdown(void)
 
 WOORT_NODISCARD bool woort_CodeEnv_create(
     const woort_Bytecode* bytecodes,
-    size_t bytecodes_length,
+    size_t bytecodes_count,
     size_t constant_and_static_storage_count,
     woort_CodeEnv** out_code_env)
 {
-    woort_CodeEnv* code_env_instance =
-        malloc(sizeof(woort_CodeEnv));
+    _Static_assert(_Alignof(woort_CodeEnv) == _Alignof(woort_Value),
+        "woort_CodeEnv and woort_Value must have the same align.");
 
-    if (code_env_instance == NULL)
-    {
-        WOORT_DEBUG("Out of memory");
-        return false;
-    }
-
-    woort_atomic_store_explicit(
-        &code_env_instance->m_refcount,
-        1,
-        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
-
-    code_env_instance->m_code_begin = 
-        malloc(bytecodes_length * sizeof(woort_Bytecode));
-    code_env_instance->m_data_begin =
-        woomem_alloc_attrib(
-            constant_and_static_storage_count * sizeof(woort_Value),
-            WOOMEM_GC_UNIT_TYPE_AUTO_MARK);
-
-    if (code_env_instance->m_code_begin == NULL
-        || code_env_instance->m_data_begin == NULL)
-    {
-        WOORT_DEBUG("Out of memory");
-
-        free(code_env_instance);
-
-        if (code_env_instance->m_code_begin != NULL)
-            free((void*)code_env_instance->m_code_begin);
-
-        if (code_env_instance->m_data_begin != NULL)
-            woomem_free(code_env_instance->m_data_begin);
-
-        return false;
-    }
-
-    code_env_instance->m_code_end =
-        code_env_instance->m_code_begin + bytecodes_length;
-
-    code_env_instance->m_data_end =
-        code_env_instance->m_data_begin + constant_and_static_storage_count;
-
-    memcpy(
-        code_env_instance->m_code_begin, 
-        bytecodes,
-        bytecodes_length * sizeof(woort_Bytecode));
-
-    // Fill 0 for static storage:
-    memset(
-        &code_env_instance->m_data_begin[code_env_instance->m_constant_count],
-        0,
-        constant_and_static_storage_count * sizeof(woort_Value));
-
-    // 将新创建的 CodeEnv 注册到全局容器
+    // 提前上锁，确保 code_env_instance 不会 Missing mark.
     woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
-    bool register_result = woort_vector_push_back(
-        &_codeenv_global_ctx->m_codeenvs,
-        1,
-        &code_env_instance);
-    woort_rwspinlock_write_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
+
+    woort_CodeEnv* code_env_instance =
+        woort_GCUnit_alloc_attrib(
+            AF,
+            sizeof(woort_CodeEnv)
+            + constant_and_static_storage_count * sizeof(woort_Value)
+            + bytecodes_count * sizeof(woort_Bytecode));
+
+    bool register_result = false;
+
+    if (code_env_instance != NULL)
+    {
+        code_env_instance->m_gc_unit.m_proxy =
+            &_codeenv_global_ctx->m_proxy;
+
+        code_env_instance->m_hold = true;
+        code_env_instance->m_data_begin =
+            code_env_instance + 1;
+        code_env_instance->m_code_begin =
+            code_env_instance->m_data_begin
+            + constant_and_static_storage_count;
+        code_env_instance->m_code_end =
+            code_env_instance->m_code_begin
+            + bytecodes_count;
+
+        memcpy(
+            code_env_instance->m_code_begin,
+            bytecodes,
+            bytecodes_count * sizeof(woort_Bytecode));
+
+        // Fill 0 for static storage:
+        memset(
+            code_env_instance->m_data_begin,
+            0,
+            constant_and_static_storage_count * sizeof(woort_Value));
+
+        // 将新创建的 CodeEnv 注册到全局容器
+        // 
+        // NOTE: 因为 woort_CodeEnv 使用 GC 管理，即便此处注册失败也不需要
+        // 手动执行释放
+        register_result = woort_vector_push_back(
+            &_codeenv_global_ctx->m_codeenvs,
+            1,
+            &code_env_instance);
+    }
+    else
+        WOORT_DEBUG("Out of memory.");
+
+    woort_rwspinlock_write_unlock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
 
     if (!register_result)
     {
         // Out of memory.
-        woort_CodeEnv_unshare(code_env_instance);
         return false;
     }
 
@@ -132,66 +158,27 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     return true;
 }
 
-void woort_CodeEnv_share(woort_CodeEnv* code_env)
+void woort_CodeEnv_drop(
+    woort_CodeEnv* code_env)
 {
-    woort_atomic_fetch_add_explicit(
-        &code_env->m_refcount,
-        1,
-        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
-}
-
-void _woort_CodeEnv_destroy(woort_CodeEnv* code_env)
-{
-    // 先从全局容器中移除该 CodeEnv
-    woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
-
-    size_t count = _codeenv_global_ctx->m_codeenvs.m_size;
-    for (size_t i = 0; i < count; ++i)
-    {
-        woort_CodeEnv** ptr = (woort_CodeEnv**)woort_vector_at(
-            &_codeenv_global_ctx->m_codeenvs, i);
-
-        if (*ptr == code_env)
-        {
-            // 找到目标，使用 erase_at 删除
-            (void)woort_vector_erase_at(&_codeenv_global_ctx->m_codeenvs, i);
-            break;
-        }
-    }
-
-    woort_rwspinlock_write_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
-
-    // 释放 CodeEnv 占用的资源
-    free((void*)code_env->m_code_begin);
-    woomem_free(code_env->m_data_begin);
-    free(code_env);
-}
-
-void woort_CodeEnv_unshare(woort_CodeEnv* code_env)
-{
-    if (1 == woort_atomic_fetch_sub_explicit(
-        &code_env->m_refcount,
-        1,
-        WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL))
-    {
-        // Drop if last owner released.
-        _woort_CodeEnv_destroy(code_env);
-    }
+    assert(code_env->m_hold);
+    code_env->m_hold = false;
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_find(
     const woort_Bytecode* addr, woort_CodeEnv** out_code_env)
 {
     // 获取读锁，允许多线程并发查找
-    woort_rwspinlock_read_lock(&_codeenv_global_ctx->m_codeenvs_lock);
+    woort_rwspinlock_read_lock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
 
-    size_t count = _codeenv_global_ctx->m_codeenvs.m_size;
+    const size_t count = _codeenv_global_ctx->m_codeenvs.m_size;
     for (size_t i = 0; i < count; ++i)
     {
-        woort_CodeEnv** ptr = (woort_CodeEnv**)woort_vector_at(
+        woort_CodeEnv** const ptr = (woort_CodeEnv**)woort_vector_at(
             &_codeenv_global_ctx->m_codeenvs, i);
 
-        woort_CodeEnv* code_env = *ptr;
+        woort_CodeEnv* const code_env = *ptr;
 
         // 检查地址是否在该 CodeEnv 的代码区间内
         if (addr >= code_env->m_code_begin && addr < code_env->m_code_end)
@@ -202,10 +189,30 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
         }
     }
 
-    woort_rwspinlock_read_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
+    woort_rwspinlock_read_unlock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
     return false;
 }
 
-void _woort_CodeEnv_gc_mark_all_envs()
+void woort_CodeEnv_GC_mark_all_envs(void)
 {
+    woort_rwspinlock_read_lock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
+    
+    const size_t count = _codeenv_global_ctx->m_codeenvs.m_size;
+    for (size_t i = 0; i < count; ++i)
+    {
+        woort_CodeEnv* const code_env =
+            *(woort_CodeEnv**)woort_vector_at(
+                &_codeenv_global_ctx->m_codeenvs, i);
+
+        if (code_env->m_hold)
+        {
+            // Mark this code.
+            woomem_mark_unit(code_env);
+        }
+    }
+
+    woort_rwspinlock_read_unlock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
 }
