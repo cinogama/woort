@@ -543,28 +543,28 @@ _label_continue_execution:
         // CALLNFP
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_CALLNFP):
         {
-            rt_sp -= 2;
-            if (rt_sp >= rt_stack)
+            woort_Value* new_sp = rt_sp - 2;
+            if (new_sp >= rt_stack)
             {
-                rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
-                rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
-                rt_sp[2].m_ret_addr = rt_ip + 1;
-
-                rt_sb = rt_sp;
+                /*
+                仅供调试等目的使用，这些状态实际上不被运行时使用
+                */
+                new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
+                new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                new_sp[2].m_ret_addr = /* Update rt_ip to return place. */ ++rt_ip;
 
                 const woort_NativeFunction native_function =
                     rt_env_data[WOORT_BYTECODE(MABC26, c)].m_native_or_jit_function;
 
-                // 设置 rt_ip，这样可以追踪到完整的调用栈
-                rt_ip = (const woort_Bytecode*)native_function;
-
-                WOORT_VM_SYNC_STATE();
+                // No need to WOORT_VM_SYNC_STATE(), we will do it manually.
+                vm->m_sb = vm->m_sp = new_sp;
+                vm->m_ip = (const woort_Bytecode*)native_function;
 
                 const uint32_t stack_version_before_native_call =
                     vm->m_stack_realloc_version;
 
                 const woort_VmCallStatus status = native_function(
-                    vm, (woort_value*)(rt_sp + 3));
+                    vm, (woort_value*)(rt_sp + 1));
 
                 /*
                 ATTENTION:
@@ -579,8 +579,7 @@ _label_continue_execution:
                 WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(
                     stack_version_before_native_call);
 
-                // Restore return place.
-                rt_ip = rt_sb[2].m_ret_addr;
+                // Donot need to restore any status.
 
                 if (status == WOORT_VM_CALL_STATUS_NORMAL)
                 {
