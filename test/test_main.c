@@ -11,6 +11,9 @@ woort_api foo(woort_vm vm, woort_value* args)
 {
     printf("Helloworld");
 
+
+    // tmp: return 123456
+    vm->m_sb[2].m_integer = 123456;
     return WOORT_VM_CALL_STATUS_NORMAL;
 }
 
@@ -21,8 +24,12 @@ int main(int argc, char** argv) {
 
     const woort_Bytecode bcs[] =
     {
+        // PUSHRCHK 3
+        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 0, 3),
         // CALLFP G[0]
         woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 0),
+        // RESULT POP 0, [SB-0]
+        woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_RESULT, 0, 0),
         // RET
         woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_RET, 0),
     };

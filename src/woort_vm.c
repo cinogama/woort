@@ -150,7 +150,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
         woort_VMRuntime_swap_running_vm(vm);
 
     // Reserve sp
-    if (vm->m_sp - 3 < vm->m_stack)
+    if (vm->m_sp - 2 < vm->m_stack)
     {
         // Stack size not enough.
         while (!_woort_VMRuntime_extern_stack(vm))
@@ -161,7 +161,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
         }
     }
 
-    vm->m_sp -= 3;
+    vm->m_sp -= 2;
 
     // Set call way and bp offset.
     vm->m_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FROM_NATIVE;
@@ -588,8 +588,6 @@ _label_continue_execution:
                 }
                 return status;
             }
-
-            rt_sp += 2;
             WOORT_VM_THROW(stack_overflow);
         }
         // CALLNJIT
@@ -614,7 +612,8 @@ _label_continue_execution:
                 {
                 case WOORT_VM_CALL_STATUS_RESYNC:
                     WOORT_VM_RESYNC_STATE();
-                    break;
+                    WOORT_VM_CHECKPOINT();
+                    continue;
                 case WOORT_VM_CALL_STATUS_NORMAL:
                     break;
                 default:
@@ -633,11 +632,11 @@ _label_continue_execution:
         // RET
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 0):
         {
-            rt_sp = rt_sb;
-            rt_sb = rt_stack_end - rt_sp[1].m_ret_bp.m_bp_offset;
-            rt_ip = rt_sp[2].m_ret_addr;
+            rt_sp = rt_sb + 2;
+            rt_sb = rt_stack_end - rt_sp[-1].m_ret_bp.m_bp_offset;
+            rt_ip = rt_sp[0].m_ret_addr;
 
-            switch (rt_sp[1].m_ret_bp.m_way)
+            switch (rt_sp[-1].m_ret_bp.m_way)
             {
             case WOORT_CALL_WAY_NEAR:
                 break;
@@ -658,21 +657,21 @@ _label_continue_execution:
                 WOORT_VM_SYNC_STATE_AND_PANIC(
                     WOORT_PANIC_BAD_CALLSTACK,
                     "Bad callstack, unexpected call way(%x).",
-                    (uint32_t)rt_sp[1].m_ret_bp.m_way);
+                    (uint32_t)rt_sp[-1].m_ret_bp.m_way);
             }
             break;
         }
         // RETVS
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 1):
         {
-            rt_sp = rt_sb;
-            rt_sb = rt_stack_end - rt_sp[1].m_ret_bp.m_bp_offset;
-            rt_ip = rt_sp[2].m_ret_addr;
+            rt_sp = rt_sb + 2;
+            rt_sb = rt_stack_end - rt_sp[-1].m_ret_bp.m_bp_offset;
+            rt_ip = rt_sp[0].m_ret_addr;
 
             /* 此处使用 rt_sp 寻址，因为这是上一层调用栈的 bp */
-            rt_sp[2] = rt_sp[(int16_t)WOORT_BYTECODE(BC16, c)];
+            rt_sp[0] = rt_sp[(int16_t)WOORT_BYTECODE(BC16, c) - 2];
 
-            switch (rt_sp[1].m_ret_bp.m_way)
+            switch (rt_sp[-1].m_ret_bp.m_way)
             {
             case WOORT_CALL_WAY_NEAR:
                 break;
@@ -693,20 +692,20 @@ _label_continue_execution:
                 WOORT_VM_SYNC_STATE_AND_PANIC(
                     WOORT_PANIC_BAD_CALLSTACK,
                     "Bad callstack, unexpected call way(%x).",
-                    (uint32_t)rt_sp[1].m_ret_bp.m_way);
+                    (uint32_t)rt_sp[-1].m_ret_bp.m_way);
             }
             break;
         }
         // RETVC
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 2):
         {
-            rt_sp = rt_sb;
-            rt_sb = rt_stack_end - rt_sp[1].m_ret_bp.m_bp_offset;
-            rt_ip = rt_sp[2].m_ret_addr;
+            rt_sp = rt_sb + 2;
+            rt_sb = rt_stack_end - rt_sp[-1].m_ret_bp.m_bp_offset;
+            rt_ip = rt_sp[0].m_ret_addr;
 
-            rt_sp[2] = rt_env_data[WOORT_BYTECODE(ABC24, c)];
+            rt_sp[0] = rt_env_data[WOORT_BYTECODE(ABC24, c)];
 
-            switch (rt_sp[1].m_ret_bp.m_way)
+            switch (rt_sp[-1].m_ret_bp.m_way)
             {
             case WOORT_CALL_WAY_NEAR:
                 break;
@@ -727,15 +726,15 @@ _label_continue_execution:
                 WOORT_VM_SYNC_STATE_AND_PANIC(
                     WOORT_PANIC_BAD_CALLSTACK,
                     "Bad callstack, unexpected call way(%x).",
-                    (uint32_t)rt_sp[1].m_ret_bp.m_way);
+                    (uint32_t)rt_sp[-1].m_ret_bp.m_way);
             }
             break;
         }
         // RESULT
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_RESULT):
         {
-            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = rt_sp[2];
-            rt_sp += 2 + WOORT_BYTECODE(MA10, c);
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = rt_sp[0];
+            rt_sp += WOORT_BYTECODE(MA10, c);
 
             assert(rt_sp <= rt_sb);
 
@@ -980,7 +979,7 @@ void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
     woomem_try_mark_unit((intptr_t)vm->m_env);
 
     // TODO: Optimize for fast marking.
-    for (const void** p = (void**)(vm->m_sp + 1); p < (void**)vm->m_stack_end; ++p)
+    for (const void** p = (void**)vm->m_sp; p != (void**)vm->m_stack_end; ++p)
         woomem_try_mark_unit((intptr_t)*p);
 }
 
