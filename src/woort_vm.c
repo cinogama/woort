@@ -848,6 +848,98 @@ _label_continue_execution:
             }
             break;
         }
+        // JFCONDLT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMP, 0):
+        {
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                < rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip += WOORT_BYTECODE(C8, c);
+                continue;
+            }
+            break;
+        }
+        // JFCONDGT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMP, 1):
+        {
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                > rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip += WOORT_BYTECODE(C8, c);
+                continue;
+            }
+            break;
+        }
+        // JFCONDEL
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMP, 2):
+        {
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                <= rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip += WOORT_BYTECODE(C8, c);
+                continue;
+            }
+            break;
+        }
+        // JFCONDEG
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMP, 3):
+        {
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                >= rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip += WOORT_BYTECODE(C8, c);
+                continue;
+            }
+            break;
+        }
+        // JBCONDLT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMPGC, 0):
+        {
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                < rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip -= WOORT_BYTECODE(C8, c);
+                WOORT_VM_CHECKPOINT();
+                continue;
+            }
+            break;
+        }
+        // JBCONDGT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMPGC, 1):
+        {
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                > rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip -= WOORT_BYTECODE(C8, c);
+                WOORT_VM_CHECKPOINT();
+                continue;
+            }
+            break;
+        }
+        // JBCONDEL
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMPGC, 2):
+        {
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                <= rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip -= WOORT_BYTECODE(C8, c);
+                WOORT_VM_CHECKPOINT();
+                continue;
+            }
+            break;
+        }
+        // JBCONDEG
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMPGC, 3):
+        {
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                >= rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            {
+                rt_ip -= WOORT_BYTECODE(C8, c);
+                WOORT_VM_CHECKPOINT();
+                continue;
+            }
+            break;
+        }
         // TODO: WOORT_OPCODE_CONS
         // TODO: WOORT_OPCODE_CONSEX
         // TODO: WOORT_OPCODE_MKCLOS

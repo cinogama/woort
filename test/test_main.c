@@ -28,9 +28,6 @@ woort_api bar(woort_vm vm, woort_value* args)
 int main(int argc, char** argv) {
     woort_init();
 
-    woort_CodeEnv* codeenv;
-    && A;
-    A:
     const woort_Bytecode bcs[] =
     {
         // 0:       PUSHRCHK 6
@@ -51,36 +48,35 @@ int main(int argc, char** argv) {
         woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JMP, 8),
         // 7:       CADDI [SB-2], [SB-0]
         woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCIASMD, 0, -2, 0),
-        // 8:       NEI   [SB-0], [SB-1], [SB-5]
-        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPISREN, 3, 0, -1, -5),
-        // 9:       JBCONDNE +7 if [SB-0] != [SB-1]
-        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_JCONDGC, 0, -5, 2),
+        // 8:       JBCONDLT +7 if [SB-0] < [SB-1]
+        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_JCMPGC, 0, 0, -1, 1),
 
-        // 10:      CALL G[4]
+        // 9:       CALL G[4]
         woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 4),
-        // 11:      RESULT POP 0 [SB-4]
+        // 10:      RESULT POP 0 [SB-4]
         woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_RESULT, 0, -4),
 
-        // 12:      PUSHSCHK [SB-0]
+        // 11:      PUSHSCHK [SB-0]
         woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 1, 0),
-        // 13:      CALL G[3]
+        // 12:      CALL G[3]
         woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 3),
-        // 14:      POPR 1
+        // 13:      POPR 1
         woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_POP, 0, 1),
 
-        // 15:      SUBI [SB-4], [SB-3], [SB-4]
+        // 14:      SUBI [SB-4], [SB-3], [SB-4]
         woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 1, -4, -3, -4),
-        // 16:      PUSHSCHK [SB-4]
+        // 15:      PUSHSCHK [SB-4]
         woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 1, -4),
-        // 17:      CALL G[3]
+        // 16:      CALL G[3]
         woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 3),
-        // 18:      POPR 1
+        // 17:      POPR 1
         woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_POP, 0, 1),
 
-        // 19:      RET
+        // 18:      RET
         woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_RET, 0),
     };
 
+    woort_CodeEnv* codeenv;
     (void)woort_CodeEnv_create(
         bcs,
         sizeof(bcs) / sizeof(woort_Bytecode),
