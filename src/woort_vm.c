@@ -340,7 +340,12 @@ _label_continue_execution:
         register const woort_Bytecode c = *rt_ip;
         switch (WOORT_BYTECODE_OPM8_MASK & c)
         {
-            // LOAD
+            // NOP
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_NOP):
+        {
+            break;
+        }
+        // LOAD
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_LOAD):
         {
             rt_sb[(int8_t)WOORT_BYTECODE(C8, c)] =
@@ -733,7 +738,7 @@ _label_continue_execution:
         // RESULT
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_RESULT):
         {
-            const int16_t v =(int16_t)WOORT_BYTECODE(BC16, c);
+            const int16_t v = (int16_t)WOORT_BYTECODE(BC16, c);
 
             rt_sb[v] = rt_sp[0];
             rt_sp += WOORT_BYTECODE(MA10, c);
@@ -892,6 +897,102 @@ _label_continue_execution:
         //    break;
         //}
 
+        // ADDI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 0):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer +
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // SUBI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 1):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer -
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // MULI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 2):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer *
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // DIVI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIASMD, 3):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer /
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // MODI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIONLG, 0):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer %
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // NEGI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIONLG, 1):
+        {
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer =
+                -rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            break;
+        }
+        // LTI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIONLG, 2):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer <
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // GTI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPIONLG, 3):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer >
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // LEI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPISREN, 0):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer <=
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // GEI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPISREN, 1):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer >=
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // EQI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPISREN, 2):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer ==
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // NEI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPISREN, 3):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer !=
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+            break;
+        }
+        // CADDI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCIASMD, 0):
             rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer +=
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
