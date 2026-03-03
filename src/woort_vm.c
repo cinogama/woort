@@ -733,7 +733,9 @@ _label_continue_execution:
         // RESULT
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_RESULT):
         {
-            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = rt_sp[0];
+            const int16_t v =(int16_t)WOORT_BYTECODE(BC16, c);
+
+            rt_sb[v] = rt_sp[0];
             rt_sp += WOORT_BYTECODE(MA10, c);
 
             assert(rt_sp <= rt_sb);
@@ -756,7 +758,7 @@ _label_continue_execution:
         // JFCONDNZ
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 0):
         {
-            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer != 0)
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer != 0)
             {
                 rt_ip += WOORT_BYTECODE(BC16, c);
                 continue;
@@ -766,7 +768,7 @@ _label_continue_execution:
         // JFCONDZ
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 1):
         {
-            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer == 0)
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer == 0)
             {
                 rt_ip += WOORT_BYTECODE(BC16, c);
                 continue;
@@ -776,8 +778,8 @@ _label_continue_execution:
         // JFCONDEQ
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 2):
         {
-            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
-                == rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                == rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
             {
                 rt_ip += WOORT_BYTECODE(C8, c);
                 continue;
@@ -787,8 +789,8 @@ _label_continue_execution:
         // JFCONDNE
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 3):
         {
-            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
-                != rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                != rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
             {
                 rt_ip += WOORT_BYTECODE(C8, c);
                 continue;
@@ -798,7 +800,7 @@ _label_continue_execution:
         // JBCONDNZ
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 0):
         {
-            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer != 0)
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer != 0)
             {
                 rt_ip -= WOORT_BYTECODE(BC16, c);
                 WOORT_VM_CHECKPOINT();
@@ -809,7 +811,7 @@ _label_continue_execution:
         // JBCONDZ
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 1):
         {
-            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer == 0)
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer == 0)
             {
                 rt_ip -= WOORT_BYTECODE(BC16, c);
                 WOORT_VM_CHECKPOINT();
@@ -820,8 +822,8 @@ _label_continue_execution:
         // JBCONDEQ
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 2):
         {
-            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
-                == rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                == rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
             {
                 rt_ip -= WOORT_BYTECODE(C8, c);
                 WOORT_VM_CHECKPOINT();
@@ -832,8 +834,8 @@ _label_continue_execution:
         // JBCONDNE
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 3):
         {
-            if (rt_sp[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
-                != rt_sp[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+            if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
+                != rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
             {
                 rt_ip -= WOORT_BYTECODE(C8, c);
                 WOORT_VM_CHECKPOINT();
@@ -889,6 +891,11 @@ _label_continue_execution:
 
         //    break;
         //}
+
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCIASMD, 0):
+            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer +=
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            break;
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
