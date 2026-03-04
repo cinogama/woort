@@ -2,6 +2,7 @@
 # 支持平台：winserver22, mac-arm64, ubuntu22_arm64, ubuntu20
 
 stages:
+  - prepare
   - build
   - test
 
@@ -13,6 +14,17 @@ workflow:
       when: never
     - if: $CI_COMMIT_BRANCH
 
+# 子模块初始化（所有平台共用）
+.submodule_init:
+  stage: prepare
+  before_script:
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+  script:
+    - echo "Submodules initialized"
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
 # ============================================
 # Windows Server 2022 构建与测试
 # ============================================
@@ -20,6 +32,11 @@ build:winserver22:
   stage: build
   tags:
     - winserver22
+  needs:
+    - submodule_init
+  before_script:
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
   script:
     - mkdir build
     - cd build
@@ -53,6 +70,11 @@ build:mac-arm64:
   stage: build
   tags:
     - mac-arm64
+  needs:
+    - submodule_init
+  before_script:
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
   script:
     - mkdir build
     - cd build
@@ -87,6 +109,11 @@ build:ubuntu22_arm64:
   stage: build
   tags:
     - ubuntu22_arm64
+  needs:
+    - submodule_init
+  before_script:
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
   script:
     - mkdir build
     - cd build
@@ -121,6 +148,11 @@ build:ubuntu20:
   stage: build
   tags:
     - ubuntu20
+  needs:
+    - submodule_init
+  before_script:
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
   script:
     - mkdir build
     - cd build
