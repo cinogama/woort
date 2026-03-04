@@ -1,155 +1,252 @@
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+#include <assert.h>
+
+#include "woomem.h"
 #include "woort_value.h"
-#include <math.h>
-#include <string.h>
+#include "woort_gc_units.h"
+#include "woort_diagnosis.h"
 
 /*
- * 62-bit Floating Point Format:
- * ==================================
- * Format: | S (1 bit) | E (9 bits) | M (52 bits) |
- * 
- * S: Sign bit (0 = positive, 1 = negative)
- * E: Exponent (9 bits, bias = 255)
- *    - Valid exponent range: [-254, 255]
- *    - Special values: E=0 with M=0 -> ±0
- * M: Mantissa (52 bits, implicit leading 1)
- *
- * Conversion from IEEE 754 double (64-bit):
- *   - Original format: S (1) | E (11, bias=1023) | M (52)
- *   - New exponent = Original exponent - 768 (1023 - 255)
- *   - Range check: original exponent must be in [-254+1023, 255+1023] = [769, 1278]
- *   - But we also need to handle denormals and special values
- */
+Boxed value:    | ............................... | 3 type bits |
+Boxed GCUnit:   | ...Address pointer high 61 bits...| 0 | 0 | 0 |
+Boxed Float63:  | ............... Float63 ................. | 1 |
+Boxed Int62:    | ................ Int62 .............. | 1 | 0 |
+Boxed Bool:     | ................ Bool61 ..........| 1 | 0 | 0 |
+*/
 
-#define WOORT_F62_EXP_BITS       9
-#define WOORT_F61_MANT_BITS      52
-#define WOORT_F62_BIAS           255
-#define WOORT_F64_BIAS           1023
-#define WOORT_F62_EXP_MASK       0x1FF
-#define WOORT_F62_MANT_MASK      0xFFFFFFFFFFFFF
-#define WOORT_F62_SIGN_SHIFT     61
-#define WOORT_F62_EXP_SHIFT      52
+const woort_GCUnitProxy _ex_box_proxy = {
+    .m_destructor = NULL,
+    .m_marker = NULL,
+};
 
-/* IEEE 754 double precision constants */
-#define WOORT_F64_EXP_MASK       0x7FF0000000000000ULL
-#define WOORT_F64_MANT_MASK      0x000FFFFFFFFFFFFFULL
-#define WOORT_F64_SIGN_MASK      0x8000000000000000ULL
-#define WOORT_F64_SIGN_SHIFT     63
-#define WOORT_F64_EXP_SHIFT      52
+const int64_t BOXED_INT62_MAX = (1LL << 61) - 1;
+const int64_t BOXED_INT62_MIN = 1LL << 61;
 
-/* Special 62-bit encodings */
-#define WOORT_F62_POS_ZERO       0x0000000000000000ULL
-#define WOORT_F62_NEG_ZERO       0x2000000000000000ULL
-
-bool _woort_try_pack_f64_to_f62(double val, uint64_t* out_val)
+WOORT_NODISCARD bool _woort_try_box_float63(double val, woort_BoxedFloat63* out_val)
 {
-    /* Get the bit representation of the double */
-    uint64_t bits;
-    memcpy(&bits, &val, sizeof(double));
-    
-    /* Extract sign */
-    uint64_t sign = (bits >> WOORT_F64_SIGN_SHIFT) & 1;
-    
-    /* Extract exponent (11 bits) */
-    uint16_t exp64 = (uint16_t)((bits & WOORT_F64_EXP_MASK) >> WOORT_F64_EXP_SHIFT);
-    
-    /* Extract mantissa (52 bits) */
-    uint64_t mant = bits & WOORT_F64_MANT_MASK;
-    
-    /* Handle special cases */
-    
-    /* Case 1: Zero (+0.0 or -0.0) */
-    if (exp64 == 0 && mant == 0) {
-        *out_val = sign << WOORT_F62_SIGN_SHIFT;
-        return true;
-    }
-    
-    /* Case 2: Infinity - cannot be represented in 62-bit format */
-    if (exp64 == 0x7FF && mant == 0) {
+    // 使用 union 进行二进制重解释
+    const union { double d; uint64_t u; } conv = { .d = val };
+    const uint64_t bits = conv.u;
+
+    // 检查指数最高位(位62)和次高位(位61)是否不同
+    const bool exp_highest = (bits >> 62) & 1;
+    const bool exp_second_highest = (bits >> 61) & 1;
+
+    if (exp_highest == exp_second_highest) {
         return false;
     }
-    
-    /* Case 3: NaN - cannot be represented in 62-bit format */
-    if (exp64 == 0x7FF && mant != 0) {
-        return false;
-    }
-    
-    /* Case 4: Denormalized numbers */
-    if (exp64 == 0 && mant != 0) {
-        /* Denormalized numbers have exponent = -1022 in IEEE 754
-         * They cannot be exactly represented in our 62-bit format
-         * because we don't support denormals */
-        return false;
-    }
-    
-    /* Case 5: Normal numbers */
-    /* Calculate the actual exponent value */
-    int32_t actual_exp = (int32_t)exp64 - WOORT_F64_BIAS;
-    
-    /* Calculate the new exponent for 62-bit format */
-    int32_t new_exp = actual_exp + WOORT_F62_BIAS;
-    
-    /* Check if the exponent fits in 9 bits (must be > 0 and < 512)
-     * Note: We don't support denormals, so exp must be at least 1
-     * Maximum valid exponent is 511, but we reserve 0 for zero
-     * So valid range is [1, 511], which means actual_exp in [-254, 255] */
-    if (new_exp < 1 || new_exp > 511) {
-        return false;
-    }
-    
-    /* Pack the 62-bit float:
-     * Bit 61: sign
-     * Bits 60-52: exponent (9 bits)
-     * Bits 51-0: mantissa (52 bits)
-     */
-    *out_val = (sign << WOORT_F62_SIGN_SHIFT)
-             | ((uint64_t)new_exp << WOORT_F62_EXP_SHIFT)
-             | mant;
-    
+
+    // 压缩：去掉位62，将位61-0左移1位，保留符号位，设置类型标记
+    *out_val = (bits & 0x8000000000000000ULL)         // 符号位
+        | ((bits & 0x3FFFFFFFFFFFFFFFULL) << 1)  // 位61-0左移1位
+        | WOORT_BOX_VALUE_TYPE_REAL;             // 类型标记
+
     return true;
 }
-
-double _woort_unpack_f62_to_f64(uint64_t val)
+WOORT_NODISCARD bool _woort_try_box_int62(woort_Int val, woort_BoxedInt62* out_val)
 {
-    /* Extract components from 62-bit format */
-    uint64_t sign = (val >> WOORT_F62_SIGN_SHIFT) & 1;
-    uint16_t exp62 = (uint16_t)((val >> WOORT_F62_EXP_SHIFT) & WOORT_F62_EXP_MASK);
-    uint64_t mant = val & WOORT_F62_MANT_MASK;
-    
-    /* Handle zero */
-    if (exp62 == 0 && mant == 0) {
-        /* Return ±0.0 */
-        uint64_t result = sign << WOORT_F64_SIGN_SHIFT;
-        double d;
-        memcpy(&d, &result, sizeof(double));
-        return d;
+    if (val >= BOXED_INT62_MIN && val <= BOXED_INT62_MAX)
+    {
+        *out_val = (woort_BoxedInt62)(
+            (val << 2) | WOORT_BOX_VALUE_TYPE_INT);
+
+        return true;
     }
-    
-    /* Calculate IEEE 754 exponent
-     * exp64 = exp62 - WOORT_F62_BIAS + WOORT_F64_BIAS
-     * exp64 = exp62 + 768
-     */
-    uint16_t exp64 = exp62 + (WOORT_F64_BIAS - WOORT_F62_BIAS);
-    
-    /* Pack the 64-bit IEEE 754 double */
-    uint64_t result = (sign << WOORT_F64_SIGN_SHIFT)
-                    | ((uint64_t)exp64 << WOORT_F64_EXP_SHIFT)
-                    | mant;
-    
-    double d;
-    memcpy(&d, &result, sizeof(double));
-    return d;
+    return false;
+}
+WOORT_NODISCARD woort_BoxedBool _woort_box_bool(bool val)
+{
+    return  (woort_BoxedBool)(
+        (uint64_t)val << 3) | WOORT_BOX_VALUE_TYPE_BOOL;
 }
 
-void woort_DynBox_box(
-    woort_DynBox_ValueType type,
+WOORT_NODISCARD double _woort_unbox_float64(woort_BoxedFloat63 val)
+{
+    // 提取符号位（位63）
+    const uint64_t sign_bit = val & 0x8000000000000000ULL;
+
+    // 提取压缩后的指数次高位 E9（现在是位62）
+    const uint64_t exp_second_highest = (val >> 62) & 1;
+
+    // 恢复指数最高位 E10 = !E9
+    const uint64_t exp_highest = exp_second_highest ^ 1;
+
+    // 解压：去掉类型标记，恢复 E10
+    const uint64_t result = sign_bit                        // 符号位（位63）
+        | (exp_highest << 62)                   // 恢复的 E10（位62）
+        | ((val >> 1) & 0x3FFFFFFFFFFFFFFFULL); // 数据部分（位61-0）
+
+    // 使用 union 进行二进制重解释
+    const union { double d; uint64_t u; } conv = { .u = result };
+    return conv.d;
+}
+WOORT_NODISCARD woort_Int _woort_unbox_int64(woort_BoxedInt62 val)
+{
+    return ((woort_Int)val) >> 2;
+}
+WOORT_NODISCARD bool _woort_unbox_bool(uint64_t val)
+{
+    return (val >> 3) != 0;
+}
+
+////////////////////////////////////////////////////////////////////////
+
+typedef struct woort_BoxedExValue
+{
+    woort_GCUnit m_unit;
+    bool m_is_int;
+    union
+    {
+        woort_Real m_real;
+        woort_Int m_int;
+    };
+}woort_BoxedExValue;
+
+void woort_box_real(woort_Real val, woort_DynBox* out_box_val)
+{
+    if (!_woort_try_box_float63(val, &out_box_val->m_boxed_real))
+    {
+        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
+            O, sizeof(woort_BoxedExValue));
+
+        ex_box->m_unit.m_proxy = &_ex_box_proxy;
+
+        ex_box->m_is_int = false;
+        ex_box->m_real = val;
+
+        out_box_val->m_boxed_ex = ex_box;
+    }
+}
+void woort_box_int(woort_Int val, woort_DynBox* out_box_val)
+{
+    if (!_woort_try_box_int62(val, &out_box_val->m_boxed_int))
+    {
+        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
+            O, sizeof(woort_BoxedExValue));
+
+        ex_box->m_unit.m_proxy = &_ex_box_proxy;
+
+        ex_box->m_is_int = true;
+        ex_box->m_int = val;
+
+        out_box_val->m_boxed_ex = ex_box;
+    }
+}
+void woort_box_bool(bool val, woort_DynBox* out_box_val)
+{
+    out_box_val->m_boxed_bool = _woort_box_bool(val);
+}
+
+void woort_Value_box(
+    woort_Value val, woort_BoxValueType type, woort_DynBox* out_val)
+{
+    switch (type)
+    {
+    case WOORT_BOX_VALUE_TYPE_REAL:
+        woort_box_real(val.m_real, out_val);
+        break;
+    case WOORT_BOX_VALUE_TYPE_INT:
+        woort_box_int(val.m_real, out_val);
+        break;
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+        woort_box_bool(val.m_integer, out_val);
+        break;
+    case WOORT_BOX_VALUE_TYPE_GCUNIT:
+    default:
+        out_val->m_boxed_gc_unit = val.m_gcinstance;
+        break;
+    }
+}
+
+WOORT_NODISCARD bool woort_Value_box_check(
+    woort_DynBox val,
+    woort_BoxValueType /* != WOORT_BOX_VALUE_TYPE_GCUNIT */ type)
+{
+    assert(type != WOORT_BOX_VALUE_TYPE_GCUNIT);
+
+    switch (type)
+    {
+    case WOORT_BOX_VALUE_TYPE_REAL:
+        if (val.m_boxed_real & 0b0111)
+            return 0b01 & val.m_boxed_real;
+
+        // May be ex value.
+        _Static_assert(WOORT_BOX_VALUE_TYPE_REAL == 1,
+            "WOORT_BOX_VALUE_TYPE_REAL should be 1");
+
+        return val.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
+            && !val.m_boxed_ex->m_is_int;
+    case WOORT_BOX_VALUE_TYPE_INT:
+        if (val.m_boxed_int & 0b0111)
+            return 0 == (0b011 & (val.m_boxed_int ^ WOORT_BOX_VALUE_TYPE_INT));
+
+        // May be ex value.
+        return val.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
+            && val.m_boxed_ex->m_is_int;
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+        return 0 == (0b0111 & (val.m_boxed_int ^ WOORT_BOX_VALUE_TYPE_BOOL));
+        break;
+    default:
+        // TODO;
+        woort_panic(0, "todo");
+        return false;
+    }
+}
+
+WOORT_NODISCARD bool woort_Value_unbox(
     woort_Value val,
-    woort_DynBox* modifing_box);
+    woort_BoxValueType /* != WOORT_BOX_VALUE_TYPE_GCUNIT */ type,
+    woort_Value* out_val)
+{
+    assert(type != WOORT_BOX_VALUE_TYPE_GCUNIT);
 
-WOORT_NODISCARD bool woort_DynBox_check(
-    woort_DynBox_ValueType expected_type,
-    woort_DynBox box);
-
-WOORT_NODISCARD bool woort_DynBox_try_unbox(
-    woort_DynBox_ValueType expected_type,
-    woort_DynBox box,
-    woort_Value* out_val);
+    switch (type)
+    {
+    case WOORT_BOX_VALUE_TYPE_REAL:
+        if (val.m_dynamic.m_boxed_real & 0b0111)
+        {
+            if (0b01 & val.m_dynamic.m_boxed_real)
+            {
+                out_val->m_real = _woort_unbox_float64(val.m_dynamic.m_boxed_real);
+                return true;
+            }
+        }
+        // 可能是 ex value
+        else if (val.m_dynamic.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
+            && !val.m_dynamic.m_boxed_ex->m_is_int)
+        {
+            out_val->m_real = val.m_dynamic.m_boxed_ex->m_real;
+            return true;
+        }
+        break;
+    case WOORT_BOX_VALUE_TYPE_INT:
+        if (val.m_dynamic.m_boxed_int & 0b0111)
+        {
+            if (0 == (0b011 & (val.m_dynamic.m_boxed_int ^ WOORT_BOX_VALUE_TYPE_INT)))
+            {
+                out_val->m_integer = _woort_unbox_int64(val.m_dynamic.m_boxed_int);
+                return true;
+            }
+        }
+        // 可能是 ex value
+        else if (val.m_dynamic.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
+            && val.m_dynamic.m_boxed_ex->m_is_int)
+        {
+            out_val->m_integer = val.m_dynamic.m_boxed_ex->m_int;
+            return true;
+        }
+        break;
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+        if (0 == (0b0111 & (val.m_dynamic.m_boxed_bool ^ WOORT_BOX_VALUE_TYPE_BOOL))) {
+            out_val->m_integer = _woort_unbox_bool(val.m_dynamic.m_boxed_bool) ? 1 : 0;
+            return true;
+        }
+        break;
+    default:
+        woort_panic(0, "todo");
+        break;
+    }
+    return false;
+}

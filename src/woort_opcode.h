@@ -14,8 +14,8 @@ typedef enum woort_Opcode
     ...     |                        |
     |       |_______________________|
     bp      |_______________________| < Captured unpack here(If closure).
-    bp + 1  |__ CALLWAY & BPOFFSET _| < * Return value stores here.
-    bp + 2  |____ RETURN ADDRESS ___| 
+    bp + 1  |__ CALLWAY & BPOFFSET _|
+    bp + 2  |____ RETURN ADDRESS ___| < * Return value stores here. 
     bp + 3  |_____ ARGUMENT 0 ______| < Argument count here(If variadic).
     bp + 4  |_____ ARGUMENT 1 ______|
     */
@@ -115,7 +115,7 @@ typedef enum woort_Opcode
     /*      BOXDYN              |_______0________|______T8_______|___R_ONLY_S8___|___W_ONLY_S8___|_______X_______|  */
     /*      UNBOXDYN            |_______1________|______T8_______|___R_ONLY_S8___|___W_ONLY_S8___|_______X_______|  */
     /*      CHECKDYN            |_______2________|______T8_______|___R_ONLY_S8___|___W_ONLY_S8___|_______X_______|  */
-    /*      PUSHDYN             |_______3________|______T8_______|__________R_ONLY_S16___________|_______X_______|  */
+    /*      PUSHBOXDYN          |_______3________|______T8_______|__________R_ONLY_S16___________|_______X_______|  */
     WOORT_OPCODE_OPIASMD,       /*_____MODE______________________________________________________|_______X_______|   */
     /*      ADDI                |_______0________|___R_ONLY_S8___|___R_ONLY_S8___|___W_ONLY_S8___|_______X_______|  */
     /*      SUBI                |_______1________|___R_ONLY_S8___|___R_ONLY_S8___|___W_ONLY_S8___|_______X_______|  */

@@ -20,6 +20,7 @@ typedef struct woort_GCUnit
 
 }woort_GCUnit;
 
+#define WOORT_GCUNIT_ALLOC_ATTRIB_O 0
 #define WOORT_GCUNIT_ALLOC_ATTRIB_A WOOMEM_GC_UNIT_TYPE_AUTO_MARK
 #define WOORT_GCUNIT_ALLOC_ATTRIB_M WOOMEM_GC_UNIT_TYPE_HAS_MARKER
 #define WOORT_GCUNIT_ALLOC_ATTRIB_F WOOMEM_GC_UNIT_TYPE_HAS_FINALIZER
@@ -33,6 +34,7 @@ typedef struct woort_GCUnit
 #define WOORT_GCUNIT_ALLOC_ATTRIB_AMF \
     (WOORT_GCUNIT_ALLOC_ATTRIB_AM | WOORT_GCUNIT_ALLOC_ATTRIB_F)
 
+// Before using this macro, you must include "woomem.h".
 #define woort_GCUnit_alloc_attrib(ATTRIB, SIZE) \
     woomem_alloc_attrib(                        \
         (SIZE),                                 \

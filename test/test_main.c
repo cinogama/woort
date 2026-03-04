@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
 
     const woort_Bytecode bcs[] =
     {
-        // 0:       PUSHRCHK 6
+        // 0:       PUSHRCHK 5
         woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 0, 5),
         // 1:       LOAD G[0], [SB-0]
         woort_OpCodeFormal_cons(OP6_MAB18_C8, WOORT_OPCODE_LOAD, 0, 0),
