@@ -47,10 +47,10 @@ struct woort_GCUnit
 
 typedef struct woort_GCString
 {
-    woort_GCUnit m_gc_unit;
-
-    size_t      m_length;
-    const char* m_content;
+    woort_GCUnit    m_gc_unit;
+    /* =========================== */
+    size_t          m_length;
+    char            m_content[];
 
 }woort_GCString;
 

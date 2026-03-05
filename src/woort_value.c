@@ -148,7 +148,7 @@ void woort_Value_box(
         woort_box_real(val.m_real, out_val);
         break;
     case WOORT_BOX_VALUE_TYPE_INT:
-        woort_box_int(val.m_real, out_val);
+        woort_box_int(val.m_integer, out_val);
         break;
     case WOORT_BOX_VALUE_TYPE_BOOL:
         woort_box_bool(val.m_integer, out_val);

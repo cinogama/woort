@@ -22,7 +22,7 @@ static struct _woort_CodeEnv_GlobalCtx
 
 void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 {
-    woort_CodeEnv* code_env = unit;
+    woort_CodeEnv* const code_env = (woort_CodeEnv*)unit;
     assert(code_env->m_gc_unit.m_proxy == &_codeenv_global_ctx->m_proxy);
 
     // 先从全局容器中移除该 CodeEnv
@@ -114,10 +114,12 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
         code_env_instance->m_hold = true;
         code_env_instance->m_data_begin =
-            code_env_instance + 1;
+            (woort_Value*)(code_env_instance + 1);
+
         code_env_instance->m_code_begin =
-            code_env_instance->m_data_begin
-            + constant_and_static_storage_count;
+            (woort_Bytecode*)(
+                code_env_instance->m_data_begin
+                + constant_and_static_storage_count);
         code_env_instance->m_code_end =
             code_env_instance->m_code_begin
             + bytecodes_count;
@@ -198,7 +200,7 @@ void woort_CodeEnv_GC_mark_all_envs(void)
 {
     woort_rwspinlock_read_lock(
         &_codeenv_global_ctx->m_codeenvs_lock);
-    
+
     const size_t count = _codeenv_global_ctx->m_codeenvs.m_size;
     for (size_t i = 0; i < count; ++i)
     {

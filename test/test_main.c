@@ -87,16 +87,16 @@ int main(int argc, char** argv) {
         woort_OpCodeFormal_cons(OP6_MAB18_C8, WOORT_OPCODE_LOAD, 7, -4),
         // 19:      LOAD G[8], [SB-3]
         woort_OpCodeFormal_cons(OP6_MAB18_C8, WOORT_OPCODE_LOAD, 8, -3),
-        // 20:      ADDS [SB-4], [SB-3], [SB-4]
-        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPSALGS, 0, -4, -3, -4),
-        // 21:      PUSHSCHK [SB-4]
-        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 1, -4),
+        // 20:      ADDS [SB-4], [SB-3], [SB-2]
+        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPSALGS, 0, -4, -3, -2),
+        // 21:      PUSHSCHK [SB-2]
+        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 1, -2),
         // 22:      CALL G[6]
         woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 6),
         // 23:      POPR 1
         woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_POP, 0, 1),
-        // 24:      JMPF +18
-        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JMPGC, 18),
+        // 24:      JMPF +20
+        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JMPGC, 20),
 
         // 25:      RET
         woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_RET, 0),
@@ -122,10 +122,10 @@ int main(int argc, char** argv) {
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
 
+    woort_CodeEnv_drop(codeenv);
     (void)woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
 
     woort_VMRuntime_destroy(vm);
-    woort_CodeEnv_drop(codeenv);
 
     woort_shutdown();
     return 0;
