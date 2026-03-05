@@ -58,15 +58,19 @@ build:mac-arm64:
     - git submodule sync --recursive
     - git submodule update --init --recursive
   script:
-    - mkdir build
-    - cd build
+    # Debug build in separate directory
+    - mkdir -p build-debug && cd build-debug
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=arm64
     - cmake --build . -j$(sysctl -n hw.ncpu)
+    - cd ..
+    # Release build in separate directory
+    - mkdir -p build-release && cd build-release
     - cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
     - cmake --build . -j$(sysctl -n hw.ncpu)
   artifacts:
     paths:
-      - build/
+      - build-debug/
+      - build-release/
     expire_in: 1 week
   rules:
     - if: $CI_COMMIT_BRANCH
@@ -78,9 +82,8 @@ test:mac-arm64:
   needs:
     - build:mac-arm64
   script:
-    - cd build
-    - ctest -C Debug --output-on-failure
-    - ctest -C Release --output-on-failure
+    - cd build-debug && ctest --output-on-failure
+    - cd ../build-release && ctest --output-on-failure
   rules:
     - if: $CI_COMMIT_BRANCH
 
@@ -95,15 +98,19 @@ build:ubuntu22_arm64:
     - git submodule sync --recursive
     - git submodule update --init --recursive
   script:
-    - mkdir build
-    - cd build
+    # Debug build in separate directory
+    - mkdir -p build-debug && cd build-debug
     - cmake .. -DCMAKE_BUILD_TYPE=Debug
     - cmake --build . -j$(nproc)
+    - cd ..
+    # Release build in separate directory
+    - mkdir -p build-release && cd build-release
     - cmake .. -DCMAKE_BUILD_TYPE=Release
     - cmake --build . -j$(nproc)
   artifacts:
     paths:
-      - build/
+      - build-debug/
+      - build-release/
     expire_in: 1 week
   rules:
     - if: $CI_COMMIT_BRANCH
@@ -115,9 +122,8 @@ test:ubuntu22_arm64:
   needs:
     - build:ubuntu22_arm64
   script:
-    - cd build
-    - ctest -C Debug --output-on-failure
-    - ctest -C Release --output-on-failure
+    - cd build-debug && ctest --output-on-failure
+    - cd ../build-release && ctest --output-on-failure
   rules:
     - if: $CI_COMMIT_BRANCH
 
@@ -132,15 +138,19 @@ build:ubuntu20:
     - git submodule sync --recursive
     - git submodule update --init --recursive
   script:
-    - mkdir build
-    - cd build
+    # Debug build in separate directory
+    - mkdir -p build-debug && cd build-debug
     - cmake .. -DCMAKE_BUILD_TYPE=Debug
     - cmake --build . -j$(nproc)
+    - cd ..
+    # Release build in separate directory
+    - mkdir -p build-release && cd build-release
     - cmake .. -DCMAKE_BUILD_TYPE=Release
     - cmake --build . -j$(nproc)
   artifacts:
     paths:
-      - build/
+      - build-debug/
+      - build-release/
     expire_in: 1 week
   rules:
     - if: $CI_COMMIT_BRANCH
@@ -152,8 +162,7 @@ test:ubuntu20:
   needs:
     - build:ubuntu20
   script:
-    - cd build
-    - ctest -C Debug --output-on-failure
-    - ctest -C Release --output-on-failure
+    - cd build-debug && ctest --output-on-failure
+    - cd ../build-release && ctest --output-on-failure
   rules:
     - if: $CI_COMMIT_BRANCH
