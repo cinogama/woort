@@ -4,8 +4,10 @@
 woort_gc_units.h
 */
 
-typedef void(*woort_GCUnitProxy_MarkCallback)(struct woort_GCUnit*);
-typedef void(*woort_GCUnitProxy_DestructCallback)(struct woort_GCUnit*);
+typedef struct woort_GCUnit woort_GCUnit;
+
+typedef void(*woort_GCUnitProxy_MarkCallback)(woort_GCUnit*);
+typedef void(*woort_GCUnitProxy_DestructCallback)(woort_GCUnit*);
 
 typedef struct woort_GCUnitProxy
 {
@@ -14,11 +16,11 @@ typedef struct woort_GCUnitProxy
 
 }woort_GCUnitProxy;
 
-typedef struct woort_GCUnit
+struct woort_GCUnit
 {
     const woort_GCUnitProxy* m_proxy;
 
-}woort_GCUnit;
+};
 
 #define WOORT_GCUNIT_ALLOC_ATTRIB_O 0
 #define WOORT_GCUNIT_ALLOC_ATTRIB_A WOOMEM_GC_UNIT_TYPE_AUTO_MARK
