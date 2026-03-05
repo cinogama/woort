@@ -58,3 +58,9 @@ extern const woort_GCUnitProxy g_gcstring_unit_proxy;
 
 const woort_GCString* woort_GCString_make_string(const char* str, size_t len);
 const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b);
+
+/**
+ * Compare two GC strings.
+ * @return <0 if a < b, 0 if a == b, >0 if a > b
+ */
+int woort_GCString_compare(const woort_GCString* a, const woort_GCString* b);

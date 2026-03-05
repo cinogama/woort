@@ -16,7 +16,7 @@ woort_api print_int(woort_vm vm, woort_value* args)
 
 woort_api print_string(woort_vm vm, woort_value* args)
 {
-    woort_GCString* const gcstr = ((woort_Value*)args)->m_string;
+    const woort_GCString* const gcstr = ((woort_Value*)args)->m_string;
 
     for (size_t i = 0; i < gcstr->m_length; ++i)
         putchar(gcstr->m_content[i]);
@@ -96,7 +96,8 @@ int main(int argc, char** argv) {
         // 23:      POPR 1
         woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_POP, 0, 1),
         // 24:      JMPF +20
-        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JMPGC, 20),
+        // woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JMPGC, 20),
+        woort_OpCodeFormal_cons(OP6, WOORT_OPCODE_NOP),
 
         // 25:      RET
         woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_RET, 0),

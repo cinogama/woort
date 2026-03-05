@@ -186,7 +186,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
 
 void _woort_VMRuntime_request_checkpoint(woort_VMRuntime* vm)
 {
-    for(;;)
+    for (;;)
     {
         const uint32_t request_mask = woort_atomic_load_explicit(
             &vm->m_check_request_mask,
@@ -194,7 +194,7 @@ void _woort_VMRuntime_request_checkpoint(woort_VMRuntime* vm)
 
         if (request_mask == 0)
             break;
-       
+
         if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
         {
             woort_panic(
@@ -202,8 +202,8 @@ void _woort_VMRuntime_request_checkpoint(woort_VMRuntime* vm)
                 "Aborted vm.",
                 request_mask);
         }
-        else if (request_mask 
-            & (WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK 
+        else if (request_mask
+            & (WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK
                 | WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
         {
             woort_VMRuntime_handle_gc_check_request_and_mark(vm);
@@ -1196,8 +1196,60 @@ _label_continue_execution:
                     rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string);
             break;
         }
-        // TODO: WOORT_OPCODE_OPSALGS
-        // TODO: WOORT_OPCODE_OPSREN
+        // LTS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPSALGS, 1):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                woort_GCString_compare(
+                    rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string,
+                    rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string) < 0;
+            break;
+        }
+        // GTS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPSALGS, 2):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                woort_GCString_compare(
+                    rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string,
+                    rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string) > 0;
+            break;
+        }
+        // LES
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPSALGS, 3):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                woort_GCString_compare(
+                    rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string,
+                    rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string) <= 0;
+            break;
+        }
+        // GES
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPSREN, 0):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                woort_GCString_compare(
+                    rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string,
+                    rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string) >= 0;
+            break;
+        }
+        // EQS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPSREN, 1):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                woort_GCString_compare(
+                    rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string,
+                    rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string) == 0;
+            break;
+        }
+        // NES
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPSREN, 2):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                woort_GCString_compare(
+                    rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string,
+                    rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string) != 0;
+            break;
+        }
 
         // LAND
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPLAONI, 0):
@@ -1278,6 +1330,24 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real;
             break;
         }
+        // CADDS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCSAIOO, 0):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_string =
+                woort_GCString_add_string(
+                    rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_string,
+                    rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string);
+            break;
+        }
+        // CVADDS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCSAIOO, 1):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_string =
+                woort_GCString_add_string(
+                    rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string,
+                    rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_string);
+            break;
+        }
         // CMODI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCSAIOO, 2):
         {
@@ -1316,7 +1386,6 @@ _label_continue_execution:
                 !rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer;
             break;
         }
-
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);

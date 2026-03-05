@@ -34,3 +34,19 @@ const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const w
 
     return gcstr;
 }
+
+int woort_GCString_compare(const woort_GCString* a, const woort_GCString* b)
+{
+    const size_t min_len = a->m_length < b->m_length ? a->m_length : b->m_length;
+    const int cmp_result = memcmp(a->m_content, b->m_content, min_len);
+
+    if (cmp_result != 0)
+        return cmp_result;
+
+    // If prefix matches, shorter string is smaller
+    if (a->m_length < b->m_length)
+        return -1;
+    if (a->m_length > b->m_length)
+        return 1;
+    return 0;
+}
