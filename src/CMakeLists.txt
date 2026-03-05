@@ -31,7 +31,6 @@ target_link_libraries(woort
     PUBLIC woomem)
 
 if (MSVC)
-
     # Atomic support for C11 is available after VS 2022 17.5 preview 2
     # We need to enable C11Atomic support in VS 2022
     if ((MSVC_VERSION GREATER_EQUAL 1930) AND (MSVC_VERSION LESS 1950))
