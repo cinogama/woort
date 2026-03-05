@@ -4,6 +4,9 @@
 woort_gc_units.h
 */
 
+#include <stddef.h>
+#include <stdint.h>
+
 typedef struct woort_GCUnit woort_GCUnit;
 
 typedef void(*woort_GCUnitProxy_MarkCallback)(woort_GCUnit*);
@@ -19,7 +22,6 @@ typedef struct woort_GCUnitProxy
 struct woort_GCUnit
 {
     const woort_GCUnitProxy* m_proxy;
-
 };
 
 #define WOORT_GCUNIT_ALLOC_ATTRIB_O 0
@@ -42,3 +44,17 @@ struct woort_GCUnit
         (SIZE),                                 \
         WOOMEM_GC_UNIT_TYPE_NEED_SWEEP          \
         | (WOORT_GCUNIT_ALLOC_ATTRIB_##ATTRIB))
+
+typedef struct woort_GCString
+{
+    woort_GCUnit m_gc_unit;
+
+    size_t      m_length;
+    const char* m_content;
+
+}woort_GCString;
+
+extern const woort_GCUnitProxy g_gcstring_unit_proxy;
+
+const woort_GCString* woort_GCString_make_string(const char* str, size_t len);
+const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b);

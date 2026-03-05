@@ -66,7 +66,9 @@ typedef union woort_Value
     woort_GCUnit*           m_gcinstance;
     woort_Int               m_integer;
     woort_Real              m_real;
-    const woort_Bytecode* m_script_function;
+    woort_GCString*         m_string;
+
+    const woort_Bytecode*   m_script_function;
     woort_NativeFunction    m_native_or_jit_function;
     woort_RuntimeFunction   m_runtime_function;
 
