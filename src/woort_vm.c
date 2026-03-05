@@ -10,6 +10,8 @@
 #include "woort_opcode.h"
 #include "woort_hashmap.h"
 #include "woort_gc.h"
+#include "woort_gc_units.h"
+#include "woort_gc_string.h"
 
 #include <assert.h>
 #include <stdlib.h>

@@ -39,28 +39,9 @@ struct woort_GCUnit
     (WOORT_GCUNIT_ALLOC_ATTRIB_AM | WOORT_GCUNIT_ALLOC_ATTRIB_F)
 
 // Before using this macro, you must include "woomem.h".
+// TODO: 暂时先假定 woort_GCUnit_alloc_attrib 绝不失败，我们会在之后处理这种情况
 #define woort_GCUnit_alloc_attrib(ATTRIB, SIZE) \
     woomem_alloc_attrib(                        \
         (SIZE),                                 \
         WOOMEM_GC_UNIT_TYPE_NEED_SWEEP          \
         | (WOORT_GCUNIT_ALLOC_ATTRIB_##ATTRIB))
-
-typedef struct woort_GCString
-{
-    woort_GCUnit    m_gc_unit;
-    /* =========================== */
-    size_t          m_length;
-    char            m_content[];
-
-}woort_GCString;
-
-extern const woort_GCUnitProxy g_gcstring_unit_proxy;
-
-const woort_GCString* woort_GCString_make_string(const char* str, size_t len);
-const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b);
-
-/**
- * Compare two GC strings.
- * @return <0 if a < b, 0 if a == b, >0 if a > b
- */
-int woort_GCString_compare(const woort_GCString* a, const woort_GCString* b);
