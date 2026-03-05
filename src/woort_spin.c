@@ -2,7 +2,7 @@
 #include "woort_atomic.h"
 #include "woort_threads.h"
 
-inline void _woort_spin_loop_hint()
+void _woort_spin_loop_hint()
 {
     // If in msvc
 #if defined(_MSC_VER) && _MSC_VER >= 1900
