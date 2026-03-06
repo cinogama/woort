@@ -342,7 +342,7 @@ _label_continue_execution:
     for (;;)
     {
 #define WOORT_VM_CASE_OP6_M2(CODE, MODE)    \
-    woort_OpcodeFormal_OP6_M2_cons(CODE, MODE)
+    (woort_OpcodeFormal_OP6_M2_cons(CODE, MODE) >> 24)
 #define WOORT_VM_CASE_OP6(CODE)             \
     WOORT_VM_CASE_OP6_M2(CODE, 0):          \
     case WOORT_VM_CASE_OP6_M2(CODE, 1):     \
@@ -350,9 +350,8 @@ _label_continue_execution:
     case WOORT_VM_CASE_OP6_M2(CODE, 3)
 
         register const woort_Bytecode c = *rt_ip;
-        switch (WOORT_BYTECODE_OPM8_MASK & c)
+        switch ((uint8_t)(c >> 24))
         {
-            // NOP
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_NOP):
         {
             break;

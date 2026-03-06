@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
         &codeenv);
 
     codeenv->m_data_begin[0].m_integer = 0;
-    codeenv->m_data_begin[1].m_integer = 300000000;
+    codeenv->m_data_begin[1].m_integer = 3000000000;
     codeenv->m_data_begin[2].m_integer = 1;
     codeenv->m_data_begin[3].m_native_or_jit_function = &print_int;
     codeenv->m_data_begin[4].m_native_or_jit_function = &print_current_time;
