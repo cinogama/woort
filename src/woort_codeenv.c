@@ -42,7 +42,6 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
             break;
         }
     }
-
     woort_rwspinlock_write_unlock(
         &_codeenv_global_ctx->m_codeenvs_lock);
 }
@@ -98,12 +97,19 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     // 提前上锁，确保 code_env_instance 不会 Missing mark.
     woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
 
-    woort_CodeEnv* code_env_instance =
+    woort_CodeEnv* code_env_instance = NULL;
+    woort_Bytecode* const codes =
         woort_GCUnit_alloc_attrib(
-            AF,
-            sizeof(woort_CodeEnv)
-            + constant_and_static_storage_count * sizeof(woort_Value)
-            + bytecodes_count * sizeof(woort_Bytecode));
+            O, bytecodes_count * sizeof(woort_Bytecode));
+
+    if (codes != NULL)
+    {
+        code_env_instance =
+            woort_GCUnit_alloc_attrib(
+                AF,
+                sizeof(woort_CodeEnv)
+                + constant_and_static_storage_count * sizeof(woort_Value));
+    }
 
     bool register_result = false;
 
@@ -113,19 +119,13 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
             &_codeenv_global_ctx->m_proxy;
 
         code_env_instance->m_hold = true;
-        code_env_instance->m_data_begin =
-            (woort_Value*)(code_env_instance + 1);
 
-        code_env_instance->m_code_begin =
-            (woort_Bytecode*)(
-                code_env_instance->m_data_begin
-                + constant_and_static_storage_count);
+        code_env_instance->m_code_begin = codes;
         code_env_instance->m_code_end =
-            code_env_instance->m_code_begin
-            + bytecodes_count;
+            code_env_instance->m_code_begin + bytecodes_count;
 
         memcpy(
-            code_env_instance->m_code_begin,
+            codes,
             bytecodes,
             bytecodes_count * sizeof(woort_Bytecode));
 

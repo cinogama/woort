@@ -39,7 +39,7 @@ struct woort_GCUnit
     (WOORT_GCUNIT_ALLOC_ATTRIB_AM | WOORT_GCUNIT_ALLOC_ATTRIB_F)
 
 // Before using this macro, you must include "woomem.h".
-// TODO: ÔİÊ±ÏÈ¼Ù¶¨ woort_GCUnit_alloc_attrib ¾ø²»Ê§°Ü£¬ÎÒÃÇ»áÔÚÖ®ºó´¦ÀíÕâÖÖÇé¿ö
+// TODO: æš‚æ—¶å…ˆå‡å®š woort_GCUnit_alloc_attrib ç»ä¸å¤±è´¥ï¼Œæˆ‘ä»¬ä¼šåœ¨ä¹‹åå¤„ç†è¿™ç§æƒ…å†µ
 #define woort_GCUnit_alloc_attrib(ATTRIB, SIZE) \
     woomem_alloc_attrib(                        \
         (SIZE),                                 \

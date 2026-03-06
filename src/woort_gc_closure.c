@@ -1,6 +1,6 @@
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
+#include <stdlib.h>
 
 #include "woomem.h"
 #include "woort_gc_closure.h"

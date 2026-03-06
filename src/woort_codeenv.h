@@ -21,10 +21,10 @@ typedef struct woort_CodeEnv {
 
     bool m_hold;
 
-    woort_Bytecode* m_code_begin;
-    woort_Bytecode* m_code_end;
+    const woort_Bytecode* m_code_begin;
+    const woort_Bytecode* m_code_end;
 
-    woort_Value* m_data_begin;
+    woort_Value m_data_begin[];
 } woort_CodeEnv;
 _Static_assert(offsetof(woort_CodeEnv, m_gc_unit) == 0, 
     "woort_GCUnit must be head of woort_CodeEnv.");

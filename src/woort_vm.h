@@ -87,7 +87,7 @@ typedef struct woort_VMRuntime
     woort_Value*            m_sp;
     const woort_Bytecode*   m_ip;
 
-    const woort_CodeEnv*    m_env;
+    woort_CodeEnv*    m_env;
 
     woort_AtomicUInt32      m_check_request_mask;
 

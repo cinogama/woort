@@ -325,7 +325,7 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
 
     const woort_Bytecode* rt_ip = vm->m_ip;
 
-    const woort_CodeEnv* rt_env = vm->m_env;
+    woort_CodeEnv* rt_env = vm->m_env;
     const woort_Bytecode* rt_env_code = rt_env->m_code_begin;
     const woort_Bytecode* rt_env_code_end = rt_env->m_code_end;
     woort_Value* rt_env_data = rt_env->m_data_begin;
