@@ -39,9 +39,9 @@ WOORT_NODISCARD bool _woort_try_box_float63(double val, woort_BoxedFloat63* out_
     }
 
     // 压缩：去掉位62，将位61-0左移1位，保留符号位，设置类型标记
-    *out_val = (bits & 0x8000000000000000ULL)         // 符号位
-        | ((bits & 0x3FFFFFFFFFFFFFFFULL) << 1)  // 位61-0左移1位
-        | WOORT_BOX_VALUE_TYPE_REAL;             // 类型标记
+    *out_val = (bits & 0x8000000000000000ULL)       // 符号位
+        | ((bits & 0x3FFFFFFFFFFFFFFFULL) << 1)     // 位61-0左移1位
+        | WOORT_BOX_VALUE_TYPE_REAL;                // 类型标记
 
     return true;
 }

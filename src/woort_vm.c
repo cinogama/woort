@@ -562,7 +562,7 @@ _label_continue_execution:
             if (new_sp >= rt_stack)
             {
                 /*
-                仅供调试等目的使用，这些状态实际上不被运行时使用
+                此处保存到状态仅供调试等目的使用，这些状态实际上不被运行时使用
                 */
                 new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
                 new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
