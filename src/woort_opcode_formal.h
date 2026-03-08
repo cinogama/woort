@@ -114,7 +114,7 @@ woort_opcode_formal.h
     | WOORT_MAKE_BYTECODE(M2, m2)                           \
     | WOORT_MAKE_BYTECODE(A8, a8)                           \
     | WOORT_MAKE_BYTECODE(B8, b8)                           \
-    | WOORT_MAKE_BYTECODE(C8, c8))                           
+    | WOORT_MAKE_BYTECODE(C8, c8))
 
 #define woort_OpCodeFormal_cons(FORMAL, ...) \
     woort_OpcodeFormal_##FORMAL##_cons(__VA_ARGS__)
