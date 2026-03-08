@@ -8,15 +8,15 @@ woort_gc_string.h
 #include <stdint.h>
 
 #include "woort_gc_units.h"
+#include "woort_value.h"
 
-typedef struct woort_GCString
+struct woort_GCString
 {
     woort_GCUnit    m_gc_unit;
     /* =========================== */
     size_t          m_length;
     char            m_content[];
-
-}woort_GCString;
+};
 
 extern const woort_GCUnitProxy g_gcstring_unit_proxy;
 

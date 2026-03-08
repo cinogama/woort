@@ -139,7 +139,7 @@ void woort_box_bool(bool val, woort_DynBox* out_box_val)
     out_box_val->m_boxed_bool = _woort_box_bool(val);
 }
 
-void woort_Value_box(
+void woort_DynBox_box(
     woort_Value val, woort_BoxValueType type, woort_DynBox* out_val)
 {
     switch (type)
@@ -160,7 +160,7 @@ void woort_Value_box(
     }
 }
 
-WOORT_NODISCARD bool woort_Value_box_check(
+WOORT_NODISCARD bool woort_DynBox_check(
     woort_DynBox val,
     woort_BoxValueType /* != WOORT_BOX_VALUE_TYPE_GCUNIT */ type)
 {

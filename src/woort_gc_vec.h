@@ -16,14 +16,14 @@ typedef struct woort_GCVec
     /* =========================== */
     size_t          m_space;
     size_t          m_length;
-    /* OPTIONAL */ woort_Value*    m_datas;
+    /* OPTIONAL */ woort_DynBox*    
+                    m_datas;
 
 }woort_GCVec;
 
 extern const woort_GCUnitProxy g_gcvec_unit_proxy;
 
-woort_GCVec* woort_GCVec_make_vec(size_t advise_reserving_sz);
+woort_GCVec* woort_GCVec_new(size_t advise_reserving_sz);
 
 void woort_GCVec_resize(woort_GCVec* vec, size_t size);
-
-void woort_GCVec_push_back(woort_GCVec* vec, woort_Value value);
+void woort_GCVec_push_back(woort_GCVec* vec, woort_DynBox boxed_value);

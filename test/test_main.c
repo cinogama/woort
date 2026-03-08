@@ -4,6 +4,7 @@
 #include "woort_vm.h"
 #include "woort_opcode.h"
 #include "woort_opcode_formal.h"
+#include "woort_gc_string.h"
 
 #include <stdio.h>
 #include <time.h>
@@ -56,11 +57,11 @@ int main(int argc, char** argv) {
         woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_RESULT, 0, -3),
 
         // 6:       JMPF +8
-        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JMP, 8),
+        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JFWD, 8),
         // 7:       CADDI [SB-2], [SB-0]
         woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCIASMD, 0, -2, 0),
-        // 8:       JBCONDLT +7 if [SB-0] < [SB-1]
-        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_JCMPGC, 0, 0, -1, 1),
+        // 8:       JBCKLT +7 if [SB-0] < [SB-1]
+        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_JBCKCMP, 0, 0, -1, 1),
 
         // 9:       CALL G[4]
         woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 4),
@@ -96,7 +97,7 @@ int main(int argc, char** argv) {
         // 23:      POPR 1
         woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_POP, 0, 1),
         // 24:      JMPF +20
-        // woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JMPGC, 20),
+        // woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JBCK, 20),
         woort_OpCodeFormal_cons(OP6, WOORT_OPCODE_NOP),
 
         // 25:      RET

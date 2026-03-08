@@ -12,8 +12,14 @@
 #include "woort_gc.h"
 #include "woort_gc_units.h"
 #include "woort_gc_string.h"
+#include "woort_gc_vec.h"
+#include "woort_gc_map.h"
+#include "woort_gc_struct.h"
+#include "woort_gc_closure.h"
 
 #include <assert.h>
+#include <stdint.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <memory.h>
 #include <math.h>
@@ -197,6 +203,7 @@ void _woort_VMRuntime_request_checkpoint(woort_VMRuntime* vm)
         if (request_mask == 0)
             break;
 
+        woort_atomic_thread_fence(WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
         if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
         {
             woort_panic(
@@ -758,20 +765,20 @@ _label_continue_execution:
             break;
         }
         // JMPF
-        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JMP):
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JFWD):
         {
             rt_ip = rt_env_code + WOORT_BYTECODE(MABC26, c);
             continue;
         }
         // JMPB
-        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JMPGC):
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JBCK):
         {
             rt_ip = rt_env_code + WOORT_BYTECODE(MABC26, c);
             WOORT_VM_CHECKPOINT();
             continue;
         }
-        // JFCONDNZ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 0):
+        // JFWDNZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JFWDCND, 0):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer != 0)
             {
@@ -780,8 +787,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JFCONDZ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 1):
+        // JFWDZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JFWDCND, 1):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer == 0)
             {
@@ -790,8 +797,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JFCONDEQ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 2):
+        // JFWDEQ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JFWDCND, 2):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 == rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -801,8 +808,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JFCONDNE
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCOND, 3):
+        // JFWDNEQ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JFWDCND, 3):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 != rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -812,8 +819,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JBCONDNZ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 0):
+        // JBCKNZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JBCKCND, 0):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer != 0)
             {
@@ -823,8 +830,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JBCONDZ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 1):
+        // JBCKZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JBCKCND, 1):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer == 0)
             {
@@ -834,8 +841,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JBCONDEQ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 2):
+        // JBCKEQ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JBCKCND, 2):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 == rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -846,8 +853,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JBCONDNE
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCONDGC, 3):
+        // JBCKNEQ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JBCKCND, 3):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 != rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -858,8 +865,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JFCONDLT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMP, 0):
+        // JFWDLT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JFDCMP, 0):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 < rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -869,8 +876,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JFCONDGT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMP, 1):
+        // JFWDGT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JFDCMP, 1):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 > rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -880,8 +887,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JFCONDEL
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMP, 2):
+        // JFWDEL
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JFDCMP, 2):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 <= rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -891,8 +898,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JFCONDEG
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMP, 3):
+        // JFWDEG
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JFDCMP, 3):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 >= rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -902,8 +909,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JBCONDLT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMPGC, 0):
+        // JBCKLT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JBCKCMP, 0):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 < rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -914,8 +921,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JBCONDGT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMPGC, 1):
+        // JBCKGT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JBCKCMP, 1):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 > rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -926,8 +933,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JBCONDEL
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMPGC, 2):
+        // JBCKEL
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JBCKCMP, 2):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 <= rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -938,8 +945,8 @@ _label_continue_execution:
             }
             break;
         }
-        // JBCONDEG
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JCMPGC, 3):
+        // JBCKEG
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JBCKCMP, 3):
         {
             if (rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer
                 >= rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
@@ -950,14 +957,50 @@ _label_continue_execution:
             }
             break;
         }
-        // TODO: WOORT_OPCODE_CONS
+        // MKARR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONS, 0):
+        {
+            const size_t size = WOORT_BYTECODE(A8, c);
+
+            woort_GCVec* const gcvec = woort_GCVec_new(size);
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_vec = gcvec;
+
+            // NOTE: 此处不同步虚拟机状态直接分配是没有问题的，如果分配失败
+            //      会假定整个栈空间都在被使用中，肯定能标记到 gcvec 实例
+            woort_GCVec_resize(gcvec, size);
+
+            memcpy(gcvec->m_datas, rt_sp + 1, sizeof(woort_DynBox) * size);
+            _Static_assert(sizeof(woort_DynBox) == sizeof(woort_Value),
+                "To make sure we can use memcpy, woort_DynBox and woort_Value should have same size. ");
+
+            rt_sp += size;
+
+            break;
+        }
+        // TODO: MKMAP
+        // MKSTRUCT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONS, 2):
+        {
+            const size_t size = WOORT_BYTECODE(A8, c);
+
+            woort_GCStruct* const gcstruct = woort_GCStruct_new(size);
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
+
+            memcpy(gcstruct->m_datas, rt_sp + 1, sizeof(woort_DynBox) * size);
+            _Static_assert(sizeof(woort_DynBox) == sizeof(woort_Value),
+                "To make sure we can use memcpy, woort_DynBox and woort_Value should have same size. ");
+
+            rt_sp += size;
+            break;
+        }
+
         // TODO: WOORT_OPCODE_CONSEX
         // TODO: WOORT_OPCODE_MKCLOS
 
         // BOXDYN
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 0):
         {
-            woort_Value_box(
+            woort_DynBox_box(
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
                 (woort_BoxValueType)WOORT_BYTECODE(A8, c),
                 &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
@@ -979,7 +1022,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 2):
         {
             rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
-                woort_Value_box_check(
+                woort_DynBox_check(
                     rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic,
                     (woort_BoxValueType)WOORT_BYTECODE(A8, c)) ? 1 : 0;
             break;
@@ -989,7 +1032,7 @@ _label_continue_execution:
         {
             if (rt_sp > rt_stack)
             {
-                woort_Value_box(
+                woort_DynBox_box(
                     rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)],
                     (woort_BoxValueType)WOORT_BYTECODE(A8, c),
                     &rt_sp->m_dynamic);
@@ -1451,29 +1494,25 @@ WOORT_NODISCARD bool woort_VMRuntime_request_set(
     woort_VMRuntime* vm, woort_VMRuntime_CheckRequestMask check_mask)
 {
     return 0 == (check_mask & woort_atomic_fetch_or_explicit(
-        &vm->m_check_request_mask, check_mask, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
+        &vm->m_check_request_mask, check_mask, WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL));
 }
 
 WOORT_NODISCARD bool woort_VMRuntime_request_check(
     woort_VMRuntime* vm, woort_VMRuntime_CheckRequestMask check_mask)
 {
     return 0 != (check_mask & woort_atomic_load_explicit(
-        &vm->m_check_request_mask, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
+        &vm->m_check_request_mask, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE));
 }
 
 WOORT_NODISCARD bool woort_VMRuntime_request_accept(
     woort_VMRuntime* vm, woort_VMRuntime_CheckRequestMask check_mask)
 {
     return 0 != (check_mask & woort_atomic_fetch_and_explicit(
-        &vm->m_check_request_mask, ~check_mask, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
+        &vm->m_check_request_mask, ~check_mask, WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL));
 }
 
 void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
 {
-    // Make sure all write to stack visable.
-    woort_atomic_thread_fence(
-        WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
-
     woomem_try_mark_unit((intptr_t)vm->m_env);
 
     // TODO: Optimize for fast marking.

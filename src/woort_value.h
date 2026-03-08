@@ -8,7 +8,6 @@ woort_value.h
 
 #include "woort_diagnosis.h"
 #include "woort_gc_units.h"
-#include "woort_gc_string.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -21,6 +20,12 @@ typedef uint32_t woort_Bytecode;
 typedef uint64_t woort_BoxedFloat63;
 typedef uint64_t woort_BoxedInt62;
 typedef uint64_t woort_BoxedBool;
+
+typedef struct woort_GCString woort_GCString;
+typedef struct woort_GCMap woort_GCMap;
+typedef struct woort_GCVec woort_GCVec;
+typedef struct woort_GCStruct woort_GCStruct;
+typedef struct woort_GCClosure woort_GCClosure;
 
 typedef union woort_DynBox
 {
@@ -68,6 +73,10 @@ typedef union woort_Value
     woort_Int               m_integer;
     woort_Real              m_real;
     const woort_GCString*   m_string;
+    woort_GCVec*            m_vec;
+    woort_GCMap*            m_map;
+    woort_GCStruct*         m_struct;
+    woort_GCClosure*        m_closure;
 
     const woort_Bytecode*   m_script_function;
     woort_NativeFunction    m_native_or_jit_function;
@@ -107,10 +116,10 @@ typedef enum woort_BoxValueType
         ((uint64_t)kind << 62)                      \
             | (uint64_t)(target))
 
-void woort_Value_box(
+void woort_DynBox_box(
     woort_Value val, woort_BoxValueType type, woort_DynBox* out_val);
 
-WOORT_NODISCARD bool woort_Value_box_check(
+WOORT_NODISCARD bool woort_DynBox_check(
     woort_DynBox val,
     woort_BoxValueType /* != WOORT_BOX_VALUE_TYPE_GCUNIT */ type);
 
