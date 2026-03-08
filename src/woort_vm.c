@@ -978,6 +978,7 @@ _label_continue_execution:
             break;
         }
         // TODO: MKMAP
+        
         // MKSTRUCT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONS, 2):
         {
@@ -1002,12 +1003,15 @@ _label_continue_execution:
             woort_GCVec_resize(gcvec, size);
 
             memcpy(gcvec->m_datas, rt_sp + 1, sizeof(woort_DynBox) * size);
+            _Static_assert(sizeof(woort_DynBox) == sizeof(woort_Value),
+                "To make sure we can use memcpy, woort_DynBox and woort_Value should have same size. ");
 
             rt_sp += size;
             rt_ip += 2;
             continue;
         }
         // TODO: MKMAPEXT
+        
         // MKSTRUCTEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSEX, 2):
         {
@@ -1022,8 +1026,8 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-
         // TODO: WOORT_OPCODE_MKCLOS
+        
         // BOXDYN
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 0):
         {
