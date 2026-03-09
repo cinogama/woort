@@ -42,7 +42,7 @@ void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
     // 如果已有足够的容量，无需重新分配
     if (gcmap->m_mask + 1 >= capacity)
         return;
-    
+
     // 分配两个连续的数组：Next table 和 Buckets table
     // Next table: capacity * sizeof(woort_GCMap_Bucket_Index)
     // Buckets table: capacity * sizeof(woort_GCMap_Bucket)
@@ -50,12 +50,17 @@ void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
     const size_t buckets_table_size = capacity * sizeof(woort_GCMap_Bucket);
     const size_t total_size = next_table_size + buckets_table_size;
 
-    woort_GCMap_Bucket* const new_entries =
+    woort_GCMap_Bucket_Index* const new_bucket_index =
         woort_GCUnit_alloc_attrib(A, total_size);
+    woort_GCMap_Bucket* const new_bucket_entry =
+        new_bucket_index + capacity;
 
-    // 初始化内存为 0
-    memset(new_entries, 0, total_size);
-
+    for (size_t i = 0; i < capacity; ++i)
+    {
+        new_bucket_index[i].m_next_index = UINT32_MAX;
+        new_bucket_index[i].m_table_index = UINT32_MAX;
+    }
+    TODO;
     gcmap->m_entries = new_entries;
     gcmap->m_mask = capacity - 1;
 }

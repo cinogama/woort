@@ -11,7 +11,13 @@ woort_gc_map.h
 #include "woort_gc_units.h"
 #include "woort_value.h"
 
-typedef size_t woort_GCMap_Bucket_Index;
+typedef struct woort_GCMap_Bucket_Index
+{
+    uint32_t m_table_index;
+    uint32_t m_next_index;
+
+}woort_GCMap_Bucket_Index;
+
 typedef struct woort_GCMap_Bucket
 {
     woort_DynBox m_key;
@@ -20,15 +26,15 @@ typedef struct woort_GCMap_Bucket
 } woort_GCMap_Bucket;
 
 _Static_assert(
-    _Alignof(woort_GCMap_Bucket) == _Alignof(woort_GCMap_Bucket_Index),
+    _Alignof(woort_GCMap_Bucket) == sizeof(woort_GCMap_Bucket_Index),
     "As we are allocating one contiguous space for both woort_GCMap_Bucket "
-    "and woort_GCMap_Bucket_Index, they must share the same alignment requirements.");
+    "and woort_GCMap_Bucket_Index.");
 
 /*
-    Next table: 
+    Next table:
         [woort_GCMap_Bucket_Index 0 1 2....]
     m_entries-> point to:
-    Buckets table:  
+    Buckets table:
         [woort_GCMap_Bucket 0 1 2 ...]
 */
 
