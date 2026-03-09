@@ -962,7 +962,7 @@ _label_continue_execution:
         {
             const size_t size = WOORT_BYTECODE(A8, c);
 
-            woort_GCVec* const gcvec = woort_GCVec_new(size);
+            woort_GCVec* const gcvec = woort_GCVec_new();
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_vec = gcvec;
 
             // NOTE: 此处不同步虚拟机状态直接分配是没有问题的，如果分配失败
@@ -997,7 +997,7 @@ _label_continue_execution:
         {
             const size_t size = rt_ip[1];
 
-            woort_GCVec* const gcvec = woort_GCVec_new(size);
+            woort_GCVec* const gcvec = woort_GCVec_new();
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_vec = gcvec;
 
             woort_GCVec_resize(gcvec, size);
