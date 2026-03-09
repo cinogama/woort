@@ -17,6 +17,7 @@ typedef int64_t woort_Int;
 typedef double woort_Real;
 typedef uint32_t woort_Bytecode;
 
+typedef uint64_t woort_BoxedValue;
 typedef uint64_t woort_BoxedFloat63;
 typedef uint64_t woort_BoxedInt62;
 typedef uint64_t woort_BoxedBool;
@@ -29,9 +30,7 @@ typedef struct woort_GCClosure woort_GCClosure;
 
 typedef union woort_DynBox
 {
-    woort_BoxedFloat63 m_boxed_real;
-    woort_BoxedInt62 m_boxed_int;
-    woort_BoxedBool m_boxed_bool;
+    woort_BoxedValue m_boxed;
     struct woort_BoxedExValue* m_boxed_ex;
     woort_GCUnit* m_boxed_gc_unit;
 
@@ -131,3 +130,5 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
 void woort_DynBox_unbox_no_check(
     woort_DynBox val, 
     woort_Value* out_val);
+
+WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val);

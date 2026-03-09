@@ -2,10 +2,12 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <string.h>
 
 #include "woomem.h"
 #include "woort_value.h"
 #include "woort_gc_units.h"
+#include "woort_gc_string.h"
 #include "woort_diagnosis.h"
 
 /*
@@ -106,7 +108,7 @@ typedef struct woort_BoxedExValue
 
 void woort_box_real(woort_Real val, woort_DynBox* out_box_val)
 {
-    if (!_woort_try_box_float63(val, &out_box_val->m_boxed_real))
+    if (!_woort_try_box_float63(val, &out_box_val->m_boxed))
     {
         woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
             O, sizeof(woort_BoxedExValue));
@@ -121,7 +123,7 @@ void woort_box_real(woort_Real val, woort_DynBox* out_box_val)
 }
 void woort_box_int(woort_Int val, woort_DynBox* out_box_val)
 {
-    if (!_woort_try_box_int62(val, &out_box_val->m_boxed_int))
+    if (!_woort_try_box_int62(val, &out_box_val->m_boxed))
     {
         woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
             O, sizeof(woort_BoxedExValue));
@@ -136,7 +138,7 @@ void woort_box_int(woort_Int val, woort_DynBox* out_box_val)
 }
 void woort_box_bool(bool val, woort_DynBox* out_box_val)
 {
-    out_box_val->m_boxed_bool = _woort_box_bool(val);
+    out_box_val->m_boxed = _woort_box_bool(val);
 }
 
 void woort_DynBox_box(
@@ -169,8 +171,8 @@ WOORT_NODISCARD bool woort_DynBox_check(
     switch (type)
     {
     case WOORT_BOX_VALUE_TYPE_REAL:
-        if (val.m_boxed_real & 0b0111)
-            return 0b01 & val.m_boxed_real;
+        if (val.m_boxed & 0b0111)
+            return 0b01 & val.m_boxed;
 
         // May be ex value.
         _Static_assert(WOORT_BOX_VALUE_TYPE_REAL == 1,
@@ -179,14 +181,14 @@ WOORT_NODISCARD bool woort_DynBox_check(
         return val.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
             && !val.m_boxed_ex->m_is_int;
     case WOORT_BOX_VALUE_TYPE_INT:
-        if (val.m_boxed_int & 0b0111)
-            return 0 == (0b011 & (val.m_boxed_int ^ WOORT_BOX_VALUE_TYPE_INT));
+        if (val.m_boxed & 0b0111)
+            return 0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT));
 
         // May be ex value.
         return val.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
             && val.m_boxed_ex->m_is_int;
     case WOORT_BOX_VALUE_TYPE_BOOL:
-        return 0 == (0b0111 & (val.m_boxed_int ^ WOORT_BOX_VALUE_TYPE_BOOL));
+        return 0 == (0b0111 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_BOOL));
         break;
     default:
         // TODO;
@@ -205,11 +207,11 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
     switch (type)
     {
     case WOORT_BOX_VALUE_TYPE_REAL:
-        if (val.m_boxed_real & 0b0111)
+        if (val.m_boxed & 0b0111)
         {
-            if (0b01 & val.m_boxed_real)
+            if (0b01 & val.m_boxed)
             {
-                out_val->m_real = _woort_unbox_float64(val.m_boxed_real);
+                out_val->m_real = _woort_unbox_float64(val.m_boxed);
                 return true;
             }
         }
@@ -222,11 +224,11 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
         }
         break;
     case WOORT_BOX_VALUE_TYPE_INT:
-        if (val.m_boxed_int & 0b0111)
+        if (val.m_boxed & 0b0111)
         {
-            if (0 == (0b011 & (val.m_boxed_int ^ WOORT_BOX_VALUE_TYPE_INT)))
+            if (0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
             {
-                out_val->m_integer = _woort_unbox_int64(val.m_boxed_int);
+                out_val->m_integer = _woort_unbox_int64(val.m_boxed);
                 return true;
             }
         }
@@ -239,14 +241,105 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
         }
         break;
     case WOORT_BOX_VALUE_TYPE_BOOL:
-        if (0 == (0b0111 & (val.m_boxed_bool ^ WOORT_BOX_VALUE_TYPE_BOOL))) {
-            out_val->m_integer = _woort_unbox_bool(val.m_boxed_bool) ? 1 : 0;
+        if (0 == (0b0111 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_BOOL))) {
+            out_val->m_integer = _woort_unbox_bool(val.m_boxed) ? 1 : 0;
             return true;
         }
         break;
-    default:
-        woort_panic(0, "todo");
-        break;
     }
     return false;
+}
+
+void woort_DynBox_unbox_no_check(
+    woort_DynBox val,
+    woort_Value* out_val)
+{
+    // Detect type from the value's tag bits and unbox accordingly
+    if (val.m_boxed & 0b0111)
+    {
+        if (0b01 & val.m_boxed)
+            // REAL (tagged double)
+            out_val->m_real = _woort_unbox_float64(val.m_boxed);
+        else if (0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
+            // INT
+            out_val->m_integer = _woort_unbox_int64(val.m_boxed);
+        else /* if (0 == (0b0111 & (val.m_boxed_bool ^ WOORT_BOX_VALUE_TYPE_BOOL))) */
+            out_val->m_integer = _woort_unbox_bool(val.m_boxed) ? 1 : 0;
+    }
+    else
+    {
+        // Ex value (GC allocated)
+        if (val.m_boxed_gc_unit->m_proxy != &_ex_box_proxy)
+            out_val->m_gcinstance = val.m_boxed_gc_unit;
+        else
+        {
+            if (val.m_boxed_ex->m_is_int)
+                out_val->m_integer = val.m_boxed_ex->m_int;
+            else
+                out_val->m_real = val.m_boxed_ex->m_real;
+        }
+    }
+}
+
+WOORT_NODISCARD size_t _woort_hash_int(woort_Int val)
+{
+    size_t hash = (size_t)val;
+    hash ^= hash >> 33;
+    hash *= 0xff51afd7ed558ccdULL;
+    hash ^= hash >> 33;
+    hash *= 0xc4ceb9fe1a85ec53ULL;
+    hash ^= hash >> 33;
+    return hash;
+}
+
+WOORT_NODISCARD size_t _woort_hash_real(woort_Real val)
+{
+    uint64_t real_bits;
+    memcpy(&real_bits, &val, sizeof(double));
+    size_t hash = (size_t)real_bits;
+    hash ^= hash >> 33;
+    hash *= 0xff51afd7ed558ccdULL;
+    hash ^= hash >> 33;
+    hash *= 0xc4ceb9fe1a85ec53ULL;
+    hash ^= hash >> 33;
+    return hash;
+}
+
+WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val)
+{
+    if (val.m_boxed & 0b0111)
+    {
+        if (0b01 & val.m_boxed)
+            // REAL: unbox and hash
+            return _woort_hash_real(_woort_unbox_float64(val.m_boxed));
+        else if (0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
+            // INT: unbox and hash
+            return _woort_hash_int(_woort_unbox_int64(val.m_boxed));
+        else
+            // BOOL: hash 0 or 1
+            return _woort_unbox_bool(val.m_boxed) ? 1 : 0;
+    }
+    else
+    {
+        // GC allocated value
+        woort_GCUnit* const gc_unit = val.m_boxed_gc_unit;
+
+        if (gc_unit->m_proxy == &g_gcstring_unit_proxy)
+            // String: use string-specific hash
+            return woort_GCString_hash((const woort_GCString*)gc_unit);
+        else if (gc_unit->m_proxy == &_ex_box_proxy)
+        {
+            // Ex value: hash the internal int or real
+            woort_BoxedExValue* const ex_box = val.m_boxed_ex;
+            if (ex_box->m_is_int)
+                return _woort_hash_int(ex_box->m_int);
+            else
+                return _woort_hash_real(ex_box->m_real);
+        }
+        else
+        {
+            // Other GC types: hash the pointer address
+            return _woort_hash_int((woort_Int)(uintptr_t)gc_unit);
+        }
+    }
 }

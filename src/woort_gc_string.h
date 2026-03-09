@@ -20,8 +20,8 @@ struct woort_GCString
 
 extern const woort_GCUnitProxy g_gcstring_unit_proxy;
 
-const woort_GCString* woort_GCString_make_string(const char* str, size_t len);
-const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b);
+WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str, size_t len);
+WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b);
 
 /**
  * Compare two GC strings.
