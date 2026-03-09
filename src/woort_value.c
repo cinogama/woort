@@ -195,8 +195,8 @@ WOORT_NODISCARD bool woort_DynBox_check(
     }
 }
 
-WOORT_NODISCARD bool woort_Value_unbox(
-    woort_Value val,
+WOORT_NODISCARD bool woort_DynBox_unbox(
+    woort_DynBox val,
     woort_BoxValueType /* != WOORT_BOX_VALUE_TYPE_GCUNIT */ type,
     woort_Value* out_val)
 {
@@ -205,42 +205,42 @@ WOORT_NODISCARD bool woort_Value_unbox(
     switch (type)
     {
     case WOORT_BOX_VALUE_TYPE_REAL:
-        if (val.m_dynamic.m_boxed_real & 0b0111)
+        if (val.m_boxed_real & 0b0111)
         {
-            if (0b01 & val.m_dynamic.m_boxed_real)
+            if (0b01 & val.m_boxed_real)
             {
-                out_val->m_real = _woort_unbox_float64(val.m_dynamic.m_boxed_real);
+                out_val->m_real = _woort_unbox_float64(val.m_boxed_real);
                 return true;
             }
         }
         // 可能是 ex value
-        else if (val.m_dynamic.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
-            && !val.m_dynamic.m_boxed_ex->m_is_int)
+        else if (val.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
+            && !val.m_boxed_ex->m_is_int)
         {
-            out_val->m_real = val.m_dynamic.m_boxed_ex->m_real;
+            out_val->m_real = val.m_boxed_ex->m_real;
             return true;
         }
         break;
     case WOORT_BOX_VALUE_TYPE_INT:
-        if (val.m_dynamic.m_boxed_int & 0b0111)
+        if (val.m_boxed_int & 0b0111)
         {
-            if (0 == (0b011 & (val.m_dynamic.m_boxed_int ^ WOORT_BOX_VALUE_TYPE_INT)))
+            if (0 == (0b011 & (val.m_boxed_int ^ WOORT_BOX_VALUE_TYPE_INT)))
             {
-                out_val->m_integer = _woort_unbox_int64(val.m_dynamic.m_boxed_int);
+                out_val->m_integer = _woort_unbox_int64(val.m_boxed_int);
                 return true;
             }
         }
         // 可能是 ex value
-        else if (val.m_dynamic.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
-            && val.m_dynamic.m_boxed_ex->m_is_int)
+        else if (val.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
+            && val.m_boxed_ex->m_is_int)
         {
-            out_val->m_integer = val.m_dynamic.m_boxed_ex->m_int;
+            out_val->m_integer = val.m_boxed_ex->m_int;
             return true;
         }
         break;
     case WOORT_BOX_VALUE_TYPE_BOOL:
-        if (0 == (0b0111 & (val.m_dynamic.m_boxed_bool ^ WOORT_BOX_VALUE_TYPE_BOOL))) {
-            out_val->m_integer = _woort_unbox_bool(val.m_dynamic.m_boxed_bool) ? 1 : 0;
+        if (0 == (0b0111 & (val.m_boxed_bool ^ WOORT_BOX_VALUE_TYPE_BOOL))) {
+            out_val->m_integer = _woort_unbox_bool(val.m_boxed_bool) ? 1 : 0;
             return true;
         }
         break;

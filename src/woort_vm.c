@@ -1040,8 +1040,8 @@ _label_continue_execution:
         // UNBOXDYN
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 1):
         {
-            if (!woort_Value_unbox(
-                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
+            if (!woort_DynBox_unbox(
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic,
                 (woort_BoxValueType)WOORT_BYTECODE(A8, c),
                 &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]))
             {

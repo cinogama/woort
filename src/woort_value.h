@@ -123,7 +123,11 @@ WOORT_NODISCARD bool woort_DynBox_check(
     woort_DynBox val,
     woort_BoxValueType /* != WOORT_BOX_VALUE_TYPE_GCUNIT */ type);
 
-WOORT_NODISCARD bool woort_Value_unbox(
-    woort_Value val,
+WOORT_NODISCARD bool woort_DynBox_unbox(
+    woort_DynBox val,
     woort_BoxValueType /* != WOORT_BOX_VALUE_TYPE_GCUNIT */ type,
+    woort_Value* out_val);
+
+void woort_DynBox_unbox_no_check(
+    woort_DynBox val, 
     woort_Value* out_val);
