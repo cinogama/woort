@@ -23,7 +23,7 @@ typedef struct woort_GCVec
 
 extern const woort_GCUnitProxy g_gcvec_unit_proxy;
 
-woort_GCVec* woort_GCVec_new(size_t advise_reserving_sz);
+woort_GCVec* woort_GCVec_new(void);
 
 void woort_GCVec_resize(woort_GCVec* vec, size_t size);
 void woort_GCVec_push_back(woort_GCVec* vec, woort_DynBox boxed_value);

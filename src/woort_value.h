@@ -132,3 +132,4 @@ void woort_DynBox_unbox_no_check(
     woort_Value* out_val);
 
 WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val);
+WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b);

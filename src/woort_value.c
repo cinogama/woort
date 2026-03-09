@@ -343,3 +343,46 @@ WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val)
         }
     }
 }
+
+WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b)
+{
+    // Fast path: compare raw boxed values directly
+    if (a.m_boxed == b.m_boxed)
+        return true;
+
+    // NOTE: 如果其中之一是 boxed，另一个是 boxed_ex/unit，或者俩都是 boxed，说明必然不相同
+    if ((a.m_boxed & 0b0111) || (b.m_boxed & 0b0111))
+        return false;
+
+    // Both are GC-allocated values
+    woort_GCUnit* const gc_unit_a = a.m_boxed_gc_unit;
+    woort_GCUnit* const gc_unit_b = b.m_boxed_gc_unit;
+
+    // Compare proxy pointers first for type discrimination
+    if (gc_unit_a->m_proxy != gc_unit_b->m_proxy)
+        return false;
+
+    // Same proxy type
+    if (gc_unit_a->m_proxy == &g_gcstring_unit_proxy)
+    {
+        // Extra check for string.
+        return woort_GCString_compare(
+            (const woort_GCString*)gc_unit_a,
+            (const woort_GCString*)gc_unit_b) == 0;
+    }
+    else if (gc_unit_a->m_proxy == &_ex_box_proxy)
+    {
+        woort_BoxedExValue* const ex_a = a.m_boxed_ex;
+        woort_BoxedExValue* const ex_b = b.m_boxed_ex;
+
+        if (ex_a->m_is_int != ex_b->m_is_int)
+            return false;
+
+        return ex_a->m_is_int
+            ? ex_a->m_int == ex_b->m_int
+            : ex_a->m_real == ex_b->m_real;
+    }
+
+    // Other GC types: pointer equality (already checked above if m_boxed == b.m_boxed)
+    return false;
+}
