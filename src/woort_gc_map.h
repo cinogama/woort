@@ -11,24 +11,15 @@ woort_gc_map.h
 #include "woort_gc_units.h"
 #include "woort_value.h"
 
-typedef struct woort_GCMap_Bucket_Index
-{
-    uint32_t m_table_index;
-    uint32_t m_next_index;
-
-}woort_GCMap_Bucket_Index;
-
 typedef struct woort_GCMap_Bucket
 {
+    uint32_t m_next;
+    uint32_t m_prev;
+
     woort_DynBox m_key;
     woort_DynBox m_val;
 
 } woort_GCMap_Bucket;
-
-_Static_assert(
-    _Alignof(woort_GCMap_Bucket) == sizeof(woort_GCMap_Bucket_Index),
-    "As we are allocating one contiguous space for both woort_GCMap_Bucket "
-    "and woort_GCMap_Bucket_Index.");
 
 /*
     Next table:
@@ -42,9 +33,10 @@ struct woort_GCMap
 {
     woort_GCUnit        m_gc_unit;
     /* =========================== */
-    /* OPTIONAL */ woort_GCMap_Bucket* m_entries;
     size_t              m_mask;
     size_t              m_size;
+    /* OPTIONAL */ uint32_t* m_entries;
+    /* OPTIONAL */ woort_GCMap_Bucket* m_buckets;
 };
 
 extern const woort_GCUnitProxy g_gcmap_unit_proxy;

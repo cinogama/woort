@@ -84,7 +84,7 @@ typedef union woort_Value
     woort_DynBox            m_dynamic;
 
     woort_RetBP             m_ret_bp;
-    const void* m_ret_addr;
+    const void*             m_ret_addr;
 
 }woort_Value;
 
@@ -108,7 +108,7 @@ typedef enum woort_BoxValueType
 #define woort_RuntimeFunction_target(function) (    \
     (void*)(                                        \
         ((woort_RuntimeFunction)(function))         \
-            & 0x3fff'ffff'ffff'ffffull))    
+            & 0x3fffffffffffffffull))    
 
 #define woort_RuntimeFunction_pack(kind, target)    \
     (woort_RuntimeFunction)(                        \

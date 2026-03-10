@@ -14,12 +14,14 @@ WOORT_NODISCARD woort_GCMap* woort_GCMap_new(void)
         A, sizeof(woort_GCMap));
 
     gcmap->m_gc_unit.m_proxy = &g_gcmap_unit_proxy;
-    gcmap->m_entries = NULL;
+    gcmap->m_buckets = NULL;
     gcmap->m_mask = 0;
     gcmap->m_size = 0;
 
     return gcmap;
 }
+
+#define NULL_BUCKET_INDEX UINT32_MAX
 
 // 计算大于等于 n 的最小 2 的幂
 static size_t _woort_next_power_of_two(size_t n)
@@ -34,6 +36,34 @@ static size_t _woort_next_power_of_two(size_t n)
     return power;
 }
 
+
+void _woort_GCMap_rehash(woort_GCMap* gcmap)
+{
+    for (size_t i = 0; i <= gcmap->m_mask; ++i)
+        gcmap->m_entries[i] = NULL_BUCKET_INDEX;
+
+    // GCMap 总是使用buckets的前N项来储存
+    for (size_t i = 0; i < gcmap->m_size; ++i)
+    {
+        woort_GCMap_Bucket* const this_bucket = &gcmap->m_buckets[i];
+
+        this_bucket->m_next = NULL_BUCKET_INDEX;
+        
+        const size_t entry_idx = woort_DynBox_hash(this_bucket->m_key) & gcmap->m_mask;
+
+        uint32_t idx = gcmap->m_entries[entry_idx];
+        while (idx != NULL_BUCKET_INDEX)
+        {
+            this_bucket->m_prev = idx;
+        }
+        
+        
+
+
+        gcmap->m_buckets[i].m_prev = bucket_idx;
+    }
+}
+
 void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
 {
     // 计算合适的容量，确保是 2 的幂
@@ -43,24 +73,15 @@ void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
     if (gcmap->m_mask + 1 >= capacity)
         return;
 
-    // 分配两个连续的数组：Next table 和 Buckets table
-    // Next table: capacity * sizeof(woort_GCMap_Bucket_Index)
-    // Buckets table: capacity * sizeof(woort_GCMap_Bucket)
-    const size_t next_table_size = capacity * sizeof(woort_GCMap_Bucket_Index);
-    const size_t buckets_table_size = capacity * sizeof(woort_GCMap_Bucket);
-    const size_t total_size = next_table_size + buckets_table_size;
+    // 重新分配 buckets
+    const size_t realloc_size =
+        capacity * sizeof(woort_GCMap_Bucket)
+        + capacity * sizeof(uint32_t);
 
-    woort_GCMap_Bucket_Index* const new_bucket_index =
-        woort_GCUnit_alloc_attrib(A, total_size);
-    woort_GCMap_Bucket* const new_bucket_entry =
-        new_bucket_index + capacity;
+    gcmap->m_buckets = gcmap->m_buckets == NULL 
+        ? woort_GCUnit_alloc_attrib(A, realloc_size)
+        : woomem_realloc(gcmap->m_buckets, realloc_size);
 
-    for (size_t i = 0; i < capacity; ++i)
-    {
-        new_bucket_index[i].m_next_index = UINT32_MAX;
-        new_bucket_index[i].m_table_index = UINT32_MAX;
-    }
-    TODO;
-    gcmap->m_entries = new_entries;
+    gcmap->m_entries = gcmap->m_buckets + capacity;
     gcmap->m_mask = capacity - 1;
 }
