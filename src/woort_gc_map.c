@@ -165,7 +165,7 @@ WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key)
         woort_GCMap_Bucket* bucket = &gcmap->m_buckets[idx];
         if (woort_DynBox_equal(bucket->m_key, key))
         {
-            // 写屏障：标记被删除的 key 和 val
+            // 删除屏障：标记被删除的 key 和 val
             woort_GC_barrier_mark_dynbox(bucket->m_key);
             woort_GC_barrier_mark_dynbox(bucket->m_val);
 
