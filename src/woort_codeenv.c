@@ -211,7 +211,7 @@ void woort_CodeEnv_GC_mark_all_envs(void)
         if (code_env->m_hold)
         {
             // Mark this code.
-            woomem_mark_unit(code_env);
+            woomem_mark_unit_head(code_env);
         }
     }
 

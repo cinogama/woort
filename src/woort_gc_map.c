@@ -36,7 +36,6 @@ static size_t _woort_next_power_of_two(size_t n)
     return power;
 }
 
-
 void _woort_GCMap_rehash(woort_GCMap* gcmap)
 {
     for (size_t i = 0; i <= gcmap->m_mask; ++i)
@@ -48,15 +47,13 @@ void _woort_GCMap_rehash(woort_GCMap* gcmap)
         woort_GCMap_Bucket* const this_bucket = &gcmap->m_buckets[i];
         this_bucket->m_next = NULL_BUCKET_INDEX;
 
-        const size_t entry_idx = woort_DynBox_hash(this_bucket->m_key) & gcmap->m_mask;
+        const size_t entry_idx = 
+            woort_DynBox_hash(this_bucket->m_key) & gcmap->m_mask;
 
         uint32_t idx = gcmap->m_entries[entry_idx];
 
         if (idx == NULL_BUCKET_INDEX)
-        {
             gcmap->m_entries[entry_idx] = i;
-            gcmap->m_buckets[i].m_prev = NULL_BUCKET_INDEX;
-        }
         else
         {
             woort_GCMap_Bucket* prev_bucket = &gcmap->m_buckets[idx];
@@ -67,8 +64,8 @@ void _woort_GCMap_rehash(woort_GCMap* gcmap)
             }
 
             prev_bucket->m_next = i;
-            gcmap->m_buckets[i].m_prev = idx;
         }
+        gcmap->m_buckets[i].m_prev = idx;
     }
 }
 
@@ -83,8 +80,7 @@ void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
 
     // 重新分配 buckets
     const size_t realloc_size =
-        capacity * sizeof(woort_GCMap_Bucket)
-        + capacity * sizeof(uint32_t);
+        capacity * (sizeof(woort_GCMap_Bucket) + sizeof(uint32_t));
 
     gcmap->m_buckets = gcmap->m_buckets == NULL 
         ? woort_GCUnit_alloc_attrib(A, realloc_size)
@@ -94,4 +90,14 @@ void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
     gcmap->m_mask = capacity - 1;
 
     _woort_GCMap_rehash(gcmap);
+}
+
+woort_GCMap_Bucket* _woort_GCMap_get_writable_bucket_for_key(
+    woort_GCMap* gcmap, woort_DynBox key)
+{
+
+}
+
+void woort_GCMap_set(woort_GCMap* gcmap, woort_DynBox key, woort_DynBox val)
+{
 }
