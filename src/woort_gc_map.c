@@ -100,7 +100,7 @@ woort_GCMap_Bucket* _woort_GCMap_get_writable_bucket_for_key(
     uint32_t idx = gcmap->m_entries[entry_idx];
     while (idx != NULL_BUCKET_INDEX)
     {
-        woort_GCMap_Bucket* bucket = &gcmap->m_buckets[idx];
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
         if (woort_DynBox_equal(bucket->m_key, key))
         {
             // 混合写屏障(1), 标记被覆盖单元
@@ -113,12 +113,12 @@ woort_GCMap_Bucket* _woort_GCMap_get_writable_bucket_for_key(
 
     // 未找到，创建新的 bucket
     const uint32_t new_idx = (uint32_t)gcmap->m_size;
-    woort_GCMap_Bucket* new_bucket = &gcmap->m_buckets[new_idx];
+    woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
     new_bucket->m_key = key;
     new_bucket->m_next = NULL_BUCKET_INDEX;
     new_bucket->m_prev = NULL_BUCKET_INDEX;
 
-    // 写屏障：确保增量 GC 正确追踪新写入的 key
+    // 混合写屏障(1)：确保增量 GC 正确追踪新写入的 key
     woort_GC_barrier_mark_dynbox(key);
 
     // 将新 bucket 链接到链表头部
@@ -147,4 +147,72 @@ void woort_GCMap_set(woort_GCMap* gcmap, woort_DynBox key, woort_DynBox val)
     // 混合写屏障(2), 标记插入单元
     woort_GC_barrier_mark_dynbox(val);
     bucket->m_val = val;
+}
+
+WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key)
+{
+    if (gcmap->m_size == 0)
+        return false;
+
+    // 计算哈希和入口索引
+    const size_t hash = woort_DynBox_hash(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    // 在链中查找要删除的 key
+    uint32_t idx = gcmap->m_entries[entry_idx];
+    while (idx != NULL_BUCKET_INDEX)
+    {
+        woort_GCMap_Bucket* bucket = &gcmap->m_buckets[idx];
+        if (woort_DynBox_equal(bucket->m_key, key))
+        {
+            // 写屏障：标记被删除的 key 和 val
+            woort_GC_barrier_mark_dynbox(bucket->m_key);
+            woort_GC_barrier_mark_dynbox(bucket->m_val);
+
+            // 从链表中移除该 bucket
+            const uint32_t prev_idx = bucket->m_prev;
+            const uint32_t next_idx = bucket->m_next;
+
+            if (prev_idx != NULL_BUCKET_INDEX)
+                gcmap->m_buckets[prev_idx].m_next = next_idx;
+            else
+                gcmap->m_entries[entry_idx] = next_idx;
+
+            if (next_idx != NULL_BUCKET_INDEX)
+                gcmap->m_buckets[next_idx].m_prev = prev_idx;
+
+            // 如果不是最后一个 bucket，将最后一个 bucket 移动到被删除的位置
+            const uint32_t last_idx = (uint32_t)(gcmap->m_size - 1);
+            if (idx != last_idx)
+            {
+                woort_GCMap_Bucket* const last_bucket = &gcmap->m_buckets[last_idx];
+                const uint32_t last_prev = last_bucket->m_prev;
+                const uint32_t last_next = last_bucket->m_next;
+
+                // 复制最后一个 bucket 到被删除的位置
+                *bucket = *last_bucket;
+
+                // 更新最后一个 bucket 的邻居指针
+                if (last_prev != NULL_BUCKET_INDEX)
+                    gcmap->m_buckets[last_prev].m_next = idx;
+                else
+                {
+                    // last_bucket 是链表头，需要更新 entry
+                    const size_t last_hash = woort_DynBox_hash(last_bucket->m_key);
+                    const size_t last_entry_idx = last_hash & gcmap->m_mask;
+                    gcmap->m_entries[last_entry_idx] = idx;
+                }
+
+                if (last_next != NULL_BUCKET_INDEX)
+                    gcmap->m_buckets[last_next].m_prev = idx;
+            }
+
+            --gcmap->m_size;
+            return true;
+        }
+
+        idx = bucket->m_next;
+    }
+
+    return false;  // 未找到 key
 }
