@@ -46,21 +46,29 @@ void _woort_GCMap_rehash(woort_GCMap* gcmap)
     for (size_t i = 0; i < gcmap->m_size; ++i)
     {
         woort_GCMap_Bucket* const this_bucket = &gcmap->m_buckets[i];
-
         this_bucket->m_next = NULL_BUCKET_INDEX;
-        
+
         const size_t entry_idx = woort_DynBox_hash(this_bucket->m_key) & gcmap->m_mask;
 
         uint32_t idx = gcmap->m_entries[entry_idx];
-        while (idx != NULL_BUCKET_INDEX)
+
+        if (idx == NULL_BUCKET_INDEX)
         {
-            this_bucket->m_prev = idx;
+            gcmap->m_entries[entry_idx] = i;
+            gcmap->m_buckets[i].m_prev = NULL_BUCKET_INDEX;
         }
-        
-        
+        else
+        {
+            woort_GCMap_Bucket* prev_bucket = &gcmap->m_buckets[idx];
+            while (prev_bucket->m_next != NULL_BUCKET_INDEX)
+            {
+                idx = prev_bucket->m_next;
+                prev_bucket = &gcmap->m_buckets[idx];
+            }
 
-
-        gcmap->m_buckets[i].m_prev = bucket_idx;
+            prev_bucket->m_next = i;
+            gcmap->m_buckets[i].m_prev = idx;
+        }
     }
 }
 
@@ -84,4 +92,6 @@ void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
 
     gcmap->m_entries = gcmap->m_buckets + capacity;
     gcmap->m_mask = capacity - 1;
+
+    _woort_GCMap_rehash(gcmap);
 }
