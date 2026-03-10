@@ -37,3 +37,5 @@ WOORT_NODISCARD woort_GCMap* woort_GCMap_new(void);
 
 void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count);
 void woort_GCMap_set(woort_GCMap* gcmap, woort_DynBox key, woort_DynBox val);
+WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key);
+
