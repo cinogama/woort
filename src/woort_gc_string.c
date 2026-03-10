@@ -12,7 +12,9 @@ const woort_GCUnitProxy g_gcstring_unit_proxy = {
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str, size_t len)
 {
-    woort_GCString* gcstr = woort_GCUnit_alloc_attrib(A, sizeof(woort_GCString) + len + 1);
+    woort_GCString* const gcstr = 
+        woort_GCUnit_alloc_attrib(O, sizeof(woort_GCString) + len + 1);
+
     gcstr->m_gc_unit.m_proxy = &g_gcstring_unit_proxy;
     gcstr->m_length = len;
 
@@ -24,7 +26,9 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b)
 {
-    woort_GCString* gcstr = woort_GCUnit_alloc_attrib(A, sizeof(woort_GCString) + a->m_length + b->m_length + 1);
+    woort_GCString* const gcstr = 
+        woort_GCUnit_alloc_attrib(O, sizeof(woort_GCString) + a->m_length + b->m_length + 1);
+
     gcstr->m_gc_unit.m_proxy = &g_gcstring_unit_proxy;
     gcstr->m_length = a->m_length + b->m_length;
 

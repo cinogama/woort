@@ -25,8 +25,8 @@ inline void woort_GC_mixed_write_barrier_value(
 {
     if (g_gc_in_marking)
     {
-        woomem_try_mark_unit(src_value.m_gcinstance);
-        woomem_try_mark_unit(modified_value->m_gcinstance);
+        woomem_try_mark_unit((intptr_t)src_value.m_gcinstance);
+        woomem_try_mark_unit((intptr_t)modified_value->m_gcinstance);
     }
     *modified_value = src_value;
 }
@@ -52,7 +52,7 @@ inline void woort_GC_delete_barrier_value(
     woort_Value value)
 {
     if (g_gc_in_marking)
-        woomem_try_mark_unit(value.m_gcinstance);
+        woomem_try_mark_unit((intptr_t)value.m_gcinstance);
 }
 
 inline void woort_GC_delete_barrier_dynbox(
