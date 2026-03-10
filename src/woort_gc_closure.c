@@ -10,7 +10,6 @@ const woort_GCUnitProxy g_gcclosure_unit_proxy = {
     .m_marker = NULL,
 };
 
-
 woort_GCClosure* woort_GCClosure_new(
     woort_RuntimeFunction func, size_t captured_count)
 {

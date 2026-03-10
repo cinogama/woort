@@ -20,19 +20,47 @@ WOORT_NODISCARD bool woort_GC_register_root_vm(
 void woort_GC_unregister_root_vm(
     struct woort_VMRuntime* vmruntime);
 
-inline void woort_GC_barrier_mark(intptr_t may_valid_ptr)
+inline void woort_GC_mixed_write_barrier_value(
+    woort_Value* modified_value, woort_Value src_value)
 {
     if (g_gc_in_marking)
-        woomem_try_mark_unit(may_valid_ptr);
+    {
+        woomem_try_mark_unit(src_value.m_gcinstance);
+        woomem_try_mark_unit(modified_value->m_gcinstance);
+    }
+    *modified_value = src_value;
 }
 
-inline void woort_GC_barrier_mark_value(woort_Value value)
+inline void woort_GC_mixed_write_barrier_dynbox(
+    woort_DynBox* modified_box, woort_DynBox src_box)
 {
-    woort_GC_barrier_mark((intptr_t)value.m_gcinstance);
+    if (g_gc_in_marking)
+    {
+        if (src_box.m_boxed_gc_unit != NULL
+            && 0 == (src_box.m_boxed & 0b0111))
+        {
+            woomem_mark_unit_head(src_box.m_boxed_gc_unit);
+        }
+        if (modified_box->m_boxed_gc_unit != NULL
+            && 0 == (modified_box->m_boxed & 0b0111))
+            woomem_mark_unit_head(modified_box->m_boxed_gc_unit);
+    }
+    *modified_box = src_box;
 }
 
-inline void woort_GC_barrier_mark_dynbox(woort_DynBox box)
+inline void woort_GC_delete_barrier_value(
+    woort_Value value)
 {
-    if (g_gc_in_marking && 0 == (box.m_boxed & 0b0111))
+    if (g_gc_in_marking)
+        woomem_try_mark_unit(value.m_gcinstance);
+}
+
+inline void woort_GC_delete_barrier_dynbox(
+    woort_DynBox box)
+{
+    if (box.m_boxed_gc_unit != NULL
+        && g_gc_in_marking && 0 == (box.m_boxed & 0b0111))
+    {
         woomem_mark_unit_head(box.m_boxed_gc_unit);
+    }
 }

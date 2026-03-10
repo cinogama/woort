@@ -50,9 +50,8 @@ void woort_GCVec_push_back(woort_GCVec* vec, woort_DynBox boxed_value)
 {
     _woort_GCVec_assure_vec_space(vec, vec->m_length + 1);
 
-    woort_GC_barrier_mark_dynbox(boxed_value);
-
-    vec->m_datas[vec->m_length++] = boxed_value;
+    woort_GC_mixed_write_barrier_dynbox(
+        &vec->m_datas[vec->m_length++], boxed_value);
 }
 
 
