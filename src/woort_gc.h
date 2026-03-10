@@ -20,7 +20,7 @@ WOORT_NODISCARD bool woort_GC_register_root_vm(
 void woort_GC_unregister_root_vm(
     struct woort_VMRuntime* vmruntime);
 
-inline void woort_GC_mixed_write_barrier_value(
+static inline void woort_GC_mixed_write_barrier_value(
     woort_Value* modified_value, woort_Value src_value)
 {
     if (g_gc_in_marking)
@@ -31,7 +31,7 @@ inline void woort_GC_mixed_write_barrier_value(
     *modified_value = src_value;
 }
 
-inline void woort_GC_mixed_write_barrier_dynbox(
+static inline void woort_GC_mixed_write_barrier_dynbox(
     woort_DynBox* modified_box, woort_DynBox src_box)
 {
     if (g_gc_in_marking)
@@ -48,14 +48,14 @@ inline void woort_GC_mixed_write_barrier_dynbox(
     *modified_box = src_box;
 }
 
-inline void woort_GC_delete_barrier_value(
+static inline void woort_GC_delete_barrier_value(
     woort_Value value)
 {
     if (g_gc_in_marking)
         woomem_try_mark_unit((intptr_t)value.m_gcinstance);
 }
 
-inline void woort_GC_delete_barrier_dynbox(
+static inline void woort_GC_delete_barrier_dynbox(
     woort_DynBox box)
 {
     if (box.m_boxed_gc_unit != NULL
