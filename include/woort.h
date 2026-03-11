@@ -25,6 +25,9 @@ extern "C" {
     WOORT_API void woort_init(void);
     WOORT_API void woort_shutdown(void);
 
+    /*
+    调用（Invoke 或 Dispatch）一个函数时，函数可能以下述状态为结果：
+    */
     typedef enum woort_VmCallStatus
     {
         WOORT_VM_CALL_STATUS_NORMAL,
@@ -33,62 +36,46 @@ extern "C" {
         调用的目标函数以正常预期结果返回，没有特殊情况需要处理。
         */
 
-        WOORT_VM_CALL_STATUS_ABORTED,
-        /*
-        WOORT_VM_CALL_STATUS_ABORTED
-        程序被终止，虚拟机不能继续执行当前的调用栈。
-
-        初次返回 WOORT_VM_CALL_STATUS_ABORTED 之前，应当执行一次正同步操
-        作，以确保可以获取到正确的调试信息。
-
-            + 如果是解释执行收到此状态：
-                以相同状态返回上一层，不执行 RT 状态同步
-            + 如果是 JIT 收到此状态：
-                以相同状态返回上一层，不执行 RT 状态同步
-            + 如果是外部调用方收到此状态：
-                以失败为结果，调用结束，回滚到调用发生之前的调用栈。
-        */
-
         WOORT_VM_CALL_STATUS_YIELD,
         /*
         WOORT_VM_CALL_STATUS_YIELD
         虚拟机正在请求以当前状态暂停执行，如果情况允许，可以在稍后继续执
         行。
 
-        初次返回 WOORT_VM_CALL_STATUS_YIELD 之前，应当执行一次正同步操作，
-        以确保稍后可以正确恢复执行。
+        * YIELD 仅由解释执行收到中断请求后返回
 
-            + 如果是解释执行收到此状态：
-                以相同状态返回上一层，不执行 RT 状态同步
-            + 如果是 JIT 收到此状态：
-                以相同状态返回上一层，不执行 RT 状态同步
-            + 如果是外部调用方收到此状态：
-                如果是 dispatch 调用，以中断为结果，调用结束。
-                如果是 invoke 调用，以失败为结果，调用结束，回滚到调用发
-                生之前的调用栈。
+        * 外部执行的 Dispatch 操作可能以此状态结束
+        * 如果一个 Invoke 操作被试图以 YIELD 结束，则 PANIC
+        */
+
+        WOORT_VM_CALL_STATUS_ABORTED,
+        /*
+        WOORT_VM_CALL_STATUS_ABORTED
+        程序被终止，虚拟机不能继续执行当前的调用栈，虚拟机同时将被以 Abort
+        标记并拒绝执行其他任何操作。
+
+        * ABORTED 仅由解释执行收到中断请求后返回
         */
 
         WOORT_VM_CALL_STATUS_RESYNC,
         /*
         WOORT_VM_CALL_STATUS_RESYNC
-        在 JIT 调用期间发生了一些状态改变，这些改变无法在 JIT 执行期间处理，
-        因此需要回滚到解释执行进行。
+        下一层调用栈涉及到了一些新的虚拟机状态变化，下一层调用栈请求上一层
+        调用栈执行一些反向同步或检查点检查以恢复到正常状态
 
-        JIT 在以下事件发生时，会返回 WOORT_VM_CALL_STATUS_RESYNC：
-            + 在执行 PUSHCHK 等指令时，栈空间不足
-            + 在外部函数返回之后（如果此期间，发生了栈空间的重新申请）
-            + 即将调用一个脚本函数
-            + JIT 调用深度达到最大值
+        * 解释执行绝不以 RESYNC 结束
 
-        初次返回 WOORT_VM_CALL_STATUS_RESYNC 之前，应当执行一次正同步操作，
-        以确保稍后可以正确恢复执行。
+        * JIT 调用 Native 函数发生 RESYNC 时：
+            恢复到调用后状态，然后执行一次检查点
+        * JIT 调用 JIT 函数发生 RESYNC 时：
+            不执行同步，立即以 RESYNC 结束当前 JIT 函数
+        * 解释执行调用 Native 函数发生 RESYNC 时：
+            恢复到调用后状态，然后执行一次检查点
+        * 解释执行调用 JIT 函数发生 RESYNC 时：
+            执行一次反同步，然后执行一次检查点
 
-            + 如果是解释执行收到此状态：
-                执行一次反向的 RT 状态同步，执行一次检查点，然后继续执行
-            + 如果是 JIT 收到此状态：
-                以相同状态返回上一层
-            + 如果是外部调用方收到此状态：
-                使用解释执行重新恢复执行
+        外部执行的 Invoke 或 Dispatch 操作可能以外部函数或者 JIT 函数为目标，
+        如果出现此情况，需要额外
         */
     } woort_VmCallStatus, woort_api;
 

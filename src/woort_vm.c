@@ -707,31 +707,30 @@ _label_continue_execution:
                 // Donot need to restore any status.
 
                 if (status == WOORT_VM_CALL_STATUS_NORMAL)
-                {
                     // Ok, continue execute.
                     continue;
-                }
-                return status;
+          
+
+                WOORT_VM_RESYNC_STATE();
+                WOORT_VM_CHECKPOINT();
             }
             WOORT_VM_THROW(stack_overflow);
         }
         // CALLNJIT
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_CALLNJIT):
         {
-            rt_sp -= 2;
-            if (rt_sp >= rt_stack)
+            woort_Value* new_sp = rt_sp - 2;
+            if (new_sp >= rt_stack)
             {
-                rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
-                rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
-                rt_sp[2].m_ret_addr = rt_ip + 1;
-
-                rt_sb = rt_sp;
+                new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
+                new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                new_sp[2].m_ret_addr = rt_ip + 1;
 
                 const woort_NativeFunction jit_function =
                     rt_env_data[WOORT_BYTECODE(MABC26, c)].m_native_or_jit_function;
 
                 const woort_VmCallStatus status =
-                    jit_function(vm, (woort_value*)(rt_sp + 3));
+                    jit_function(vm, (woort_value*)(rt_sp + 1));
 
                 switch (status)
                 {
@@ -748,8 +747,6 @@ _label_continue_execution:
                 // Ok, continue execute.
                 break;
             }
-
-            rt_sp += 2;
             WOORT_VM_THROW(stack_overflow);
         }
         // CALLS
