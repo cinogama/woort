@@ -1064,7 +1064,25 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-        // TODO: WOORT_OPCODE_MKCLOS
+        // MKCLOS
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_MKCLOS):
+        {
+            const size_t size = WOORT_BYTECODE(MA10, c);
+            const uint32_t const_idx = rt_ip[1];
+
+            woort_RuntimeFunction func =
+                rt_env_data[const_idx].m_runtime_function;
+
+            woort_GCClosure* const gcclosure = woort_GCClosure_new(func, size);
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_closure = gcclosure;
+
+            for (size_t i = 1; i <= size; ++i)
+                gcclosure->m_datas[size - i] = rt_sp[i];
+
+            rt_sp += size;
+            rt_ip += 2;
+            continue;
+        }
 
         // BOXDYN
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 0):
