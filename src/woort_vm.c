@@ -975,7 +975,26 @@ _label_continue_execution:
             rt_sp += size;
             break;
         }
-        // TODO: MKMAP
+        // MKMAP
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONS, 1):
+        {
+            const size_t size = WOORT_BYTECODE(A8, c);
+
+            woort_GCMap* const gcmap = woort_GCMap_new();
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_map = gcmap;
+
+            woort_GCMap_reserve(gcmap, size);
+
+            for (size_t i = 0; i < size; ++i)
+            {
+                woort_DynBox val = rt_sp[1 + i * 2].m_dynamic;
+                woort_DynBox key = rt_sp[2 + i * 2].m_dynamic;
+                woort_GCMap_set_or_insert(gcmap, key, val);
+            }
+
+            rt_sp += size * 2;
+            break;
+        }
 
         // MKSTRUCT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONS, 2):
@@ -1009,8 +1028,27 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-        // TODO: MKMAPEXT
+        // MKMAPEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSEX, 1):
+        {
+            const size_t size = rt_ip[1];
 
+            woort_GCMap* const gcmap = woort_GCMap_new();
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_map = gcmap;
+
+            woort_GCMap_reserve(gcmap, size);
+
+            for (size_t i = 0; i < size; ++i)
+            {
+                woort_DynBox val = rt_sp[1 + i * 2].m_dynamic;
+                woort_DynBox key = rt_sp[2 + i * 2].m_dynamic;
+                woort_GCMap_set_or_insert(gcmap, key, val);
+            }
+
+            rt_sp += size * 2;
+            rt_ip += 2;
+            continue;
+        }
         // MKSTRUCTEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSEX, 2):
         {
