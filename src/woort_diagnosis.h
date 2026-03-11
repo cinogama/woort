@@ -25,7 +25,7 @@ typedef enum woort_PanicReason
     WOORT_PANIC_REENTRY_GC_SCOPE = 0xD006,
     WOORT_PANIC_BAD_VM_REQUEST = 0xD007,
     WOORT_PANIC_ABORTED = 0xD008,
-    WOORT_PANIC_INDEX_OUT_OF_RANGE = 0xD009
+    WOORT_PANIC_INDEX_OUT_OF_RANGE = 0xD009,
 } woort_PanicReason;
 
 void woort_panic(

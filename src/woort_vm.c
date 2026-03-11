@@ -1676,7 +1676,43 @@ _label_continue_execution:
 
             break;
         }
-        //
+        // LDIDXVECX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDX, 1):
+        {
+            const size_t index =
+                (size_t)rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+
+            woort_GCVec* const gcvec =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_vec;
+
+            if (index >= gcvec->m_length)
+                WOORT_VM_THROW(index_out_of_range);
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = 
+                gcvec->m_datas[index];
+
+            break;
+        }
+        // LDIDSTRUCT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDX, 2):
+        {
+            const size_t index =
+                (size_t)WOORT_BYTECODE(A8, c);
+
+            woort_GCStruct* const gcstruct =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_struct;
+
+            assert(index < gcstruct->m_size);
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)] =
+                gcstruct->m_datas[index];
+
+            break;
+        }
+        // TODO: LDIDSTRING
+
+
+
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
