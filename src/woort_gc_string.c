@@ -81,3 +81,13 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int valu
 
     return woort_GCString_make_string(buffer, (size_t)len);
 }
+
+WOORT_NODISCARD const woort_GCString* woort_GCString_from_real(woort_Real value)
+{
+    // double 最大精度约 17 位，加上符号、小数点、指数部分等，需要足够空间
+    // 使用 %.17g 格式保证精度，最多需要约 24 字节
+    char buffer[64];
+    const int len = snprintf(buffer, sizeof(buffer), "%.17g", value);
+
+    return woort_GCString_make_string(buffer, (size_t)len);
+}

@@ -35,3 +35,8 @@ WOORT_NODISCARD size_t woort_GCString_hash(const woort_GCString* str);
  * Convert an integer to a GC string.
  */
 WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int value);
+
+/**
+ * Convert a real (double) to a GC string.
+ */
+WOORT_NODISCARD const woort_GCString* woort_GCString_from_real(woort_Real value);

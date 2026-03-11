@@ -541,21 +541,21 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-        // ITORST: 整数转实数存储
+        // ITORST
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTI, 0):
         {
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real =
                 (woort_Real)rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
             break;
         }
-        // ITORLD: 整数转实数加载
+        // ITORLD
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTI, 1):
         {
             rt_sb[(int16_t)WOORT_BYTECODE(A8, c)].m_real =
                 (woort_Real)rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer;
             break;
         }
-        // ITOSST: 整数转字符串存储
+        // ITOSST
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTI, 2):
         {
             const woort_Int int_val = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
@@ -563,7 +563,7 @@ _label_continue_execution:
                 woort_GCString_from_integer(int_val);
             break;
         }
-        // ITOSLD: 整数转字符串加载
+        // ITOSLD
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTI, 3):
         {
             const woort_Int int_val = rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -571,7 +571,36 @@ _label_continue_execution:
                 woort_GCString_from_integer(int_val);
             break;
         }
-        // TODO: WOORT_OPCODE_CASTR
+        // RTOIST
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTR, 0):
+        {
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer =
+                (woort_Int)rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real;
+            break;
+        }
+        // RTOILD
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTR, 1):
+        {
+            rt_sb[(int16_t)WOORT_BYTECODE(A8, c)].m_integer =
+                (woort_Int)rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_real;
+            break;
+        }
+        // RTOSST
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTR, 2):
+        {
+            const woort_Real real_val = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real;
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_string =
+                woort_GCString_from_real(real_val);
+            break;
+        }
+        // RTOSLD
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTR, 3):
+        {
+            const woort_Real real_val = rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_real;
+            rt_sb[(int16_t)WOORT_BYTECODE(A8, c)].m_string =
+                woort_GCString_from_real(real_val);
+            break;
+        }
         // TODO: WOORT_OPCODE_CASTS
 
         // CALLNWO
