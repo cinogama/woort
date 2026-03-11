@@ -75,7 +75,7 @@ extern "C" {
             执行一次反同步，然后执行一次检查点
 
         外部执行的 Invoke 或 Dispatch 操作可能以外部函数或者 JIT 函数为目标，
-        如果出现此情况，需要额外
+        如果出现此情况，需要再执行 _woort_VMRuntime_dispatch 以获取准确结果
         */
     } woort_VmCallStatus, woort_api;
 
