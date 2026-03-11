@@ -40,3 +40,19 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int valu
  * Convert a real (double) to a GC string.
  */
 WOORT_NODISCARD const woort_GCString* woort_GCString_from_real(woort_Real value);
+
+/**
+ * Convert a GC string to an integer.
+ * @param str The GC string to convert.
+ * @param out_value Output parameter for the converted integer.
+ * @return true if conversion succeeded, false otherwise.
+ */
+WOORT_NODISCARD bool woort_GCString_to_integer(const woort_GCString* str, woort_Int* out_value);
+
+/**
+ * Convert a GC string to a real (double).
+ * @param str The GC string to convert.
+ * @param out_value Output parameter for the converted real.
+ * @return true if conversion succeeded, false otherwise.
+ */
+WOORT_NODISCARD bool woort_GCString_to_real(const woort_GCString* str, woort_Real* out_value);
