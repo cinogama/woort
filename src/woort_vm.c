@@ -652,6 +652,9 @@ _label_continue_execution:
             rt_sp -= 2;
             if (rt_sp >= rt_stack)
             {
+                /*
+                CALLNWO 绝不发生 FAR_CALL，所以直接处理即可
+                */
                 rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
                 rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
                 rt_sp[2].m_ret_addr = rt_ip + 1;
@@ -706,13 +709,14 @@ _label_continue_execution:
 
                 // Donot need to restore any status.
 
-                if (status == WOORT_VM_CALL_STATUS_NORMAL)
-                    // Ok, continue execute.
-                    continue;
-          
-
-                WOORT_VM_RESYNC_STATE();
-                WOORT_VM_CHECKPOINT();
+                if (status == WOORT_VM_CALL_STATUS_RESYNC)
+                {
+                    WOORT_VM_RESYNC_STATE();
+                    WOORT_VM_CHECKPOINT();
+                }
+                assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+                // Ok, continue execute.
+                continue;
             }
             WOORT_VM_THROW(stack_overflow);
         }
@@ -732,17 +736,12 @@ _label_continue_execution:
                 const woort_VmCallStatus status =
                     jit_function(vm, (woort_value*)(rt_sp + 1));
 
-                switch (status)
+                if (status == WOORT_VM_CALL_STATUS_RESYNC)
                 {
-                case WOORT_VM_CALL_STATUS_RESYNC:
                     WOORT_VM_RESYNC_STATE();
                     WOORT_VM_CHECKPOINT();
-                    continue;
-                case WOORT_VM_CALL_STATUS_NORMAL:
-                    break;
-                default:
-                    return status;
                 }
+                assert(status == WOORT_VM_CALL_STATUS_NORMAL);
 
                 // Ok, continue execute.
                 break;
@@ -765,7 +764,7 @@ _label_continue_execution:
             {
             _label_vm_call_impl_calls:
                 target = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_runtime_function;
-            }            
+            }
 
             switch (woort_RuntimeFunction_kind(target))
             {
@@ -776,119 +775,18 @@ _label_continue_execution:
             }
             case WOORT_RUNTIME_FUNCTION_KIND_SCRIPT:
             {
-                rt_sp -= 2;
-                if (rt_sp >= rt_stack)
-                {
-                    // NOTE: CALL 指令处理 WOORT_RUNTIME_FUNCTION_KIND_SCRIPT 时需要
-                    //      考虑可能发生 FAR CALL 的情况
-
-                    rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
-                    rt_sp[2].m_ret_addr = rt_ip + 1;
-
-                    rt_ip = woort_RuntimeFunction_target(target);
-                    if (rt_ip < rt_env_code || rt_ip >= rt_env_code_end)
-                    {
-                        // Far call
-                        rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
-
-                        rt_sb = rt_sp;
-                        WOORT_VM_THROW(env_updated);
-                    }
-                    else
-                    {
-                        rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
-
-                        rt_sb = rt_sp;
-                        continue;
-                    }
-                }
-
-                rt_sp += 2;
-                WOORT_VM_THROW(stack_overflow);
+                // TODO;
+                abort();
             }
             case WOORT_RUNTIME_FUNCTION_KIND_NATIVE:
             {
-                woort_Value* new_sp = rt_sp - 2;
-                if (new_sp >= rt_stack)
-                {
-                    /*
-                    此处保存到状态仅供调试等目的使用，这些状态实际上不被运行时使用
-                    */
-                    new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
-                    new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
-                    new_sp[2].m_ret_addr = /* Update rt_ip to return place. */ ++rt_ip;
-
-                    const woort_NativeFunction native_function =
-                        woort_RuntimeFunction_target(target);
-
-                    // No need to WOORT_VM_SYNC_STATE(), we will do it manually.
-                    vm->m_sb = vm->m_sp = new_sp;
-                    vm->m_ip = (const woort_Bytecode*)native_function;
-
-                    const uint32_t stack_version_before_native_call =
-                        vm->m_stack_realloc_version;
-
-                    const woort_VmCallStatus status = native_function(
-                        vm, (woort_value*)(rt_sp + 1));
-
-                    /*
-                    ATTENTION:
-                        本机调用发生之后，只可能返回到当前调用栈所在的虚拟机函数；
-                    不必考虑 rt_env 改变的情况，因为即便 rt_env 发生改变，回
-                    到此处时，也应当回到旧的 rt_env，所以不需要更新它们。
-
-                        但是，栈空间完全可能在本机调用期间发生改变，在旧版本（1.15
-                    之前）的 Woolang 中，栈空间的更新由调用方负责检查和标记：
-                    现在这部分工作由被调用方负责。
-                    */
-                    WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(
-                        stack_version_before_native_call);
-
-                    // Donot need to restore any status.
-                    if (status == WOORT_VM_CALL_STATUS_NORMAL)
-                    {
-                        // Ok, continue execute.
-                        continue;
-                    }
-                    return status;
-                }
-                WOORT_VM_THROW(stack_overflow);
+                // TODO;
+                abort();
             }
             case WOORT_RUNTIME_FUNCTION_KIND_JIT:
             {
-                rt_sp -= 2;
-                if (rt_sp >= rt_stack)
-                {
-                    rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
-                    rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
-                    rt_sp[2].m_ret_addr = rt_ip + 1;
-
-                    rt_sb = rt_sp;
-
-                    const woort_NativeFunction jit_function =
-                        woort_RuntimeFunction_target(target);
-
-                    const woort_VmCallStatus status =
-                        jit_function(vm, (woort_value*)(rt_sp + 3));
-
-                    switch (status)
-                    {
-                    case WOORT_VM_CALL_STATUS_RESYNC:
-                        WOORT_VM_RESYNC_STATE();
-                        WOORT_VM_CHECKPOINT();
-                        continue;
-                    case WOORT_VM_CALL_STATUS_NORMAL:
-                        break;
-                    default:
-                        return status;
-                    }
-
-                    // Ok, continue execute.
-                    break;
-                }
-
-                rt_sp += 2;
-                WOORT_VM_THROW(stack_overflow);
+                // TODO;
+                abort();
             }
             default:
                 WOORT_VM_THROW(bad_type);
@@ -1760,6 +1658,25 @@ _label_continue_execution:
                 !rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer;
             break;
         }
+        // LDIDXVEC
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDX, 0):
+        {
+            const size_t index =
+                (size_t)rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+
+            woort_GCVec* const gcvec =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_vec;
+
+            if (index >= gcvec->m_length)
+                WOORT_VM_THROW(index_out_of_range);
+
+            woort_DynBox_unbox_no_check(
+                gcvec->m_datas[index],
+                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+
+            break;
+        }
+        //
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
@@ -1774,6 +1691,13 @@ _label_continue_execution:
     return WOORT_VM_CALL_STATUS_NORMAL;
 
 #define WOORT_VM_EXCEPTION_LABEL(NAME) _label_exception_handler_##NAME
+    WOORT_VM_EXCEPTION_LABEL(index_out_of_range) :
+    {
+        WOORT_VM_SYNC_STATE_AND_PANIC(
+            WOORT_PANIC_INDEX_OUT_OF_RANGE,
+            "Index out of range.");
+        WOORT_VM_HANDLED();
+    }
     WOORT_VM_EXCEPTION_LABEL(checkpoint) :
     {
         _woort_VMRuntime_request_checkpoint(vm);
