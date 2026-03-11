@@ -30,3 +30,8 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCSt
 WOORT_NODISCARD int woort_GCString_compare(const woort_GCString* a, const woort_GCString* b);
 
 WOORT_NODISCARD size_t woort_GCString_hash(const woort_GCString* str);
+
+/**
+ * Convert an integer to a GC string.
+ */
+WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int value);

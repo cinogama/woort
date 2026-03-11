@@ -1,6 +1,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
+#include <inttypes.h>
 
 #include "woomem.h"
 #include "woort_gc_string.h"
@@ -69,4 +71,13 @@ WOORT_NODISCARD size_t woort_GCString_hash(const woort_GCString* str)
     }
 
     return hash;
+}
+
+WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int value)
+{
+    // int64_t 最大是 -9223372036854775808，需要最多 21 字节
+    char buffer[32];
+    const int len = snprintf(buffer, sizeof(buffer), "%" PRId64, value);
+
+    return woort_GCString_make_string(buffer, (size_t)len);
 }

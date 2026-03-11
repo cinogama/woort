@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <math.h>
+#include <stdio.h>
+#include <inttypes.h>
 
 WOORT_THREAD_LOCAL woort_VMRuntime* t_this_thread_vm = NULL;
 
@@ -539,7 +541,36 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-        // TODO: WOORT_OPCODE_CASTI
+        // ITORST: 整数转实数存储
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTI, 0):
+        {
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real =
+                (woort_Real)rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            break;
+        }
+        // ITORLD: 整数转实数加载
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTI, 1):
+        {
+            rt_sb[(int16_t)WOORT_BYTECODE(A8, c)].m_real =
+                (woort_Real)rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            break;
+        }
+        // ITOSST: 整数转字符串存储
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTI, 2):
+        {
+            const woort_Int int_val = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_string =
+                woort_GCString_from_integer(int_val);
+            break;
+        }
+        // ITOSLD: 整数转字符串加载
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTI, 3):
+        {
+            const woort_Int int_val = rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            rt_sb[(int16_t)WOORT_BYTECODE(A8, c)].m_string =
+                woort_GCString_from_integer(int_val);
+            break;
+        }
         // TODO: WOORT_OPCODE_CASTR
         // TODO: WOORT_OPCODE_CASTS
 
