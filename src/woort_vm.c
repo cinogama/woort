@@ -957,7 +957,7 @@ _label_continue_execution:
             }
             break;
         }
-        // MKARR
+        // MKVEC
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONS, 0):
         {
             const size_t size = WOORT_BYTECODE(A8, c);
@@ -969,16 +969,14 @@ _label_continue_execution:
             //      会假定整个栈空间都在被使用中，肯定能标记到 gcvec 实例
             woort_GCVec_resize(gcvec, size);
 
-            memcpy(gcvec->m_datas, rt_sp + 1, sizeof(woort_DynBox) * size);
-            _Static_assert(sizeof(woort_DynBox) == sizeof(woort_Value),
-                "To make sure we can use memcpy, woort_DynBox and woort_Value should have same size. ");
+            for (size_t i = 1; i <= size; ++i)
+                gcvec->m_datas[size - i] = rt_sp[i].m_dynamic;
 
             rt_sp += size;
-
             break;
         }
         // TODO: MKMAP
-        
+
         // MKSTRUCT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONS, 2):
         {
@@ -987,7 +985,9 @@ _label_continue_execution:
             woort_GCStruct* const gcstruct = woort_GCStruct_new(size);
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
 
-            memcpy(gcstruct->m_datas, rt_sp + 1, sizeof(woort_Value) * size);
+            for (size_t i = 1; i <= size; ++i)
+                gcstruct->m_datas[size - i] = rt_sp[i];
+
             rt_sp += size;
             break;
         }
@@ -1002,16 +1002,15 @@ _label_continue_execution:
 
             woort_GCVec_resize(gcvec, size);
 
-            memcpy(gcvec->m_datas, rt_sp + 1, sizeof(woort_DynBox) * size);
-            _Static_assert(sizeof(woort_DynBox) == sizeof(woort_Value),
-                "To make sure we can use memcpy, woort_DynBox and woort_Value should have same size. ");
+            for (size_t i = 1; i <= size; ++i)
+                gcvec->m_datas[size - i] = rt_sp[i].m_dynamic;
 
             rt_sp += size;
             rt_ip += 2;
             continue;
         }
         // TODO: MKMAPEXT
-        
+
         // MKSTRUCTEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSEX, 2):
         {
@@ -1020,14 +1019,15 @@ _label_continue_execution:
             woort_GCStruct* const gcstruct = woort_GCStruct_new(size);
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
 
-            memcpy(gcstruct->m_datas, rt_sp + 1, sizeof(woort_Value) * size);
+            for (size_t i = 1; i <= size; ++i)
+                gcstruct->m_datas[size - i] = rt_sp[i];
 
             rt_sp += size;
             rt_ip += 2;
             continue;
         }
         // TODO: WOORT_OPCODE_MKCLOS
-        
+
         // BOXDYN
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 0):
         {
