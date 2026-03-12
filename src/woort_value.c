@@ -95,9 +95,10 @@ WOORT_NODISCARD bool _woort_unbox_bool(uint64_t val)
 
 ////////////////////////////////////////////////////////////////////////
 
-void woort_DynBox_box_real(woort_Real val, woort_DynBox* out_box_val)
+woort_DynBox woort_DynBox_box_real(woort_Real val)
 {
-    if (!_woort_try_box_float63(val, &out_box_val->m_boxed))
+    woort_DynBox result;
+    if (!_woort_try_box_float63(val, &result.m_boxed))
     {
         woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
             O, sizeof(woort_BoxedExValue));
@@ -107,12 +108,14 @@ void woort_DynBox_box_real(woort_Real val, woort_DynBox* out_box_val)
         ex_box->m_is_int = false;
         ex_box->m_real = val;
 
-        out_box_val->m_boxed_ex = ex_box;
+        result.m_boxed_ex = ex_box;
     }
+    return result;
 }
-void woort_DynBox_box_int(woort_Int val, woort_DynBox* out_box_val)
+woort_DynBox woort_DynBox_box_int(woort_Int val)
 {
-    if (!_woort_try_box_int62(val, &out_box_val->m_boxed))
+    woort_DynBox result;
+    if (!_woort_try_box_int62(val, &result.m_boxed))
     {
         woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
             O, sizeof(woort_BoxedExValue));
@@ -122,32 +125,34 @@ void woort_DynBox_box_int(woort_Int val, woort_DynBox* out_box_val)
         ex_box->m_is_int = true;
         ex_box->m_int = val;
 
-        out_box_val->m_boxed_ex = ex_box;
+        result.m_boxed_ex = ex_box;
     }
+    return result;
 }
-void woort_DynBox_box_bool(bool val, woort_DynBox* out_box_val)
+woort_DynBox woort_DynBox_box_bool(bool val)
 {
-    out_box_val->m_boxed = _woort_box_bool(val);
+    woort_DynBox result;
+    result.m_boxed = _woort_box_bool(val);
+    return result;
 }
 
-void woort_DynBox_box(
-    woort_Value val, woort_BoxValueType type, woort_DynBox* out_val)
+woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
 {
     switch (type)
     {
     case WOORT_BOX_VALUE_TYPE_REAL:
-        woort_DynBox_box_real(val.m_real, out_val);
-        break;
+        return woort_DynBox_box_real(val.m_real);
     case WOORT_BOX_VALUE_TYPE_INT:
-        woort_DynBox_box_int(val.m_integer, out_val);
-        break;
+        return woort_DynBox_box_int(val.m_integer);
     case WOORT_BOX_VALUE_TYPE_BOOL:
-        woort_DynBox_box_bool(val.m_integer, out_val);
-        break;
+        return woort_DynBox_box_bool(val.m_integer);
     case WOORT_BOX_VALUE_TYPE_GCUNIT:
     default:
-        out_val->m_boxed_gc_unit = val.m_gcinstance;
-        break;
+    {
+        woort_DynBox result;
+        result.m_boxed_gc_unit = val.m_gcinstance;
+        return result;
+    }
     }
 }
 

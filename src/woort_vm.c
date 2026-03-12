@@ -1229,10 +1229,9 @@ _label_continue_execution:
         // BOXDYN
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 0):
         {
-            woort_DynBox_box(
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = woort_DynBox_box(
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
-                (woort_BoxValueType)WOORT_BYTECODE(A8, c),
-                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
+                (woort_BoxValueType)WOORT_BYTECODE(A8, c));
             break;
         }
         // UNBOXDYN
@@ -1261,10 +1260,9 @@ _label_continue_execution:
         {
             if (rt_sp > rt_stack)
             {
-                woort_DynBox_box(
+                rt_sp->m_dynamic = woort_DynBox_box(
                     rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)],
-                    (woort_BoxValueType)WOORT_BYTECODE(A8, c),
-                    &rt_sp->m_dynamic);
+                    (woort_BoxValueType)WOORT_BYTECODE(A8, c));
                 --rt_sp;
                 break;
             }
