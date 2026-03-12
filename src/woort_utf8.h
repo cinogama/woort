@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <limits.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* 确保 char16_t 和 char32_t 在 C 模式下可用 (MSVC) */
 #if defined(_MSC_VER) && !defined(__cplusplus)
     #ifndef _CHAR16T
@@ -15,10 +19,6 @@
         #define _CHAR32T
         typedef uint32_t char32_t;
     #endif
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 #define WOORT_UTF8MAXLEN MB_LEN_MAX

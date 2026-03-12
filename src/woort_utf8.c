@@ -254,10 +254,13 @@ char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode)
                 case L'\\':
                 case L'"':
                     result[result_len++] = '\\';
-                    [[fallthrough]];
+                    /* fallthrough */
                 default:
-                    for (size_t i = 0; i < this_char_u8_length && result_len < bytelen * 6 + 2; ++i)
-                        result[result_len++] = p[i];
+                    {
+                        size_t i;
+                        for (i = 0; i < this_char_u8_length && result_len < bytelen * 6 + 2; ++i)
+                            result[result_len++] = p[i];
+                    }
                     break;
                 }
             }
@@ -310,11 +313,13 @@ char* woort_u8destring(woort_string_t enu8str_zero_term)
     if (*p == '"')
         ++p;
 
-    while (const char pch = *p)
+    while (*p)
     {
+        const char pch = *p;
         if (pch == '\\')
         {
-            switch (const char pescch = *(++p))
+            const char pescch = *(++p);
+            switch (pescch)
             {
             case 'a': result[result_len++] = '\a'; break;
             case 'b': result[result_len++] = '\b'; break;
