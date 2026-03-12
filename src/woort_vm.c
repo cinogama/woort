@@ -1960,6 +1960,170 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
+        // LDIDXDICTIEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 0):
+        {
+            const woort_Int index =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            const int16_t map_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get_by_int(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            woort_DynBox_unbox_no_check(val, &rt_sb[result_reg]);
+
+            rt_ip += 2;
+            continue;
+        }
+        // LDIDXDICTREXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 1):
+        {
+            const woort_Real index =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real;
+
+            const int16_t map_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get_by_real(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            woort_DynBox_unbox_no_check(val, &rt_sb[result_reg]);
+
+            rt_ip += 2;
+            continue;
+        }
+        // LDIDXDICTBEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 2):
+        {
+            const bool index =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            const int16_t map_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get_by_bool(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            woort_DynBox_unbox_no_check(val, &rt_sb[result_reg]);
+
+            rt_ip += 2;
+            continue;
+        }
+        // LDIDXDICTXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 3):
+        {
+            const woort_DynBox index =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_dynamic;
+
+            const int16_t map_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            woort_DynBox_unbox_no_check(val, &rt_sb[result_reg]);
+
+            rt_ip += 2;
+            continue;
+        }
+        // LDIDXDICTXIEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTXEX, 0):
+        {
+            const woort_Int index =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            const int16_t map_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
+
+            if (!woort_GCMap_get_by_int(gcmap, index, &rt_sb[result_reg].m_dynamic))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            rt_ip += 2;
+            continue;
+        }
+        // LDIDXDICTXREXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTXEX, 1):
+        {
+            const woort_Real index =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real;
+
+            const int16_t map_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
+
+            if (!woort_GCMap_get_by_real(gcmap, index, &rt_sb[result_reg].m_dynamic))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            rt_ip += 2;
+            continue;
+        }
+        // LDIDXDICTXBEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTXEX, 2):
+        {
+            const bool index =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            const int16_t map_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
+
+            if (!woort_GCMap_get_by_bool(gcmap, index, &rt_sb[result_reg].m_dynamic))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            rt_ip += 2;
+            continue;
+        }
+        // LDIDXDICTXXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTXEX, 3):
+        {
+            const woort_DynBox index =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_dynamic;
+
+            const int16_t map_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
+
+            if (!woort_GCMap_get(gcmap, index, &rt_sb[result_reg].m_dynamic))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            rt_ip += 2;
+            continue;
+        }
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
