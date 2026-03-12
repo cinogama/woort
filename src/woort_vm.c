@@ -16,6 +16,7 @@
 #include "woort_gc_map.h"
 #include "woort_gc_struct.h"
 #include "woort_gc_closure.h"
+#include "woort_utf8.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -1688,7 +1689,7 @@ _label_continue_execution:
             if (index >= gcvec->m_length)
                 WOORT_VM_THROW(index_out_of_range);
 
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = 
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic =
                 gcvec->m_datas[index];
 
             break;
@@ -1709,10 +1710,21 @@ _label_continue_execution:
 
             break;
         }
-        // TODO: LDIDSTRING
+        // LDIDSTRING
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDX, 3):
+        {
+            const size_t char_index =
+                (size_t)rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
 
+            const woort_GCString* const gcstr =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string;
 
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                (woort_Int)woort_u8stridx(
+                    gcstr->m_content, gcstr->m_length, char_index);
 
+            break;
+        }
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);

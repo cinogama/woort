@@ -1,4 +1,6 @@
 #include "woort_utf8.h"
+#include "woort_diagnosis.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <wctype.h>
@@ -11,12 +13,12 @@ size_t woort_u8charnlen(const char* u8charp, size_t bytelen)
     {
         const uint8_t u8ch = (uint8_t)(*u8charp);
         int8_t mask = (int8_t)(0b10000000);
-        
+
         for (size_t i = 1; i < WOORT_UTF8MAXLEN; ++i)
         {
             mask >>= 1;
 
-            if ((uint8_t)(mask) != ((uint8_t)(mask) & u8ch)
+            if ((uint8_t)(mask) != ((uint8_t)(mask)&u8ch)
                 || i >= bytelen)
                 return i;
             else
@@ -163,7 +165,7 @@ size_t woort_u8combineu16(const char* u8charp, size_t bytelen, char16_t out_c16[
 {
     char32_t codepoint;
     const size_t charlen = woort_u8combineu32(u8charp, bytelen, &codepoint);
-    
+
     if (charlen == 0)
     {
         out_c16[0] = 0;
@@ -226,23 +228,23 @@ char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode)
 {
     char* result = (char*)malloc(bytelen * 6 + 3);
     if (!result) return NULL;
-    
+
     result[0] = '\0';
     char escape_serial[13];
     size_t result_len = 0;
 
     const char* p = u8str;
     const char* p_end = u8str + bytelen;
-    
+
     result[result_len++] = '"';
-    
+
     while (p != p_end)
     {
         char16_t u16buf[WOORT_UTF16MAXLEN];
         size_t u16len = 0;
 
         const size_t this_char_u8_length = woort_u8combineu16(p, bytelen, u16buf, &u16len);
-        
+
         switch (u16len)
         {
         case 1:
@@ -257,12 +259,12 @@ char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode)
                     result[result_len++] = '\\';
                     /* fallthrough */
                 default:
-                    {
-                        size_t i;
-                        for (i = 0; i < this_char_u8_length && result_len < bytelen * 6 + 2; ++i)
-                            result[result_len++] = p[i];
-                    }
-                    break;
+                {
+                    size_t i;
+                    for (i = 0; i < this_char_u8_length && result_len < bytelen * 6 + 2; ++i)
+                        result[result_len++] = p[i];
+                }
+                break;
                 }
             }
             else
@@ -276,7 +278,7 @@ char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode)
                 {
                     r = snprintf(escape_serial, sizeof(escape_serial), "\\x%02X", (uint8_t)(u16buf[0]));
                 }
-                
+
                 for (int i = 0; i < r && result_len < bytelen * 6 + 2; ++i)
                     result[result_len++] = escape_serial[i];
             }
@@ -286,7 +288,7 @@ char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode)
         {
             int r = snprintf(escape_serial, sizeof(escape_serial), "\\u%04X\\u%04X",
                 (uint16_t)(u16buf[0]), (uint16_t)(u16buf[1]));
-            
+
             for (int i = 0; i < r && result_len < bytelen * 6 + 2; ++i)
                 result[result_len++] = escape_serial[i];
             break;
@@ -295,7 +297,7 @@ char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode)
 
         p += this_char_u8_length;
     }
-    
+
     result[result_len++] = '"';
     result[result_len] = '\0';
 
@@ -307,10 +309,10 @@ char* woort_u8destring(woort_string_t enu8str_zero_term)
     size_t len = strlen(enu8str_zero_term);
     char* result = (char*)malloc(len + 1);
     if (!result) return NULL;
-    
+
     size_t result_len = 0;
     const char* p = enu8str_zero_term;
-    
+
     if (*p == '"')
         ++p;
 
@@ -378,7 +380,7 @@ char* woort_u8destring(woort_string_t enu8str_zero_term)
             }
             case 'u':
             {
-                char16_t hex_u16[WOORT_UTF16MAXLEN] = {0};
+                char16_t hex_u16[WOORT_UTF16MAXLEN] = { 0 };
                 size_t hex_u16_count = 1;
 
                 for (int i = 0; i < 4; i++)
@@ -433,7 +435,7 @@ char* woort_u8destring(woort_string_t enu8str_zero_term)
                     hex_u16_count = 2;
                 }
 
-                char u8buf[WOORT_UTF8MAXLEN] = {0};
+                char u8buf[WOORT_UTF8MAXLEN] = { 0 };
                 size_t u8len = 0;
 
                 if (1 < woort_u16exractu8(hex_u16, hex_u16_count, u8buf, &u8len))
@@ -463,7 +465,7 @@ char32_t* woort_u8strtou32(woort_string_t u8str, size_t bytelen, size_t* out_len
 {
     char32_t* result = (char32_t*)malloc((bytelen + 1) * sizeof(char32_t));
     if (!result) return NULL;
-    
+
     size_t count = 0;
     while (bytelen != 0)
     {
@@ -482,17 +484,17 @@ char* woort_u32strtou8(const char32_t* u32charp, size_t u32len, size_t* out_len)
 {
     char* result = (char*)malloc(u32len * 4 + 1);
     if (!result) return NULL;
-    
+
     size_t result_len = 0;
     while (u32len != 0)
     {
         size_t u8len;
         char u8buf[WOORT_UTF8MAXLEN];
         woort_u32exractu8(*u32charp, u8buf, &u8len);
-        
+
         for (size_t i = 0; i < u8len; ++i)
             result[result_len++] = u8buf[i];
-        
+
         ++u32charp;
         --u32len;
     }
@@ -505,17 +507,17 @@ char16_t* woort_u8strtou16(woort_string_t u8str, size_t bytelen, size_t* out_len
 {
     char16_t* result = (char16_t*)malloc((bytelen * 2 + 1) * sizeof(char16_t));
     if (!result) return NULL;
-    
+
     size_t count = 0;
     while (bytelen != 0)
     {
         char16_t u16buf[WOORT_UTF16MAXLEN];
         size_t u16len = 0;
         const size_t u8forward = woort_u8combineu16(u8str, bytelen, u16buf, &u16len);
-        
+
         for (size_t i = 0; i < u16len; ++i)
             result[count++] = u16buf[i];
-        
+
         u8str += u8forward;
         bytelen -= u8forward;
     }
@@ -528,17 +530,17 @@ char* woort_u16strtou8(const char16_t* u16charp, size_t u16len, size_t* out_len)
 {
     char* result = (char*)malloc(u16len * 3 + 1);
     if (!result) return NULL;
-    
+
     size_t result_len = 0;
     while (u16len != 0)
     {
         char u8buf[WOORT_UTF8MAXLEN];
         size_t u8len;
         const size_t u16forward = woort_u16exractu8(u16charp, u16len, u8buf, &u8len);
-        
+
         for (size_t i = 0; i < u8len; ++i)
             result[result_len++] = u8buf[i];
-        
+
         u16charp += u16forward;
         u16len -= u16forward;
     }
@@ -566,4 +568,26 @@ size_t woort_u32strcount(const char32_t* u32str)
 bool woort_u32isu16(char32_t ch32)
 {
     return ch32 <= (char32_t)(0xFFFFu);
+}
+
+char32_t woort_u8stridx(const char* str, size_t size, size_t index)
+{
+    size_t result_byte_len;
+    const char* u8idx = woort_u8substr(
+        str,
+        size,
+        index,
+        &result_byte_len);
+
+    char32_t ch;
+    if (result_byte_len == 0
+        || 0 == woort_u8combineu32(u8idx, result_byte_len, &ch))
+    {
+        woort_panic(
+            WOORT_PANIC_INDEX_OUT_OF_RANGE,
+            "Index out of range.");
+
+        return 0;
+    }
+    return ch;
 }

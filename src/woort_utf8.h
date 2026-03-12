@@ -1,38 +1,33 @@
 #pragma once
 
+/*
+woort_threads.h
+*/
+
 #include <stddef.h>
 #include <wchar.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <limits.h>
 
-/* 确保 char16_t 和 char32_t 在 C 模式下可用 */
-#ifndef __cplusplus
-    #if defined(_MSC_VER)
-        /* MSVC: 需要手动定义 */
-        #ifndef _CHAR16T
-            #define _CHAR16T
-            typedef uint16_t char16_t;
-        #endif
-        #ifndef _CHAR32T
-            #define _CHAR32T
-            typedef uint32_t char32_t;
-        #endif
-    #elif defined(__GNUC__) && (__STDC_VERSION__ < 202311L)
-        /* GCC/Clang with C < C23: use __CHAR16_TYPE__ and __CHAR32_TYPE__ */
-        #ifndef _CHAR16T
-            #define _CHAR16T
-            typedef __CHAR16_TYPE__ char16_t;
-        #endif
-        #ifndef _CHAR32T
-            #define _CHAR32T
-            typedef __CHAR32_TYPE__ char32_t;
-        #endif
-    #endif
-#endif
-
-#ifdef __cplusplus
-extern "C" {
+#if defined(_MSC_VER)
+#   ifndef _CHAR16T
+#       define _CHAR16T
+typedef uint16_t char16_t;
+#   endif
+#   ifndef _CHAR32T
+#       define _CHAR32T
+typedef uint32_t char32_t;
+#   endif
+#elif defined(__GNUC__) && (__STDC_VERSION__ < 202311L)
+#   ifndef _CHAR16T
+#       define _CHAR16T
+typedef __CHAR16_TYPE__ char16_t;
+#   endif
+#   ifndef _CHAR32T
+#       define _CHAR32T
+typedef __CHAR32_TYPE__ char32_t;
+#   endif
 #endif
 
 #define WOORT_UTF8MAXLEN MB_LEN_MAX
@@ -80,6 +75,9 @@ size_t woort_u32strcount(const char32_t* u32str);
 
 /* 类型判断 */
 bool woort_u32isu16(char32_t ch32);
+
+/* 获取字符 */
+char32_t woort_u8stridx(const char* str, size_t size, size_t index);
 
 #ifdef __cplusplus
 }
