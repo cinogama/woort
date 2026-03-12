@@ -1725,6 +1725,81 @@ _label_continue_execution:
 
             break;
         }
+        // LDIDXVECEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 0):
+        {
+            const size_t index =
+                (size_t)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            const int16_t vec_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCVec* const gcvec = rt_sb[vec_reg].m_vec;
+
+            if (index >= gcvec->m_length)
+                WOORT_VM_THROW(index_out_of_range);
+
+            woort_DynBox_unbox_no_check(
+                gcvec->m_datas[index],
+                &rt_sb[result_reg]);
+
+            rt_ip += 2;
+            continue;
+        }
+        // LDIDXVECXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 1):
+        {
+            const size_t index =
+                (size_t)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            const int16_t vec_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCVec* const gcvec = rt_sb[vec_reg].m_vec;
+
+            if (index >= gcvec->m_length)
+                WOORT_VM_THROW(index_out_of_range);
+
+            rt_sb[result_reg].m_dynamic = gcvec->m_datas[index];
+
+            rt_ip += 2;
+            continue;
+        }
+        // LDIDSTRUCTEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 2):
+        {
+            const size_t index = (size_t)WOORT_BYTECODE(ABC24, c);
+
+            const int16_t struct_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCStruct* const gcstruct = rt_sb[struct_reg].m_struct;
+
+            assert(index < gcstruct->m_size);
+
+            rt_sb[result_reg] = gcstruct->m_datas[index];
+
+            rt_ip += 2;
+            continue;
+        }
+        // LDIDSTRINGEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 3):
+        {
+            const size_t char_index =
+                (size_t)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            const int16_t str_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t result_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            const woort_GCString* const gcstr = rt_sb[str_reg].m_string;
+
+            rt_sb[result_reg].m_integer =
+                (woort_Int)woort_u8stridx(
+                    gcstr->m_content, gcstr->m_length, char_index);
+
+            rt_ip += 2;
+            continue;
+        }
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
