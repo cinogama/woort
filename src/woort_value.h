@@ -115,6 +115,9 @@ typedef enum woort_BoxValueType
         ((uint64_t)kind << 62)                      \
             | (uint64_t)(target))
 
+void woort_DynBox_box_real(woort_Real val, woort_DynBox* out_box_val);
+void woort_DynBox_box_int(woort_Int val, woort_DynBox* out_box_val);
+void woort_DynBox_box_bool(bool val, woort_DynBox* out_box_val);
 void woort_DynBox_box(
     woort_Value val, woort_BoxValueType type, woort_DynBox* out_val);
 

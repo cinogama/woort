@@ -95,7 +95,7 @@ WOORT_NODISCARD bool _woort_unbox_bool(uint64_t val)
 
 ////////////////////////////////////////////////////////////////////////
 
-void woort_box_real(woort_Real val, woort_DynBox* out_box_val)
+void woort_DynBox_box_real(woort_Real val, woort_DynBox* out_box_val)
 {
     if (!_woort_try_box_float63(val, &out_box_val->m_boxed))
     {
@@ -110,7 +110,7 @@ void woort_box_real(woort_Real val, woort_DynBox* out_box_val)
         out_box_val->m_boxed_ex = ex_box;
     }
 }
-void woort_box_int(woort_Int val, woort_DynBox* out_box_val)
+void woort_DynBox_box_int(woort_Int val, woort_DynBox* out_box_val)
 {
     if (!_woort_try_box_int62(val, &out_box_val->m_boxed))
     {
@@ -125,7 +125,7 @@ void woort_box_int(woort_Int val, woort_DynBox* out_box_val)
         out_box_val->m_boxed_ex = ex_box;
     }
 }
-void woort_box_bool(bool val, woort_DynBox* out_box_val)
+void woort_DynBox_box_bool(bool val, woort_DynBox* out_box_val)
 {
     out_box_val->m_boxed = _woort_box_bool(val);
 }
@@ -136,13 +136,13 @@ void woort_DynBox_box(
     switch (type)
     {
     case WOORT_BOX_VALUE_TYPE_REAL:
-        woort_box_real(val.m_real, out_val);
+        woort_DynBox_box_real(val.m_real, out_val);
         break;
     case WOORT_BOX_VALUE_TYPE_INT:
-        woort_box_int(val.m_integer, out_val);
+        woort_DynBox_box_int(val.m_integer, out_val);
         break;
     case WOORT_BOX_VALUE_TYPE_BOOL:
-        woort_box_bool(val.m_integer, out_val);
+        woort_DynBox_box_bool(val.m_integer, out_val);
         break;
     case WOORT_BOX_VALUE_TYPE_GCUNIT:
     default:
