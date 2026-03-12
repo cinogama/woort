@@ -1763,6 +1763,97 @@ _label_continue_execution:
                 val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
             break;
         }
+        // LDIDXDICTB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 2):
+        {
+            const bool index =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get_by_bool(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            woort_DynBox_unbox_no_check(
+                val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+            break;
+        }
+        // LDIDXDICTXI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 0):
+        {
+            const woort_Int index =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get_by_int(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = val;
+            break;
+        }
+        // LDIDXDICTXR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 1):
+        {
+            const woort_Real index =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real;
+
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get_by_real(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = val;
+            break;
+        }
+        // LDIDXDICTXB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 2):
+        {
+            const bool index =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get_by_bool(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = val;
+            break;
+        }
+        // LDIDXDICTXX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 3):
+        {
+            woort_GCUnit* const index =
+                (woort_GCUnit*)rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_gcinstance;
+
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get_by_gcunit(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = val;
+            break;
+        }
         // LDIDXVECEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 0):
         {
@@ -1852,16 +1943,16 @@ _label_continue_execution:
     return WOORT_VM_CALL_STATUS_NORMAL;
 
 #define WOORT_VM_EXCEPTION_LABEL(NAME) _label_exception_handler_##NAME
+    WOORT_VM_EXCEPTION_LABEL(checkpoint) :
+    {
+        _woort_VMRuntime_request_checkpoint(vm);
+        WOORT_VM_HANDLED();
+    }
     WOORT_VM_EXCEPTION_LABEL(index_out_of_range) :
     {
         WOORT_VM_SYNC_STATE_AND_PANIC(
             WOORT_PANIC_INDEX_OUT_OF_RANGE,
             "Index out of range.");
-        WOORT_VM_HANDLED();
-    }
-    WOORT_VM_EXCEPTION_LABEL(checkpoint) :
-    {
-        _woort_VMRuntime_request_checkpoint(vm);
         WOORT_VM_HANDLED();
     }
     WOORT_VM_EXCEPTION_LABEL(stack_overflow) :
