@@ -261,3 +261,107 @@ WOORT_NODISCARD bool woort_GCMap_set(woort_GCMap* gcmap, woort_DynBox key, woort
     woort_GC_mixed_write_barrier_dynbox(&gcmap->m_buckets[idx].m_val, val);
     return true;
 }
+
+////////////////////////////////////////////////////////////////////////
+// 类型特化的查找函数：避免内存分配
+////////////////////////////////////////////////////////////////////////
+
+WOORT_NODISCARD bool woort_GCMap_get_by_int(woort_GCMap* gcmap, woort_Int key, woort_DynBox* out_val)
+{
+    if (gcmap->m_size == 0)
+        return false;
+
+    // 直接使用整数哈希，避免装箱分配
+    const size_t hash = _woort_hash_int(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    uint32_t idx = gcmap->m_entries[entry_idx];
+    while (idx != NULL_BUCKET_INDEX)
+    {
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
+        if (woort_DynBox_equal_int(bucket->m_key, key))
+        {
+            if (out_val != NULL)
+                *out_val = bucket->m_val;
+            return true;
+        }
+        idx = bucket->m_next;
+    }
+
+    return false;
+}
+
+WOORT_NODISCARD bool woort_GCMap_get_by_real(woort_GCMap* gcmap, woort_Real key, woort_DynBox* out_val)
+{
+    if (gcmap->m_size == 0)
+        return false;
+
+    // 直接使用浮点数哈希，避免装箱分配
+    const size_t hash = _woort_hash_real(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    uint32_t idx = gcmap->m_entries[entry_idx];
+    while (idx != NULL_BUCKET_INDEX)
+    {
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
+        if (woort_DynBox_equal_real(bucket->m_key, key))
+        {
+            if (out_val != NULL)
+                *out_val = bucket->m_val;
+            return true;
+        }
+        idx = bucket->m_next;
+    }
+
+    return false;
+}
+
+WOORT_NODISCARD bool woort_GCMap_get_by_bool(woort_GCMap* gcmap, bool key, woort_DynBox* out_val)
+{
+    if (gcmap->m_size == 0)
+        return false;
+
+    // 布尔值的哈希就是 0 或 1
+    const size_t hash = key ? 1 : 0;
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    uint32_t idx = gcmap->m_entries[entry_idx];
+    while (idx != NULL_BUCKET_INDEX)
+    {
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
+        if (woort_DynBox_equal_bool(bucket->m_key, key))
+        {
+            if (out_val != NULL)
+                *out_val = bucket->m_val;
+            return true;
+        }
+        idx = bucket->m_next;
+    }
+
+    return false;
+}
+
+WOORT_NODISCARD bool woort_GCMap_get_by_gcunit(woort_GCMap* gcmap, woort_GCUnit* key, woort_DynBox* out_val)
+{
+    if (gcmap->m_size == 0)
+        return false;
+
+    // GCUnit 使用指针地址的哈希
+    const size_t hash = _woort_hash_int((woort_Int)(uintptr_t)key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    uint32_t idx = gcmap->m_entries[entry_idx];
+    while (idx != NULL_BUCKET_INDEX)
+    {
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
+        if (woort_DynBox_equal_gcunit(bucket->m_key, key))
+        {
+            if (out_val != NULL)
+                *out_val = bucket->m_val;
+            return true;
+        }
+        idx = bucket->m_next;
+    }
+
+    return false;
+}

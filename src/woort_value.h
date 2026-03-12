@@ -133,3 +133,40 @@ void woort_DynBox_unbox_no_check(
 
 WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val);
 WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b);
+
+////////////////////////////////////////////////////////////////////////
+// 内部函数：用于类型特化操作，避免装箱分配
+////////////////////////////////////////////////////////////////////////
+
+// 整数/浮点数/布尔值的哈希函数
+WOORT_NODISCARD size_t _woort_hash_int(woort_Int val);
+WOORT_NODISCARD size_t _woort_hash_real(woort_Real val);
+
+// 解装箱函数
+WOORT_NODISCARD double _woort_unbox_float64(woort_BoxedFloat63 val);
+WOORT_NODISCARD woort_Int _woort_unbox_int64(woort_BoxedInt62 val);
+WOORT_NODISCARD bool _woort_unbox_bool(uint64_t val);
+
+// 扩展装箱类型的 proxy
+extern const woort_GCUnitProxy _ex_box_proxy;
+
+// 扩展装箱类型：用于存储超出内联范围的整数或浮点数
+typedef struct woort_BoxedExValue
+{
+    woort_GCUnit m_unit;
+    bool m_is_int;
+    union
+    {
+        woort_Real m_real;
+        woort_Int m_int;
+    };
+} woort_BoxedExValue;
+
+////////////////////////////////////////////////////////////////////////
+// 类型特化的比较函数：避免装箱分配
+////////////////////////////////////////////////////////////////////////
+
+WOORT_NODISCARD bool woort_DynBox_equal_int(woort_DynBox boxed_key, woort_Int int_key);
+WOORT_NODISCARD bool woort_DynBox_equal_real(woort_DynBox boxed_key, woort_Real real_key);
+WOORT_NODISCARD bool woort_DynBox_equal_bool(woort_DynBox boxed_key, bool bool_key);
+WOORT_NODISCARD bool woort_DynBox_equal_gcunit(woort_DynBox boxed_key, woort_GCUnit* gcunit_key);

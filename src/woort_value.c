@@ -95,17 +95,6 @@ WOORT_NODISCARD bool _woort_unbox_bool(uint64_t val)
 
 ////////////////////////////////////////////////////////////////////////
 
-typedef struct woort_BoxedExValue
-{
-    woort_GCUnit m_unit;
-    bool m_is_int;
-    union
-    {
-        woort_Real m_real;
-        woort_Int m_int;
-    };
-}woort_BoxedExValue;
-
 void woort_box_real(woort_Real val, woort_DynBox* out_box_val)
 {
     if (!_woort_try_box_float63(val, &out_box_val->m_boxed))
@@ -385,4 +374,66 @@ WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b)
 
     // Other GC types: pointer equality (already checked above if m_boxed == b.m_boxed)
     return false;
+}
+
+////////////////////////////////////////////////////////////////////////
+// 类型特化的比较函数：避免装箱分配
+////////////////////////////////////////////////////////////////////////
+
+WOORT_NODISCARD bool woort_DynBox_equal_int(woort_DynBox boxed_key, woort_Int int_key)
+{
+    // 检查内联 int62
+    if (boxed_key.m_boxed & 0b0111)
+    {
+        if (0 == (0b011 & (boxed_key.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
+            return _woort_unbox_int64(boxed_key.m_boxed) == int_key;
+        return false;
+    }
+
+    // 检查 ex value
+    woort_GCUnit* const gc_unit = boxed_key.m_boxed_gc_unit;
+    if (gc_unit->m_proxy == &_ex_box_proxy
+        && boxed_key.m_boxed_ex->m_is_int)
+    {
+        return boxed_key.m_boxed_ex->m_int == int_key;
+    }
+
+    return false;
+}
+
+WOORT_NODISCARD bool woort_DynBox_equal_real(woort_DynBox boxed_key, woort_Real real_key)
+{
+    // 检查内联 float63
+    if (boxed_key.m_boxed & 0b0111)
+    {
+        if (0b01 & boxed_key.m_boxed)
+            return _woort_unbox_float64(boxed_key.m_boxed) == real_key;
+        return false;
+    }
+
+    // 检查 ex value
+    woort_GCUnit* const gc_unit = boxed_key.m_boxed_gc_unit;
+    if (gc_unit->m_proxy == &_ex_box_proxy
+        && !boxed_key.m_boxed_ex->m_is_int)
+    {
+        return boxed_key.m_boxed_ex->m_real == real_key;
+    }
+
+    return false;
+}
+
+WOORT_NODISCARD bool woort_DynBox_equal_bool(woort_DynBox boxed_key, bool bool_key)
+{
+    if (0 == (0b0111 & (boxed_key.m_boxed ^ WOORT_BOX_VALUE_TYPE_BOOL)))
+        return _woort_unbox_bool(boxed_key.m_boxed) == bool_key;
+    return false;
+}
+
+WOORT_NODISCARD bool woort_DynBox_equal_gcunit(woort_DynBox boxed_key, woort_GCUnit* gcunit_key)
+{
+    // GCUnit 类型：低 3 位必须为 0
+    if (boxed_key.m_boxed & 0b0111)
+        return false;
+
+    return boxed_key.m_boxed_gc_unit == gcunit_key;
 }

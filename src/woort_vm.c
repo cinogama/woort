@@ -1725,6 +1725,44 @@ _label_continue_execution:
 
             break;
         }
+        // LDIDXDICTI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 0):
+        {
+            const woort_Int index =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+
+            woort_GCMap* const gcmap = 
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get_by_int(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            woort_DynBox_unbox_no_check(
+                val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+            break;
+        }
+        // LDIDXDICTR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 1):
+        {
+            const woort_Real index =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real;
+
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get_by_real(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            woort_DynBox_unbox_no_check(
+                val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+            break;
+        }
         // LDIDXVECEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 0):
         {
