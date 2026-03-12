@@ -6,20 +6,33 @@
 #include <stdbool.h>
 #include <limits.h>
 
-#ifdef __cplusplus
-extern "C" {
+/* 确保 char16_t 和 char32_t 在 C 模式下可用 */
+#ifndef __cplusplus
+    #if defined(_MSC_VER)
+        /* MSVC: 需要手动定义 */
+        #ifndef _CHAR16T
+            #define _CHAR16T
+            typedef uint16_t char16_t;
+        #endif
+        #ifndef _CHAR32T
+            #define _CHAR32T
+            typedef uint32_t char32_t;
+        #endif
+    #elif defined(__GNUC__) && (__STDC_VERSION__ < 202311L)
+        /* GCC/Clang with C < C23: use __CHAR16_TYPE__ and __CHAR32_TYPE__ */
+        #ifndef _CHAR16T
+            #define _CHAR16T
+            typedef __CHAR16_TYPE__ char16_t;
+        #endif
+        #ifndef _CHAR32T
+            #define _CHAR32T
+            typedef __CHAR32_TYPE__ char32_t;
+        #endif
+    #endif
 #endif
 
-/* 确保 char16_t 和 char32_t 在 C 模式下可用 (MSVC) */
-#if defined(_MSC_VER) && !defined(__cplusplus)
-    #ifndef _CHAR16T
-        #define _CHAR16T
-        typedef uint16_t char16_t;
-    #endif
-    #ifndef _CHAR32T
-        #define _CHAR32T
-        typedef uint32_t char32_t;
-    #endif
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #define WOORT_UTF8MAXLEN MB_LEN_MAX
