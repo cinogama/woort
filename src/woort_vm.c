@@ -1782,6 +1782,31 @@ _label_continue_execution:
                 val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
             break;
         }
+        // LDIDXDICTX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 3):
+        {
+            const woort_DynBox index =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_dynamic;
+
+            // NOTE: LDIDXDICTX 用于索引类型为 dynamic 或者 gcunit 的情况
+            //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
+            //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
+            // 
+            // TODO: 需要额外的断言检查
+
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
+
+            woort_DynBox val;
+            if (!woort_GCMap_get(gcmap, index, &val))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            woort_DynBox_unbox_no_check(
+                val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+            break;
+        }
         // LDIDXDICTXI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 0):
         {
@@ -1791,13 +1816,13 @@ _label_continue_execution:
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            woort_DynBox val;
-            if (!woort_GCMap_get_by_int(gcmap, index, &val))
+            if (!woort_GCMap_get_by_int(
+                gcmap, 
+                index, 
+                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic))
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
-
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = val;
             break;
         }
         // LDIDXDICTXR
@@ -1809,13 +1834,13 @@ _label_continue_execution:
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            woort_DynBox val;
-            if (!woort_GCMap_get_by_real(gcmap, index, &val))
+            if (!woort_GCMap_get_by_real(
+                gcmap, 
+                index, 
+                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic))
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
-
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = val;
             break;
         }
         // LDIDXDICTXB
@@ -1827,31 +1852,37 @@ _label_continue_execution:
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            woort_DynBox val;
-            if (!woort_GCMap_get_by_bool(gcmap, index, &val))
+            if (!woort_GCMap_get_by_bool(
+                gcmap, 
+                index, 
+                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic))
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
-
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = val;
             break;
         }
         // LDIDXDICTXX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 3):
         {
-            woort_GCUnit* const index =
-                (woort_GCUnit*)rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_gcinstance;
+            const woort_DynBox index =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_dynamic;
+
+            // NOTE: LDIDXDICTX 用于索引类型为 dynamic 或者 gcunit 的情况
+            //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
+            //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
+            // 
+            // TODO: 需要额外的断言检查
 
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            woort_DynBox val;
-            if (!woort_GCMap_get_by_gcunit(gcmap, index, &val))
+            if (!woort_GCMap_get(
+                gcmap, 
+                index, 
+                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic))
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
-
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = val;
             break;
         }
         // LDIDXVECEXT

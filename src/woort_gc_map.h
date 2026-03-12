@@ -45,4 +45,3 @@ WOORT_NODISCARD bool woort_GCMap_set(woort_GCMap* gcmap, woort_DynBox key, woort
 WOORT_NODISCARD bool woort_GCMap_get_by_int(woort_GCMap* gcmap, woort_Int key, woort_DynBox* out_val);
 WOORT_NODISCARD bool woort_GCMap_get_by_real(woort_GCMap* gcmap, woort_Real key, woort_DynBox* out_val);
 WOORT_NODISCARD bool woort_GCMap_get_by_bool(woort_GCMap* gcmap, bool key, woort_DynBox* out_val);
-WOORT_NODISCARD bool woort_GCMap_get_by_gcunit(woort_GCMap* gcmap, woort_GCUnit* key, woort_DynBox* out_val);
