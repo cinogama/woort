@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <wctype.h>
 #include <string.h>
+#include <stdbool.h>
 
 size_t woort_u8charnlen(const char* u8charp, size_t bytelen)
 {

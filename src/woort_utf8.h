@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <wchar.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <limits.h>
 
 #ifdef __cplusplus
