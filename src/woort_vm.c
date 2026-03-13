@@ -2555,6 +2555,278 @@ _label_continue_execution:
 
             break;
         }
+        // STIDXMAPII
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPI, 0):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const woort_Int key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_int(gcmap, key);
+
+            woort_DynBox_box_int_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+            break;
+        }
+        // STIDXMAPIR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPI, 1):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const woort_Int key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_int(gcmap, key);
+
+            woort_DynBox_box_real_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
+
+            break;
+        }
+        // STIDXMAPIB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPI, 2):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const woort_Int key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_int(gcmap, key);
+
+            woort_DynBox_box_bool_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+            break;
+        }
+        // STIDXMAPIX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPI, 3):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const woort_Int key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_int(gcmap, key);
+
+            // NOTE: STIDXMAPIX 用于值类型为 dynamic 或者 gcunit 的情况
+            //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
+            //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
+            //
+            // TODO: 需要额外的断言检查
+            woort_GC_mixed_write_barrier_dynbox(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
+
+            break;
+        }
+        // STIDXMAPRI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPR, 0):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const woort_Real key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_real;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_real(gcmap, key);
+
+            woort_DynBox_box_int_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+            break;
+        }
+        // STIDXMAPRR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPR, 1):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const woort_Real key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_real;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_real(gcmap, key);
+
+            woort_DynBox_box_real_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
+
+            break;
+        }
+        // STIDXMAPRB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPR, 2):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const woort_Real key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_real;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_real(gcmap, key);
+
+            woort_DynBox_box_bool_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+            break;
+        }
+        // STIDXMAPRX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPR, 3):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const woort_Real key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_real;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_real(gcmap, key);
+
+            // NOTE: STIDXMAPRX 用于值类型为 dynamic 或者 gcunit 的情况
+            woort_GC_mixed_write_barrier_dynbox(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
+
+            break;
+        }
+        // STIDXMAPBI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPB, 0):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const bool key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer != 0;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_bool(gcmap, key);
+
+            woort_DynBox_box_int_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+            break;
+        }
+        // STIDXMAPBR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPB, 1):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const bool key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer != 0;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_bool(gcmap, key);
+
+            woort_DynBox_box_real_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
+
+            break;
+        }
+        // STIDXMAPBB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPB, 2):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const bool key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer != 0;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_bool(gcmap, key);
+
+            woort_DynBox_box_bool_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+            break;
+        }
+        // STIDXMAPBX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPB, 3):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            const bool key =
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer != 0;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_bool(gcmap, key);
+
+            // NOTE: STIDXMAPBX 用于值类型为 dynamic 或者 gcunit 的情况
+            woort_GC_mixed_write_barrier_dynbox(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
+
+            break;
+        }
+        // STIDXMAPXI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPX, 0):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_dynbox(
+                    gcmap, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
+
+            woort_DynBox_box_int_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+            break;
+        }
+        // STIDXMAPXR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPX, 1):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_dynbox(
+                    gcmap, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
+
+            woort_DynBox_box_real_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
+
+            break;
+        }
+        // STIDXMAPXB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPX, 2):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_dynbox(
+                    gcmap, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
+
+            woort_DynBox_box_bool_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+            break;
+        }
+        // STIDXMAPXX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPX, 3):
+        {
+            woort_GCMap* const gcmap =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
+
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_or_create_bucket_val_by_dynbox(
+                    gcmap, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
+
+            // NOTE: STIDXMAPXX 用于键和值类型均为 dynamic 或者 gcunit 的情况
+            woort_GC_mixed_write_barrier_dynbox(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
+
+            break;
+        }
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
