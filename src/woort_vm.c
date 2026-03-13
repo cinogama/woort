@@ -2122,6 +2122,84 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
+        // STIDXVECI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 0):
+        {
+            woort_GCVec* const gcvec =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_vec;
+
+            const size_t index =
+                (size_t)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
+
+            if (index >= gcvec->m_length)
+                WOORT_VM_THROW(index_out_of_range);
+
+            woort_GC_mixed_write_barrier_dynbox(
+                &gcvec->m_datas[index],
+                woort_DynBox_box_int(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
+
+            break;
+        }
+        // STIDXVECR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 1):
+        {
+            woort_GCVec* const gcvec =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_vec;
+
+            const size_t index =
+                (size_t)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
+
+            if (index >= gcvec->m_length)
+                WOORT_VM_THROW(index_out_of_range);
+
+            woort_GC_mixed_write_barrier_dynbox(
+                &gcvec->m_datas[index],
+                woort_DynBox_box_real(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real));
+
+            break;
+        }
+        // STIDXVECB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 2):
+        {
+            woort_GCVec* const gcvec =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_vec;
+
+            const size_t index =
+                (size_t)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
+
+            if (index >= gcvec->m_length)
+                WOORT_VM_THROW(index_out_of_range);
+
+            woort_GC_mixed_write_barrier_dynbox(
+                &gcvec->m_datas[index],
+                woort_DynBox_box_bool(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
+
+            break;
+        }
+        // STIDXVECX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 3):
+        {
+            woort_GCVec* const gcvec =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_vec;
+
+            const size_t index =
+                (size_t)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
+
+            if (index >= gcvec->m_length)
+                WOORT_VM_THROW(index_out_of_range);
+
+            // NOTE: STIDXVECX 用于索引类型为 dynamic 或者 gcunit 的情况
+            //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
+            //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
+            // 
+            // TODO: 需要额外的断言检查
+
+            woort_GC_mixed_write_barrier_dynbox(
+                &gcvec->m_datas[index],
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
+
+            break;
+        }
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
