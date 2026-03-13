@@ -349,3 +349,159 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_dynbo
 
     return NULL;
 }
+
+////////////////////////////////////////////////////////////////////////
+// 类型特化的查找或创建函数（返回指针）：用于原地修改，不存在则创建
+////////////////////////////////////////////////////////////////////////
+
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_int(
+    woort_GCMap* gcmap, woort_Int key)
+{
+    // 先尝试查找已存在的 key
+    woort_DynBox* const existing = woort_GCMap_get_bucket_val_by_int(gcmap, key);
+    if (existing != NULL)
+        return existing;
+
+    // 未找到，创建新的 bucket
+    if (gcmap->m_size >= gcmap->m_mask)
+        woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
+
+    const size_t hash = _woort_hash_int(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    const uint32_t new_idx = (uint32_t)gcmap->m_size;
+    woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+    woort_DynBox_box_int_with_barrier(&new_bucket->m_key, key);
+    new_bucket->m_next = NULL_BUCKET_INDEX;
+    new_bucket->m_prev = NULL_BUCKET_INDEX;
+
+    // 将新 bucket 链接到链表头部
+    const uint32_t head_idx = gcmap->m_entries[entry_idx];
+    if (head_idx == NULL_BUCKET_INDEX)
+    {
+        gcmap->m_entries[entry_idx] = new_idx;
+    }
+    else
+    {
+        new_bucket->m_next = head_idx;
+        gcmap->m_buckets[head_idx].m_prev = new_idx;
+        gcmap->m_entries[entry_idx] = new_idx;
+    }
+
+    ++gcmap->m_size;
+    return &new_bucket->m_val;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_real(
+    woort_GCMap* gcmap, woort_Real key)
+{
+    // 先尝试查找已存在的 key
+    woort_DynBox* const existing = woort_GCMap_get_bucket_val_by_real(gcmap, key);
+    if (existing != NULL)
+        return existing;
+
+    // 未找到，创建新的 bucket
+    if (gcmap->m_size >= gcmap->m_mask)
+        woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
+
+    const size_t hash = _woort_hash_real(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    const uint32_t new_idx = (uint32_t)gcmap->m_size;
+    woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+    woort_DynBox_box_real_with_barrier(&new_bucket->m_key, key);
+    new_bucket->m_next = NULL_BUCKET_INDEX;
+    new_bucket->m_prev = NULL_BUCKET_INDEX;
+
+    // 将新 bucket 链接到链表头部
+    const uint32_t head_idx = gcmap->m_entries[entry_idx];
+    if (head_idx == NULL_BUCKET_INDEX)
+    {
+        gcmap->m_entries[entry_idx] = new_idx;
+    }
+    else
+    {
+        new_bucket->m_next = head_idx;
+        gcmap->m_buckets[head_idx].m_prev = new_idx;
+        gcmap->m_entries[entry_idx] = new_idx;
+    }
+
+    ++gcmap->m_size;
+    return &new_bucket->m_val;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_bool(
+    woort_GCMap* gcmap, bool key)
+{
+    // 先尝试查找已存在的 key
+    woort_DynBox* const existing = woort_GCMap_get_bucket_val_by_bool(gcmap, key);
+    if (existing != NULL)
+        return existing;
+
+    // 未找到，创建新的 bucket
+    if (gcmap->m_size >= gcmap->m_mask)
+        woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
+
+    const size_t hash = key ? 1 : 0;
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    const uint32_t new_idx = (uint32_t)gcmap->m_size;
+    woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+    woort_DynBox_box_bool_with_barrier(&new_bucket->m_key, key);
+    new_bucket->m_next = NULL_BUCKET_INDEX;
+    new_bucket->m_prev = NULL_BUCKET_INDEX;
+
+    // 将新 bucket 链接到链表头部
+    const uint32_t head_idx = gcmap->m_entries[entry_idx];
+    if (head_idx == NULL_BUCKET_INDEX)
+    {
+        gcmap->m_entries[entry_idx] = new_idx;
+    }
+    else
+    {
+        new_bucket->m_next = head_idx;
+        gcmap->m_buckets[head_idx].m_prev = new_idx;
+        gcmap->m_entries[entry_idx] = new_idx;
+    }
+
+    ++gcmap->m_size;
+    return &new_bucket->m_val;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_dynbox(
+    woort_GCMap* gcmap, woort_DynBox key)
+{
+    // 先尝试查找已存在的 key
+    woort_DynBox* const existing = woort_GCMap_get_bucket_val_by_dynbox(gcmap, key);
+    if (existing != NULL)
+        return existing;
+
+    // 未找到，创建新的 bucket
+    if (gcmap->m_size >= gcmap->m_mask)
+        woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
+
+    const size_t hash = woort_DynBox_hash(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    const uint32_t new_idx = (uint32_t)gcmap->m_size;
+    woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+    woort_GC_mixed_write_barrier_dynbox(&new_bucket->m_key, key);
+    new_bucket->m_next = NULL_BUCKET_INDEX;
+    new_bucket->m_prev = NULL_BUCKET_INDEX;
+
+    // 将新 bucket 链接到链表头部
+    const uint32_t head_idx = gcmap->m_entries[entry_idx];
+    if (head_idx == NULL_BUCKET_INDEX)
+    {
+        gcmap->m_entries[entry_idx] = new_idx;
+    }
+    else
+    {
+        new_bucket->m_next = head_idx;
+        gcmap->m_buckets[head_idx].m_prev = new_idx;
+        gcmap->m_entries[entry_idx] = new_idx;
+    }
+
+    ++gcmap->m_size;
+    return &new_bucket->m_val;
+}
