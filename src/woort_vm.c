@@ -672,7 +672,7 @@ _label_continue_execution:
         // CALLNFP
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_CALLNFP):
         {
-            woort_Value* new_sp = rt_sp - 2;
+            woort_Value* const new_sp = rt_sp - 2;
             if (new_sp >= rt_stack)
             {
                 /*
@@ -724,12 +724,12 @@ _label_continue_execution:
         // CALLNJIT
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_CALLNJIT):
         {
-            woort_Value* new_sp = rt_sp - 2;
+            woort_Value* const new_sp = rt_sp - 2;
             if (new_sp >= rt_stack)
             {
                 new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
                 new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
-                new_sp[2].m_ret_addr = rt_ip + 1;
+                new_sp[2].m_ret_addr = ++rt_ip;
 
                 const woort_NativeFunction jit_function =
                     rt_env_data[WOORT_BYTECODE(MABC26, c)].m_native_or_jit_function;
@@ -745,7 +745,7 @@ _label_continue_execution:
                 assert(status == WOORT_VM_CALL_STATUS_NORMAL);
 
                 // Ok, continue execute.
-                break;
+                continue;
             }
             WOORT_VM_THROW(stack_overflow);
         }
@@ -758,7 +758,6 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CALL, 1):
         {
             woort_RuntimeFunction target;
-
             if (1)
                 target = rt_env_data[WOORT_BYTECODE(ABC24, c)].m_runtime_function;
             else
@@ -767,31 +766,141 @@ _label_continue_execution:
                 target = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_runtime_function;
             }
 
+            void* function_taregt = woort_RuntimeFunction_target(target);
             switch (woort_RuntimeFunction_kind(target))
             {
             case WOORT_RUNTIME_FUNCTION_KIND_CLOSURE:
             {
-                // TODO;
-                abort();
+                const woort_GCClosure* const gcclosure = function_taregt;
+
+                woort_Value* const new_bp = rt_sp - 2;
+                woort_Value* const new_sp = new_bp - gcclosure->m_size;
+
+                if (new_sp >= rt_stack)
+                {
+                    // Unpack captured arguments.
+                    memcpy(new_sp + 1, gcclosure->m_datas, sizeof(woort_Value) * gcclosure->m_size);
+
+                    function_taregt = woort_RuntimeFunction_target(gcclosure->m_func);
+                    switch (woort_RuntimeFunction_kind(gcclosure->m_func))
+                    {
+                    case WOORT_RUNTIME_FUNCTION_KIND_SCRIPT:
+                    case WOORT_RUNTIME_FUNCTION_KIND_NATIVE:
+                    case WOORT_RUNTIME_FUNCTION_KIND_JIT:
+                    default:
+                        WOORT_VM_THROW(bad_type);
+                    }
+                }
+
+                WOORT_VM_THROW(stack_overflow);
             }
             case WOORT_RUNTIME_FUNCTION_KIND_SCRIPT:
             {
-                // TODO;
-                abort();
+                rt_sp -= 2;
+                if (rt_sp >= rt_stack)
+                {
+                    /*
+                    CALL 可能发生 FAR_CALL，需要在跳转完成之后检查是否是 FAR CALL
+                    */
+                    rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                    rt_sp[2].m_ret_addr = rt_ip + 1;
+
+                    rt_sb = rt_sp;
+
+                    rt_ip = function_taregt;
+                    if (rt_ip >= rt_env_code_end || rt_ip < rt_env_code)
+                    {
+                        // 已经跳出当前 env 的代码段，触发一个 env_updated.
+                        rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
+                        // Update env.
+                        WOORT_VM_THROW(env_updated);
+                    }
+
+                    rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
+                    continue;
+                }
+
+                rt_sp += 2;
+                WOORT_VM_THROW(stack_overflow);
             }
             case WOORT_RUNTIME_FUNCTION_KIND_NATIVE:
             {
-                // TODO;
-                abort();
+                woort_Value* const new_sp = rt_sp - 2;
+                if (new_sp >= rt_stack)
+                {
+                    /*
+                    此处保存到状态仅供调试等目的使用，这些状态实际上不被运行时使用
+                    */
+                    new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
+                    new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                    new_sp[2].m_ret_addr = /* Update rt_ip to return place. */ ++rt_ip;
+
+                    // No need to WOORT_VM_SYNC_STATE(), we will do it manually.
+                    vm->m_sb = vm->m_sp = new_sp;
+                    vm->m_ip = function_taregt;
+
+                    const uint32_t stack_version_before_native_call =
+                        vm->m_stack_realloc_version;
+
+                    const woort_VmCallStatus status =
+                        (*(woort_NativeFunction)function_taregt)(
+                            vm, (woort_value*)(rt_sp + 1));
+
+                    /*
+                    ATTENTION:
+                        本机调用发生之后，只可能返回到当前调用栈所在的虚拟机函数；
+                    不必考虑 rt_env 改变的情况，因为即便 rt_env 发生改变，回
+                    到此处时，也应当回到旧的 rt_env，所以不需要更新它们。
+
+                        但是，栈空间完全可能在本机调用期间发生改变，在旧版本（1.15
+                    之前）的 Woolang 中，栈空间的更新由调用方负责检查和标记：
+                    现在这部分工作由被调用方负责。
+                    */
+                    WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(
+                        stack_version_before_native_call);
+
+                    // Donot need to restore any status.
+
+                    if (status == WOORT_VM_CALL_STATUS_RESYNC)
+                    {
+                        WOORT_VM_RESYNC_STATE();
+                        WOORT_VM_CHECKPOINT();
+                    }
+                    assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+                    // Ok, continue execute.
+                    continue;
+                }
+                WOORT_VM_THROW(stack_overflow);
             }
             case WOORT_RUNTIME_FUNCTION_KIND_JIT:
             {
-                // TODO;
-                abort();
+                woort_Value* const new_sp = rt_sp - 2;
+                if (new_sp >= rt_stack)
+                {
+                    new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
+                    new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                    new_sp[2].m_ret_addr = ++rt_ip;
+
+                    const woort_VmCallStatus status =
+                        (*(woort_NativeFunction)function_taregt)(
+                            vm, (woort_value*)(rt_sp + 1));
+
+                    if (status == WOORT_VM_CALL_STATUS_RESYNC)
+                    {
+                        WOORT_VM_RESYNC_STATE();
+                        WOORT_VM_CHECKPOINT();
+                    }
+                    assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+
+                    // Ok, continue execute.
+                    continue;
+                }
+                WOORT_VM_THROW(stack_overflow);
             }
             default:
                 WOORT_VM_THROW(bad_type);
             }
+            break;
         }
         // RET
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 0):
@@ -1872,8 +1981,8 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
             if (!woort_GCMap_get(
-                gcmap, 
-                index, 
+                gcmap,
+                index,
                 &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic))
             {
                 WOORT_VM_THROW(index_out_of_range);
