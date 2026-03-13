@@ -1729,17 +1729,17 @@ _label_continue_execution:
             const woort_Int index =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
 
-            woort_GCMap* const gcmap = 
+            woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            woort_DynBox val;
-            if (!woort_GCMap_get_by_int(gcmap, index, &val))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_int(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
 
             woort_DynBox_unbox_no_check(
-                val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+                *val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
             break;
         }
         // LDIDXDICTR
@@ -1751,14 +1751,14 @@ _label_continue_execution:
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            woort_DynBox val;
-            if (!woort_GCMap_get_by_real(gcmap, index, &val))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_real(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
 
             woort_DynBox_unbox_no_check(
-                val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+                *val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
             break;
         }
         // LDIDXDICTB
@@ -1770,14 +1770,14 @@ _label_continue_execution:
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            woort_DynBox val;
-            if (!woort_GCMap_get_by_bool(gcmap, index, &val))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_bool(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
 
             woort_DynBox_unbox_no_check(
-                val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+                *val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
             break;
         }
         // LDIDXDICTX
@@ -1814,13 +1814,12 @@ _label_continue_execution:
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            if (!woort_GCMap_get_by_int(
-                gcmap, 
-                index, 
-                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_int(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
             break;
         }
         // LDIDXDICTXR
@@ -1832,13 +1831,12 @@ _label_continue_execution:
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            if (!woort_GCMap_get_by_real(
-                gcmap, 
-                index, 
-                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_real(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
             break;
         }
         // LDIDXDICTXB
@@ -1850,13 +1848,12 @@ _label_continue_execution:
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            if (!woort_GCMap_get_by_bool(
-                gcmap, 
-                index, 
-                &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_bool(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
             break;
         }
         // LDIDXDICTXX
@@ -1969,13 +1966,13 @@ _label_continue_execution:
 
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
-            woort_DynBox val;
-            if (!woort_GCMap_get_by_int(gcmap, index, &val))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_int(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
 
-            woort_DynBox_unbox_no_check(val, &rt_sb[result_reg]);
+            woort_DynBox_unbox_no_check(*val, &rt_sb[result_reg]);
 
             rt_ip += 2;
             continue;
@@ -1991,13 +1988,13 @@ _label_continue_execution:
 
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
-            woort_DynBox val;
-            if (!woort_GCMap_get_by_real(gcmap, index, &val))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_real(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
 
-            woort_DynBox_unbox_no_check(val, &rt_sb[result_reg]);
+            woort_DynBox_unbox_no_check(*val, &rt_sb[result_reg]);
 
             rt_ip += 2;
             continue;
@@ -2013,13 +2010,13 @@ _label_continue_execution:
 
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
-            woort_DynBox val;
-            if (!woort_GCMap_get_by_bool(gcmap, index, &val))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_bool(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
 
-            woort_DynBox_unbox_no_check(val, &rt_sb[result_reg]);
+            woort_DynBox_unbox_no_check(*val, &rt_sb[result_reg]);
 
             rt_ip += 2;
             continue;
@@ -2057,10 +2054,12 @@ _label_continue_execution:
 
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
-            if (!woort_GCMap_get_by_int(gcmap, index, &rt_sb[result_reg].m_dynamic))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_int(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
+            rt_sb[result_reg].m_dynamic = *val;
 
             rt_ip += 2;
             continue;
@@ -2076,10 +2075,12 @@ _label_continue_execution:
 
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
-            if (!woort_GCMap_get_by_real(gcmap, index, &rt_sb[result_reg].m_dynamic))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_real(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
+            rt_sb[result_reg].m_dynamic = *val;
 
             rt_ip += 2;
             continue;
@@ -2095,10 +2096,12 @@ _label_continue_execution:
 
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
-            if (!woort_GCMap_get_by_bool(gcmap, index, &rt_sb[result_reg].m_dynamic))
+            woort_DynBox* const val = woort_GCMap_get_bucket_val_by_bool(gcmap, index);
+            if (val == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
+            rt_sb[result_reg].m_dynamic = *val;
 
             rt_ip += 2;
             continue;

@@ -42,9 +42,10 @@ WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key);
 WOORT_NODISCARD bool woort_GCMap_get(woort_GCMap* gcmap, woort_DynBox key, woort_DynBox* out_val);
 WOORT_NODISCARD bool woort_GCMap_set(woort_GCMap* gcmap, woort_DynBox key, woort_DynBox val);
 
-WOORT_NODISCARD bool woort_GCMap_get_by_int(woort_GCMap* gcmap, woort_Int key, woort_DynBox* out_val);
-WOORT_NODISCARD bool woort_GCMap_get_by_real(woort_GCMap* gcmap, woort_Real key, woort_DynBox* out_val);
-WOORT_NODISCARD bool woort_GCMap_get_by_bool(woort_GCMap* gcmap, bool key, woort_DynBox* out_val);
+// 已废弃，请使用 woort_GCMap_get_bucket_val_by_XXX 系列函数
+WOORT_DEPRECATED bool woort_GCMap_get_by_int(woort_GCMap* gcmap, woort_Int key, woort_DynBox* out_val);
+WOORT_DEPRECATED bool woort_GCMap_get_by_real(woort_GCMap* gcmap, woort_Real key, woort_DynBox* out_val);
+WOORT_DEPRECATED bool woort_GCMap_get_by_bool(woort_GCMap* gcmap, bool key, woort_DynBox* out_val);
 
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_int(
     woort_GCMap* gcmap, woort_Int key);
