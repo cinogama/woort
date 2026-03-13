@@ -2209,10 +2209,13 @@ _label_continue_execution:
             const woort_Int key =
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
 
-            woort_GCMap_set_or_insert(
+            if (!woort_GCMap_set(
                 gcmap,
                 woort_DynBox_box_int(key),
-                woort_DynBox_box_int(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
+                woort_DynBox_box_int(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
 
             break;
         }
@@ -2225,10 +2228,13 @@ _label_continue_execution:
             const woort_Int key =
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
 
-            woort_GCMap_set_or_insert(
+            if (!woort_GCMap_set(
                 gcmap,
                 woort_DynBox_box_int(key),
-                woort_DynBox_box_real(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real));
+                woort_DynBox_box_real(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real)))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
 
             break;
         }
@@ -2241,10 +2247,13 @@ _label_continue_execution:
             const woort_Int key =
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
 
-            woort_GCMap_set_or_insert(
+            if (!woort_GCMap_set(
                 gcmap,
                 woort_DynBox_box_int(key),
-                woort_DynBox_box_bool(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
+                woort_DynBox_box_bool(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
 
             break;
         }
@@ -2263,10 +2272,13 @@ _label_continue_execution:
             //
             // TODO: 需要额外的断言检查
 
-            woort_GCMap_set_or_insert(
+            if (!woort_GCMap_set(
                 gcmap,
                 woort_DynBox_box_int(key),
-                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic))
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
 
             break;
         }

@@ -340,3 +340,70 @@ WOORT_NODISCARD bool woort_GCMap_get_by_bool(woort_GCMap* gcmap, bool key, woort
 
     return false;
 }
+
+////////////////////////////////////////////////////////////////////////
+// 类型特化的查找函数（返回指针）：用于原地修改
+////////////////////////////////////////////////////////////////////////
+
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_int(
+    woort_GCMap* gcmap, woort_Int key)
+{
+    if (gcmap->m_size == 0)
+        return NULL;
+
+    const size_t hash = _woort_hash_int(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    uint32_t idx = gcmap->m_entries[entry_idx];
+    while (idx != NULL_BUCKET_INDEX)
+    {
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
+        if (woort_DynBox_equal_int(bucket->m_key, key))
+            return &bucket->m_val;
+        idx = bucket->m_next;
+    }
+
+    return NULL;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_real(
+    woort_GCMap* gcmap, woort_Real key)
+{
+    if (gcmap->m_size == 0)
+        return NULL;
+
+    const size_t hash = _woort_hash_real(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    uint32_t idx = gcmap->m_entries[entry_idx];
+    while (idx != NULL_BUCKET_INDEX)
+    {
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
+        if (woort_DynBox_equal_real(bucket->m_key, key))
+            return &bucket->m_val;
+        idx = bucket->m_next;
+    }
+
+    return NULL;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_bool(
+    woort_GCMap* gcmap, bool key)
+{
+    if (gcmap->m_size == 0)
+        return NULL;
+
+    const size_t hash = key ? 1 : 0;
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    uint32_t idx = gcmap->m_entries[entry_idx];
+    while (idx != NULL_BUCKET_INDEX)
+    {
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
+        if (woort_DynBox_equal_bool(bucket->m_key, key))
+            return &bucket->m_val;
+        idx = bucket->m_next;
+    }
+
+    return NULL;
+}
