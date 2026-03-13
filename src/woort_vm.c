@@ -766,12 +766,12 @@ _label_continue_execution:
                 target = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_runtime_function;
             }
 
-            void* function_taregt = woort_RuntimeFunction_target(target);
+            void* function_target = woort_RuntimeFunction_target(target);
             switch (woort_RuntimeFunction_kind(target))
             {
             case WOORT_RUNTIME_FUNCTION_KIND_CLOSURE:
             {
-                const woort_GCClosure* const gcclosure = function_taregt;
+                const woort_GCClosure* const gcclosure = function_target;
 
                 woort_Value* const new_sb = rt_sp - 2;
                 woort_Value* const new_sp = new_sb - gcclosure->m_size;
@@ -784,7 +784,7 @@ _label_continue_execution:
                     new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
                     new_sb[2].m_ret_addr = rt_ip + 1;
 
-                    function_taregt = woort_RuntimeFunction_target(gcclosure->m_func);
+                    function_target = woort_RuntimeFunction_target(gcclosure->m_func);
                     switch (woort_RuntimeFunction_kind(gcclosure->m_func))
                     {
                     case WOORT_RUNTIME_FUNCTION_KIND_SCRIPT:
@@ -823,7 +823,7 @@ _label_continue_execution:
                     rt_sb = rt_sp;
 
                 _label_vm_callwo_impl:
-                    rt_ip = function_taregt;
+                    rt_ip = function_target;
                     if (rt_ip >= rt_env_code_end || rt_ip < rt_env_code)
                     {
                         // 已经跳出当前 env 的代码段，触发一个 env_updated.
@@ -850,7 +850,7 @@ _label_continue_execution:
 
                 _label_vm_calljit_impl:
                     const woort_VmCallStatus status =
-                        (*(woort_NativeFunction)function_taregt)(
+                        (*(woort_NativeFunction)function_target)(
                             vm, (woort_value*)(rt_sp + 1));
 
                     if (status == WOORT_VM_CALL_STATUS_RESYNC)
@@ -879,13 +879,13 @@ _label_continue_execution:
 
                     // No need to WOORT_VM_SYNC_STATE(), we will do it manually.
                     vm->m_sb = vm->m_sp = new_sp;
-                    vm->m_ip = function_taregt;
+                    vm->m_ip = function_target;
 
                     const uint32_t stack_version_before_native_call =
                         vm->m_stack_realloc_version;
 
                     const woort_VmCallStatus status =
-                        (*(woort_NativeFunction)function_taregt)(
+                        (*(woort_NativeFunction)function_target)(
                             vm, (woort_value*)(rt_sp + 1));
 
                     /*
