@@ -2220,8 +2220,8 @@ _label_continue_execution:
                 WOORT_VM_THROW(index_out_of_range);
             }
 
-            woort_GC_mixed_write_barrier_dynbox(
-                val_ptr, woort_DynBox_box_int(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
+            woort_DynBox_box_int_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
 
             break;
         }
@@ -2242,8 +2242,8 @@ _label_continue_execution:
                 WOORT_VM_THROW(index_out_of_range);
             }
 
-            woort_GC_mixed_write_barrier_dynbox(
-                val_ptr, woort_DynBox_box_real(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real));
+            woort_DynBox_box_real_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
 
             break;
         }
@@ -2264,8 +2264,8 @@ _label_continue_execution:
                 WOORT_VM_THROW(index_out_of_range);
             }
 
-            woort_GC_mixed_write_barrier_dynbox(
-                val_ptr, woort_DynBox_box_bool(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
+            woort_DynBox_box_bool_with_barrier(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
 
             break;
         }

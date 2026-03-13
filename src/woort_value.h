@@ -120,6 +120,15 @@ woort_DynBox woort_DynBox_box_int(woort_Int val);
 woort_DynBox woort_DynBox_box_bool(bool val);
 woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type);
 
+////////////////////////////////////////////////////////////////////////
+// 带混合写屏障的装箱函数：用于向 GC 管理的内存中写入装箱值
+////////////////////////////////////////////////////////////////////////
+
+void woort_DynBox_box_real_with_barrier(woort_DynBox* dst, woort_Real val);
+void woort_DynBox_box_int_with_barrier(woort_DynBox* dst, woort_Int val);
+void woort_DynBox_box_bool_with_barrier(woort_DynBox* dst, bool val);
+void woort_DynBox_box_with_barrier(woort_DynBox* dst, woort_Value val, woort_BoxValueType type);
+
 WOORT_NODISCARD bool woort_DynBox_check(
     woort_DynBox val,
     woort_BoxValueType /* != WOORT_BOX_VALUE_TYPE_GCUNIT */ type);

@@ -9,6 +9,7 @@
 #include "woort_gc_units.h"
 #include "woort_gc_string.h"
 #include "woort_diagnosis.h"
+#include "woort_gc.h"
 
 /*
 Boxed value:    | ............................... | 3 type bits |
@@ -152,6 +153,77 @@ woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
         woort_DynBox result;
         result.m_boxed_gc_unit = val.m_gcinstance;
         return result;
+    }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////
+// 带混合写屏障的装箱函数
+////////////////////////////////////////////////////////////////////////
+
+void woort_DynBox_box_real_with_barrier(woort_DynBox* dst, woort_Real val)
+{
+    woort_DynBox result;
+    if (!_woort_try_box_float63(val, &result.m_boxed))
+    {
+        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
+            O, sizeof(woort_BoxedExValue));
+
+        ex_box->m_unit.m_proxy = &_ex_box_proxy;
+
+        ex_box->m_is_int = false;
+        ex_box->m_real = val;
+
+        result.m_boxed_ex = ex_box;
+    }
+    woort_GC_mixed_write_barrier_dynbox(dst, result);
+}
+
+void woort_DynBox_box_int_with_barrier(woort_DynBox* dst, woort_Int val)
+{
+    woort_DynBox result;
+    if (!_woort_try_box_int62(val, &result.m_boxed))
+    {
+        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
+            O, sizeof(woort_BoxedExValue));
+
+        ex_box->m_unit.m_proxy = &_ex_box_proxy;
+
+        ex_box->m_is_int = true;
+        ex_box->m_int = val;
+
+        result.m_boxed_ex = ex_box;
+    }
+    woort_GC_mixed_write_barrier_dynbox(dst, result);
+}
+
+void woort_DynBox_box_bool_with_barrier(woort_DynBox* dst, bool val)
+{
+    woort_DynBox result;
+    result.m_boxed = _woort_box_bool(val);
+    woort_GC_mixed_write_barrier_dynbox(dst, result);
+}
+
+void woort_DynBox_box_with_barrier(woort_DynBox* dst, woort_Value val, woort_BoxValueType type)
+{
+    switch (type)
+    {
+    case WOORT_BOX_VALUE_TYPE_REAL:
+        woort_DynBox_box_real_with_barrier(dst, val.m_real);
+        break;
+    case WOORT_BOX_VALUE_TYPE_INT:
+        woort_DynBox_box_int_with_barrier(dst, val.m_integer);
+        break;
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+        woort_DynBox_box_bool_with_barrier(dst, val.m_integer);
+        break;
+    case WOORT_BOX_VALUE_TYPE_GCUNIT:
+    default:
+    {
+        woort_DynBox result;
+        result.m_boxed_gc_unit = val.m_gcinstance;
+        woort_GC_mixed_write_barrier_dynbox(dst, result);
+        break;
     }
     }
 }
