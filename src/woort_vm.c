@@ -2843,6 +2843,181 @@ _label_continue_execution:
 
             break;
         }
+        // STIDXVECEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 0):
+        {
+            const uint8_t value_type = (uint8_t)WOORT_BYTECODE(A8, c);
+
+            const int16_t vec_reg = (int16_t)WOORT_BYTECODE(BC16, c);
+            const int16_t index_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t value_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCVec* const gcvec = rt_sb[vec_reg].m_vec;
+
+            const size_t index = (size_t)rt_sb[index_reg].m_integer;
+
+            if (index >= gcvec->m_length)
+                WOORT_VM_THROW(index_out_of_range);
+
+            switch (value_type)
+            {
+            case 0: // I
+                woort_GC_mixed_write_barrier_dynbox(
+                    &gcvec->m_datas[index],
+                    woort_DynBox_box_int(rt_sb[value_reg].m_integer));
+                break;
+            case 1: // R
+                woort_GC_mixed_write_barrier_dynbox(
+                    &gcvec->m_datas[index],
+                    woort_DynBox_box_real(rt_sb[value_reg].m_real));
+                break;
+            case 2: // B
+                woort_GC_mixed_write_barrier_dynbox(
+                    &gcvec->m_datas[index],
+                    woort_DynBox_box_bool(rt_sb[value_reg].m_integer));
+                break;
+            case 3: // X
+                // NOTE: STIDXVECX 用于值类型为 dynamic 或者 gcunit 的情况
+                woort_GC_mixed_write_barrier_dynbox(
+                    &gcvec->m_datas[index],
+                    rt_sb[value_reg].m_dynamic);
+                break;
+            default:
+                WOORT_VM_THROW(bad_command);
+            }
+
+            rt_ip += 2;
+            continue;
+        }
+        // STIDXDICTEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 1):
+        {
+            const uint8_t key_type = (uint8_t)((c >> 20) & 0xFu);
+            const uint8_t value_type = (uint8_t)((c >> 16) & 0xFu);
+
+            const int16_t map_reg = (int16_t)WOORT_BYTECODE(BC16, c);
+            const int16_t key_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t value_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
+
+            woort_DynBox* val_ptr = NULL;
+
+            switch (key_type)
+            {
+            case 0: // I
+                val_ptr = woort_GCMap_get_bucket_val_by_int(
+                    gcmap, rt_sb[key_reg].m_integer);
+                break;
+            case 1: // R
+                val_ptr = woort_GCMap_get_bucket_val_by_real(
+                    gcmap, rt_sb[key_reg].m_real);
+                break;
+            case 2: // B
+                val_ptr = woort_GCMap_get_bucket_val_by_bool(
+                    gcmap, rt_sb[key_reg].m_integer != 0);
+                break;
+            case 3: // X
+                val_ptr = woort_GCMap_get_bucket_val_by_dynbox(
+                    gcmap, rt_sb[key_reg].m_dynamic);
+                break;
+            default:
+                WOORT_VM_THROW(bad_command);
+            }
+
+            if (val_ptr == NULL)
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
+            switch (value_type)
+            {
+            case 0: // I
+                woort_DynBox_box_int_with_barrier(
+                    val_ptr, rt_sb[value_reg].m_integer);
+                break;
+            case 1: // R
+                woort_DynBox_box_real_with_barrier(
+                    val_ptr, rt_sb[value_reg].m_real);
+                break;
+            case 2: // B
+                woort_DynBox_box_bool_with_barrier(
+                    val_ptr, rt_sb[value_reg].m_integer);
+                break;
+            case 3: // X
+                // NOTE: STIDXDICT*X 用于值类型为 dynamic 或者 gcunit 的情况
+                woort_GC_mixed_write_barrier_dynbox(
+                    val_ptr, rt_sb[value_reg].m_dynamic);
+                break;
+            default:
+                WOORT_VM_THROW(bad_command);
+            }
+
+            rt_ip += 2;
+            continue;
+        }
+        // STIDXMAPEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 2):
+        {
+            const uint8_t key_type = (uint8_t)((c >> 20) & 0xFu);
+            const uint8_t value_type = (uint8_t)((c >> 16) & 0xFu);
+
+            const int16_t map_reg = (int16_t)WOORT_BYTECODE(BC16, c);
+            const int16_t key_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t value_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
+
+            woort_DynBox* val_ptr = NULL;
+
+            switch (key_type)
+            {
+            case 0: // I
+                val_ptr = woort_GCMap_get_or_create_bucket_val_by_int(
+                    gcmap, rt_sb[key_reg].m_integer);
+                break;
+            case 1: // R
+                val_ptr = woort_GCMap_get_or_create_bucket_val_by_real(
+                    gcmap, rt_sb[key_reg].m_real);
+                break;
+            case 2: // B
+                val_ptr = woort_GCMap_get_or_create_bucket_val_by_bool(
+                    gcmap, rt_sb[key_reg].m_integer != 0);
+                break;
+            case 3: // X
+                val_ptr = woort_GCMap_get_or_create_bucket_val_by_dynbox(
+                    gcmap, rt_sb[key_reg].m_dynamic);
+                break;
+            default:
+                WOORT_VM_THROW(bad_command);
+            }
+
+            switch (value_type)
+            {
+            case 0: // I
+                woort_DynBox_box_int_with_barrier(
+                    val_ptr, rt_sb[value_reg].m_integer);
+                break;
+            case 1: // R
+                woort_DynBox_box_real_with_barrier(
+                    val_ptr, rt_sb[value_reg].m_real);
+                break;
+            case 2: // B
+                woort_DynBox_box_bool_with_barrier(
+                    val_ptr, rt_sb[value_reg].m_integer);
+                break;
+            case 3: // X
+                // NOTE: STIDXMAP*X 用于值类型为 dynamic 或者 gcunit 的情况
+                woort_GC_mixed_write_barrier_dynbox(
+                    val_ptr, rt_sb[value_reg].m_dynamic);
+                break;
+            default:
+                WOORT_VM_THROW(bad_command);
+            }
+
+            rt_ip += 2;
+            continue;
+        }
         // STIDSTRUCTEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 3):
         {
