@@ -2212,13 +2212,16 @@ _label_continue_execution:
             const woort_Int key =
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
 
-            if (!woort_GCMap_set(
-                gcmap,
-                woort_DynBox_box_int(key),
-                woort_DynBox_box_int(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)))
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_bucket_val_by_int(gcmap, key);
+
+            if (val_ptr == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
+
+            woort_GC_mixed_write_barrier_dynbox(
+                val_ptr, woort_DynBox_box_int(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
 
             break;
         }
@@ -2231,13 +2234,16 @@ _label_continue_execution:
             const woort_Int key =
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
 
-            if (!woort_GCMap_set(
-                gcmap,
-                woort_DynBox_box_int(key),
-                woort_DynBox_box_real(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real)))
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_bucket_val_by_int(gcmap, key);
+
+            if (val_ptr == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
+
+            woort_GC_mixed_write_barrier_dynbox(
+                val_ptr, woort_DynBox_box_real(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real));
 
             break;
         }
@@ -2250,13 +2256,16 @@ _label_continue_execution:
             const woort_Int key =
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
 
-            if (!woort_GCMap_set(
-                gcmap,
-                woort_DynBox_box_int(key),
-                woort_DynBox_box_bool(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)))
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_bucket_val_by_int(gcmap, key);
+
+            if (val_ptr == NULL)
             {
                 WOORT_VM_THROW(index_out_of_range);
             }
+
+            woort_GC_mixed_write_barrier_dynbox(
+                val_ptr, woort_DynBox_box_bool(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
 
             break;
         }
@@ -2269,19 +2278,22 @@ _label_continue_execution:
             const woort_Int key =
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
 
+            woort_DynBox* const val_ptr =
+                woort_GCMap_get_bucket_val_by_int(gcmap, key);
+
+            if (val_ptr == NULL)
+            {
+                WOORT_VM_THROW(index_out_of_range);
+            }
+
             // NOTE: STIDXDICTIX 用于值类型为 dynamic 或者 gcunit 的情况
             //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
             //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
             //
             // TODO: 需要额外的断言检查
 
-            if (!woort_GCMap_set(
-                gcmap,
-                woort_DynBox_box_int(key),
-                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic))
-            {
-                WOORT_VM_THROW(index_out_of_range);
-            }
+            woort_GC_mixed_write_barrier_dynbox(
+                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
 
             break;
         }

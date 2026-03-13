@@ -263,40 +263,6 @@ WOORT_NODISCARD bool woort_GCMap_set(woort_GCMap* gcmap, woort_DynBox key, woort
 }
 
 ////////////////////////////////////////////////////////////////////////
-// 类型特化的查找函数：避免内存分配
-////////////////////////////////////////////////////////////////////////
-
-WOORT_NODISCARD bool woort_GCMap_get_by_int(woort_GCMap* gcmap, woort_Int key, woort_DynBox* out_val)
-{
-    woort_DynBox* val = woort_GCMap_get_bucket_val_by_int(gcmap, key);
-    if (val == NULL)
-        return false;
-    if (out_val != NULL)
-        *out_val = *val;
-    return true;
-}
-
-WOORT_NODISCARD bool woort_GCMap_get_by_real(woort_GCMap* gcmap, woort_Real key, woort_DynBox* out_val)
-{
-    woort_DynBox* val = woort_GCMap_get_bucket_val_by_real(gcmap, key);
-    if (val == NULL)
-        return false;
-    if (out_val != NULL)
-        *out_val = *val;
-    return true;
-}
-
-WOORT_NODISCARD bool woort_GCMap_get_by_bool(woort_GCMap* gcmap, bool key, woort_DynBox* out_val)
-{
-    woort_DynBox* val = woort_GCMap_get_bucket_val_by_bool(gcmap, key);
-    if (val == NULL)
-        return false;
-    if (out_val != NULL)
-        *out_val = *val;
-    return true;
-}
-
-////////////////////////////////////////////////////////////////////////
 // 类型特化的查找函数（返回指针）：用于原地修改
 ////////////////////////////////////////////////////////////////////////
 
