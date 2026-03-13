@@ -2827,6 +2827,41 @@ _label_continue_execution:
 
             break;
         }
+        // STIDSTRUCT
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_STIDSTRUCT):
+        {
+            const size_t index = (size_t)WOORT_BYTECODE(MA10, c);
+
+            woort_GCStruct* const gcstruct =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_struct;
+
+            assert(index < gcstruct->m_size);
+
+            woort_GC_mixed_write_barrier_value(
+                &gcstruct->m_datas[index],
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+
+            break;
+        }
+        // STIDSTRUCTEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 3):
+        {
+            const size_t index = (size_t)WOORT_BYTECODE(ABC24, c);
+
+            const int16_t struct_reg = (int16_t)(rt_ip[1] >> 16);
+            const int16_t value_reg = (int16_t)(rt_ip[1] & 0xFFFFu);
+
+            woort_GCStruct* const gcstruct = rt_sb[struct_reg].m_struct;
+
+            assert(index < gcstruct->m_size);
+
+            woort_GC_mixed_write_barrier_value(
+                &gcstruct->m_datas[index],
+                rt_sb[value_reg]);
+
+            rt_ip += 2;
+            continue;
+        }
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
