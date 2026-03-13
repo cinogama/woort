@@ -328,3 +328,24 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_bool(
 
     return NULL;
 }
+
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_dynbox(
+    woort_GCMap* gcmap, woort_DynBox key)
+{
+    if (gcmap->m_size == 0)
+        return NULL;
+
+    const size_t hash = woort_DynBox_hash(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    uint32_t idx = gcmap->m_entries[entry_idx];
+    while (idx != NULL_BUCKET_INDEX)
+    {
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
+        if (woort_DynBox_equal(bucket->m_key, key))
+            return &bucket->m_val;
+        idx = bucket->m_next;
+    }
+
+    return NULL;
+}

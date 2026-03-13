@@ -48,5 +48,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_real(
     woort_GCMap* gcmap, woort_Real key);
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_bool(
     woort_GCMap* gcmap, bool key);
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_dynbox(
+    woort_GCMap* gcmap, woort_DynBox key);
  
 WOORT_NODISCARD 
