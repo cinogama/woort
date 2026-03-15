@@ -1931,7 +1931,7 @@ _label_continue_execution:
                 val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
             break;
         }
-        // LDIDXDICTXI
+        // LDIDXDICTIX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 0):
         {
             const woort_Int index =
@@ -1948,7 +1948,7 @@ _label_continue_execution:
             rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
             break;
         }
-        // LDIDXDICTXR
+        // LDIDXDICTRX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 1):
         {
             const woort_Real index =
@@ -1965,7 +1965,7 @@ _label_continue_execution:
             rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
             break;
         }
-        // LDIDXDICTXB
+        // LDIDXDICTBX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 2):
         {
             const bool index =
@@ -1988,7 +1988,7 @@ _label_continue_execution:
             const woort_DynBox index =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_dynamic;
 
-            // NOTE: LDIDXDICTX 用于索引类型为 dynamic 或者 gcunit 的情况
+            // NOTE: LDIDXDICTXX 用于索引类型为 dynamic 或者 gcunit 的情况
             //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
             //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
             // 
@@ -2169,8 +2169,8 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-        // LDIDXDICTXIEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTXEX, 0):
+        // LDIDXDICTIXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 0):
         {
             const woort_Int index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -2190,8 +2190,8 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-        // LDIDXDICTXREXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTXEX, 1):
+        // LDIDXDICTRXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 1):
         {
             const woort_Real index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real;
@@ -2211,8 +2211,8 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-        // LDIDXDICTXBEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTXEX, 2):
+        // LDIDXDICTBXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 2):
         {
             const bool index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -2233,7 +2233,7 @@ _label_continue_execution:
             continue;
         }
         // LDIDXDICTXXEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTXEX, 3):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 3):
         {
             const woort_DynBox index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_dynamic;

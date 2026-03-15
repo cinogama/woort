@@ -65,6 +65,13 @@ typedef enum woort_IR_Operate_kind
     WOORT_IR_OPERATE_KIND_LDIDXDICTB,
     WOORT_IR_OPERATE_KIND_LDIDXDICTX,
 
+    WOORT_IR_OPERATE_KIND_STIDXVECI,
+    WOORT_IR_OPERATE_KIND_STIDXVECR,
+    WOORT_IR_OPERATE_KIND_STIDXVECB,
+    WOORT_IR_OPERATE_KIND_STIDXVECX,
+
+
+
 }woort_IR_Operate_kind;
 
 typedef struct woort_IR_Register woort_IR_Register;
