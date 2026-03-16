@@ -3163,6 +3163,69 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
+        // UNPACKSTRUCT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 0):
+        {
+            const int16_t struct_reg = (int16_t)WOORT_BYTECODE(BC16, c);
+
+            woort_GCStruct* const gcstruct = rt_sb[struct_reg].m_struct;
+            const size_t size = gcstruct->m_size;
+
+            // 检查栈空间
+            if ((size_t)(rt_sp - rt_stack) < size)
+                WOORT_VM_THROW(stack_overflow);
+
+            // 将结构体的元素压入栈中（保持顺序）
+            for (size_t i = 0; i < size; ++i)
+                rt_sp[-(ptrdiff_t)i] = gcstruct->m_datas[size - 1 - i];
+
+            rt_sp -= size;
+            break;
+        }
+        // UNPACKVEC
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 1):
+        {
+            const int16_t vec_reg = (int16_t)WOORT_BYTECODE(BC16, c);
+
+            woort_GCVec* const gcvec = rt_sb[vec_reg].m_vec;
+            const size_t size = gcvec->m_length;
+
+            // 检查栈空间
+            if ((size_t)(rt_sp - rt_stack) < size)
+            {
+                WOORT_VM_THROW(stack_overflow);
+            }
+
+            // 将向量的元素解包并压入栈中（保持顺序）
+            for (size_t i = 0; i < size; ++i)
+            {
+                woort_DynBox_unbox_no_check(
+                    gcvec->m_datas[size - 1 - i],
+                    &rt_sp[-(ptrdiff_t)i]);
+            }
+
+            rt_sp -= size;
+            break;
+        }
+        // UNPACKVECX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 2):
+        {
+            const int16_t vec_reg = (int16_t)WOORT_BYTECODE(BC16, c);
+
+            woort_GCVec* const gcvec = rt_sb[vec_reg].m_vec;
+            const size_t size = gcvec->m_length;
+
+            // 检查栈空间
+            if ((size_t)(rt_sp - rt_stack) < size)
+                WOORT_VM_THROW(stack_overflow);
+
+            // 将向量的元素作为 DynBox 压入栈中（保持顺序）
+            for (size_t i = 0; i < size; ++i)
+                rt_sp[-(ptrdiff_t)i].m_dynamic = gcvec->m_datas[size - 1 - i];
+
+            rt_sp -= size;
+            break;
+        }
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
