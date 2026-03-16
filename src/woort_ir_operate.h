@@ -114,6 +114,7 @@ typedef enum woort_IR_Operate_kind
     WOORT_IR_OPERATE_KIND_STIDSTRUCT,
 
     WOORT_IR_OPERATE_KIND_PUSH,
+    WOORT_IR_OPERATE_KIND_POPR,
     WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXI,
     WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXR,
     WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXB,
@@ -1293,6 +1294,20 @@ typedef struct woort_IR_Operate_PUSH
             VAL, NULL, NULL, NULL),                                 \
     }
 
+typedef struct woort_IR_Operate_POPR
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t              m_pop_count;
+
+}woort_IR_Operate_POPR;
+#define woort_IR_Operate_POPR_init(COUNT)                           \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_POPR,                             \
+            NULL, NULL, NULL, NULL),                                \
+        .m_pop_count = COUNT,                                       \
+    }
+
 // ============================================================================
 // 结构体索引装箱压栈操作
 // 从结构体中读取指定索引的字段，装箱为指定类型后压入栈顶
@@ -1449,3 +1464,47 @@ typedef struct woort_IR_Operate_MKVEC
         .m_elem_count = ELEMC,                                          \
     }
 
+typedef struct woort_IR_Operate_MKMAP
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_pair_count;
+
+} woort_IR_Operate_MKMAP;
+
+#define woort_IR_Operate_MKMAP_init(PAIRC, DST)                          \
+    {                                                                   \
+        .m_op_base = _woort_IR_Operate_base_init(                       \
+            WOORT_IR_OPERATE_KIND_MKMAP,                                \
+            NULL, NULL, NULL, DST),                                     \
+        .m_pair_count = PAIRC,                                          \
+    }
+
+typedef struct woort_IR_Operate_MKSTRUCT
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_field_count;
+
+} woort_IR_Operate_MKSTRUCT;
+
+#define woort_IR_Operate_MKSTRUCT_init(FIELDC, DST)                      \
+    {                                                                   \
+        .m_op_base = _woort_IR_Operate_base_init(                       \
+            WOORT_IR_OPERATE_KIND_MKSTRUCT,                             \
+            NULL, NULL, NULL, DST),                                     \
+        .m_field_count = FIELDC,                                        \
+    }
+
+typedef struct woort_IR_Operate_MKCLOSURE
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_upvalue_count;
+
+} woort_IR_Operate_MKCLOSURE;
+
+#define woort_IR_Operate_MKCLOSURE_init(FUNC, UPVALC, /* OPTIONAL */ DST) \
+    {                                                                    \
+        .m_op_base = _woort_IR_Operate_base_init(                        \
+            WOORT_IR_OPERATE_KIND_MKCLOSURE,                             \
+            FUNC, NULL, NULL, DST),                                      \
+        .m_upvalue_count = UPVALC,                                       \
+    }
