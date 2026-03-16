@@ -9,7 +9,6 @@ woort_ir_op.h
 typedef enum woort_IR_Operate_kind
 {
     WOORT_IR_OPERATE_KIND_NOP,
-    WOORT_IR_OPERATE_KIND_MOV,
     WOORT_IR_OPERATE_KIND_ITOR,
     WOORT_IR_OPERATE_KIND_ITOS,
     WOORT_IR_OPERATE_KIND_RTOI,
@@ -114,6 +113,17 @@ typedef enum woort_IR_Operate_kind
 
     WOORT_IR_OPERATE_KIND_STIDSTRUCT,
 
+    WOORT_IR_OPERATE_KIND_PUSH,
+    WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXI,
+    WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXR,
+    WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXB,
+    WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXX,
+    WOORT_IR_OPERATE_KIND_UNPACKSTRUCT,
+    WOORT_IR_OPERATE_KIND_UNPACKVEC,
+    WOORT_IR_OPERATE_KIND_UNPACKVECX,
+
+    WOORT_IR_OPERATE_KIND_PACKARG,
+
     WOORT_IR_OPERATE_KIND_CALLNWO,
     WOORT_IR_OPERATE_KIND_CALLNNATIVE,
     WOORT_IR_OPERATE_KIND_CALL,
@@ -156,18 +166,6 @@ typedef struct woort_IR_Operate_NOP
         .m_op_base = _woort_IR_Operate_base_init(   \
             WOORT_IR_OPERATE_KIND_NOP,              \
             NULL, NULL, NULL, NULL),                \
-    }
-
-typedef struct woort_IR_Operate_MOV
-{
-    woort_IR_Operate_base m_op_base;
-
-}woort_IR_Operate_MOV;
-#define woort_IR_Operate_MOV_init(SRC, DST)         \
-    {                                               \
-        .m_op_base = _woort_IR_Operate_base_init(   \
-            WOORT_IR_OPERATE_KIND_MOV,              \
-            SRC, NULL, NULL, DST),                  \
     }
 
 typedef struct woort_IR_Operate_ITOR
@@ -729,7 +727,7 @@ typedef struct woort_IR_Operate_LDIDXSTRUCT
     {                                                               \
         .m_op_base = _woort_IR_Operate_base_init(                   \
             WOORT_IR_OPERATE_KIND_LDIDXSTRUCT,                      \
-            NULL, STRUCT, NULL, DST),                               \
+            STRUCT, NULL, NULL, DST),                               \
         .m_field_idx = FIELD_IDX,                                   \
     }
 
@@ -803,7 +801,7 @@ typedef struct woort_IR_Operate_STIDXVECI
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXVECI;
-#define woort_IR_Operate_STIDXVECI_init(VEC, IDX, VAL)   \
+#define woort_IR_Operate_STIDXVECI_init(VEC, IDX, VAL)  \
     {                                                   \
         .m_op_base = _woort_IR_Operate_base_init(       \
             WOORT_IR_OPERATE_KIND_STIDXVECI,            \
@@ -815,7 +813,7 @@ typedef struct woort_IR_Operate_STIDXVECR
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXVECR;
-#define woort_IR_Operate_STIDXVECR_init(VEC, IDX, VAL)   \
+#define woort_IR_Operate_STIDXVECR_init(VEC, IDX, VAL)  \
     {                                                   \
         .m_op_base = _woort_IR_Operate_base_init(       \
             WOORT_IR_OPERATE_KIND_STIDXVECR,            \
@@ -827,7 +825,7 @@ typedef struct woort_IR_Operate_STIDXVECB
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXVECB;
-#define woort_IR_Operate_STIDXVECB_init(VEC, IDX, VAL)   \
+#define woort_IR_Operate_STIDXVECB_init(VEC, IDX, VAL)  \
     {                                                   \
         .m_op_base = _woort_IR_Operate_base_init(       \
             WOORT_IR_OPERATE_KIND_STIDXVECB,            \
@@ -856,7 +854,7 @@ typedef struct woort_IR_Operate_STIDXDICTII
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXDICTII;
-#define woort_IR_Operate_STIDXDICTII_init(DICT, KEY, VAL)    \
+#define woort_IR_Operate_STIDXDICTII_init(DICT, KEY, VAL)   \
     {                                                       \
         .m_op_base = _woort_IR_Operate_base_init(           \
             WOORT_IR_OPERATE_KIND_STIDXDICTII,              \
@@ -868,7 +866,7 @@ typedef struct woort_IR_Operate_STIDXDICTIR
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXDICTIR;
-#define woort_IR_Operate_STIDXDICTIR_init(DICT, KEY, VAL)    \
+#define woort_IR_Operate_STIDXDICTIR_init(DICT, KEY, VAL)   \
     {                                                       \
         .m_op_base = _woort_IR_Operate_base_init(           \
             WOORT_IR_OPERATE_KIND_STIDXDICTIR,              \
@@ -880,7 +878,7 @@ typedef struct woort_IR_Operate_STIDXDICTIB
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXDICTIB;
-#define woort_IR_Operate_STIDXDICTIB_init(DICT, KEY, VAL)    \
+#define woort_IR_Operate_STIDXDICTIB_init(DICT, KEY, VAL)   \
     {                                                       \
         .m_op_base = _woort_IR_Operate_base_init(           \
             WOORT_IR_OPERATE_KIND_STIDXDICTIB,              \
@@ -892,7 +890,7 @@ typedef struct woort_IR_Operate_STIDXDICTIX
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXDICTIX;
-#define woort_IR_Operate_STIDXDICTIX_init(DICT, KEY, VAL)    \
+#define woort_IR_Operate_STIDXDICTIX_init(DICT, KEY, VAL)   \
     {                                                       \
         .m_op_base = _woort_IR_Operate_base_init(           \
             WOORT_IR_OPERATE_KIND_STIDXDICTIX,              \
@@ -908,7 +906,7 @@ typedef struct woort_IR_Operate_STIDXDICTRI
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXDICTRI;
-#define woort_IR_Operate_STIDXDICTRI_init(DICT, KEY, VAL)    \
+#define woort_IR_Operate_STIDXDICTRI_init(DICT, KEY, VAL)   \
     {                                                       \
         .m_op_base = _woort_IR_Operate_base_init(           \
             WOORT_IR_OPERATE_KIND_STIDXDICTRI,              \
@@ -920,7 +918,7 @@ typedef struct woort_IR_Operate_STIDXDICTRR
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXDICTRR;
-#define woort_IR_Operate_STIDXDICTRR_init(DICT, KEY, VAL)    \
+#define woort_IR_Operate_STIDXDICTRR_init(DICT, KEY, VAL)   \
     {                                                       \
         .m_op_base = _woort_IR_Operate_base_init(           \
             WOORT_IR_OPERATE_KIND_STIDXDICTRR,              \
@@ -1244,7 +1242,7 @@ typedef struct woort_IR_Operate_STIDXMAPXB
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXMAPXB;
-#define woort_IR_Operate_STIDXMAPXB_init(MAP, KEY, VAL)  \
+#define woort_IR_Operate_STIDXMAPXB_init(MAP, KEY, VAL) \
     {                                                   \
         .m_op_base = _woort_IR_Operate_base_init(       \
             WOORT_IR_OPERATE_KIND_STIDXMAPXB,           \
@@ -1256,7 +1254,7 @@ typedef struct woort_IR_Operate_STIDXMAPXX
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_STIDXMAPXX;
-#define woort_IR_Operate_STIDXMAPXX_init(MAP, KEY, VAL)  \
+#define woort_IR_Operate_STIDXMAPXX_init(MAP, KEY, VAL) \
     {                                                   \
         .m_op_base = _woort_IR_Operate_base_init(       \
             WOORT_IR_OPERATE_KIND_STIDXMAPXX,           \
@@ -1273,12 +1271,151 @@ typedef struct woort_IR_Operate_STIDSTRUCT
     uint32_t m_field_idx;  // 字段索引（常量）
 
 }woort_IR_Operate_STIDSTRUCT;
-#define woort_IR_Operate_STIDSTRUCT_init(FIELD_IDX, STRUCT, VAL)   \
-    {                                                             \
-        .m_op_base = _woort_IR_Operate_base_init(                 \
-            WOORT_IR_OPERATE_KIND_STIDSTRUCT,                     \
-            NULL, STRUCT, VAL, NULL),                             \
-        .m_field_idx = FIELD_IDX,                                 \
+#define woort_IR_Operate_STIDSTRUCT_init(FIELD_IDX, STRUCT, VAL)    \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_STIDSTRUCT,                       \
+            STRUCT, VAL, NULL, NULL),                               \
+        .m_field_idx = FIELD_IDX,                                   \
+    }
+
+// ============================================================================
+// 栈操作
+// ============================================================================
+
+typedef struct woort_IR_Operate_PUSH
+{
+    woort_IR_Operate_base m_op_base;
+
+}woort_IR_Operate_PUSH;
+#define woort_IR_Operate_PUSH_init(VAL)                             \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_PUSH,                             \
+            VAL, NULL, NULL, NULL),                                 \
+    }
+
+// ============================================================================
+// 结构体索引装箱压栈操作
+// 从结构体中读取指定索引的字段，装箱为指定类型后压入栈顶
+// ============================================================================
+
+typedef struct woort_IR_Operate_PUSHIDXSTBOXI
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_field_idx;  // 字段索引（常量）
+
+}woort_IR_Operate_PUSHIDXSTBOXI;
+#define woort_IR_Operate_PUSHIDXSTBOXI_init(FIELD_IDX, STRUCT)      \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXI,                    \
+            STRUCT, NULL, NULL, NULL),                              \
+        .m_field_idx = FIELD_IDX,                                   \
+    }
+
+typedef struct woort_IR_Operate_PUSHIDXSTBOXR
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_field_idx;  // 字段索引（常量）
+
+}woort_IR_Operate_PUSHIDXSTBOXR;
+#define woort_IR_Operate_PUSHIDXSTBOXR_init(FIELD_IDX, STRUCT)      \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXR,                    \
+            STRUCT, NULL, NULL, NULL),                              \
+        .m_field_idx = FIELD_IDX,                                   \
+    }
+
+typedef struct woort_IR_Operate_PUSHIDXSTBOXB
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_field_idx;  // 字段索引（常量）
+
+}woort_IR_Operate_PUSHIDXSTBOXB;
+#define woort_IR_Operate_PUSHIDXSTBOXB_init(FIELD_IDX, STRUCT)      \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXB,                    \
+            STRUCT, NULL, NULL, NULL),                              \
+        .m_field_idx = FIELD_IDX,                                   \
+    }
+
+typedef struct woort_IR_Operate_PUSHIDXSTBOXX
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_field_idx;  // 字段索引（常量）
+
+}woort_IR_Operate_PUSHIDXSTBOXX;
+#define woort_IR_Operate_PUSHIDXSTBOXX_init(FIELD_IDX, STRUCT)      \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_PUSHIDXSTBOXX,                    \
+            STRUCT, NULL, NULL, NULL),                              \
+        .m_field_idx = FIELD_IDX,                                   \
+    }
+
+// ============================================================================
+// 容器解包操作
+// 将容器中的元素解包并压入栈顶，元素按逆序压栈
+// ============================================================================
+
+typedef struct woort_IR_Operate_UNPACKSTRUCT
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_field_count;  // 字段数量（用于验证）
+
+}woort_IR_Operate_UNPACKSTRUCT;
+#define woort_IR_Operate_UNPACKSTRUCT_init(STRUCT, FIELD_COUNT)     \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_UNPACKSTRUCT,                     \
+            STRUCT, NULL, NULL, NULL),                              \
+        .m_field_count = FIELD_COUNT,                               \
+    }
+
+typedef struct woort_IR_Operate_UNPACKVEC
+{
+    woort_IR_Operate_base m_op_base;
+
+}woort_IR_Operate_UNPACKVEC;
+#define woort_IR_Operate_UNPACKVEC_init(VEC)                        \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_UNPACKVEC,                        \
+            VEC, NULL, NULL, NULL),                                 \
+    }
+
+typedef struct woort_IR_Operate_UNPACKVECX
+{
+    woort_IR_Operate_base m_op_base;
+
+}woort_IR_Operate_UNPACKVECX;
+#define woort_IR_Operate_UNPACKVECX_init(VEC)                       \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_UNPACKVECX,                       \
+            VEC, NULL, NULL, NULL),                                 \
+    }
+
+// ============================================================================
+// 变长参数收集操作
+// 从 bp+4+跳过计数处开始收集变长参数，打包成向量存储到目标位置
+// ============================================================================
+
+typedef struct woort_IR_Operate_PACKARG
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_skip_count;  // 跳过的固定参数数量
+
+}woort_IR_Operate_PACKARG;
+#define woort_IR_Operate_PACKARG_init(SKIP_COUNT, DST)              \
+    {                                                               \
+        .m_op_base = _woort_IR_Operate_base_init(                   \
+            WOORT_IR_OPERATE_KIND_PACKARG,                          \
+            NULL, NULL, NULL, DST),                                 \
+        .m_skip_count = SKIP_COUNT,                                 \
     }
 
 // ============================================================================
@@ -1286,17 +1423,3 @@ typedef struct woort_IR_Operate_STIDSTRUCT
 // ============================================================================
 
 
-typedef struct woort_IR_Operate_STIDSTRUCT
-{
-    woort_IR_Operate_base m_op_base;
-    uint32_t m_field_idx;  // 字段索引（常量）
-
-}woort_IR_Operate_STIDSTRUCT;
-
-WOORT_IR_OPERATE_KIND_CALLNWO,
-WOORT_IR_OPERATE_KIND_CALLNNATIVE,
-WOORT_IR_OPERATE_KIND_CALL,
-WOORT_IR_OPERATE_KIND_MKVEC,
-WOORT_IR_OPERATE_KIND_MKMAP,
-WOORT_IR_OPERATE_KIND_MKSTRUCT,
-WOORT_IR_OPERATE_KIND_MKCLOSURE,
