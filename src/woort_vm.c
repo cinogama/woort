@@ -1020,6 +1020,16 @@ _label_continue_execution:
             }
             break;
         }
+        // POPRS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 3):
+        {
+            // NOTE: Cannot be negative.
+            rt_sp += 
+                (size_t)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            assert(rt_sp <= rt_sb);
+            break;
+        }
         // RESULT
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_RESULT):
         {
