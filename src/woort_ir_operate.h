@@ -1441,7 +1441,7 @@ typedef struct woort_IR_Operate_MKVEC
 
 } woort_IR_Operate_MKVEC;
 
-#define woort_IR_Operate_CALLNWO_init(ELEMC, DST)                       \
+#define woort_IR_Operate_MKVEC_init(ELEMC, DST)                          \
     {                                                                   \
         .m_op_base = _woort_IR_Operate_base_init(                       \
             WOORT_IR_OPERATE_KIND_MKVEC,                                \
