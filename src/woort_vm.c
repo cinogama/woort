@@ -3226,6 +3226,73 @@ _label_continue_execution:
             rt_sp -= size;
             break;
         }
+        // PUSHIDXSTBOXI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 0):
+        {
+            if (rt_sp > rt_stack)
+            {
+                const size_t index = WOORT_BYTECODE(A8, c);
+                woort_GCStruct* const gcstruct =
+                    rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct;
+
+                assert(index < gcstruct->m_size);
+
+                rt_sp->m_dynamic = woort_DynBox_box_int(
+                    gcstruct->m_datas[index].m_integer);
+                break;
+            }
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // PUSHIDXSTBOXR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 1):
+        {
+            if (rt_sp > rt_stack)
+            {
+                const size_t index = WOORT_BYTECODE(A8, c);
+                woort_GCStruct* const gcstruct =
+                    rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct;
+
+                assert(index < gcstruct->m_size);
+
+                rt_sp->m_dynamic = woort_DynBox_box_real(
+                    gcstruct->m_datas[index].m_real);
+                break;
+            }
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // PUSHIDXSTBOXB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 2):
+        {
+            if (rt_sp > rt_stack)
+            {
+                const size_t index = WOORT_BYTECODE(A8, c);
+                woort_GCStruct* const gcstruct =
+                    rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct;
+
+                assert(index < gcstruct->m_size);
+
+                rt_sp->m_dynamic = woort_DynBox_box_bool(
+                    gcstruct->m_datas[index].m_integer);
+                break;
+            }
+            WOORT_VM_THROW(stack_overflow);
+        }
+        // PUSHIDXSTBOXX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 3):
+        {
+            if (rt_sp > rt_stack)
+            {
+                const size_t index = WOORT_BYTECODE(A8, c);
+                woort_GCStruct* const gcstruct =
+                    rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct;
+
+                assert(index < gcstruct->m_size);
+
+                rt_sp->m_dynamic = gcstruct->m_datas[index].m_dynamic;
+                break;
+            }
+            WOORT_VM_THROW(stack_overflow);
+        }
         default:
             // Unknown bytecode command.
             WOORT_VM_THROW(bad_command);
