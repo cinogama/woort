@@ -124,8 +124,6 @@ typedef enum woort_IR_Operate_kind
 
     WOORT_IR_OPERATE_KIND_PACKARG,
 
-    WOORT_IR_OPERATE_KIND_CALLNWO,
-    WOORT_IR_OPERATE_KIND_CALLNNATIVE,
     WOORT_IR_OPERATE_KIND_CALL,
     WOORT_IR_OPERATE_KIND_MKVEC,
     WOORT_IR_OPERATE_KIND_MKMAP,
@@ -698,11 +696,11 @@ typedef struct woort_IR_Operate_LDIDXVEC
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_LDIDXVEC;
-#define woort_IR_Operate_LDIDXVEC_init(IDX, VEC, DST)   \
+#define woort_IR_Operate_LDIDXVEC_init(VEC, IDX, DST)   \
     {                                                   \
         .m_op_base = _woort_IR_Operate_base_init(       \
             WOORT_IR_OPERATE_KIND_LDIDXVEC,             \
-            IDX, VEC, NULL, DST),                       \
+            VEC, IDX, NULL, DST),                       \
     }
 
 typedef struct woort_IR_Operate_LDIDXVECX
@@ -710,11 +708,11 @@ typedef struct woort_IR_Operate_LDIDXVECX
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_LDIDXVECX;
-#define woort_IR_Operate_LDIDXVECX_init(IDX, VEC, DST)  \
+#define woort_IR_Operate_LDIDXVECX_init(VEC, IDX, DST)  \
     {                                                   \
         .m_op_base = _woort_IR_Operate_base_init(       \
             WOORT_IR_OPERATE_KIND_LDIDXVECX,            \
-            IDX, VEC, NULL, DST),                       \
+            VEC, IDX, NULL, DST),                       \
     }
 
 typedef struct woort_IR_Operate_LDIDXSTRUCT
@@ -723,7 +721,7 @@ typedef struct woort_IR_Operate_LDIDXSTRUCT
     uint32_t m_field_idx;  // 字段索引（常量）
 
 }woort_IR_Operate_LDIDXSTRUCT;
-#define woort_IR_Operate_LDIDXSTRUCT_init(FIELD_IDX, STRUCT, DST)    \
+#define woort_IR_Operate_LDIDXSTRUCT_init(STRUCT, FIELD_IDX, DST)    \
     {                                                               \
         .m_op_base = _woort_IR_Operate_base_init(                   \
             WOORT_IR_OPERATE_KIND_LDIDXSTRUCT,                      \
@@ -736,11 +734,11 @@ typedef struct woort_IR_Operate_LDIDXSTRING
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_LDIDXSTRING;
-#define woort_IR_Operate_LDIDXSTRING_init(IDX, STR, DST) \
+#define woort_IR_Operate_LDIDXSTRING_init(STR, IDX, DST) \
     {                                                   \
         .m_op_base = _woort_IR_Operate_base_init(       \
             WOORT_IR_OPERATE_KIND_LDIDXSTRING,          \
-            IDX, STR, NULL, DST),                       \
+            STR, IDX, NULL, DST),                       \
     }
 
 typedef struct woort_IR_Operate_LDIDXDICTI
@@ -748,11 +746,11 @@ typedef struct woort_IR_Operate_LDIDXDICTI
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_LDIDXDICTI;
-#define woort_IR_Operate_LDIDXDICTI_init(KEY, DICT, DST)    \
+#define woort_IR_Operate_LDIDXDICTI_init(DICT, KEY, DST)    \
     {                                                       \
         .m_op_base = _woort_IR_Operate_base_init(           \
             WOORT_IR_OPERATE_KIND_LDIDXDICTI,               \
-            KEY, DICT, NULL, DST),                          \
+            DICT, KEY, NULL, DST),                          \
     }
 
 typedef struct woort_IR_Operate_LDIDXDICTR
@@ -760,11 +758,11 @@ typedef struct woort_IR_Operate_LDIDXDICTR
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_LDIDXDICTR;
-#define woort_IR_Operate_LDIDXDICTR_init(KEY, DICT, DST)    \
+#define woort_IR_Operate_LDIDXDICTR_init(DICT, KEY, DST)    \
     {                                                       \
         .m_op_base = _woort_IR_Operate_base_init(           \
             WOORT_IR_OPERATE_KIND_LDIDXDICTR,               \
-            KEY, DICT, NULL, DST),                          \
+            DICT, KEY, NULL, DST),                          \
     }
 
 typedef struct woort_IR_Operate_LDIDXDICTB
@@ -772,11 +770,11 @@ typedef struct woort_IR_Operate_LDIDXDICTB
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_LDIDXDICTB;
-#define woort_IR_Operate_LDIDXDICTB_init(KEY, DICT, DST)    \
+#define woort_IR_Operate_LDIDXDICTB_init(DICT, KEY, DST)    \
     {                                                       \
         .m_op_base = _woort_IR_Operate_base_init(           \
             WOORT_IR_OPERATE_KIND_LDIDXDICTB,               \
-            KEY, DICT, NULL, DST),                          \
+            DICT, KEY, NULL, DST),                          \
     }
 
 typedef struct woort_IR_Operate_LDIDXDICTX
@@ -784,11 +782,11 @@ typedef struct woort_IR_Operate_LDIDXDICTX
     woort_IR_Operate_base m_op_base;
 
 }woort_IR_Operate_LDIDXDICTX;
-#define woort_IR_Operate_LDIDXDICTX_init(KEY, DICT, DST)    \
+#define woort_IR_Operate_LDIDXDICTX_init(DICT, KEY, DST)    \
     {                                                       \
         .m_op_base = _woort_IR_Operate_base_init(           \
             WOORT_IR_OPERATE_KIND_LDIDXDICTX,               \
-            KEY, DICT, NULL, DST),                          \
+            DICT, KEY, NULL, DST),                          \
     }
 
 // ============================================================================
@@ -1419,7 +1417,35 @@ typedef struct woort_IR_Operate_PACKARG
     }
 
 // ============================================================================
-// 函数调用及结构体打包（非常规操作数结构）
+// 函数调用及容器构建
 // ============================================================================
 
+typedef struct woort_IR_Operate_CALL
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_argument_count;
+
+}woort_IR_Operate_CALL;
+#define woort_IR_Operate_CALL_init(FUNC, ARGC, /* OPTIONAL */ DST)      \
+    {                                                                   \
+        .m_op_base = _woort_IR_Operate_base_init(                       \
+            WOORT_IR_OPERATE_KIND_CALL,                                 \
+            FUNC, NULL, NULL, DST),                                     \
+        .m_argument_count = ARGC,                                       \
+    }
+
+typedef struct woort_IR_Operate_MKVEC
+{
+    woort_IR_Operate_base m_op_base;
+    uint32_t m_elem_count;
+
+} woort_IR_Operate_MKVEC;
+
+#define woort_IR_Operate_CALLNWO_init(ELEMC, DST)                       \
+    {                                                                   \
+        .m_op_base = _woort_IR_Operate_base_init(                       \
+            WOORT_IR_OPERATE_KIND_MKVEC,                                \
+            NULL, NULL, NULL, DST),                                     \
+        .m_elem_count = ELEMC,                                          \
+    }
 
