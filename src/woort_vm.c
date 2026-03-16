@@ -1332,8 +1332,8 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-        // MKCLOS
-        case WOORT_VM_CASE_OP6(WOORT_OPCODE_MKCLOS):
+        // MKCLOSURE
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_MKCLOSURE):
         {
             const size_t size = WOORT_BYTECODE(MA10, c);
             const uint32_t const_idx = rt_ip[1];
