@@ -31,7 +31,7 @@ struct woort_IR_Block
     woort_Vector /* const woort_IR_Operate_base* */ m_codes;
 
     /* OPTIONAL */ woort_IR_Register* m_cond;
-    woort_IR_Block_EndWay m_cond_next;
+    woort_IR_Block_EndWay /* USELESS IF m_cond IS NONE */ m_cond_next;
     woort_IR_Block_EndWay m_normal_next;
 };
 

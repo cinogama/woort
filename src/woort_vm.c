@@ -376,8 +376,9 @@ _label_continue_execution:
         // STORE
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_STORE):
         {
-            rt_env_data[WOORT_BYTECODE(MAB18, c)] =
-                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)];
+            woort_Value src = rt_sb[(int8_t)WOORT_BYTECODE(C8, c)];
+            woort_GC_mixed_write_barrier_value(
+                &rt_env_data[WOORT_BYTECODE(MAB18, c)], src);
             break;
         }
         // LOADEX
@@ -392,8 +393,9 @@ _label_continue_execution:
         // STOREEX
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_STOREEX):
         {
-            rt_env_data[rt_ip[1]] =
-                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
+            woort_Value src = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
+            woort_GC_mixed_write_barrier_value(
+                &rt_env_data[rt_ip[1]], src);
 
             rt_ip += 2;
             continue;
@@ -527,7 +529,9 @@ _label_continue_execution:
         // POPC
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 2):
         {
-            rt_env_data[WOORT_BYTECODE(ABC24, c)] = *(++rt_sp);
+            woort_Value src = *(++rt_sp);
+            woort_GC_mixed_write_barrier_value(
+                &rt_env_data[WOORT_BYTECODE(ABC24, c)], src);
 
             assert(rt_sp <= rt_sb);
             break;
@@ -535,7 +539,9 @@ _label_continue_execution:
         // POPCEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 3):
         {
-            rt_env_data[rt_ip[1]] = *(++rt_sp);
+            woort_Value src = *(++rt_sp);
+            woort_GC_mixed_write_barrier_value(
+                &rt_env_data[rt_ip[1]], src);
 
             assert(rt_sp <= rt_sb);
 
