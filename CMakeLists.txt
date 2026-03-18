@@ -3,7 +3,6 @@
 project ("woort")
 
 add_library(woort_options INTERFACE)
-target_compile_features(woort_options INTERFACE cxx_std_17)
 target_compile_features(woort_options INTERFACE c_std_11)
 
 if (MSVC)
