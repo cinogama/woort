@@ -33,6 +33,13 @@ typedef struct woort_ConstantPool
 
 } woort_ConstantPool;
 
+typedef enum woort_PatchKind
+{
+    WOORT_PATCH_KIND_MABC26,
+    WOORT_PATCH_KIND_BC16,
+
+} woort_PatchKind;
+
 typedef struct woort_CodeEmitter
 {
     woort_Bytecode*     m_code;
@@ -42,6 +49,7 @@ typedef struct woort_CodeEmitter
     struct {
         uint32_t        m_inst_offset;
         uint32_t        m_target_block_id;
+        woort_PatchKind m_kind;
     }*                  m_patches;
     uint32_t            m_patch_count;
     uint32_t            m_patch_capacity;

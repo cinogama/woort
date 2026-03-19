@@ -94,7 +94,7 @@ static void _woort_CodeEmitter_emit_ex(woort_CodeEmitter* emitter, woort_Bytecod
     emitter->m_code[emitter->m_code_size++] = ex;
 }
 
-static void _woort_CodeEmitter_add_patch(woort_CodeEmitter* emitter, uint32_t inst_offset, uint32_t target_block_id)
+static void _woort_CodeEmitter_add_patch(woort_CodeEmitter* emitter, uint32_t inst_offset, uint32_t target_block_id, woort_PatchKind kind)
 {
     if (emitter->m_patch_count >= emitter->m_patch_capacity)
     {
@@ -106,6 +106,7 @@ static void _woort_CodeEmitter_add_patch(woort_CodeEmitter* emitter, uint32_t in
     }
     emitter->m_patches[emitter->m_patch_count].m_inst_offset = inst_offset;
     emitter->m_patches[emitter->m_patch_count].m_target_block_id = target_block_id;
+    emitter->m_patches[emitter->m_patch_count].m_kind = kind;
     emitter->m_patch_count++;
 }
 
@@ -117,10 +118,21 @@ static void _woort_CodeEmitter_apply_patches(woort_CodeEmitter* emitter)
         uint32_t target_block_id = emitter->m_patches[i].m_target_block_id;
         uint32_t target_offset = emitter->m_block_offsets[target_block_id];
         uint32_t relative = target_offset - inst_offset;
+        woort_PatchKind kind = emitter->m_patches[i].m_kind;
 
         woort_Bytecode* inst = &emitter->m_code[inst_offset];
         uint32_t op6 = (*inst >> 26) & 0x3F;
-        *inst = woort_OpcodeFormal_OP6_MABC26_cons(op6, relative);
+
+        if (kind == WOORT_PATCH_KIND_MABC26)
+        {
+            *inst = woort_OpcodeFormal_OP6_MABC26_cons(op6, relative);
+        }
+        else
+        {
+            uint32_t m2 = (*inst >> 24) & 0x3;
+            uint32_t a8 = (*inst >> 16) & 0xFF;
+            *inst = woort_OpcodeFormal_OP6_M2_A8_BC16_cons(op6, m2, a8, relative);
+        }
     }
 }
 
@@ -210,7 +222,7 @@ static bool _woort_CodeGen_function(
                     {
                         _woort_CodeEmitter_emit(emitter,
                             woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JFWD, 0));
-                        _woort_CodeEmitter_add_patch(emitter, emitter->m_code_size - 1, target->m_id);
+                        _woort_CodeEmitter_add_patch(emitter, emitter->m_code_size - 1, target->m_id, WOORT_PATCH_KIND_MABC26);
                     }
                     break;
                 }
@@ -222,12 +234,12 @@ static bool _woort_CodeGen_function(
                     woort_IRBlock* else_block = (woort_IRBlock*)inst->m_operands[2];
 
                     _woort_CodeEmitter_emit(emitter,
-                        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_JBCKCND, 0, cond_slot, 0));
-                    _woort_CodeEmitter_add_patch(emitter, emitter->m_code_size - 1, then_block->m_id);
+                        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_JFWDCND, 0, cond_slot, 0));
+                    _woort_CodeEmitter_add_patch(emitter, emitter->m_code_size - 1, then_block->m_id, WOORT_PATCH_KIND_BC16);
 
                     _woort_CodeEmitter_emit(emitter,
                         woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JFWD, 0));
-                    _woort_CodeEmitter_add_patch(emitter, emitter->m_code_size - 1, else_block->m_id);
+                    _woort_CodeEmitter_add_patch(emitter, emitter->m_code_size - 1, else_block->m_id, WOORT_PATCH_KIND_MABC26);
                     break;
                 }
 
@@ -311,6 +323,155 @@ static bool _woort_CodeGen_function(
                     break;
                 }
 
+                case WOORT_IR_OP_MOD_R:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPRONLG, 0, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_NEG_R:
+                {
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPRONLG, 1, val, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LT_R:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPRONLG, 2, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_GT_R:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPRONLG, 3, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LE_R:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPRSREN, 0, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_GE_R:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPRSREN, 1, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_EQ_R:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPRSREN, 2, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_NE_R:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPRSREN, 3, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_ADD_S:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPSALGS, 0, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LT_S:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPSALGS, 1, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_GT_S:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPSALGS, 2, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LE_S:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPSALGS, 3, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_GE_S:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPSREN, 0, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_EQ_S:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPSREN, 1, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_NE_S:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPSREN, 2, lhs, rhs, result));
+                    break;
+                }
+
                 case WOORT_IR_OP_LT_I:
                 {
                     int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
@@ -328,6 +489,65 @@ static bool _woort_CodeGen_function(
                     int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
                     _woort_CodeEmitter_emit(emitter,
                         woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIONLG, 3, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_MOD_I:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIONLG, 0, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_NEG_I:
+                {
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPIONLG, 1, val, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LE_I:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPISREN, 0, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_GE_I:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPISREN, 1, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_EQ_I:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPISREN, 2, lhs, rhs, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_NE_I:
+                {
+                    int32_t lhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t rhs = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPISREN, 3, lhs, rhs, result));
                     break;
                 }
 
@@ -457,6 +677,381 @@ static bool _woort_CodeGen_function(
                         _woort_CodeEmitter_emit(emitter,
                             woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_RESULT, 0, 0));
                     }
+                    break;
+                }
+
+                case WOORT_IR_OP_MKVEC:
+                {
+                    uint32_t count = inst->m_operand_count;
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONS, 0, count, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_MKMAP:
+                {
+                    uint32_t count = inst->m_operand_count;
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONS, 1, count, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_MKSTRUCT:
+                {
+                    uint32_t count = inst->m_operand_count;
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONS, 2, count, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LDVEC:
+                {
+                    int32_t vec = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t idx = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDX, 0, vec, idx, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LDSTR:
+                {
+                    int32_t str = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t idx = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDX, 3, str, idx, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LDSTRUCT:
+                {
+                    uint32_t field_idx = (uint32_t)(uintptr_t)inst->m_operands[0];
+                    int32_t st = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDX, 2, field_idx, st, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LDMAP_I:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICT, 0, map, key, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LDMAP_R:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICT, 1, map, key, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LDMAP_B:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICT, 2, map, key, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_LDMAP_X:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICT, 3, map, key, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_STVEC_I:
+                {
+                    int32_t vec = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t idx = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXVEC, 0, vec, idx, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STVEC_R:
+                {
+                    int32_t vec = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t idx = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXVEC, 1, vec, idx, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STVEC_B:
+                {
+                    int32_t vec = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t idx = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXVEC, 2, vec, idx, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STVEC_X:
+                {
+                    int32_t vec = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t idx = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXVEC, 3, vec, idx, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STSTRUCT:
+                {
+                    uint32_t field_idx = (uint32_t)(uintptr_t)inst->m_operands[0];
+                    int32_t st = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_MA10_B8_C8, WOORT_OPCODE_STIDSTRUCT, field_idx, st, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_I_I:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTI, 0, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_I_R:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTI, 1, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_I_B:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTI, 2, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_I_X:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTI, 3, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_R_I:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTR, 0, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_R_R:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTR, 1, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_R_B:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTR, 2, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_R_X:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTR, 3, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_B_I:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTB, 0, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_B_R:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTB, 1, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_B_B:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTB, 2, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_B_X:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTB, 3, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_X_I:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTX, 0, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_X_R:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTX, 1, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_X_B:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTX, 2, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_STMAP_X_X:
+                {
+                    int32_t map = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t key = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[2]->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTX, 3, map, key, val));
+                    break;
+                }
+
+                case WOORT_IR_OP_CONST_STR:
+                {
+                    const char* str = (const char*)inst->m_operands[0];
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+
+                    const woort_GCString* gc_str = woort_GCString_make_string(str, 0);
+                    woort_Value const_val;
+                    const_val.m_string = gc_str;
+                    uint32_t const_idx = _woort_ConstantPool_add(const_pool, const_val);
+
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_MAB18_C8, WOORT_OPCODE_LOAD, const_idx, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_MKCLOSURE:
+                {
+                    uint32_t capture_count = inst->m_operand_count;
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+
+                    woort_Value func_val;
+                    func_val.m_gcinstance = NULL;
+                    uint32_t func_idx = _woort_ConstantPool_add(const_pool, func_val);
+
+                    _woort_CodeEmitter_emit_ex(emitter,
+                        woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_MKCLOSURE, capture_count, result),
+                        func_idx);
+                    break;
+                }
+
+                case WOORT_IR_OP_CAST_I_TO_R:
+                {
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CASTI, 1, val, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_CAST_R_TO_I:
+                {
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CASTR, 1, val, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_BOX_DYN:
+                {
+                    uint32_t type_id = (uint32_t)(uintptr_t)inst->m_operands[0];
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_DYN, 0, type_id, val, result));
+                    break;
+                }
+
+                case WOORT_IR_OP_UNBOX_DYN:
+                {
+                    uint32_t type_id = (uint32_t)(uintptr_t)inst->m_operands[0];
+                    int32_t val = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1]->m_id);
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_DYN, 1, type_id, val, result));
                     break;
                 }
 
