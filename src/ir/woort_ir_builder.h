@@ -285,6 +285,11 @@ WOORT_NODISCARD bool woort_IRBuilder_const_null(
     woort_IRBuilder* builder,
     woort_IRValue** out_result);
 
+WOORT_NODISCARD bool woort_IRBuilder_const_func(
+    woort_IRBuilder* builder,
+    uint32_t func_id,
+    woort_IRValue** out_result);
+
 WOORT_NODISCARD bool woort_IRBuilder_param(
     woort_IRBuilder* builder,
     uint32_t index,

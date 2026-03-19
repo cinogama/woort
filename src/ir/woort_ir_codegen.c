@@ -196,7 +196,8 @@ static bool _woort_CodeGen_function(
     woort_IRFunction* func,
     woort_CodeEmitter* emitter,
     woort_ConstantPool* const_pool,
-    woort_StackAllocator* stack_alloc)
+    woort_StackAllocator* stack_alloc,
+    const woort_Bytecode** function_entries)
 {
     woort_IRBlock* block = func->m_block_list;
     while (block)
@@ -655,6 +656,20 @@ static bool _woort_CodeGen_function(
                     break;
                 }
 
+                case WOORT_IR_OP_CONST_FUNC:
+                {
+                    uint32_t func_id = (uint32_t)(uintptr_t)inst->m_operands[0];
+                    int32_t result = _woort_StackAllocator_alloc_slot(stack_alloc, inst->m_result->m_id);
+
+                    woort_Value const_val;
+                    const_val.m_script_function = function_entries[func_id];
+                    uint32_t const_idx = _woort_ConstantPool_add(const_pool, const_val);
+
+                    _woort_CodeEmitter_emit(emitter,
+                        woort_OpCodeFormal_cons(OP6_MAB18_C8, WOORT_OPCODE_LOAD, const_idx, result));
+                    break;
+                }
+
                 case WOORT_IR_OP_PARAM:
                 {
                     uint32_t param_idx = (uint32_t)(uintptr_t)inst->m_operands[0];
@@ -670,17 +685,12 @@ static bool _woort_CodeGen_function(
                 {
                     uint32_t arg_count = inst->m_operand_count - 1;
 
-                    for (uint32_t i = 0; i < arg_count; ++i)
-                    {
-                        int32_t arg_slot = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[1 + i]->m_id);
-                    }
+                    (void)arg_count;
 
-                    woort_Value func_val;
-                    func_val.m_native_or_jit_function = NULL;
-                    uint32_t func_idx = _woort_ConstantPool_add(const_pool, func_val);
+                    int32_t func_slot = _woort_StackAllocator_get_slot(stack_alloc, inst->m_operands[0]->m_id);
 
                     _woort_CodeEmitter_emit(emitter,
-                        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, func_idx));
+                        woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CALL, 0, func_slot));
 
                     if (inst->m_result)
                     {
@@ -1147,7 +1157,7 @@ WOORT_NODISCARD bool woort_IRModule_codegen(
             stack_alloc.m_max_local_offset--;
         }
 
-        if (!_woort_CodeGen_function(func, &emitter, &const_pool, &stack_alloc))
+        if (!_woort_CodeGen_function(func, &emitter, &const_pool, &stack_alloc, function_entries))
         {
             _woort_StackAllocator_cleanup(&stack_alloc);
             free((void*)function_entries);

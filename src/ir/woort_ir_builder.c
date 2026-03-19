@@ -968,6 +968,24 @@ WOORT_NODISCARD bool woort_IRBuilder_const_null(woort_IRBuilder* builder, woort_
     return true;
 }
 
+WOORT_NODISCARD bool woort_IRBuilder_const_func(woort_IRBuilder* builder, uint32_t func_id, woort_IRValue** out_result)
+{
+    woort_IRValue* result = _woort_IRBuilder_alloc_value(builder);
+    if (!result) return false;
+
+    woort_IRInst* inst = _woort_IRBuilder_alloc_inst(builder, WOORT_IR_OP_CONST_FUNC, 1);
+    if (!inst) return false;
+
+    inst->m_result = result;
+    inst->m_operands[0] = (woort_IRValue*)(uintptr_t)func_id;
+    result->m_def_inst = inst;
+
+    _woort_IRBlock_append_inst(builder->m_insert_block, inst);
+
+    *out_result = result;
+    return true;
+}
+
 WOORT_NODISCARD bool woort_IRBuilder_param(woort_IRBuilder* builder, uint32_t index, woort_IRValue** out_result)
 {
     woort_IRValue* result = _woort_IRBuilder_alloc_value(builder);
