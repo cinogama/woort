@@ -63,8 +63,8 @@ static bool test_simple_function(void)
 
     woort_IRBuilder_ret(builder, const_val);
 
-    woort_CodeEnv* codeenv;
-    if (!woort_IRModule_codegen(module, &codeenv))
+    woort_IRCodegenResult cg_result;
+    if (!woort_IRModule_codegen(module, &cg_result))
     {
         printf("FAIL: Cannot generate code\n");
         woort_IRBuilder_destroy(builder);
@@ -76,14 +76,16 @@ static bool test_simple_function(void)
     if (!woort_VMRuntime_create(&vm))
     {
         printf("FAIL: Cannot create VM\n");
-        woort_CodeEnv_drop(codeenv);
+        woort_CodeEnv_drop(cg_result.m_codeenv);
+        free((void*)cg_result.m_function_entries);
         woort_IRBuilder_destroy(builder);
         woort_IRModule_destroy(module);
         return false;
     }
 
-    woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
-    woort_CodeEnv_drop(codeenv);
+    woort_VMRuntime_invoke(vm, cg_result.m_function_entries[0]);
+    woort_CodeEnv_drop(cg_result.m_codeenv);
+    free((void*)cg_result.m_function_entries);
 
     woort_VMRuntime_destroy(vm);
     woort_IRBuilder_destroy(builder);
@@ -138,8 +140,8 @@ static bool test_binary_op(void)
 
     woort_IRBuilder_ret(builder, result);
 
-    woort_CodeEnv* codeenv;
-    if (!woort_IRModule_codegen(module, &codeenv))
+    woort_IRCodegenResult cg_result;
+    if (!woort_IRModule_codegen(module, &cg_result))
     {
         printf("FAIL: Cannot generate code\n");
         goto fail;
@@ -149,12 +151,14 @@ static bool test_binary_op(void)
     if (!woort_VMRuntime_create(&vm))
     {
         printf("FAIL: Cannot create VM\n");
-        woort_CodeEnv_drop(codeenv);
+        woort_CodeEnv_drop(cg_result.m_codeenv);
+        free((void*)cg_result.m_function_entries);
         goto fail;
     }
 
-    woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
-    woort_CodeEnv_drop(codeenv);
+    woort_VMRuntime_invoke(vm, cg_result.m_function_entries[0]);
+    woort_CodeEnv_drop(cg_result.m_codeenv);
+    free((void*)cg_result.m_function_entries);
 
     woort_VMRuntime_destroy(vm);
     woort_IRBuilder_destroy(builder);
@@ -220,8 +224,8 @@ static bool test_local_variable(void)
     if (!woort_IRBuilder_get_local(builder, x, &result)) goto fail;
     woort_IRBuilder_ret(builder, result);
 
-    woort_CodeEnv* codeenv;
-    if (!woort_IRModule_codegen(module, &codeenv))
+    woort_IRCodegenResult cg_result;
+    if (!woort_IRModule_codegen(module, &cg_result))
     {
         printf("FAIL: Cannot generate code\n");
         goto fail;
@@ -231,12 +235,14 @@ static bool test_local_variable(void)
     if (!woort_VMRuntime_create(&vm))
     {
         printf("FAIL: Cannot create VM\n");
-        woort_CodeEnv_drop(codeenv);
+        woort_CodeEnv_drop(cg_result.m_codeenv);
+        free((void*)cg_result.m_function_entries);
         goto fail;
     }
 
-    woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
-    woort_CodeEnv_drop(codeenv);
+    woort_VMRuntime_invoke(vm, cg_result.m_function_entries[0]);
+    woort_CodeEnv_drop(cg_result.m_codeenv);
+    free((void*)cg_result.m_function_entries);
 
     woort_VMRuntime_destroy(vm);
     woort_IRBuilder_destroy(builder);
@@ -320,8 +326,8 @@ static bool test_conditional_branch(void)
     if (!woort_IRBuilder_const_int(builder, 2, &two)) goto fail;
     woort_IRBuilder_ret(builder, two);
 
-    woort_CodeEnv* codeenv;
-    if (!woort_IRModule_codegen(module, &codeenv))
+    woort_IRCodegenResult cg_result;
+    if (!woort_IRModule_codegen(module, &cg_result))
     {
         printf("FAIL: Cannot generate code\n");
         goto fail;
@@ -331,12 +337,14 @@ static bool test_conditional_branch(void)
     if (!woort_VMRuntime_create(&vm))
     {
         printf("FAIL: Cannot create VM\n");
-        woort_CodeEnv_drop(codeenv);
+        woort_CodeEnv_drop(cg_result.m_codeenv);
+        free((void*)cg_result.m_function_entries);
         goto fail;
     }
 
-    woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
-    woort_CodeEnv_drop(codeenv);
+    woort_VMRuntime_invoke(vm, cg_result.m_function_entries[0]);
+    woort_CodeEnv_drop(cg_result.m_codeenv);
+    free((void*)cg_result.m_function_entries);
 
     woort_VMRuntime_destroy(vm);
     woort_IRBuilder_destroy(builder);
@@ -397,8 +405,8 @@ static bool test_comparison(void)
 
     woort_IRBuilder_ret(builder, result);
 
-    woort_CodeEnv* codeenv;
-    if (!woort_IRModule_codegen(module, &codeenv))
+    woort_IRCodegenResult cg_result;
+    if (!woort_IRModule_codegen(module, &cg_result))
     {
         printf("FAIL: Cannot generate code\n");
         goto fail;
@@ -408,12 +416,14 @@ static bool test_comparison(void)
     if (!woort_VMRuntime_create(&vm))
     {
         printf("FAIL: Cannot create VM\n");
-        woort_CodeEnv_drop(codeenv);
+        woort_CodeEnv_drop(cg_result.m_codeenv);
+        free((void*)cg_result.m_function_entries);
         goto fail;
     }
 
-    woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
-    woort_CodeEnv_drop(codeenv);
+    woort_VMRuntime_invoke(vm, cg_result.m_function_entries[0]);
+    woort_CodeEnv_drop(cg_result.m_codeenv);
+    free((void*)cg_result.m_function_entries);
 
     woort_VMRuntime_destroy(vm);
     woort_IRBuilder_destroy(builder);

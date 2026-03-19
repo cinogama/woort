@@ -59,6 +59,14 @@ typedef struct woort_CodeEmitter
 
 } woort_CodeEmitter;
 
+typedef struct woort_IRCodegenResult
+{
+    woort_CodeEnv*          m_codeenv;
+    const woort_Bytecode**  m_function_entries;
+    uint32_t                m_function_count;
+
+} woort_IRCodegenResult;
+
 WOORT_NODISCARD bool woort_IRModule_codegen(
     woort_IRModule* module,
-    woort_CodeEnv** out_codeenv);
+    woort_IRCodegenResult* out_result);

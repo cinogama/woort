@@ -39,7 +39,7 @@ static uint32_t _woort_ConstantPool_add(woort_ConstantPool* pool, woort_Value va
     return pool->m_count++;
 }
 
-static bool _woort_CodeEmitter_init(woort_CodeEmitter* emitter, uint32_t block_count)
+static bool _woort_CodeEmitter_init(woort_CodeEmitter* emitter)
 {
     emitter->m_code = (woort_Bytecode*)malloc(sizeof(woort_Bytecode) * INITIAL_CODE_CAPACITY);
     if (!emitter->m_code) return false;
@@ -51,9 +51,8 @@ static bool _woort_CodeEmitter_init(woort_CodeEmitter* emitter, uint32_t block_c
     emitter->m_patch_count = 0;
     emitter->m_patch_capacity = INITIAL_PATCH_CAPACITY;
 
-    emitter->m_block_offsets = (uint32_t*)calloc(block_count, sizeof(uint32_t));
-    if (!emitter->m_block_offsets) return false;
-    emitter->m_block_count = block_count;
+    emitter->m_block_offsets = NULL;
+    emitter->m_block_count = 0;
 
     return true;
 }
@@ -174,6 +173,23 @@ static int32_t _woort_StackAllocator_get_slot(woort_StackAllocator* alloc, uint3
         return _woort_StackAllocator_alloc_slot(alloc, value_id);
     }
     return alloc->m_value_slots[value_id].m_offset;
+}
+
+static bool _woort_CodeEmitter_reset_for_function(woort_CodeEmitter* emitter, uint32_t block_count)
+{
+    if (emitter->m_block_count < block_count)
+    {
+        free(emitter->m_block_offsets);
+        emitter->m_block_offsets = (uint32_t*)calloc(block_count, sizeof(uint32_t));
+        if (!emitter->m_block_offsets) return false;
+        emitter->m_block_count = block_count;
+    }
+    else
+    {
+        memset(emitter->m_block_offsets, 0, block_count * sizeof(uint32_t));
+    }
+    emitter->m_patch_count = 0;
+    return true;
 }
 
 static bool _woort_CodeGen_function(
@@ -1073,7 +1089,7 @@ static bool _woort_CodeGen_function(
 
 WOORT_NODISCARD bool woort_IRModule_codegen(
     woort_IRModule* module,
-    woort_CodeEnv** out_codeenv)
+    woort_IRCodegenResult* out_result)
 {
     if (module->m_function_count == 0)
     {
@@ -1082,11 +1098,8 @@ WOORT_NODISCARD bool woort_IRModule_codegen(
 
     woort_CodeEmitter emitter;
     woort_ConstantPool const_pool;
-    woort_StackAllocator stack_alloc;
 
-    woort_IRFunction* first_func = module->m_functions[0];
-
-    if (!_woort_CodeEmitter_init(&emitter, first_func->m_block_count))
+    if (!_woort_CodeEmitter_init(&emitter))
     {
         return false;
     }
@@ -1097,50 +1110,82 @@ WOORT_NODISCARD bool woort_IRModule_codegen(
         return false;
     }
 
-    if (!_woort_StackAllocator_init(&stack_alloc, first_func->m_next_value_id))
+    const woort_Bytecode** function_entries = (const woort_Bytecode**)malloc(
+        sizeof(const woort_Bytecode*) * module->m_function_count);
+    if (!function_entries)
     {
         _woort_ConstantPool_cleanup(&const_pool);
         _woort_CodeEmitter_cleanup(&emitter);
         return false;
     }
 
-    for (uint32_t i = 0; i < first_func->m_param_count; ++i)
+    for (uint32_t func_idx = 0; func_idx < module->m_function_count; ++func_idx)
     {
-        stack_alloc.m_max_local_offset--;
-    }
+        woort_IRFunction* func = module->m_functions[func_idx];
 
-    if (!_woort_CodeGen_function(first_func, &emitter, &const_pool, &stack_alloc))
-    {
+        function_entries[func_idx] = emitter.m_code + emitter.m_code_size;
+
+        if (!_woort_CodeEmitter_reset_for_function(&emitter, func->m_block_count))
+        {
+            free((void*)function_entries);
+            _woort_ConstantPool_cleanup(&const_pool);
+            _woort_CodeEmitter_cleanup(&emitter);
+            return false;
+        }
+
+        woort_StackAllocator stack_alloc;
+        if (!_woort_StackAllocator_init(&stack_alloc, func->m_next_value_id))
+        {
+            free((void*)function_entries);
+            _woort_ConstantPool_cleanup(&const_pool);
+            _woort_CodeEmitter_cleanup(&emitter);
+            return false;
+        }
+
+        for (uint32_t i = 0; i < func->m_param_count; ++i)
+        {
+            stack_alloc.m_max_local_offset--;
+        }
+
+        if (!_woort_CodeGen_function(func, &emitter, &const_pool, &stack_alloc))
+        {
+            _woort_StackAllocator_cleanup(&stack_alloc);
+            free((void*)function_entries);
+            _woort_ConstantPool_cleanup(&const_pool);
+            _woort_CodeEmitter_cleanup(&emitter);
+            return false;
+        }
+
+        _woort_CodeEmitter_apply_patches(&emitter);
+
         _woort_StackAllocator_cleanup(&stack_alloc);
-        _woort_ConstantPool_cleanup(&const_pool);
-        _woort_CodeEmitter_cleanup(&emitter);
-        return false;
     }
-
-    _woort_CodeEmitter_apply_patches(&emitter);
 
     uint32_t data_count = const_pool.m_count;
+    woort_CodeEnv* codeenv;
     if (!woort_CodeEnv_create(
         emitter.m_code,
         emitter.m_code_size,
         data_count,
-        out_codeenv))
+        &codeenv))
     {
-        _woort_StackAllocator_cleanup(&stack_alloc);
+        free((void*)function_entries);
         _woort_ConstantPool_cleanup(&const_pool);
         _woort_CodeEmitter_cleanup(&emitter);
         return false;
     }
 
-    woort_CodeEnv* codeenv = *out_codeenv;
     for (uint32_t i = 0; i < const_pool.m_count; ++i)
     {
         codeenv->m_data_begin[i] = const_pool.m_entries[i];
     }
 
-    _woort_StackAllocator_cleanup(&stack_alloc);
     _woort_ConstantPool_cleanup(&const_pool);
     _woort_CodeEmitter_cleanup(&emitter);
+
+    out_result->m_codeenv = codeenv;
+    out_result->m_function_entries = function_entries;
+    out_result->m_function_count = module->m_function_count;
 
     return true;
 }
