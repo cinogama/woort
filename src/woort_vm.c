@@ -942,10 +942,7 @@ _label_continue_execution:
             {
                 // Try resync far ip.
                 if (rt_ip < rt_env_code || rt_ip >= rt_env_code_end)
-                {
-                    ++rt_ip;
                     WOORT_VM_THROW(env_updated);
-                }
                 break;
             }
             default:
@@ -955,7 +952,7 @@ _label_continue_execution:
                     "Bad callstack, unexpected call way(%x).",
                     (uint32_t)rt_sp[-1].m_ret_bp.m_way);
             }
-            break;
+            continue;
         }
         // RETVS
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 1):
@@ -977,10 +974,7 @@ _label_continue_execution:
             {
                 // Try resync far ip.
                 if (rt_ip < rt_env_code || rt_ip >= rt_env_code_end)
-                {
-                    ++rt_ip;
                     WOORT_VM_THROW(env_updated);
-                }
                 break;
             }
             default:
@@ -990,7 +984,7 @@ _label_continue_execution:
                     "Bad callstack, unexpected call way(%x).",
                     (uint32_t)rt_sp[-1].m_ret_bp.m_way);
             }
-            break;
+            continue;
         }
         // RETVC
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 2):
@@ -1011,10 +1005,7 @@ _label_continue_execution:
             {
                 // Try resync far ip.
                 if (rt_ip < rt_env_code || rt_ip >= rt_env_code_end)
-                {
-                    ++rt_ip;
                     WOORT_VM_THROW(env_updated);
-                }
                 break;
             }
             default:
@@ -1024,7 +1015,7 @@ _label_continue_execution:
                     "Bad callstack, unexpected call way(%x).",
                     (uint32_t)rt_sp[-1].m_ret_bp.m_way);
             }
-            break;
+            continue;
         }
         // POPRS
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 3):
