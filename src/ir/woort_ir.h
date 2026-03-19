@@ -12,3 +12,4 @@
 #include "woort_ir_function.h"
 #include "woort_ir_module.h"
 #include "woort_ir_builder.h"
+#include "woort_ir_codegen.h"
