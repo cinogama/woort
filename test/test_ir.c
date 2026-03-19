@@ -82,8 +82,8 @@ static bool test_simple_function(void)
         return false;
     }
 
-    woort_CodeEnv_drop(codeenv);
     woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
+    woort_CodeEnv_drop(codeenv);
 
     woort_VMRuntime_destroy(vm);
     woort_IRBuilder_destroy(builder);
@@ -153,8 +153,8 @@ static bool test_binary_op(void)
         goto fail;
     }
 
-    woort_CodeEnv_drop(codeenv);
     woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
+    woort_CodeEnv_drop(codeenv);
 
     woort_VMRuntime_destroy(vm);
     woort_IRBuilder_destroy(builder);
@@ -235,8 +235,8 @@ static bool test_local_variable(void)
         goto fail;
     }
 
-    woort_CodeEnv_drop(codeenv);
     woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
+    woort_CodeEnv_drop(codeenv);
 
     woort_VMRuntime_destroy(vm);
     woort_IRBuilder_destroy(builder);
@@ -335,8 +335,8 @@ static bool test_conditional_branch(void)
         goto fail;
     }
 
-    woort_CodeEnv_drop(codeenv);
     woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
+    woort_CodeEnv_drop(codeenv);
 
     woort_VMRuntime_destroy(vm);
     woort_IRBuilder_destroy(builder);
@@ -412,8 +412,8 @@ static bool test_comparison(void)
         goto fail;
     }
 
-    woort_CodeEnv_drop(codeenv);
     woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
+    woort_CodeEnv_drop(codeenv);
 
     woort_VMRuntime_destroy(vm);
     woort_IRBuilder_destroy(builder);
