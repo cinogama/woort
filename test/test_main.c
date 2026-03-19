@@ -37,8 +37,12 @@ woort_api bar(woort_vm vm, woort_value* args)
     return WOORT_VM_CALL_STATUS_NORMAL;
 }
 
+extern void woort_test_ir(void);
+
 int main(int argc, char** argv) {
     woort_init();
+
+    woort_test_ir();
 
     const woort_Bytecode bcs[] =
     {

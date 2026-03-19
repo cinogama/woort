@@ -186,6 +186,233 @@ void woort_IRBlock_seal(woort_IRBlock* block)
     block->m_is_sealed = true;
 }
 
+#define WOORT_IR_LOCAL_INITIAL_VALUES_CAPACITY 16
+
+static woort_IRLocalValueEntry* _woort_IRLocal_find_or_create_entry(
+    woort_IRLocal* local,
+    uint32_t block_id)
+{
+    for (uint32_t i = 0; i < local->m_values_count; ++i)
+    {
+        if (local->m_values[i].m_block_id == block_id)
+        {
+            return &local->m_values[i];
+        }
+    }
+
+    if (local->m_values_count >= local->m_values_capacity)
+    {
+        uint32_t new_capacity = local->m_values_capacity * 2;
+        woort_IRArena* arena = local->m_function->m_module->m_arena;
+        woort_IRLocalValueEntry* new_values = woort_IRArena_alloc_array(arena, woort_IRLocalValueEntry, new_capacity);
+        if (!new_values)
+        {
+            return NULL;
+        }
+        for (uint32_t i = 0; i < local->m_values_count; ++i)
+        {
+            new_values[i] = local->m_values[i];
+        }
+        local->m_values = new_values;
+        local->m_values_capacity = new_capacity;
+    }
+
+    woort_IRLocalValueEntry* entry = &local->m_values[local->m_values_count++];
+    entry->m_block_id = block_id;
+    entry->m_value = NULL;
+    entry->m_is_set = false;
+    return entry;
+}
+
+static woort_IRValue* _woort_IRLocal_get_value(woort_IRLocal* local, uint32_t block_id)
+{
+    for (uint32_t i = 0; i < local->m_values_count; ++i)
+    {
+        if (local->m_values[i].m_block_id == block_id && local->m_values[i].m_is_set)
+        {
+            return local->m_values[i].m_value;
+        }
+    }
+    return NULL;
+}
+
+static void _woort_IRLocal_set_value(woort_IRLocal* local, uint32_t block_id, woort_IRValue* value)
+{
+    woort_IRLocalValueEntry* entry = _woort_IRLocal_find_or_create_entry(local, block_id);
+    if (entry)
+    {
+        entry->m_value = value;
+        entry->m_is_set = true;
+    }
+}
+
+static woort_IRInst* _woort_IRBuilder_create_phi(woort_IRBuilder* builder)
+{
+    woort_IRArena* arena = builder->m_function->m_module->m_arena;
+    woort_IRInst* phi = woort_IRArena_alloc_type(arena, woort_IRInst);
+    if (!phi) return NULL;
+
+    phi->m_op = WOORT_IR_OP_PHI;
+    phi->m_result = _woort_IRBuilder_alloc_value(builder);
+    if (!phi->m_result)
+    {
+        return NULL;
+    }
+    phi->m_result->m_def_inst = phi;
+    phi->m_operands = NULL;
+    phi->m_operand_count = 0;
+    phi->m_phi_src_blocks = NULL;
+    phi->m_phi_incoming_count = 0;
+    phi->m_next = NULL;
+    phi->m_prev = NULL;
+
+    return phi;
+}
+
+static void _woort_IRBuilder_add_phi_incoming(
+    woort_IRInst* phi,
+    woort_IRValue* value,
+    woort_IRBlock* block,
+    woort_IRArena* arena)
+{
+    uint32_t count = phi->m_phi_incoming_count;
+
+    woort_IRValue** new_operands = woort_IRArena_alloc_array(arena, woort_IRValue*, count + 1);
+    woort_IRBlock** new_blocks = woort_IRArena_alloc_array(arena, woort_IRBlock*, count + 1);
+    if (!new_operands || !new_blocks) return;
+
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        new_operands[i] = phi->m_operands[i];
+        new_blocks[i] = phi->m_phi_src_blocks[i];
+    }
+    new_operands[count] = value;
+    new_blocks[count] = block;
+
+    phi->m_operands = new_operands;
+    phi->m_phi_src_blocks = new_blocks;
+    phi->m_phi_incoming_count = count + 1;
+    phi->m_operand_count = count + 1;
+}
+
+static woort_IRValue* _woort_IRBuilder_get_local_recursive(
+    woort_IRBuilder* builder,
+    woort_IRLocal* local,
+    woort_IRBlock* block);
+
+static woort_IRValue* _woort_IRBuilder_try_remove_trivial_phi(
+    woort_IRBuilder* builder,
+    woort_IRInst* phi)
+{
+    woort_IRValue* same = NULL;
+    for (uint32_t i = 0; i < phi->m_phi_incoming_count; ++i)
+    {
+        woort_IRValue* incoming = phi->m_operands[i];
+        if (incoming == phi->m_result)
+        {
+            continue;
+        }
+        if (same && incoming != same)
+        {
+            return phi->m_result;
+        }
+        same = incoming;
+    }
+
+    if (!same)
+    {
+        return phi->m_result;
+    }
+
+    return same;
+}
+
+static woort_IRValue* _woort_IRBuilder_get_local_recursive(
+    woort_IRBuilder* builder,
+    woort_IRLocal* local,
+    woort_IRBlock* block)
+{
+    woort_IRValue* cached = _woort_IRLocal_get_value(local, block->m_id);
+    if (cached)
+    {
+        return cached;
+    }
+
+    if (!block->m_is_sealed)
+    {
+        woort_IRInst* phi = _woort_IRBuilder_create_phi(builder);
+        if (!phi) return NULL;
+
+        _woort_IRLocal_set_value(local, block->m_id, phi->m_result);
+
+        if (block->m_phis)
+        {
+            woort_IRInst* last_phi = block->m_phis;
+            while (last_phi->m_next)
+            {
+                last_phi = last_phi->m_next;
+            }
+            last_phi->m_next = phi;
+            phi->m_prev = last_phi;
+        }
+        else
+        {
+            block->m_phis = phi;
+        }
+
+        return phi->m_result;
+    }
+
+    if (block->m_pred_info.m_pred_count == 0)
+    {
+        return NULL;
+    }
+
+    if (block->m_pred_info.m_pred_count == 1)
+    {
+        woort_IRBlock* pred = block->m_pred_info.m_preds[0];
+        woort_IRValue* value = _woort_IRBuilder_get_local_recursive(builder, local, pred);
+        _woort_IRLocal_set_value(local, block->m_id, value);
+        return value;
+    }
+
+    woort_IRInst* phi = _woort_IRBuilder_create_phi(builder);
+    if (!phi) return NULL;
+
+    _woort_IRLocal_set_value(local, block->m_id, phi->m_result);
+
+    if (block->m_phis)
+    {
+        woort_IRInst* last_phi = block->m_phis;
+        while (last_phi->m_next)
+        {
+            last_phi = last_phi->m_next;
+        }
+        last_phi->m_next = phi;
+        phi->m_prev = last_phi;
+    }
+    else
+    {
+        block->m_phis = phi;
+    }
+
+    woort_IRArena* arena = builder->m_function->m_module->m_arena;
+    for (uint32_t i = 0; i < block->m_pred_info.m_pred_count; ++i)
+    {
+        woort_IRBlock* pred = block->m_pred_info.m_preds[i];
+        woort_IRValue* incoming = _woort_IRBuilder_get_local_recursive(builder, local, pred);
+        _woort_IRBuilder_add_phi_incoming(phi, incoming, pred, arena);
+    }
+
+    woort_IRValue* result = _woort_IRBuilder_try_remove_trivial_phi(builder, phi);
+    if (result != phi->m_result)
+    {
+        _woort_IRLocal_set_value(local, block->m_id, result);
+    }
+
+    return result;
+}
+
 WOORT_NODISCARD bool woort_IRBuilder_create_local(
     woort_IRBuilder* builder,
     woort_IRLocal** out_local)
@@ -215,17 +442,13 @@ WOORT_NODISCARD bool woort_IRBuilder_create_local(
 
     local->m_id = func->m_local_count;
     local->m_function = func;
-    local->m_current_vals_capacity = func->m_block_count > 0 ? func->m_block_count : WOORT_IR_LOCAL_INITIAL_VALS_CAPACITY;
-    local->m_current_vals = woort_IRArena_alloc_array(arena, woort_IRValue*, local->m_current_vals_capacity);
-    if (!local->m_current_vals)
+    local->m_values_capacity = WOORT_IR_LOCAL_INITIAL_VALUES_CAPACITY;
+    local->m_values = woort_IRArena_alloc_array(arena, woort_IRLocalValueEntry, local->m_values_capacity);
+    if (!local->m_values)
     {
         return false;
     }
-
-    for (uint32_t i = 0; i < local->m_current_vals_capacity; ++i)
-    {
-        local->m_current_vals[i] = NULL;
-    }
+    local->m_values_count = 0;
 
     func->m_locals[func->m_local_count++] = local;
 
@@ -243,13 +466,7 @@ void woort_IRBuilder_set_local(
         return;
     }
 
-    uint32_t block_id = builder->m_insert_block->m_id;
-    if (block_id >= local->m_current_vals_capacity)
-    {
-        return;
-    }
-
-    local->m_current_vals[block_id] = value;
+    _woort_IRLocal_set_value(local, builder->m_insert_block->m_id, value);
 }
 
 WOORT_NODISCARD bool woort_IRBuilder_get_local(
@@ -257,10 +474,19 @@ WOORT_NODISCARD bool woort_IRBuilder_get_local(
     woort_IRLocal* local,
     woort_IRValue** out_value)
 {
-    (void)builder;
-    (void)local;
-    (void)out_value;
-    return false;
+    if (!builder->m_insert_block)
+    {
+        return false;
+    }
+
+    woort_IRValue* value = _woort_IRBuilder_get_local_recursive(builder, local, builder->m_insert_block);
+    if (!value)
+    {
+        return false;
+    }
+
+    *out_value = value;
+    return true;
 }
 
 void woort_IRBuilder_ret_void(woort_IRBuilder* builder)
