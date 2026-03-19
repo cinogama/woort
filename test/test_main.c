@@ -128,8 +128,8 @@ int main(int argc, char** argv) {
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
 
-    woort_CodeEnv_drop(codeenv);
     (void)woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
+    woort_CodeEnv_drop(codeenv);
 
     woort_VMRuntime_destroy(vm);
 
