@@ -1129,23 +1129,40 @@ WOORT_NODISCARD bool woort_IRModule_codegen(
         return false;
     }
 
+    woort_FuncPatchInfo* func_patches = (woort_FuncPatchInfo*)malloc(
+        sizeof(woort_FuncPatchInfo) * module->m_function_count);
+    if (!func_patches)
+    {
+        _woort_ConstantPool_cleanup(&const_pool);
+        _woort_CodeEmitter_cleanup(&emitter);
+        return false;
+    }
+
     for (uint32_t func_idx = 0; func_idx < module->m_function_count; ++func_idx)
     {
         woort_IRFunction* func = module->m_functions[func_idx];
+
+        func_patches[func_idx].m_func_entry_offset = emitter.m_code_size;
 
         function_entries[func_idx] = emitter.m_code + emitter.m_code_size;
 
         if (!_woort_CodeEmitter_reset_for_function(&emitter, func->m_block_count))
         {
+            free(func_patches);
             free((void*)function_entries);
             _woort_ConstantPool_cleanup(&const_pool);
             _woort_CodeEmitter_cleanup(&emitter);
             return false;
         }
 
+        func_patches[func_idx].m_pushrchk_offset = emitter.m_code_size;
+        _woort_CodeEmitter_emit(&emitter,
+            woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 0, 0));
+
         woort_StackAllocator stack_alloc;
         if (!_woort_StackAllocator_init(&stack_alloc, func->m_next_value_id))
         {
+            free(func_patches);
             free((void*)function_entries);
             _woort_ConstantPool_cleanup(&const_pool);
             _woort_CodeEmitter_cleanup(&emitter);
@@ -1160,16 +1177,23 @@ WOORT_NODISCARD bool woort_IRModule_codegen(
         if (!_woort_CodeGen_function(func, &emitter, &const_pool, &stack_alloc, function_entries))
         {
             _woort_StackAllocator_cleanup(&stack_alloc);
+            free(func_patches);
             free((void*)function_entries);
             _woort_ConstantPool_cleanup(&const_pool);
             _woort_CodeEmitter_cleanup(&emitter);
             return false;
         }
 
+        uint32_t stack_slots_needed = (uint32_t)(-stack_alloc.m_max_local_offset);
+        emitter.m_code[func_patches[func_idx].m_pushrchk_offset] =
+            woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 0, stack_slots_needed);
+
         _woort_CodeEmitter_apply_patches(&emitter);
 
         _woort_StackAllocator_cleanup(&stack_alloc);
     }
+
+    free(func_patches);
 
     uint32_t data_count = const_pool.m_count;
     woort_CodeEnv* codeenv;

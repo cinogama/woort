@@ -67,6 +67,13 @@ typedef struct woort_IRCodegenResult
 
 } woort_IRCodegenResult;
 
+typedef struct woort_FuncPatchInfo
+{
+    uint32_t        m_pushrchk_offset;
+    uint32_t        m_func_entry_offset;
+
+} woort_FuncPatchInfo;
+
 WOORT_NODISCARD bool woort_IRModule_codegen(
     woort_IRModule* module,
     woort_IRCodegenResult* out_result);
