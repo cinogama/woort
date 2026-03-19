@@ -1254,7 +1254,8 @@ _label_continue_execution:
             woort_GCVec_resize(gcvec, size);
 
             for (size_t i = 1; i <= size; ++i)
-                gcvec->m_datas[size - i] = rt_sp[i].m_dynamic;
+                woort_GC_mixed_write_barrier_dynbox(
+                    &gcvec->m_datas[size - i], rt_sp[i].m_dynamic);
 
             rt_sp += size;
             break;
@@ -1289,7 +1290,8 @@ _label_continue_execution:
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
 
             for (size_t i = 1; i <= size; ++i)
-                gcstruct->m_datas[size - i] = rt_sp[i];
+                woort_GC_mixed_write_barrier_value(
+                    &gcstruct->m_datas[size - i], rt_sp[i]);
 
             rt_sp += size;
             break;
@@ -1306,7 +1308,8 @@ _label_continue_execution:
             woort_GCVec_resize(gcvec, size);
 
             for (size_t i = 1; i <= size; ++i)
-                gcvec->m_datas[size - i] = rt_sp[i].m_dynamic;
+                woort_GC_mixed_write_barrier_dynbox(
+                    &gcvec->m_datas[size - i], rt_sp[i].m_dynamic);
 
             rt_sp += size;
             rt_ip += 2;
@@ -1342,7 +1345,8 @@ _label_continue_execution:
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
 
             for (size_t i = 1; i <= size; ++i)
-                gcstruct->m_datas[size - i] = rt_sp[i];
+                woort_GC_mixed_write_barrier_value(
+                    &gcstruct->m_datas[size - i], rt_sp[i]);
 
             rt_sp += size;
             rt_ip += 2;
@@ -1361,7 +1365,8 @@ _label_continue_execution:
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_closure = gcclosure;
 
             for (size_t i = 1; i <= size; ++i)
-                gcclosure->m_datas[size - i] = rt_sp[i];
+                woort_GC_mixed_write_barrier_value(
+                    &gcclosure->m_datas[size - i], rt_sp[i]);
 
             rt_sp += size;
             rt_ip += 2;

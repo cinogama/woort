@@ -188,6 +188,8 @@ WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key)
         const uint32_t last_next = last_bucket->m_next;
 
         // 复制最后一个 bucket 到被删除的位置
+        // 注意：此处不需要写屏障，因为 m_key 和 m_val 的任何后续修改操作
+        // （如 insert、set_or_insert 等）都会使用混合写屏障，确保 GC 正确性
         *bucket = *last_bucket;
 
         // 更新最后一个 bucket 的邻居指针
