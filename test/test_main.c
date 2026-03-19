@@ -37,72 +37,31 @@ woort_api bar(woort_vm vm, woort_value* args)
     return WOORT_VM_CALL_STATUS_NORMAL;
 }
 
-extern void woort_test_ir(void);
-
 int main(int argc, char** argv) {
     woort_init();
 
-    woort_test_ir();
-
     const woort_Bytecode bcs[] =
     {
-        // 0:       PUSHRCHK 5
-        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 0, 5),
-        // 1:       LOAD G[0], [SB-0]
-        woort_OpCodeFormal_cons(OP6_MAB18_C8, WOORT_OPCODE_LOAD, 0, 0),
-        // 2:       LOAD G[1], [SB-1]
-        woort_OpCodeFormal_cons(OP6_MAB18_C8, WOORT_OPCODE_LOAD, 1, -1),
-        // 3:       LOAD G[2], [SB-2]
-        woort_OpCodeFormal_cons(OP6_MAB18_C8, WOORT_OPCODE_LOAD, 2, -2),
-
-        // 4:       CALL G[4]
-        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 4),
-        // 5:       RESULT POP 0 [SB-3]
-        woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_RESULT, 0, -3),
-
-        // 6:       JMPF +8
-        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JFWD, 8),
-        // 7:       CADDI [SB-2], [SB-0]
-        woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCIASMD, 0, -2, 0),
-        // 8:       JBCKLT +7 if [SB-0] < [SB-1]
-        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_JBCKCMP, 0, 0, -1, 1),
-
-        // 9:       CALL G[4]
-        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 4),
-        // 10:      RESULT POP 0 [SB-4]
-        woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_RESULT, 0, -4),
-
-        // 11:      PUSHSCHK [SB-0]
-        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 1, 0),
-        // 12:      CALL G[3]
-        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 3),
-        // 13:      POPR 1
-        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_POP, 0, 1),
-
-        // 14:      SUBI [SB-4], [SB-3], [SB-4]
-        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 1, -4, -3, -4),
-        // 15:      PUSHSCHK [SB-4]
-        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 1, -4),
-        // 16:      CALL G[3]
-        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 3),
-        // 17:      POPR 1
-        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_POP, 0, 1),
-
-        // 18:      LOAD G[7], [SB-4]
-        woort_OpCodeFormal_cons(OP6_MAB18_C8, WOORT_OPCODE_LOAD, 7, -4),
-        // 19:      LOAD G[8], [SB-3]
-        woort_OpCodeFormal_cons(OP6_MAB18_C8, WOORT_OPCODE_LOAD, 8, -3),
-        // 20:      ADDS [SB-4], [SB-3], [SB-2]
-        woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPSALGS, 0, -4, -3, -2),
-        // 21:      PUSHSCHK [SB-2]
-        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 1, -2),
-        // 22:      CALL G[6]
-        woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNFP, 6),
-        // 23:      POPR 1
-        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_POP, 0, 1),
-        // 24:      JMPF +20
-        // woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JBCK, 20),
-        woort_OpCodeFormal_cons(OP6, WOORT_OPCODE_NOP),
+        // Function: fib(n: int)=> int
+        /*
+        PUSHRCHK    3                           ; Reserving stack.
+        LOAD        [SB - 0] = G[0]             ; Load 2
+        LOAD        [SB - 1] = G[1]             ; Load 1
+        JFWDEG      +2 IF [SB + 3] >= [SB - 0]  ; Jump if arg0 >= 2
+        RETVS       [SB - 1]                    ; Return 1
+        SUBI        [SB - 0] = [SB + 3] - [SB - 1]
+        SUBI        [SB - 2] = [SB - 0] - [SB - 1]
+        PUSHSCHK    [SB - 0]
+        CALLNWO     +0                          ; Call fib(n - 1)
+        RESULT      [SB - 0], POP 1
+        PUSHCHK     [SB - 2]
+        CALLNWO     +0                          ; Call fib(n - 2)
+        RESULT      [SB - 2], POP 1
+        CADDI       [SB - 2] += [SB - 0]
+        RETVS       [SB - 2]
+        */
+        // 0: PUSHRCHK
+        woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 0, 3),
 
         // 25:      RET
         woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_RET, 0),
@@ -112,24 +71,14 @@ int main(int argc, char** argv) {
     (void)woort_CodeEnv_create(
         bcs,
         sizeof(bcs) / sizeof(woort_Bytecode),
-        9,
+        0,
         &codeenv);
-
-    codeenv->m_data_begin[0].m_integer = 0;
-    codeenv->m_data_begin[1].m_integer = 3000000000;
-    codeenv->m_data_begin[2].m_integer = 1;
-    codeenv->m_data_begin[3].m_native_or_jit_function = &print_int;
-    codeenv->m_data_begin[4].m_native_or_jit_function = &print_current_time;
-    codeenv->m_data_begin[5].m_native_or_jit_function = &bar;
-    codeenv->m_data_begin[6].m_native_or_jit_function = &print_string;
-    codeenv->m_data_begin[7].m_string = woort_GCString_make_string("hello", 5);
-    codeenv->m_data_begin[8].m_string = woort_GCString_make_string("world", 5);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
 
-    (void)woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
     woort_CodeEnv_drop(codeenv);
+    (void)woort_VMRuntime_invoke(vm, codeenv->m_code_begin);
 
     woort_VMRuntime_destroy(vm);
 

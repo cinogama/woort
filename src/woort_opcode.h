@@ -294,3 +294,10 @@ typedef enum woort_Opcode
     /**/WOORT_OPCODE_PACKARG,   /*______________N10______________|__________W_ONLY_S16___________|_______X_______|  */
 
 } woort_Opcode;
+
+// 指令帮助宏
+
+#define woort_OpCode_NOP()          \
+    woort_OpCodeFormal_cons(OP6, WOORT_OPCODE_NOP)
+#define woort_OpCode_PSHRCHK(N24)   \
+    woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 0, N)
