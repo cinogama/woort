@@ -1190,8 +1190,15 @@ WOORT_NODISCARD bool woort_IRModule_codegen(
         codeenv->m_data_begin[i] = const_pool.m_entries[i];
     }
 
+    const woort_Bytecode* old_code_begin = emitter.m_code;
+
     _woort_ConstantPool_cleanup(&const_pool);
     _woort_CodeEmitter_cleanup(&emitter);
+
+    for (uint32_t i = 0; i < module->m_function_count; ++i)
+    {
+        function_entries[i] = codeenv->m_code_begin + (function_entries[i] - old_code_begin);
+    }
 
     out_result->m_codeenv = codeenv;
     out_result->m_function_entries = function_entries;

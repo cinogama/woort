@@ -4,9 +4,36 @@
 #include "woort_codeenv.h"
 #include "woort_vm.h"
 #include "woort_gc_string.h"
+#include "woort_disasm.h"
 
 #include <stdio.h>
 #include <stdbool.h>
+
+/* 是否在测试时输出反汇编结果 */
+#define TEST_IR_DISASM_OUTPUT 1
+
+#if TEST_IR_DISASM_OUTPUT
+static void dump_codegen_result(const woort_IRCodegenResult* cg_result)
+{
+    printf("--- Disassembly ---\n");
+    for (uint32_t i = 0; i < cg_result->m_function_count; i++)
+    {
+        printf("Function %u:\n", i);
+        woort_CodeEnv* func_env = NULL;
+        if (woort_CodeEnv_find(cg_result->m_function_entries[i], &func_env))
+        {
+            woort_disasm_dump(
+                func_env->m_code_begin,
+                func_env->m_code_end,
+                stdout);
+        }
+        printf("\n");
+    }
+    printf("--- End Disassembly ---\n\n");
+}
+#else
+#define dump_codegen_result(x) ((void)0)
+#endif
 
 static bool test_simple_function(void);
 static bool test_binary_op(void);
@@ -72,6 +99,8 @@ static bool test_simple_function(void)
         woort_IRModule_destroy(module);
         return false;
     }
+
+    dump_codegen_result(&cg_result);
 
     woort_VMRuntime* vm;
     if (!woort_VMRuntime_create(&vm))
@@ -147,6 +176,8 @@ static bool test_binary_op(void)
         printf("FAIL: Cannot generate code\n");
         goto fail;
     }
+
+    dump_codegen_result(&cg_result);
 
     woort_VMRuntime* vm;
     if (!woort_VMRuntime_create(&vm))
@@ -231,6 +262,8 @@ static bool test_local_variable(void)
         printf("FAIL: Cannot generate code\n");
         goto fail;
     }
+
+    dump_codegen_result(&cg_result);
 
     woort_VMRuntime* vm;
     if (!woort_VMRuntime_create(&vm))
@@ -335,6 +368,8 @@ static bool test_conditional_branch(void)
         goto fail;
     }
 
+    dump_codegen_result(&cg_result);
+
     woort_VMRuntime* vm;
     if (!woort_VMRuntime_create(&vm))
     {
@@ -413,6 +448,8 @@ static bool test_comparison(void)
         printf("FAIL: Cannot generate code\n");
         goto fail;
     }
+
+    dump_codegen_result(&cg_result);
 
     woort_VMRuntime* vm;
     if (!woort_VMRuntime_create(&vm))
@@ -596,6 +633,8 @@ static bool test_recursive_function(void)
         printf("FAIL: Cannot generate code\n");
         goto fail;
     }
+
+    dump_codegen_result(&cg_result);
 
     woort_VMRuntime* vm;
     if (!woort_VMRuntime_create(&vm))
