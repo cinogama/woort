@@ -8,6 +8,8 @@ woort_ir_op.h
 #include <stdint.h>
 #include <stddef.h>
 
+typedef uint64_t woort_IR_StaticStorageIndex;
+
 typedef enum woort_IR_Operate_kind
 {
     WOORT_IR_OPERATE_KIND_NOP,
@@ -17,8 +19,8 @@ typedef enum woort_IR_Operate_kind
     WOORT_IR_OPERATE_KIND_RTOS,
     WOORT_IR_OPERATE_KIND_STOI,
     WOORT_IR_OPERATE_KIND_STOR,
-    WOORT_IR_OPERATE_KIND_RET,
-    WOORT_IR_OPERATE_KIND_RETV,
+    //WOORT_IR_OPERATE_KIND_RET,
+    //WOORT_IR_OPERATE_KIND_RETV,
 
     WOORT_IR_OPERATE_KIND_ADDI,
     WOORT_IR_OPERATE_KIND_SUBI,
@@ -241,29 +243,29 @@ typedef struct woort_IR_Operate_STOR
             SRC, NULL, NULL, DST),                  \
     }
 
-typedef struct woort_IR_Operate_RET
-{
-    woort_IR_Operate_base m_op_base;
-
-}woort_IR_Operate_RET;
-#define woort_IR_Operate_RET_init()                 \
-    {                                               \
-        .m_op_base = _woort_IR_Operate_base_init(   \
-            WOORT_IR_OPERATE_KIND_RET,              \
-            NULL, NULL, NULL, NULL),                \
-    }
-
-typedef struct woort_IR_Operate_RETV
-{
-    woort_IR_Operate_base m_op_base;
-
-}woort_IR_Operate_RETV;
-#define woort_IR_Operate_RETV_init(SRC)             \
-    {                                               \
-        .m_op_base = _woort_IR_Operate_base_init(   \
-            WOORT_IR_OPERATE_KIND_RETV,             \
-            SRC, NULL, NULL, NULL),                 \
-    }
+//typedef struct woort_IR_Operate_RET
+//{
+//    woort_IR_Operate_base m_op_base;
+//
+//}woort_IR_Operate_RET;
+//#define woort_IR_Operate_RET_init()                 \
+//    {                                               \
+//        .m_op_base = _woort_IR_Operate_base_init(   \
+//            WOORT_IR_OPERATE_KIND_RET,              \
+//            NULL, NULL, NULL, NULL),                \
+//    }
+//
+//typedef struct woort_IR_Operate_RETV
+//{
+//    woort_IR_Operate_base m_op_base;
+//
+//}woort_IR_Operate_RETV;
+//#define woort_IR_Operate_RETV_init(SRC)             \
+//    {                                               \
+//        .m_op_base = _woort_IR_Operate_base_init(   \
+//            WOORT_IR_OPERATE_KIND_RETV,             \
+//            SRC, NULL, NULL, NULL),                 \
+//    }
 
 // ============================================================================
 // 整数算术运算
