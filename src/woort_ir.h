@@ -1566,285 +1566,6 @@ WOORT_NODISCARD const woort_IRValue* woort_IRBlock_LNOT(
     const woort_IRValue* value);
 
 /*******************************************************************************
- * IRBlock 整数累加指令 (C = Cumulative/Compound)
- * 
- * 累加指令是一种优化指令，将结果写回其中一个操作数位置。
- * 当检测到 "a = a + b" 模式时，IR 会自动使用累加指令。
- * 
- * 语义：accumulator = accumulator + operand
- * 
- * 与普通算术指令的区别：
- * - 普通指令：result = lhs + rhs（三个不同的位置）
- * - 累加指令：acc += operand（原地修改）
- * 
- * 累加指令可以减少寄存器使用和指令数量。
- ******************************************************************************/
-
-/*
- * woort_IRBlock_CADDI
- * 
- * 整数累加加法：accumulator = accumulator + operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器（既作为输入也作为输出）
- *   operand     - 操作数
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- * 
- * 用法：
- *   // sum += i
- *   const woort_IRValue* new_sum = woort_IRBlock_CADDI(block, sum, i);
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CADDI(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CSUBI
- * 
- * 整数累加减法：accumulator = accumulator - operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器
- *   operand     - 操作数
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CSUBI(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CMULI
- * 
- * 整数累加乘法：accumulator = accumulator * operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器
- *   operand     - 操作数
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CMULI(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CDIVI
- * 
- * 整数累加除法：accumulator = accumulator / operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器
- *   operand     - 操作数
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CDIVI(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*******************************************************************************
- * IRBlock 实数累加指令
- * 
- * 实数类型的累加指令，与整数累加指令类似。
- ******************************************************************************/
-
-/*
- * woort_IRBlock_CADDR
- * 
- * 实数累加加法：accumulator = accumulator + operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器
- *   operand     - 操作数
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CADDR(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CSUBR
- * 
- * 实数累加减法：accumulator = accumulator - operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器
- *   operand     - 操作数
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CSUBR(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CMULR
- * 
- * 实数累加乘法：accumulator = accumulator * operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器
- *   operand     - 操作数
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CMULR(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CDIVR
- * 
- * 实数累加除法：accumulator = accumulator / operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器
- *   operand     - 操作数
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CDIVR(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*******************************************************************************
- * IRBlock 字符串和额外累加指令
- ******************************************************************************/
-
-/*
- * woort_IRBlock_CADDS
- * 
- * 字符串累加连接：accumulator = accumulator + operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器（字符串）
- *   operand     - 操作数（字符串）
- * 
- * 返回：
- *   表示连接结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CADDS(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CMODI
- * 
- * 整数累加取模：accumulator = accumulator % operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器
- *   operand     - 操作数
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CMODI(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CMODR
- * 
- * 实数累加取模：accumulator = accumulator % operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器
- *   operand     - 操作数
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CMODR(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CLAND
- * 
- * 逻辑累加与：accumulator = accumulator && operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器（布尔值）
- *   operand     - 操作数（布尔值）
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CLAND(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CLOR
- * 
- * 逻辑累加或：accumulator = accumulator || operand
- * 
- * 参数：
- *   block       - 当前基本块
- *   accumulator - 累加器（布尔值）
- *   operand     - 操作数（布尔值）
- * 
- * 返回：
- *   表示累加结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CLOR(
-    woort_IRBlock* block,
-    const woort_IRValue* accumulator,
-    const woort_IRValue* operand);
-
-/*
- * woort_IRBlock_CLNOT
- * 
- * 逻辑取非（原地）：value = !value
- * 
- * 参数：
- *   block   - 当前基本块
- *   value   - 操作数（布尔值，原地修改）
- * 
- * 返回：
- *   表示取非结果的 IRValue 指针
- */
-WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CLNOT(
-    woort_IRBlock* block,
-    const woort_IRValue* value);
-
-/*******************************************************************************
  * IRBlock 数据构造指令
  * 
  * 用于创建复合数据类型：向量（Vec）、映射（Map）、结构体（Struct）和闭包（Closure）。
@@ -2043,6 +1764,28 @@ WOORT_NODISCARD const woort_IRValue* woort_IRBlock_CASTR_TO_S(
  *   - 用于可变参数函数调用时展开向量参数
  */
 WOORT_NODISCARD bool woort_IRBlock_UNPACKVEC(
+    woort_IRBlock* block,
+    const woort_IRValue* vec);
+
+/*
+ * woort_IRBlock_UNPACKVECX
+ * 
+ * 解包扩展向量：将扩展向量（存储 DynBox 的向量）的所有元素压入栈中。
+ * 
+ * 参数：
+ *   block   - 当前基本块
+ *   vec     - 要解包的扩展向量（元素类型为 DynBox）
+ * 
+ * 返回：
+ *   true  - 成功
+ *   false - 失败
+ * 
+ * 注意：
+ *   - 元素按顺序压入栈，每个元素都是 DynBox 类型
+ *   - 用于可变参数函数调用时展开动态类型向量参数
+ *   - 与 UNPACKVEC 的区别：UNPACKVEC 处理普通类型向量，UNPACKVECX 处理 DynBox 向量
+ */
+WOORT_NODISCARD bool woort_IRBlock_UNPACKVECX(
     woort_IRBlock* block,
     const woort_IRValue* vec);
 
