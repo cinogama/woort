@@ -159,22 +159,17 @@ static int _woort_IRCodeGen_get_or_load_slot(
         
         woort_IRGlobalIndex idx = value->m_data.m_global_index;
         
-        if (idx < (1 << 24))
+        if (idx < (1 << 18) && slot >= -128 && slot <= 127)
         {
-            woort_Bytecode bc = woort_OpCode_PUSHC((uint32_t)idx);
+            woort_Bytecode bc = woort_OpCode_LOAD((uint32_t)idx, (int8_t)slot);
             _woort_IRCodeGen_emit_bytecode(ctx, bc);
         }
         else
         {
-            woort_Bytecode bc = woort_OpCode_PUSHCEXT(idx);
+            woort_Bytecode bc = woort_OpCode_LOADEX((int16_t)slot);
             _woort_IRCodeGen_emit_bytecode(ctx, bc);
+            _woort_IRCodeGen_emit_bytecode(ctx, (woort_Bytecode)idx);
         }
-        
-        woort_Bytecode pop_bc = woort_OpCode_POPR(1);
-        _woort_IRCodeGen_emit_bytecode(ctx, pop_bc);
-        
-        woort_Bytecode result_bc = woort_OpCode_RESULT(1, slot);
-        _woort_IRCodeGen_emit_bytecode(ctx, result_bc);
         
         return slot;
     }
@@ -993,9 +988,28 @@ static bool _woort_IRCodeGen_emit_terminator(
         
     case WOORT_IR_TERMINATOR_RET:
         {
-            int slot = _woort_IRCodeGen_get_or_load_slot(ctx, term->m_data.m_ret.m_value);
-            woort_Bytecode bc = woort_OpCode_RETVS(slot);
-            _woort_IRCodeGen_emit_bytecode(ctx, bc);
+            const woort_IRValue* ret_value = term->m_data.m_ret.m_value;
+            if (ret_value && ret_value->m_kind == WOORT_IRVALUE_KIND_CONST)
+            {
+                woort_IRGlobalIndex idx = ret_value->m_data.m_global_index;
+                if (idx < (1 << 24))
+                {
+                    woort_Bytecode bc = woort_OpCode_RETVC((uint32_t)idx);
+                    _woort_IRCodeGen_emit_bytecode(ctx, bc);
+                }
+                else
+                {
+                    int slot = _woort_IRCodeGen_get_or_load_slot(ctx, ret_value);
+                    woort_Bytecode bc = woort_OpCode_RETVS(slot);
+                    _woort_IRCodeGen_emit_bytecode(ctx, bc);
+                }
+            }
+            else
+            {
+                int slot = _woort_IRCodeGen_get_or_load_slot(ctx, ret_value);
+                woort_Bytecode bc = woort_OpCode_RETVS(slot);
+                _woort_IRCodeGen_emit_bytecode(ctx, bc);
+            }
         }
         break;
         
