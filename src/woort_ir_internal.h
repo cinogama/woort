@@ -123,6 +123,9 @@ typedef struct woort_IRInstruction
     woort_IRGlobalIndex m_extra_global_index;
     woort_IRValue_TypeTag m_extra_type_tag;
     
+    /* 标记：调用指令是否需要返回值 */
+    bool m_need_result;
+    
     /* 所属基本块 */
     struct woort_IRBlock* m_parent_block;
 } woort_IRInstruction;

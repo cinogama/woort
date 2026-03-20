@@ -8,6 +8,7 @@
 #include "woort_ir.h"
 #include "woort_codeenv.h"
 #include "woort_vm.h"
+#include "woort_opcode.h"
 
 #include "woort_disassembly.h"
 
@@ -816,6 +817,227 @@ static bool test_ir_dynamic_types(void)
 }
 
 /*
+ * test_ir_fib_codegen
+ * 
+ * 测试完整的斐波那契代码生成：fib 和 main 函数。
+ */
+static bool test_ir_fib_codegen(void)
+{
+    printf("=== Test IR Fib CodeGen ===\n");
+    
+    woort_IRCompiler_bootup();
+    
+    woort_IRCompiler* irc;
+    if (!woort_IRCompiler_create(&irc))
+    {
+        printf("FAIL: woort_IRCompiler_create failed\n");
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    
+    woort_IRGlobalIndex const_val_2 = woort_IRCompiler_allocate_global(irc);
+    woort_IRGlobalIndex const_val_1 = woort_IRCompiler_allocate_global(irc);
+    woort_IRGlobalIndex const_val_func_fib = woort_IRCompiler_allocate_global(irc);
+    woort_IRGlobalIndex const_val_10 = woort_IRCompiler_allocate_global(irc);
+    woort_IRGlobalIndex const_val_print_int = woort_IRCompiler_allocate_global(irc);
+    
+    printf("  Allocated global indices: 2=%zu, 1=%zu, fib=%zu, 10=%zu, print_int=%zu\n",
+           (size_t)const_val_2, (size_t)const_val_1, (size_t)const_val_func_fib,
+           (size_t)const_val_10, (size_t)const_val_print_int);
+    
+    /***************************************************************************
+     * 创建 fib 函数
+     **************************************************************************/
+    woort_IRFunction* irfunc_fib;
+    if (!woort_IRCompiler_add_function(irc, &irfunc_fib))
+    {
+        printf("FAIL: woort_IRCompiler_add_function for fib failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  Created fib function\n");
+    
+    woort_IRBlock* irblock_fib_entry = woort_IRFunction_get_entry_block(irfunc_fib);
+    
+    woort_IRBlock* irblock_less_then_2;
+    woort_IRBlock* irblock_greater_then_2;
+    if (!woort_IRFunction_add_block(irfunc_fib, &irblock_less_then_2) ||
+        !woort_IRFunction_add_block(irfunc_fib, &irblock_greater_then_2))
+    {
+        printf("FAIL: woort_IRFunction_add_block for fib failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  Created fib blocks\n");
+    
+    const woort_IRValue* val1 = woort_IRFunction_load_const(irfunc_fib, const_val_1);
+    const woort_IRValue* val2 = woort_IRFunction_load_const(irfunc_fib, const_val_2);
+    const woort_IRValue* arg0 = woort_IRFunction_load_argument(irfunc_fib, 0);
+    
+    if (!woort_IRBlock_condbr_greater_equal(irblock_fib_entry, arg0, val2, 
+            irblock_greater_then_2, irblock_less_then_2))
+    {
+        printf("FAIL: woort_IRBlock_condbr_greater_equal failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  fib entry: condbr (n >= 2)\n");
+    
+    if (!woort_IRBlock_ret(irblock_less_then_2, val1))
+    {
+        printf("FAIL: woort_IRBlock_ret for less_then_2 failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  fib less_then_2: ret 1\n");
+    
+    const woort_IRValue* n_sub_1 = woort_IRBlock_SUBI(irblock_greater_then_2, arg0, val1);
+    
+    if (!woort_IRBlock_PUSH(irblock_greater_then_2, n_sub_1))
+    {
+        printf("FAIL: PUSH n_sub_1 failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    
+    const woort_IRValue* fib_n_sub_1;
+    if (!woort_IRBlock_CALLNWO(irblock_greater_then_2, const_val_func_fib, 1, &fib_n_sub_1))
+    {
+        printf("FAIL: CALLNWO fib(n-1) failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  fib greater_then_2: CALLNWO fib(n-1)\n");
+    
+    const woort_IRValue* n_sub_2 = woort_IRBlock_SUBI(irblock_greater_then_2, n_sub_1, val1);
+    
+    if (!woort_IRBlock_PUSH(irblock_greater_then_2, n_sub_2))
+    {
+        printf("FAIL: PUSH n_sub_2 failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    
+    const woort_IRValue* fib_n_sub_2;
+    if (!woort_IRBlock_CALLNWO(irblock_greater_then_2, const_val_func_fib, 1, &fib_n_sub_2))
+    {
+        printf("FAIL: CALLNWO fib(n-2) failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  fib greater_then_2: CALLNWO fib(n-2)\n");
+    
+    const woort_IRValue* result = woort_IRBlock_ADDI(irblock_greater_then_2, fib_n_sub_1, fib_n_sub_2);
+    
+    if (!woort_IRBlock_ret(irblock_greater_then_2, result))
+    {
+        printf("FAIL: woort_IRBlock_ret for greater_then_2 failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  fib greater_then_2: ret fib(n-1)+fib(n-2)\n");
+    
+    /***************************************************************************
+     * 创建 main 函数
+     **************************************************************************/
+    woort_IRFunction* irfunc_main;
+    if (!woort_IRCompiler_add_function(irc, &irfunc_main))
+    {
+        printf("FAIL: woort_IRCompiler_add_function for main failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  Created main function\n");
+    
+    woort_IRBlock* irblock_main_entry = woort_IRFunction_get_entry_block(irfunc_main);
+    
+    const woort_IRValue* const_10 = woort_IRFunction_load_const(irfunc_main, const_val_10);
+    
+    if (!woort_IRBlock_PUSH(irblock_main_entry, const_10))
+    {
+        printf("FAIL: PUSH 10 failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  main: PUSH 10\n");
+    
+    const woort_IRValue* fib_result;
+    if (!woort_IRBlock_CALLNWO(irblock_main_entry, const_val_func_fib, 1, &fib_result))
+    {
+        printf("FAIL: CALLNWO fib(10) failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  main: CALLNWO fib(10)\n");
+    
+    if (!woort_IRBlock_PUSH(irblock_main_entry, fib_result))
+    {
+        printf("FAIL: PUSH fib_result failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    
+    if (!woort_IRBlock_CALLNFP(irblock_main_entry, const_val_print_int, 1, NULL))
+    {
+        printf("FAIL: CALLNFP print_int failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  main: CALLNFP print_int\n");
+    
+    if (!woort_IRBlock_ret_void(irblock_main_entry))
+    {
+        printf("FAIL: woort_IRBlock_ret_void for main failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  main: ret void\n");
+    
+    /***************************************************************************
+     * 生成 CodeEnv
+     **************************************************************************/
+    woort_CodeEnv* code_env;
+    if (!woort_IRCompiler_finish(irc, &code_env))
+    {
+        printf("FAIL: woort_IRCompiler_finish failed\n");
+        woort_IRCompiler_destroy(irc);
+        woort_IRCompiler_shutdown();
+        return false;
+    }
+    printf("  Generated CodeEnv (bytecode count: %zu)\n",
+           (size_t)(code_env->m_code_end - code_env->m_code_begin));
+    
+    code_env->m_data_begin[const_val_1].m_integer = 1;
+    code_env->m_data_begin[const_val_2].m_integer = 2;
+    code_env->m_data_begin[const_val_10].m_integer = 10;
+    code_env->m_data_begin[const_val_func_fib].m_script_function = code_env->m_code_begin;
+    code_env->m_data_begin[const_val_print_int].m_native_or_jit_function = &print_int;
+    printf("  Filled constants\n");
+    
+    woort_CodeEnv_drop(code_env);
+    woort_IRCompiler_destroy(irc);
+    woort_IRCompiler_shutdown();
+    
+    printf("=== Test IR Fib CodeGen: PASS ===\n\n");
+    return true;
+}
+
+/*
  * main
  * 
  * 测试入口。
@@ -824,6 +1046,8 @@ int main(int argc, char** argv)
 {
     (void)argc;
     (void)argv;
+    
+    woort_init();
     
     printf("\n========================================\n");
     printf("WooRT IR Compiler Test Suite\n");
@@ -839,6 +1063,7 @@ int main(int argc, char** argv)
     if (!test_ir_storage()) failed++;
     if (!test_ir_data_operations()) failed++;
     if (!test_ir_dynamic_types()) failed++;
+    if (!test_ir_fib_codegen()) failed++;
     
     printf("========================================\n");
     if (failed == 0)
@@ -850,6 +1075,8 @@ int main(int argc, char** argv)
         printf("%d test(s) FAILED!\n", failed);
     }
     printf("========================================\n\n");
+    
+    woort_shutdown();
     
     return failed;
 }

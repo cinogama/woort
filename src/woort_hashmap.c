@@ -238,6 +238,9 @@ WOORT_NODISCARD bool woort_hashmap_find(
     const void* key,
     void** out_value_addr)
 {
+    if (map->m_bucket_count == 0)
+        return false;
+
     const size_t hash_mask = map->m_bucket_count - 1;
     const size_t bucket_id =
         map->m_hash_fn(key) & hash_mask;
@@ -271,6 +274,9 @@ WOORT_NODISCARD bool woort_hashmap_remove(
     woort_HashMap* map,
     const void* key)
 {
+    if (map->m_bucket_count == 0)
+        return false;
+
     const size_t hash_mask = map->m_bucket_count - 1;
     const size_t bucket_id =
         map->m_hash_fn(key) & hash_mask;

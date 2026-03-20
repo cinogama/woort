@@ -318,13 +318,16 @@ bool woort_IRCompiler_finish(
         return false;
     }
     
-    woort_IRFunction* first_func = *(woort_IRFunction**)woort_vector_at(&compiler->m_functions, 0);
-    
-    if (!_woort_IRCodeGen_compile_function(&ctx, first_func))
+    for (size_t i = 0; i < compiler->m_functions.m_size; ++i)
     {
-        _woort_IRCodeGenContext_deinit(&ctx);
-        *out_code_env = NULL;
-        return false;
+        woort_IRFunction* func = *(woort_IRFunction**)woort_vector_at(&compiler->m_functions, i);
+        
+        if (!_woort_IRCodeGen_compile_function(&ctx, func))
+        {
+            _woort_IRCodeGenContext_deinit(&ctx);
+            *out_code_env = NULL;
+            return false;
+        }
     }
     
     bool result = _woort_IRCodeGen_create_code_env(&ctx, out_code_env);

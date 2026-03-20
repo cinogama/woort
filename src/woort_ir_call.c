@@ -95,6 +95,7 @@ bool woort_IRBlock_CALL(
     
     inst->m_operand0 = callee;
     inst->m_extra_size = argc;
+    inst->m_need_result = (out_result != NULL);
     
     _woort_IRBlock_add_instruction(block, inst);
     
@@ -131,6 +132,7 @@ bool woort_IRBlock_CALLNWO(
     
     inst->m_extra_global_index = func_index;
     inst->m_extra_size = argc;
+    inst->m_need_result = (out_result != NULL);
     
     _woort_IRBlock_add_instruction(block, inst);
     
@@ -167,6 +169,7 @@ bool woort_IRBlock_CALLNFP(
     
     inst->m_extra_global_index = func_index;
     inst->m_extra_size = argc;
+    inst->m_need_result = (out_result != NULL);
     
     _woort_IRBlock_add_instruction(block, inst);
     
@@ -203,6 +206,7 @@ bool woort_IRBlock_CALLNJIT(
     
     inst->m_extra_global_index = func_index;
     inst->m_extra_size = argc;
+    inst->m_need_result = (out_result != NULL);
     
     _woort_IRBlock_add_instruction(block, inst);
     

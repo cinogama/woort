@@ -39,39 +39,26 @@ static int _woort_IRRegAlloc_get_slot(woort_IRRegAlloc* ra, const woort_IRValue*
         return 0;
     }
     
-    int slot = 0;
-    if (woort_hashmap_find(&ra->m_value_to_slot, value, (void**)&slot))
+    void* value_ptr = NULL;
+    if (woort_hashmap_find(&ra->m_value_to_slot, &value, &value_ptr))
     {
-        return slot;
+        return *(int*)value_ptr;
     }
     
+    int slot = 0;
     if (value->m_kind == WOORT_IRVALUE_KIND_ARGUMENT)
     {
         slot = (int)(3 + value->m_data.m_argument_index);
-        woort_hashmap_insert(&ra->m_value_to_slot, value, &slot);
+        woort_hashmap_insert(&ra->m_value_to_slot, &value, &slot);
         return slot;
     }
     
     if (value->m_kind == WOORT_IRVALUE_KIND_INSTRUCTION)
     {
-        const woort_IRInstruction* inst = (const woort_IRInstruction*)value;
+        slot = ra->m_next_local_slot;
+        ra->m_next_local_slot--;
         
-        switch (inst->m_inst_kind)
-        {
-        case WOORT_IR_INST_CALLNWO:
-        case WOORT_IR_INST_CALLNFP:
-        case WOORT_IR_INST_CALLNJIT:
-        case WOORT_IR_INST_CALL:
-            slot = 0;
-            ra->m_push_count++;
-            break;
-        default:
-            slot = ra->m_next_local_slot;
-            ra->m_next_local_slot--;
-            break;
-        }
-        
-        woort_hashmap_insert(&ra->m_value_to_slot, value, &slot);
+        woort_hashmap_insert(&ra->m_value_to_slot, &value, &slot);
         return slot;
     }
     
@@ -138,7 +125,7 @@ static size_t _woort_IRCodeGen_current_offset(const woort_IRCodeGenContext* ctx)
 static void _woort_IRCodeGen_record_block_offset(woort_IRCodeGenContext* ctx, const woort_IRBlock* block)
 {
     size_t offset = ctx->m_bytecodes.m_size;
-    woort_hashmap_insert(&ctx->m_block_to_offset, block, &offset);
+    woort_hashmap_insert(&ctx->m_block_to_offset, &block, &offset);
 }
 static void _woort_IRCodeGen_add_fixup(
     woort_IRCodeGenContext* ctx,
@@ -169,9 +156,28 @@ static bool _woort_IRCodeGen_emit_instruction(
     {
     case WOORT_IR_INST_PUSH:
         {
-            int slot = _woort_IRRegAlloc_get_slot(ra, inst->m_operand0);
-            woort_Bytecode bc = woort_OpCode_PUSHS(slot);
-            _woort_IRCodeGen_emit_bytecode(ctx, bc);
+            const woort_IRValue* operand = inst->m_operand0;
+            
+            if (operand->m_kind == WOORT_IRVALUE_KIND_CONST)
+            {
+                woort_IRGlobalIndex idx = operand->m_data.m_global_index;
+                if (idx < (1 << 24))
+                {
+                    woort_Bytecode bc = woort_OpCode_PUSHC((uint32_t)idx);
+                    _woort_IRCodeGen_emit_bytecode(ctx, bc);
+                }
+                else
+                {
+                    woort_Bytecode bc = woort_OpCode_PUSHCEXT(idx);
+                    _woort_IRCodeGen_emit_bytecode(ctx, bc);
+                }
+            }
+            else
+            {
+                int slot = _woort_IRRegAlloc_get_slot(ra, operand);
+                woort_Bytecode bc = woort_OpCode_PUSHS(slot);
+                _woort_IRCodeGen_emit_bytecode(ctx, bc);
+            }
             _woort_IRRegAlloc_record_push(ra);
         }
         break;
@@ -201,11 +207,19 @@ static bool _woort_IRCodeGen_emit_instruction(
             woort_Bytecode bc = woort_OpCode_CALLNWO((uint32_t)idx);
             _woort_IRCodeGen_emit_bytecode(ctx, bc);
             
-            int result_slot = _woort_IRRegAlloc_get_slot(ra, (const woort_IRValue*)inst);
-            if (argc > 0)
+            if (inst->m_need_result)
             {
-                woort_Bytecode result_bc = woort_OpCode_RESULT((uint32_t)argc, result_slot);
-                _woort_IRCodeGen_emit_bytecode(ctx, result_bc);
+                int result_slot = _woort_IRRegAlloc_get_slot(ra, (const woort_IRValue*)inst);
+                if (argc > 0)
+                {
+                    woort_Bytecode result_bc = woort_OpCode_RESULT((uint32_t)argc, result_slot);
+                    _woort_IRCodeGen_emit_bytecode(ctx, result_bc);
+                }
+            }
+            else if (argc > 0)
+            {
+                woort_Bytecode popr_bc = woort_OpCode_POPR((uint32_t)argc);
+                _woort_IRCodeGen_emit_bytecode(ctx, popr_bc);
             }
             _woort_IRRegAlloc_record_pop(ra, (int)argc);
         }
@@ -219,11 +233,19 @@ static bool _woort_IRCodeGen_emit_instruction(
             woort_Bytecode bc = woort_OpCode_CALLNFP((uint32_t)idx);
             _woort_IRCodeGen_emit_bytecode(ctx, bc);
             
-            int result_slot = _woort_IRRegAlloc_get_slot(ra, (const woort_IRValue*)inst);
-            if (argc > 0)
+            if (inst->m_need_result)
             {
-                woort_Bytecode result_bc = woort_OpCode_RESULT((uint32_t)argc, result_slot);
-                _woort_IRCodeGen_emit_bytecode(ctx, result_bc);
+                int result_slot = _woort_IRRegAlloc_get_slot(ra, (const woort_IRValue*)inst);
+                if (argc > 0)
+                {
+                    woort_Bytecode result_bc = woort_OpCode_RESULT((uint32_t)argc, result_slot);
+                    _woort_IRCodeGen_emit_bytecode(ctx, result_bc);
+                }
+            }
+            else if (argc > 0)
+            {
+                woort_Bytecode popr_bc = woort_OpCode_POPR((uint32_t)argc);
+                _woort_IRCodeGen_emit_bytecode(ctx, popr_bc);
             }
             _woort_IRRegAlloc_record_pop(ra, (int)argc);
         }
@@ -237,11 +259,19 @@ static bool _woort_IRCodeGen_emit_instruction(
             woort_Bytecode bc = woort_OpCode_CALLNJIT((uint32_t)idx);
             _woort_IRCodeGen_emit_bytecode(ctx, bc);
             
-            int result_slot = _woort_IRRegAlloc_get_slot(ra, (const woort_IRValue*)inst);
-            if (argc > 0)
+            if (inst->m_need_result)
             {
-                woort_Bytecode result_bc = woort_OpCode_RESULT((uint32_t)argc, result_slot);
-                _woort_IRCodeGen_emit_bytecode(ctx, result_bc);
+                int result_slot = _woort_IRRegAlloc_get_slot(ra, (const woort_IRValue*)inst);
+                if (argc > 0)
+                {
+                    woort_Bytecode result_bc = woort_OpCode_RESULT((uint32_t)argc, result_slot);
+                    _woort_IRCodeGen_emit_bytecode(ctx, result_bc);
+                }
+            }
+            else if (argc > 0)
+            {
+                woort_Bytecode popr_bc = woort_OpCode_POPR((uint32_t)argc);
+                _woort_IRCodeGen_emit_bytecode(ctx, popr_bc);
             }
             _woort_IRRegAlloc_record_pop(ra, (int)argc);
         }
@@ -953,11 +983,13 @@ static bool _woort_IRCodeGen_resolve_fixups(woort_IRCodeGenContext* ctx)
     {
         woort_IRFixupEntry* entry = (woort_IRFixupEntry*)woort_vector_at(&ctx->m_fixups, i);
         
-        size_t target_offset = 0;
-        if (!woort_hashmap_find(&ctx->m_block_to_offset, entry->m_target_block, (void**)&target_offset))
+        void* value_ptr = NULL;
+        if (!woort_hashmap_find(&ctx->m_block_to_offset, &entry->m_target_block, &value_ptr))
         {
             continue;
         }
+        
+        size_t target_offset = *(size_t*)value_ptr;
         
         woort_Bytecode* bc = (woort_Bytecode*)woort_vector_at(&ctx->m_bytecodes, entry->m_bytecode_offset);
         
