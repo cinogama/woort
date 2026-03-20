@@ -361,14 +361,6 @@ _label_continue_execution:
     case WOORT_VM_CASE_OP6_M2(CODE, 2):     \
     case WOORT_VM_CASE_OP6_M2(CODE, 3)
 
-
-     /*   for (const woort_Value* s = rt_sp; s <= rt_sb; ++s)
-        {
-            printf("%p:\t%lld\n", s, s->m_integer);
-        }
-        printf("\n");*/
-        woort_Disassembly(rt_ip);
-
         register const woort_Bytecode c = *rt_ip;
         switch ((uint8_t)(c >> 24))
         {

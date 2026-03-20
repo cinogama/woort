@@ -182,4 +182,4 @@ int main(int argc, char** argv) {
 
 ## Supported Platforms
 
-Windows Server 2022 (MSVC), macOS ARM64, Ubuntu 22.04 ARM64, Ubuntu 20.04
+Windows(MSVC), macOS ARM64, Ubuntu 22.04 ARM64, Ubuntu 20.04
