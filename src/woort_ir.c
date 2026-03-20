@@ -1,7 +1,7 @@
 /*
  * woort_ir.c
  * 
- * IR 编译器核心实现：生命周期管理、全局资源、IRCompiler 接口。
+ * IR 编译器核心实现：生命周期管理、IRCompiler 接口。
  */
 
 #include "woort_ir_internal.h"
@@ -11,112 +11,27 @@
 #include <string.h>
 
 /*******************************************************************************
- * 全局资源定义
- ******************************************************************************/
-
-woort_Vector g_ir_value_pool;
-woort_Vector g_ir_instruction_pool;
-woort_Vector g_ir_block_pool;
-woort_Vector g_ir_function_pool;
-woort_Vector g_ir_storage_pool;
-woort_Vector g_ir_compiler_pool;
-
-static bool g_ir_initialized = false;
-
-/*******************************************************************************
- * 全局资源管理
+ * 全局资源管理（保留接口兼容性）
  ******************************************************************************/
 
 bool woort_IRCompiler_bootup(void)
 {
-    if (g_ir_initialized)
-    {
-        return true;
-    }
-    
-    woort_vector_init(&g_ir_value_pool, sizeof(woort_IRValue*));
-    woort_vector_init(&g_ir_instruction_pool, sizeof(woort_IRInstruction*));
-    woort_vector_init(&g_ir_block_pool, sizeof(woort_IRBlock*));
-    woort_vector_init(&g_ir_function_pool, sizeof(woort_IRFunction*));
-    woort_vector_init(&g_ir_storage_pool, sizeof(woort_IRStorage*));
-    woort_vector_init(&g_ir_compiler_pool, sizeof(woort_IRCompiler*));
-    
-    g_ir_initialized = true;
+    /* 不再需要全局初始化 */
     return true;
 }
 
 void woort_IRCompiler_shutdown(void)
 {
-    if (!g_ir_initialized)
-    {
-        return;
-    }
-    
-    /* 释放所有 IRValue */
-    for (size_t i = 0; i < g_ir_value_pool.m_size; ++i)
-    {
-        woort_IRValue* val = *(woort_IRValue**)woort_vector_at(&g_ir_value_pool, i);
-        free(val);
-    }
-    woort_vector_deinit(&g_ir_value_pool);
-    
-    /* 释放所有 IRInstruction */
-    for (size_t i = 0; i < g_ir_instruction_pool.m_size; ++i)
-    {
-        woort_IRInstruction* inst = *(woort_IRInstruction**)woort_vector_at(&g_ir_instruction_pool, i);
-        free(inst);
-    }
-    woort_vector_deinit(&g_ir_instruction_pool);
-    
-    /* 释放所有 IRBlock */
-    for (size_t i = 0; i < g_ir_block_pool.m_size; ++i)
-    {
-        woort_IRBlock* block = *(woort_IRBlock**)woort_vector_at(&g_ir_block_pool, i);
-        woort_vector_deinit(&block->m_instructions);
-        woort_vector_deinit(&block->m_predecessors);
-        woort_vector_deinit(&block->m_successors);
-        free(block);
-    }
-    woort_vector_deinit(&g_ir_block_pool);
-    
-    /* 释放所有 IRFunction */
-    for (size_t i = 0; i < g_ir_function_pool.m_size; ++i)
-    {
-        woort_IRFunction* func = *(woort_IRFunction**)woort_vector_at(&g_ir_function_pool, i);
-        woort_vector_deinit(&func->m_blocks);
-        woort_vector_deinit(&func->m_argument_values);
-        woort_vector_deinit(&func->m_storages);
-        free(func);
-    }
-    woort_vector_deinit(&g_ir_function_pool);
-    
-    /* 释放所有 IRStorage */
-    for (size_t i = 0; i < g_ir_storage_pool.m_size; ++i)
-    {
-        woort_IRStorage* storage = *(woort_IRStorage**)woort_vector_at(&g_ir_storage_pool, i);
-        woort_vector_deinit(&storage->m_values_per_block);
-        free(storage);
-    }
-    woort_vector_deinit(&g_ir_storage_pool);
-    
-    /* 释放所有 IRCompiler */
-    for (size_t i = 0; i < g_ir_compiler_pool.m_size; ++i)
-    {
-        woort_IRCompiler* compiler = *(woort_IRCompiler**)woort_vector_at(&g_ir_compiler_pool, i);
-        woort_vector_deinit(&compiler->m_functions);
-        woort_vector_deinit(&compiler->m_const_values);
-        free(compiler);
-    }
-    woort_vector_deinit(&g_ir_compiler_pool);
-    
-    g_ir_initialized = false;
+    /* 不再需要全局清理 */
 }
 
 /*******************************************************************************
  * 内部辅助函数
  ******************************************************************************/
 
-woort_IRValue* _woort_IRValue_create_const(woort_IRGlobalIndex global_index)
+woort_IRValue* _woort_IRValue_create_const(
+    woort_IRCompiler* compiler,
+    woort_IRGlobalIndex global_index)
 {
     woort_IRValue* val = (woort_IRValue*)malloc(sizeof(woort_IRValue));
     if (!val)
@@ -127,11 +42,13 @@ woort_IRValue* _woort_IRValue_create_const(woort_IRGlobalIndex global_index)
     val->m_kind = WOORT_IRVALUE_KIND_CONST;
     val->m_data.m_global_index = global_index;
     
-    woort_vector_push_back(&g_ir_value_pool, 1, &val);
+    woort_vector_push_back(&compiler->m_value_pool, 1, &val);
     return val;
 }
 
-woort_IRValue* _woort_IRValue_create_argument(size_t argument_index)
+woort_IRValue* _woort_IRValue_create_argument(
+    woort_IRCompiler* compiler,
+    size_t argument_index)
 {
     woort_IRValue* val = (woort_IRValue*)malloc(sizeof(woort_IRValue));
     if (!val)
@@ -142,11 +59,12 @@ woort_IRValue* _woort_IRValue_create_argument(size_t argument_index)
     val->m_kind = WOORT_IRVALUE_KIND_ARGUMENT;
     val->m_data.m_argument_index = argument_index;
     
-    woort_vector_push_back(&g_ir_value_pool, 1, &val);
+    woort_vector_push_back(&compiler->m_value_pool, 1, &val);
     return val;
 }
 
 woort_IRInstruction* _woort_IRInstruction_create(
+    woort_IRCompiler* compiler,
     woort_IRInstructionKind kind,
     woort_IRBlock* parent_block)
 {
@@ -161,7 +79,7 @@ woort_IRInstruction* _woort_IRInstruction_create(
     inst->m_inst_kind = kind;
     inst->m_parent_block = parent_block;
     
-    woort_vector_push_back(&g_ir_instruction_pool, 1, &inst);
+    woort_vector_push_back(&compiler->m_instruction_pool, 1, &inst);
     return inst;
 }
 
@@ -208,10 +126,16 @@ bool woort_IRCompiler_create(/* OPTIONAL */ woort_IRCompiler** out_compiler)
     
     memset(compiler, 0, sizeof(woort_IRCompiler));
     
+    /* 初始化内存池 */
+    woort_vector_init(&compiler->m_value_pool, sizeof(woort_IRValue*));
+    woort_vector_init(&compiler->m_instruction_pool, sizeof(woort_IRInstruction*));
+    woort_vector_init(&compiler->m_block_pool, sizeof(woort_IRBlock*));
+    woort_vector_init(&compiler->m_function_pool, sizeof(woort_IRFunction*));
+    woort_vector_init(&compiler->m_storage_pool, sizeof(woort_IRStorage*));
+    
     woort_vector_init(&compiler->m_functions, sizeof(woort_IRFunction*));
     woort_vector_init(&compiler->m_const_values, sizeof(woort_IRValue*));
     
-    woort_vector_push_back(&g_ir_compiler_pool, 1, &compiler);
     *out_compiler = compiler;
     return true;
 }
@@ -223,11 +147,58 @@ void woort_IRCompiler_destroy(/* OPTIONAL */ woort_IRCompiler* compiler)
         return;
     }
     
-    /* 
-     * 注意：不释放内存，所有内存由全局池管理，
-     * 在 woort_IRCompiler_shutdown() 中统一释放。
-     */
-    (void)compiler;
+    /* 释放所有 IRValue */
+    for (size_t i = 0; i < compiler->m_value_pool.m_size; ++i)
+    {
+        woort_IRValue* val = *(woort_IRValue**)woort_vector_at(&compiler->m_value_pool, i);
+        free(val);
+    }
+    woort_vector_deinit(&compiler->m_value_pool);
+    
+    /* 释放所有 IRInstruction */
+    for (size_t i = 0; i < compiler->m_instruction_pool.m_size; ++i)
+    {
+        woort_IRInstruction* inst = *(woort_IRInstruction**)woort_vector_at(&compiler->m_instruction_pool, i);
+        free(inst);
+    }
+    woort_vector_deinit(&compiler->m_instruction_pool);
+    
+    /* 释放所有 IRBlock */
+    for (size_t i = 0; i < compiler->m_block_pool.m_size; ++i)
+    {
+        woort_IRBlock* block = *(woort_IRBlock**)woort_vector_at(&compiler->m_block_pool, i);
+        woort_vector_deinit(&block->m_instructions);
+        woort_vector_deinit(&block->m_predecessors);
+        woort_vector_deinit(&block->m_successors);
+        free(block);
+    }
+    woort_vector_deinit(&compiler->m_block_pool);
+    
+    /* 释放所有 IRFunction */
+    for (size_t i = 0; i < compiler->m_function_pool.m_size; ++i)
+    {
+        woort_IRFunction* func = *(woort_IRFunction**)woort_vector_at(&compiler->m_function_pool, i);
+        woort_vector_deinit(&func->m_blocks);
+        woort_vector_deinit(&func->m_argument_values);
+        woort_vector_deinit(&func->m_storages);
+        free(func);
+    }
+    woort_vector_deinit(&compiler->m_function_pool);
+    
+    /* 释放所有 IRStorage */
+    for (size_t i = 0; i < compiler->m_storage_pool.m_size; ++i)
+    {
+        woort_IRStorage* storage = *(woort_IRStorage**)woort_vector_at(&compiler->m_storage_pool, i);
+        woort_vector_deinit(&storage->m_values_per_block);
+        free(storage);
+    }
+    woort_vector_deinit(&compiler->m_storage_pool);
+    
+    /* 释放编译器自身的向量 */
+    woort_vector_deinit(&compiler->m_functions);
+    woort_vector_deinit(&compiler->m_const_values);
+    
+    free(compiler);
 }
 
 /*******************************************************************************
@@ -302,7 +273,7 @@ bool woort_IRCompiler_add_function(
     entry_block->m_is_entry = true;
     func->m_entry_block = entry_block;
     
-    woort_vector_push_back(&g_ir_function_pool, 1, &func);
+    woort_vector_push_back(&compiler->m_function_pool, 1, &func);
     woort_vector_push_back(&compiler->m_functions, 1, &func);
     
     if (out_function)

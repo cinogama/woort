@@ -21,7 +21,7 @@ const woort_IRValue* woort_IRBlock_ADDI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_ADDI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_ADDI, block);
     if (!inst)
     {
         return NULL;
@@ -46,7 +46,7 @@ const woort_IRValue* woort_IRBlock_SUBI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_SUBI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_SUBI, block);
     if (!inst)
     {
         return NULL;
@@ -71,7 +71,7 @@ const woort_IRValue* woort_IRBlock_MULI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_MULI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_MULI, block);
     if (!inst)
     {
         return NULL;
@@ -96,7 +96,7 @@ const woort_IRValue* woort_IRBlock_DIVI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_DIVI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_DIVI, block);
     if (!inst)
     {
         return NULL;
@@ -121,7 +121,7 @@ const woort_IRValue* woort_IRBlock_MODI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_MODI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_MODI, block);
     if (!inst)
     {
         return NULL;
@@ -145,7 +145,7 @@ const woort_IRValue* woort_IRBlock_NEGI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_NEGI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_NEGI, block);
     if (!inst)
     {
         return NULL;
@@ -173,7 +173,7 @@ const woort_IRValue* woort_IRBlock_LTI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_LTI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_LTI, block);
     if (!inst)
     {
         return NULL;
@@ -198,7 +198,7 @@ const woort_IRValue* woort_IRBlock_GTI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_GTI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_GTI, block);
     if (!inst)
     {
         return NULL;
@@ -223,7 +223,7 @@ const woort_IRValue* woort_IRBlock_LEI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_LEI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_LEI, block);
     if (!inst)
     {
         return NULL;
@@ -248,7 +248,7 @@ const woort_IRValue* woort_IRBlock_GEI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_GEI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_GEI, block);
     if (!inst)
     {
         return NULL;
@@ -273,7 +273,7 @@ const woort_IRValue* woort_IRBlock_EQI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_EQI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_EQI, block);
     if (!inst)
     {
         return NULL;
@@ -298,7 +298,7 @@ const woort_IRValue* woort_IRBlock_NEI(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_NEI, block);
+        block->m_function->m_compiler, WOORT_IR_INST_NEI, block);
     if (!inst)
     {
         return NULL;
@@ -327,7 +327,7 @@ const woort_IRValue* woort_IRBlock_ADDR(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_ADDR, block);
+        block->m_function->m_compiler, WOORT_IR_INST_ADDR, block);
     if (!inst)
     {
         return NULL;
@@ -352,7 +352,7 @@ const woort_IRValue* woort_IRBlock_SUBR(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_SUBR, block);
+        block->m_function->m_compiler, WOORT_IR_INST_SUBR, block);
     if (!inst)
     {
         return NULL;
@@ -377,7 +377,7 @@ const woort_IRValue* woort_IRBlock_MULR(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_MULR, block);
+        block->m_function->m_compiler, WOORT_IR_INST_MULR, block);
     if (!inst)
     {
         return NULL;
@@ -402,7 +402,7 @@ const woort_IRValue* woort_IRBlock_DIVR(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_DIVR, block);
+        block->m_function->m_compiler, WOORT_IR_INST_DIVR, block);
     if (!inst)
     {
         return NULL;
@@ -427,7 +427,7 @@ const woort_IRValue* woort_IRBlock_MODR(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_MODR, block);
+        block->m_function->m_compiler, WOORT_IR_INST_MODR, block);
     if (!inst)
     {
         return NULL;
@@ -451,7 +451,7 @@ const woort_IRValue* woort_IRBlock_NEGR(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_NEGR, block);
+        block->m_function->m_compiler, WOORT_IR_INST_NEGR, block);
     if (!inst)
     {
         return NULL;
@@ -479,7 +479,7 @@ const woort_IRValue* woort_IRBlock_LTR(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_LTR, block);
+        block->m_function->m_compiler, WOORT_IR_INST_LTR, block);
     if (!inst)
     {
         return NULL;
@@ -504,7 +504,7 @@ const woort_IRValue* woort_IRBlock_GTR(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_GTR, block);
+        block->m_function->m_compiler, WOORT_IR_INST_GTR, block);
     if (!inst)
     {
         return NULL;
@@ -529,7 +529,7 @@ const woort_IRValue* woort_IRBlock_LER(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_LER, block);
+        block->m_function->m_compiler, WOORT_IR_INST_LER, block);
     if (!inst)
     {
         return NULL;
@@ -554,7 +554,7 @@ const woort_IRValue* woort_IRBlock_GER(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_GER, block);
+        block->m_function->m_compiler, WOORT_IR_INST_GER, block);
     if (!inst)
     {
         return NULL;
@@ -579,7 +579,7 @@ const woort_IRValue* woort_IRBlock_EQR(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_EQR, block);
+        block->m_function->m_compiler, WOORT_IR_INST_EQR, block);
     if (!inst)
     {
         return NULL;
@@ -604,7 +604,7 @@ const woort_IRValue* woort_IRBlock_NER(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_NER, block);
+        block->m_function->m_compiler, WOORT_IR_INST_NER, block);
     if (!inst)
     {
         return NULL;
@@ -633,7 +633,7 @@ const woort_IRValue* woort_IRBlock_ADDS(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_ADDS, block);
+        block->m_function->m_compiler, WOORT_IR_INST_ADDS, block);
     if (!inst)
     {
         return NULL;
@@ -662,7 +662,7 @@ const woort_IRValue* woort_IRBlock_LTS(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_LTS, block);
+        block->m_function->m_compiler, WOORT_IR_INST_LTS, block);
     if (!inst)
     {
         return NULL;
@@ -687,7 +687,7 @@ const woort_IRValue* woort_IRBlock_GTS(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_GTS, block);
+        block->m_function->m_compiler, WOORT_IR_INST_GTS, block);
     if (!inst)
     {
         return NULL;
@@ -712,7 +712,7 @@ const woort_IRValue* woort_IRBlock_LES(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_LES, block);
+        block->m_function->m_compiler, WOORT_IR_INST_LES, block);
     if (!inst)
     {
         return NULL;
@@ -737,7 +737,7 @@ const woort_IRValue* woort_IRBlock_GES(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_GES, block);
+        block->m_function->m_compiler, WOORT_IR_INST_GES, block);
     if (!inst)
     {
         return NULL;
@@ -762,7 +762,7 @@ const woort_IRValue* woort_IRBlock_EQS(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_EQS, block);
+        block->m_function->m_compiler, WOORT_IR_INST_EQS, block);
     if (!inst)
     {
         return NULL;
@@ -787,7 +787,7 @@ const woort_IRValue* woort_IRBlock_NES(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_NES, block);
+        block->m_function->m_compiler, WOORT_IR_INST_NES, block);
     if (!inst)
     {
         return NULL;
@@ -816,7 +816,7 @@ const woort_IRValue* woort_IRBlock_LAND(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_LAND, block);
+        block->m_function->m_compiler, WOORT_IR_INST_LAND, block);
     if (!inst)
     {
         return NULL;
@@ -841,7 +841,7 @@ const woort_IRValue* woort_IRBlock_LOR(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_LOR, block);
+        block->m_function->m_compiler, WOORT_IR_INST_LOR, block);
     if (!inst)
     {
         return NULL;
@@ -865,7 +865,7 @@ const woort_IRValue* woort_IRBlock_LNOT(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_LNOT, block);
+        block->m_function->m_compiler, WOORT_IR_INST_LNOT, block);
     if (!inst)
     {
         return NULL;

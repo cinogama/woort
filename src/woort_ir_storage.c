@@ -39,7 +39,8 @@ const woort_IRValue* woort_IRBlock_load(
     val->m_kind = WOORT_IRVALUE_KIND_STORAGE_LOAD;
     val->m_data.m_storage = (woort_IRStorage*)storage;
     
-    woort_vector_push_back(&g_ir_value_pool, 1, &val);
+    woort_IRCompiler* compiler = block->m_function->m_compiler;
+    woort_vector_push_back(&compiler->m_value_pool, 1, &val);
     
     return val;
 }

@@ -257,6 +257,13 @@ struct woort_IRFunction
 
 struct woort_IRCompiler
 {
+    /* 内存池 - 每个编译器独立管理 */
+    woort_Vector m_value_pool;        /* Vector<IRValue*> */
+    woort_Vector m_instruction_pool;  /* Vector<IRInstruction*> */
+    woort_Vector m_block_pool;        /* Vector<IRBlock*> */
+    woort_Vector m_function_pool;     /* Vector<IRFunction*> */
+    woort_Vector m_storage_pool;      /* Vector<IRStorage*> */
+    
     /* 全局存储计数 */
     size_t m_global_count;
     
@@ -268,20 +275,6 @@ struct woort_IRCompiler
 };
 
 /*******************************************************************************
- * 全局资源
- ******************************************************************************/
-
-/*
- * IR 编译器使用的全局内存池。
- */
-extern woort_Vector g_ir_value_pool;       /* Vector<IRValue*> */
-extern woort_Vector g_ir_instruction_pool; /* Vector<IRInstruction*> */
-extern woort_Vector g_ir_block_pool;       /* Vector<IRBlock*> */
-extern woort_Vector g_ir_function_pool;    /* Vector<IRFunction*> */
-extern woort_Vector g_ir_storage_pool;     /* Vector<IRStorage*> */
-extern woort_Vector g_ir_compiler_pool;    /* Vector<IRCompiler*> */
-
-/*******************************************************************************
  * 内部辅助函数
  ******************************************************************************/
 
@@ -291,6 +284,7 @@ extern woort_Vector g_ir_compiler_pool;    /* Vector<IRCompiler*> */
  * 创建常量 IRValue。
  */
 WOORT_NODISCARD woort_IRValue* _woort_IRValue_create_const(
+    woort_IRCompiler* compiler,
     woort_IRGlobalIndex global_index);
 
 /*
@@ -299,6 +293,7 @@ WOORT_NODISCARD woort_IRValue* _woort_IRValue_create_const(
  * 创建参数 IRValue。
  */
 WOORT_NODISCARD woort_IRValue* _woort_IRValue_create_argument(
+    woort_IRCompiler* compiler,
     size_t argument_index);
 
 /*
@@ -307,6 +302,7 @@ WOORT_NODISCARD woort_IRValue* _woort_IRValue_create_argument(
  * 创建 IR 指令。
  */
 WOORT_NODISCARD woort_IRInstruction* _woort_IRInstruction_create(
+    woort_IRCompiler* compiler,
     woort_IRInstructionKind kind,
     woort_IRBlock* parent_block);
 

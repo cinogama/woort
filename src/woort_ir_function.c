@@ -30,7 +30,7 @@ static woort_IRBlock* _woort_IRBlock_create(woort_IRFunction* function)
     woort_vector_init(&block->m_predecessors, sizeof(woort_IRBlock*));
     woort_vector_init(&block->m_successors, sizeof(woort_IRBlock*));
     
-    woort_vector_push_back(&g_ir_block_pool, 1, &block);
+    woort_vector_push_back(&function->m_compiler->m_block_pool, 1, &block);
     
     return block;
 }
@@ -99,7 +99,7 @@ const woort_IRValue* woort_IRFunction_load_const(
     }
     
     /* 创建新的常量 IRValue */
-    woort_IRValue* val = _woort_IRValue_create_const(global_index);
+    woort_IRValue* val = _woort_IRValue_create_const(compiler, global_index);
     if (!val)
     {
         return NULL;
@@ -131,7 +131,7 @@ const woort_IRValue* woort_IRFunction_load_argument(
     }
     
     /* 创建新的参数 IRValue */
-    woort_IRValue* val = _woort_IRValue_create_argument(argument_index);
+    woort_IRValue* val = _woort_IRValue_create_argument(function->m_compiler, argument_index);
     if (!val)
     {
         return NULL;
@@ -169,7 +169,7 @@ woort_IRStorage* woort_IRFunction_create_storage(woort_IRFunction* function)
     
     woort_vector_init(&storage->m_values_per_block, sizeof(void*) * 2);
     
-    woort_vector_push_back(&g_ir_storage_pool, 1, &storage);
+    woort_vector_push_back(&function->m_compiler->m_storage_pool, 1, &storage);
     woort_vector_push_back(&function->m_storages, 1, &storage);
     
     return storage;

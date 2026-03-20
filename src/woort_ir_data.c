@@ -20,7 +20,7 @@ const woort_IRValue* woort_IRBlock_MKVEC(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_MKVEC, block);
+        block->m_function->m_compiler, WOORT_IR_INST_MKVEC, block);
     if (!inst)
     {
         return NULL;
@@ -43,7 +43,7 @@ const woort_IRValue* woort_IRBlock_MKMAP(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_MKMAP, block);
+        block->m_function->m_compiler, WOORT_IR_INST_MKMAP, block);
     if (!inst)
     {
         return NULL;
@@ -66,7 +66,7 @@ const woort_IRValue* woort_IRBlock_MKSTRUCT(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_MKSTRUCT, block);
+        block->m_function->m_compiler, WOORT_IR_INST_MKSTRUCT, block);
     if (!inst)
     {
         return NULL;
@@ -90,7 +90,7 @@ const woort_IRValue* woort_IRBlock_MKCLOSURE(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_MKCLOSURE, block);
+        block->m_function->m_compiler, WOORT_IR_INST_MKCLOSURE, block);
     if (!inst)
     {
         return NULL;
@@ -118,7 +118,7 @@ const woort_IRValue* woort_IRBlock_CASTI_TO_R(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_CASTI_TO_R, block);
+        block->m_function->m_compiler, WOORT_IR_INST_CASTI_TO_R, block);
     if (!inst)
     {
         return NULL;
@@ -141,7 +141,7 @@ const woort_IRValue* woort_IRBlock_CASTR_TO_I(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_CASTR_TO_I, block);
+        block->m_function->m_compiler, WOORT_IR_INST_CASTR_TO_I, block);
     if (!inst)
     {
         return NULL;
@@ -164,7 +164,7 @@ const woort_IRValue* woort_IRBlock_CASTI_TO_S(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_CASTI_TO_S, block);
+        block->m_function->m_compiler, WOORT_IR_INST_CASTI_TO_S, block);
     if (!inst)
     {
         return NULL;
@@ -187,7 +187,7 @@ const woort_IRValue* woort_IRBlock_CASTR_TO_S(
     }
     
     woort_IRInstruction* inst = _woort_IRInstruction_create(
-        WOORT_IR_INST_CASTR_TO_S, block);
+        block->m_function->m_compiler, WOORT_IR_INST_CASTR_TO_S, block);
     if (!inst)
     {
         return NULL;
