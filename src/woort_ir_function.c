@@ -87,26 +87,28 @@ const woort_IRValue* woort_IRFunction_load_const(
     
     woort_IRCompiler* compiler = function->m_compiler;
     
-    /* 检查是否已缓存 */
-    if (global_index < compiler->m_const_values.m_size)
+    while (global_index >= compiler->m_const_values.m_size)
     {
-        woort_IRValue* cached = *(woort_IRValue**)woort_vector_at(
-            &compiler->m_const_values, global_index);
-        if (cached)
-        {
-            return cached;
-        }
+        woort_IRValue* null_ptr = NULL;
+        woort_vector_push_back(&compiler->m_const_values, 1, &null_ptr);
     }
     
-    /* 创建新的常量 IRValue */
+    woort_IRValue* cached = *(woort_IRValue**)woort_vector_at(
+        &compiler->m_const_values, global_index);
+    if (cached)
+    {
+        return cached;
+    }
+    
     woort_IRValue* val = _woort_IRValue_create_const(compiler, global_index);
     if (!val)
     {
         return NULL;
     }
     
-    /* 緻加到编译器的常量缓存 */
-    woort_vector_push_back(&compiler->m_const_values, 1, &val);
+    woort_IRValue** slot = (woort_IRValue**)woort_vector_at(
+        &compiler->m_const_values, global_index);
+    *slot = val;
     
     return val;
 }

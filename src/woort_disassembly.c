@@ -372,14 +372,14 @@ const woort_Bytecode* woort_Disassembly(const woort_Bytecode* c)
     case WOORT_OPCODE_JFWD:
     {
         const uint32_t addr = WOORT_BYTECODE(MABC26, bc);
-        printf("JFWD        +%u\n", addr);
+        printf("JFWD        %u\n", addr);
         return c + 1;
     }
 
     case WOORT_OPCODE_JBCK:
     {
         const uint32_t addr = WOORT_BYTECODE(MABC26, bc);
-        printf("JBCK        -%u\n", addr);
+        printf("JBCK        %u\n", addr);
         return c + 1;
     }
 

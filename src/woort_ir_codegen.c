@@ -142,6 +142,46 @@ static void _woort_IRCodeGen_add_fixup(
     woort_vector_push_back(&ctx->m_fixups, 1, &entry);
 }
 
+static int _woort_IRCodeGen_get_or_load_slot(
+    woort_IRCodeGenContext* ctx,
+    const woort_IRValue* value)
+{
+    if (!value)
+    {
+        return 0;
+    }
+    
+    woort_IRRegAlloc* ra = &ctx->m_reg_alloc;
+    
+    if (value->m_kind == WOORT_IRVALUE_KIND_CONST)
+    {
+        int slot = _woort_IRRegAlloc_alloc_temp(ra);
+        
+        woort_IRGlobalIndex idx = value->m_data.m_global_index;
+        
+        if (idx < (1 << 24))
+        {
+            woort_Bytecode bc = woort_OpCode_PUSHC((uint32_t)idx);
+            _woort_IRCodeGen_emit_bytecode(ctx, bc);
+        }
+        else
+        {
+            woort_Bytecode bc = woort_OpCode_PUSHCEXT(idx);
+            _woort_IRCodeGen_emit_bytecode(ctx, bc);
+        }
+        
+        woort_Bytecode pop_bc = woort_OpCode_POPR(1);
+        _woort_IRCodeGen_emit_bytecode(ctx, pop_bc);
+        
+        woort_Bytecode result_bc = woort_OpCode_RESULT(1, slot);
+        _woort_IRCodeGen_emit_bytecode(ctx, result_bc);
+        
+        return slot;
+    }
+    
+    return _woort_IRRegAlloc_get_slot(ra, value);
+}
+
 /*******************************************************************************
  * 指令翻译
  ******************************************************************************/
@@ -901,8 +941,8 @@ static bool _woort_IRCodeGen_emit_terminator(
         
     case WOORT_IR_TERMINATOR_CONDBR:
         {
-            int slot_lhs = _woort_IRRegAlloc_get_slot(ra, term->m_data.m_condbr.m_lhs);
-            int slot_rhs = _woort_IRRegAlloc_get_slot(ra, term->m_data.m_condbr.m_rhs);
+            int slot_lhs = _woort_IRCodeGen_get_or_load_slot(ctx, term->m_data.m_condbr.m_lhs);
+            int slot_rhs = _woort_IRCodeGen_get_or_load_slot(ctx, term->m_data.m_condbr.m_rhs);
             
             size_t bc_offset = _woort_IRCodeGen_current_offset(ctx);
             woort_Bytecode bc;
@@ -953,7 +993,7 @@ static bool _woort_IRCodeGen_emit_terminator(
         
     case WOORT_IR_TERMINATOR_RET:
         {
-            int slot = _woort_IRRegAlloc_get_slot(ra, term->m_data.m_ret.m_value);
+            int slot = _woort_IRCodeGen_get_or_load_slot(ctx, term->m_data.m_ret.m_value);
             woort_Bytecode bc = woort_OpCode_RETVS(slot);
             _woort_IRCodeGen_emit_bytecode(ctx, bc);
         }
@@ -993,8 +1033,16 @@ static bool _woort_IRCodeGen_resolve_fixups(woort_IRCodeGenContext* ctx)
         
         woort_Bytecode* bc = (woort_Bytecode*)woort_vector_at(&ctx->m_bytecodes, entry->m_bytecode_offset);
         
-        uint32_t abs_offset = (uint32_t)target_offset;
-        *bc = (*bc & ~WOORT_BYTECODE_MABC26_MASK) | (abs_offset << WOORT_BYTECODE_MABC26_SHIFT);
+        if (entry->m_opcode_kind == WOORT_OPCODE_JFWD)
+        {
+            uint32_t abs_offset = (uint32_t)target_offset;
+            *bc = (*bc & ~WOORT_BYTECODE_MABC26_MASK) | (abs_offset << WOORT_BYTECODE_MABC26_SHIFT);
+        }
+        else
+        {
+            int32_t rel_offset = (int32_t)target_offset - (int32_t)entry->m_bytecode_offset;
+            *bc = (*bc & ~WOORT_BYTECODE_C8_MASK) | ((uint32_t)rel_offset << WOORT_BYTECODE_C8_SHIFT);
+        }
     }
     
     return true;
@@ -1012,7 +1060,8 @@ bool _woort_IRCodeGen_compile_function(
     int arg_count = (int)func->m_argument_values.m_size;
     _woort_IRRegAlloc_init(&ctx->m_reg_alloc, arg_count);
     
-    woort_Bytecode reserve_bc = woort_OpCode_PUSHRCHK(64);
+    int stack_reserve = -(ctx->m_reg_alloc.m_next_local_slot);
+    woort_Bytecode reserve_bc = woort_OpCode_PUSHRCHK((uint32_t)stack_reserve);
     _woort_IRCodeGen_emit_bytecode(ctx, reserve_bc);
     
     for (size_t i = 0; i < func->m_blocks.m_size; ++i)
