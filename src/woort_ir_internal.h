@@ -77,7 +77,29 @@ typedef enum woort_IRInstructionKind
     /* 索引存储 */
     WOORT_IR_INST_STIDXVEC, WOORT_IR_INST_STIDXVECX,
     WOORT_IR_INST_STIDXMAP,
-    WOORT_IR_INST_STIDSTRUCT
+    WOORT_IR_INST_STIDSTRUCT,
+    
+    /* 栈操作 */
+    WOORT_IR_INST_PUSH,
+    WOORT_IR_INST_PUSH_CONST,
+    
+    /* 函数调用 */
+    WOORT_IR_INST_CALLNWO,
+    WOORT_IR_INST_CALLNFP,
+    WOORT_IR_INST_CALLNJIT,
+    WOORT_IR_INST_CALL,
+    
+    /* 栈清理 */
+    WOORT_IR_INST_POPR,
+    WOORT_IR_INST_RESULT,
+    
+    /* 解包 */
+    WOORT_IR_INST_UNPACKVEC,
+    WOORT_IR_INST_UNPACKVECX,
+    WOORT_IR_INST_UNPACKSTRUCT,
+    
+    /* PHI */
+    WOORT_IR_INST_PHI
 } woort_IRInstructionKind;
 
 /*
@@ -331,3 +353,89 @@ void _woort_IRBlock_add_successor(
  */
 WOORT_NODISCARD bool _woort_IRValue_is_valid(
     const woort_IRValue* value);
+
+/*******************************************************************************
+ * 代码生成内部接口
+ ******************************************************************************/
+
+/*
+ * woort_IRRegAlloc
+ * 
+ * 寄存器分配上下文。
+ */
+typedef struct woort_IRRegAlloc
+{
+    woort_HashMap m_value_to_slot;      /* IRValue* -> int (栈偏移) */
+    int m_next_local_slot;               /* 下一个可用的局部变量槽 (负数，从 -1 开始) */
+    int m_max_stack_depth;               /* 最大栈深度 */
+    int m_argument_count;                /* 参数数量 */
+    int m_push_count;                    /* 当前栈压入计数 */
+} woort_IRRegAlloc;
+
+/*
+ * woort_IRFixupEntry
+ * 
+ * 跳转回填条目。
+ */
+typedef struct woort_IRFixupEntry
+{
+    size_t m_bytecode_offset;            /* 需要回填的字节码偏移 */
+    const woort_IRBlock* m_target_block; /* 目标基本块 */
+    int m_opcode_kind;                   /* 操作码类型 */
+    int m_mode;                          /* 模式 */
+} woort_IRFixupEntry;
+
+/*
+ * woort_IRCodeGenContext
+ * 
+ * 代码生成上下文。
+ */
+typedef struct woort_IRCodeGenContext
+{
+    woort_IRCompiler* m_compiler;
+    woort_IRFunction* m_current_function;
+    
+    woort_Vector m_bytecodes;            /* 生成的字节码 Vector<woort_Bytecode> */
+    woort_IRRegAlloc m_reg_alloc;
+    
+    /* 块偏移映射 */
+    woort_HashMap m_block_to_offset;     /* IRBlock* -> size_t (字节码偏移) */
+    
+    /* 跳转回填 */
+    woort_Vector m_fixups;               /* Vector<woort_IRFixupEntry> */
+} woort_IRCodeGenContext;
+
+/*
+ * _woort_IRCodeGenContext_init
+ * 
+ * 初始化代码生成上下文。
+ */
+bool _woort_IRCodeGenContext_init(
+    woort_IRCodeGenContext* ctx,
+    woort_IRCompiler* compiler);
+
+/*
+ * _woort_IRCodeGenContext_deinit
+ * 
+ * 清理代码生成上下文。
+ */
+void _woort_IRCodeGenContext_deinit(
+    woort_IRCodeGenContext* ctx);
+
+/*
+ * _woort_IRCodeGen_compile_function
+ * 
+ * 编译单个函数。
+ */
+bool _woort_IRCodeGen_compile_function(
+    woort_IRCodeGenContext* ctx,
+    woort_IRFunction* func);
+
+/*
+ * _woort_IRCodeGen_create_code_env
+ * 
+ * 从生成的字节码创建 CodeEnv。
+ */
+bool _woort_IRCodeGen_create_code_env(
+    woort_IRCodeGenContext* ctx,
+    woort_CodeEnv** out_code_env);

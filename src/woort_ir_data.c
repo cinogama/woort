@@ -213,10 +213,24 @@ bool woort_IRBlock_UNPACKVEC(
         return false;
     }
     
-    /* TODO: 实现向量解包指令生成 */
+    if (woort_IRBlock_is_terminated(block))
+    {
+        return false;
+    }
+    
+    woort_IRInstruction* inst = _woort_IRInstruction_create(
+        block->m_function->m_compiler, WOORT_IR_INST_UNPACKVEC, block);
+    if (!inst)
+    {
+        return false;
+    }
+    
+    inst->m_operand0 = vec;
+    
+    _woort_IRBlock_add_instruction(block, inst);
+    
     return true;
 }
-
 bool woort_IRBlock_UNPACKVECX(
     woort_IRBlock* block,
     const woort_IRValue* vec)
@@ -226,10 +240,24 @@ bool woort_IRBlock_UNPACKVECX(
         return false;
     }
     
-    /* TODO: 实现扩展向量解包指令生成 */
+    if (woort_IRBlock_is_terminated(block))
+    {
+        return false;
+    }
+    
+    woort_IRInstruction* inst = _woort_IRInstruction_create(
+        block->m_function->m_compiler, WOORT_IR_INST_UNPACKVECX, block);
+    if (!inst)
+    {
+        return false;
+    }
+    
+    inst->m_operand0 = vec;
+    
+    _woort_IRBlock_add_instruction(block, inst);
+    
     return true;
 }
-
 bool woort_IRBlock_UNPACKSTRUCT(
     woort_IRBlock* block,
     const woort_IRValue* struct_val)
@@ -239,6 +267,21 @@ bool woort_IRBlock_UNPACKSTRUCT(
         return false;
     }
     
-    /* TODO: 实现结构体解包指令生成 */
-    return true;
+    if (woort_IRBlock_is_terminated(block))
+    {
+        return false;
+    }
+    
+    woort_IRInstruction* inst = _woort_IRInstruction_create(
+        block->m_function->m_compiler, WOORT_IR_INST_UNPACKSTRUCT, block);
+    if (!inst)
+    {
+        return false;
+    }
+    
+    inst->m_operand0 = struct_val;
+    
+    _woort_IRBlock_add_instruction(block, inst);
+    
+return true;
 }

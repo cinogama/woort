@@ -305,31 +305,31 @@ bool woort_IRCompiler_finish(
         return false;
     }
     
-    /* TODO: 实现完整的 IR 到字节码编译流程 */
-    /* 
-     * 1. 对每个函数执行寄存器分配
-     * 2. 执行指令选择和优化
-     * 3. 计算跳转偏移
-     * 4. 生成字节码
-     * 5. 创建 CodeEnv
-     */
-    
-    *out_code_env = NULL;
-    return false;
-}
-
-bool woort_IRCompiler_finish_function(
-    woort_IRCompiler* compiler,
-    woort_IRFunction* function,
-    /* OPTIONAL */ woort_CodeEnv** out_code_env)
-{
-    if (!compiler || !function || !out_code_env)
+    if (compiler->m_functions.m_size == 0)
     {
+        *out_code_env = NULL;
         return false;
     }
     
-    /* TODO: 实现单个函数的编译 */
+    woort_IRCodeGenContext ctx;
+    if (!_woort_IRCodeGenContext_init(&ctx, compiler))
+    {
+        *out_code_env = NULL;
+        return false;
+    }
     
-    *out_code_env = NULL;
-    return false;
+    woort_IRFunction* first_func = *(woort_IRFunction**)woort_vector_at(&compiler->m_functions, 0);
+    
+    if (!_woort_IRCodeGen_compile_function(&ctx, first_func))
+    {
+        _woort_IRCodeGenContext_deinit(&ctx);
+        *out_code_env = NULL;
+        return false;
+    }
+    
+    bool result = _woort_IRCodeGen_create_code_env(&ctx, out_code_env);
+    
+    _woort_IRCodeGenContext_deinit(&ctx);
+    
+    return result;
 }
