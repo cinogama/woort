@@ -2,224 +2,166 @@
 
 ## Project Overview
 
-WooRT (Woolang Runtime V1.0) is a runtime environment for the Woolang scripting language. It provides:
-- An efficient interpreter
-- A GC-based memory manager (woomem)
-- Debugging and intervention support
-- Code generation interfaces
+WooRT (Woolang Runtime V1.0) is a C11 runtime for the Woolang scripting language featuring a bytecode interpreter, GC-based memory manager (woomem), and debugging support.
 
 ## Build Commands
 
-### Configure
 ```bash
-# Windows (Visual Studio 2022)
-cmake -B build -G "Visual Studio 17 2022" -A x64
+# Configure
+cmake -B build -G "Visual Studio 17 2022" -A x64          # Windows
+cmake -B build -DCMAKE_BUILD_TYPE=Debug                   # macOS/Linux
 
-# macOS/Linux
-cmake -B build -DCMAKE_BUILD_TYPE=Debug
-# For Release:
-cmake -B build -DCMAKE_BUILD_TYPE=Release
+# Build
+cmake --build build --config Debug                         # Windows
+cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)  # Unix
+
+# Test
+ctest --test-dir build -C Debug --output-on-failure        # All tests
+ctest --test-dir build -C Debug -R <test_name> --output-on-failure  # Single test
+
+# Submodules (required before first build)
+git submodule sync --recursive && git submodule update --init --recursive
 ```
 
-### Build
-```bash
-# Windows
-cmake --build build --config Debug
-cmake --build build --config Release
+## Code Style
 
-# macOS/Linux
-cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
-```
-
-### Test
-```bash
-# Run all tests
-ctest --test-dir build -C Debug --output-on-failure
-ctest --test-dir build -C Release --output-on-failure
-
-# Run a single test (using ctest regex)
-ctest --test-dir build -C Debug -R <test_name> --output-on-failure
-
-# Run with verbose output
-ctest --test-dir build -C Debug -V
-```
-
-### Clean
-```bash
-# Remove build directory
-rm -rf build   # Unix
-rd /s /q build # Windows
-```
-
-## Code Style Guidelines
-
-### Language Standard
-- C11 is required
-- No C++ code in this project
+### Language
+- C11 only (no C++)
+- Use `/* */` comments, not `//`
+- Chinese comments are acceptable
 
 ### Header Guards
-Use `#pragma once` at the top of all header files:
-
 ```c
 #pragma once
 
 /*
  * filename.h
  */
+```
+
+### Include Order
+```c
+#include "woort.h"           /* 1. Project public header */
+#include "woort_diagnosis.h" /* 2. Project internal headers */
+#include "woomem.h"          /* 3. Dependency headers */
+#include <stdint.h>          /* 4. System headers */
 ```
 
 ### Naming Conventions
 
-| Type | Convention | Example |
-|------|------------|---------|
-| Types (struct/enum/typedef) | `woort_ModuleName` | `woort_VMRuntime`, `woort_HashMap` |
+| Type | Pattern | Example |
+|------|---------|---------|
+| Types | `woort_ModuleName` | `woort_VMRuntime`, `woort_HashMap` |
 | Functions | `woort_module_function` | `woort_hashmap_init`, `woort_VMRuntime_create` |
 | Macros/Constants | `WOORT_MACRO_NAME` | `WOORT_NODISCARD`, `WOORT_API` |
 | Struct members | `m_member_name` | `m_size`, `m_bucket_count` |
 | Enum values | `WOORT_ENUM_VALUE` | `WOORT_HASHMAP_RESULT_OK` |
-| Global variables | `g_variable_name` | `g_gc_in_marking` |
+| Globals | `g_variable_name` | `g_gc_in_marking` |
+| Internal functions | `_woort_module_func` | `_woort_hashmap_rehash` |
 
-### File Organization
+### WOORT_NODISCARD (Required)
+
+**任何返回值类型非 void 的函数，都必须标记为 WOORT_NODISCARD。**
 
 ```c
-/* 1. Header guard */
-#pragma once
-
-/*
- * filename.h
- */
-
-/* 2. Project headers */
-#include "woort.h"
-
-/* 3. Dependency headers */
-#include "woort_diagnosis.h"
-
-/* 4. System headers */
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-
-/* 5. Type definitions */
-
-/* 6. Function declarations */
+WOORT_NODISCARD bool woort_hashmap_find(woort_HashMap* map, const void* key, void** out_value_addr);
+WOORT_NODISCARD woort_hashmap_Result woort_hashmap_insert(woort_HashMap* map, const void* key, const void* value);
 ```
 
-### Comments
-- Use C-style comments (`/* */`), not C++ style (`//`)
-- Chinese comments are acceptable in this codebase
-- Document enum values and struct purposes inline
+### /* OPTIONAL */ (Required)
+
+**如果一个成员、参数、局部变量、返回值可能为空（NULL），类型前都必须加 `/* OPTIONAL */`。**
+
+```c
+/* 结构体成员 */
+typedef struct woort_HashMap {
+    /* OPTIONAL */ struct woort_HashMapEntry** m_buckets;
+    /* OPTIONAL */ struct woort_HashMapEntry* m_free_entries;
+} woort_HashMap;
+
+/* 函数参数 */
+void woomem_init(
+    /* OPTIONAL */ woomem_UserContext user_ctx,
+    /* OPTIONAL */ woomem_MarkCallbackFunc marker);
+
+/* 函数返回值 */
+WOORT_NODISCARD /* OPTIONAL */ void* woomem_alloc_normal(size_t size);
+WOORT_NODISCARD /* OPTIONAL */ woort_HashMapEntry* _woort_hashmap_get_free_entry(woort_HashMap* map);
+```
 
 ### Error Handling
 
-1. **Return values**: Functions that can fail return `bool` (`true` = success)
-2. **Output parameters**: Use pointer-to-pointer for output (`Type** out_result`)
-3. **NODISCARD**: Mark functions whose return value must be checked:
-
-```c
-WOORT_NODISCARD bool woort_hashmap_find(
-    woort_HashMap* map,
-    const void* key,
-    void** out_value_addr);
-```
-
-4. **Panic for unrecoverable errors**: Use `woort_panic()` for fatal errors:
-
-```c
-void woort_panic(woort_PanicReason reason, const char* msgfmt, ...);
-```
+1. **Return bool for success/failure** (`true` = success)
+2. **Output via pointer-to-pointer**: `Type** out_result`
+3. **Panic for unrecoverable errors**: `woort_panic(reason, msgfmt, ...)`
+4. **Result enums for multiple outcomes**: `woort_hashmap_Result` with `WOORT_HASHMAP_RESULT_*`
 
 ### Function Declaration Style
-
 ```c
-/* Parameter name on its own line for long signatures */
+void woort_hashmap_clear(woort_HashMap* map);  /* Short: one line */
+
+/* Long: parameter per line */
 WOORT_NODISCARD bool woort_hashmap_get_or_emplace(
     woort_HashMap* map,
     const void* key,
     void** out_value_addr);
+```
 
-/* Short signatures on one line */
-void woort_hashmap_clear(woort_HashMap* map);
+### Inline Functions
+```c
+static inline void woort_GC_mixed_write_barrier_value(woort_Value* modified_value, woort_Value src_value)
+{
+    if (g_gc_in_marking)
+        woomem_try_mark_unit((intptr_t)src_value.m_gcinstance);
+    *modified_value = src_value;
+}
+```
+
+### Macros
+```c
+#define woort_RuntimeFunction_kind(function) ((woort_RuntimeFunction_Kind)(((woort_RuntimeFunction)(function)) >> 62))
+```
+
+### Platform Detection
+```c
+#if defined(_MSC_VER)
+    /* MSVC */
+#elif defined(__clang__) || defined(__GNUC__)
+    /* Clang/GCC */
+#endif
 ```
 
 ### C++ Compatibility
-
-Public headers must include `extern "C"` guards:
-
-```c
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* declarations */
-
-#ifdef __cplusplus
-}
-#endif
-```
+Public headers (`include/woort.h`) must have `extern "C"` guards.
 
 ### Static Assertions
-
-Use `_Static_assert` for compile-time checks:
-
 ```c
 _Static_assert(sizeof(woort_Value) == sizeof(woort_value),
     "woort_Value and woort_value must have the same size");
 ```
 
-### Inline Functions
+## Memory Management (woomem)
 
-Use `static inline` for header-defined functions:
+- GC-managed objects inherit from `woort_GCUnit`
+- Use `woort_GCUnit_alloc_attrib(ATTRIB, SIZE)` macro
+- Write barriers required when writing to GC-managed memory:
+  - `woort_GC_mixed_write_barrier_value()`
+  - `woort_GC_mixed_write_barrier_dynbox()`
 
-```c
-static inline void woort_GC_mixed_write_barrier_value(
-    woort_Value* modified_value,
-    woort_Value src_value)
-{
-    /* implementation */
-}
+## Project Structure
+
+```
+woort/
+  include/woort.h    # Public API
+  src/               # Implementation (.h/.c)
+  test/              # Test files
+  3rd/woomem/        # GC memory manager (submodule)
+  doc/               # Documentation
 ```
 
-### Macros
+## Testing
 
-Multi-line macros should use backslash continuation:
-
-```c
-#define woort_RuntimeFunction_kind(function) (      \
-    (woort_RuntimeFunction_Kind)(                   \
-        ((woort_RuntimeFunction)(function)) >> 62))
-```
-
-### Platform-Specific Code
-
-Use preprocessor detection for platform differences:
-
-```c
-#if defined(_MSC_VER)
-    /* MSVC-specific code */
-#elif defined(__clang__) || defined(__GNUC__)
-    /* Clang/GCC-specific code */
-#else
-    /* Fallback */
-#endif
-```
-
-### Optional Parameters
-
-Document optional parameters with `/* OPTIONAL */`:
-
-```c
-/* OPTIONAL */ void* woomem_alloc_normal(size_t size);
-/* OPTIONAL */ void* woomem_alloc_attrib(size_t size, int attrib);
-```
-
-## Testing Guidelines
-
-- Test files go in `test/` directory
-- Test executable is `woort_test`
-- Use native functions to test VM behavior
-- Example test pattern:
-
+Test files in `test/` directory. Pattern:
 ```c
 #include "woort.h"
 #include "woort_vm.h"
@@ -238,18 +180,6 @@ int main(int argc, char** argv) {
 }
 ```
 
-## Dependencies
-
-- **woomem**: GC-based memory manager (submodule in `3rd/woomem/`)
-- Initialize submodules before building:
-  ```bash
-  git submodule sync --recursive
-  git submodule update --init --recursive
-  ```
-
 ## Supported Platforms
 
-- Windows Server 2022 (MSVC)
-- macOS ARM64
-- Ubuntu 22.04 ARM64
-- Ubuntu 20.04
+Windows Server 2022 (MSVC), macOS ARM64, Ubuntu 22.04 ARM64, Ubuntu 20.04

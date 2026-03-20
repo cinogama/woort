@@ -569,7 +569,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTI, 1):
         {
             rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real =
-                (woort_Real)rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer;
+                (woort_Real)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
             break;
         }
         // ITOSST
@@ -583,7 +583,7 @@ _label_continue_execution:
         // ITOSLD
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTI, 3):
         {
-            const woort_Int int_val = rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            const woort_Int int_val = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
             rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string =
                 woort_GCString_from_integer(int_val);
             break;
@@ -599,7 +599,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTR, 1):
         {
             rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer =
-                (woort_Int)rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_real;
+                (woort_Int)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real;
             break;
         }
         // RTOSST
@@ -613,7 +613,7 @@ _label_continue_execution:
         // RTOSLD
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTR, 3):
         {
-            const woort_Real real_val = rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_real;
+            const woort_Real real_val = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real;
             rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string =
                 woort_GCString_from_real(real_val);
             break;
@@ -632,7 +632,7 @@ _label_continue_execution:
         // STOILD
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTS, 1):
         {
-            const woort_GCString* str_val = rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_string;
+            const woort_GCString* str_val = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_string;
             woort_Int int_result;
             if (woort_GCString_to_integer(str_val, &int_result))
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer = int_result;
@@ -654,7 +654,7 @@ _label_continue_execution:
         // STORLD
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTS, 3):
         {
-            const woort_GCString* str_val = rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_string;
+            const woort_GCString* str_val = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_string;
             woort_Real real_result;
             if (woort_GCString_to_real(str_val, &real_result))
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real = real_result;
@@ -1696,105 +1696,105 @@ _label_continue_execution:
         // CADDI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCIASMD, 0):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer +=
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer +=
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
             break;
         }
         // CSUBI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCIASMD, 1):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer -=
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer -=
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
             break;
         }
         // CMULI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCIASMD, 2):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer *=
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer *=
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
             break;
         }
         // CDIVI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCIASMD, 3):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer /=
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer /=
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
             break;
         }
         // CADDR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCRASMD, 0):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_real +=
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real +=
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real;
             break;
         }
         // CSUBR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCRASMD, 1):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_real -=
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real -=
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real;
             break;
         }
         // CMULR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCRASMD, 2):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_real *=
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real *=
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real;
             break;
         }
         // CDIVR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCRASMD, 3):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_real /=
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real /=
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real;
             break;
         }
         // CADDS
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCSAIOO, 0):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_string =
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_string =
                 woort_GCString_add_string(
-                    rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_string,
+                    rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_string,
                     rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string);
             break;
         }
         // CVADDS
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCSAIOO, 1):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_string =
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_string =
                 woort_GCString_add_string(
                     rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string,
-                    rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_string);
+                    rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_string);
             break;
         }
         // CMODI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCSAIOO, 2):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer %=
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer %=
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
             break;
         }
         // CMODR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCSAIOO, 3):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_real =
-                fmod(rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_real,
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real =
+                fmod(rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real,
                     rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real);
             break;
         }
         // CLAND
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCLAON, 0):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer =
-                rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer
                 && rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
             break;
         }
         // CLOR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCLAON, 1):
         {
-            rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer =
-                rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer
                 || rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
             break;
         }
@@ -1802,7 +1802,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCLAON, 2):
         {
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer =
-                !rt_sb[(int8_t)WOORT_BYTECODE(BC16, c)].m_integer;
+                !rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
             break;
         }
         // LDIDXVEC
