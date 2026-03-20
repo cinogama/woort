@@ -126,7 +126,7 @@ bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     }
 
     // Move stack data from head to tail.
-    memcpy(new_stack + current_stack_size, vm->m_stack, current_stack_size);
+    memcpy(new_stack + current_stack_size, vm->m_stack, current_stack_size * sizeof(woort_Value));
     free(vm->m_stack);
 
     // Update vm state.
@@ -362,11 +362,11 @@ _label_continue_execution:
     case WOORT_VM_CASE_OP6_M2(CODE, 3)
 
 
-        for (const woort_Value* s = rt_sp; s <= rt_sb; ++s)
+     /*   for (const woort_Value* s = rt_sp; s <= rt_sb; ++s)
         {
             printf("%p:\t%lld\n", s, s->m_integer);
         }
-        printf("\n");
+        printf("\n");*/
         woort_Disassembly(rt_ip);
 
         register const woort_Bytecode c = *rt_ip;
