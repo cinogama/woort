@@ -183,8 +183,8 @@
 
                  /*
                   * JFWD/JBCK - 无条件跳转
-                  * JFWD: 向前跳转 u26
-                  * JBCK: 向后跳转 u26
+                  * JFWD: 绝对地址跳转到 u26 位置
+                  * JBCK: 与 JFWD 相同，但是有额外的GC检查点
                   */
 #define woort_OpCode_JFWD(u26)          \
     woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JFWD, u26)
@@ -753,15 +753,15 @@
                                                           /*
                                                            * UNPACK - 解包操作
                                                            * UNPACKSTRUCT (mode=0): 解包结构体到 [SB + bc16]
-                                                           * UNPACKVEC    (mode=1): 解包向量到 [SB + bc16]
-                                                           * UNPACKVECX   (mode=2): 解包向量（动态）到 [SB + bc16]
+                                                           * UNPACKVEC    (mode=1): 解包向量到 [SB + bc16]，展开数量写入 [SB + a8]
+                                                           * UNPACKVECX   (mode=2): 解包向量（动态）到 [SB + bc16]，展开数量写入 [SB + a8]
                                                            */
 #define woort_OpCode_UNPACKSTRUCT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_UNPACK, 0, bc16)
-#define woort_OpCode_UNPACKVEC(bc16)    \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_UNPACK, 1, bc16)
-#define woort_OpCode_UNPACKVECX(bc16)   \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_UNPACK, 2, bc16)
+#define woort_OpCode_UNPACKVEC(a8, bc16)    \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_UNPACK, 1, a8, bc16)
+#define woort_OpCode_UNPACKVECX(a8, bc16)   \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_UNPACK, 2, a8, bc16)
 
                                                            /*
                                                             * PUSHIDXSTBOX - 压入结构体字段引用

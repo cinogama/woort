@@ -3210,6 +3210,9 @@ _label_continue_execution:
                 WOORT_VM_THROW(stack_overflow);
             }
 
+
+            rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer = (woort_Int)size;
+
             // 将向量的元素解包并压入栈中（保持顺序）
             for (size_t i = 0; i < size; ++i)
             {
@@ -3232,6 +3235,8 @@ _label_continue_execution:
             // 检查栈空间
             if ((size_t)(rt_sp - rt_stack) < size)
                 WOORT_VM_THROW(stack_overflow);
+
+            rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer = (woort_Int)size;
 
             // 将向量的元素作为 DynBox 压入栈中（保持顺序）
             for (size_t i = 0; i < size; ++i)

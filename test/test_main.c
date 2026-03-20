@@ -5,6 +5,7 @@
 #include "woort_opcode.h"
 #include "woort_opcode_formal.h"
 #include "woort_gc_string.h"
+#include "woort_opcode_builder.h"
 
 #include <stdio.h>
 #include <time.h>
@@ -107,7 +108,7 @@ int main(int argc, char** argv) {
     codeenv->m_data_begin[0].m_integer = 2;
     codeenv->m_data_begin[1].m_integer = 1;
     codeenv->m_data_begin[2].m_script_function = codeenv->m_code_begin + 0;
-    codeenv->m_data_begin[3].m_integer = 10;
+    codeenv->m_data_begin[3].m_integer = 40;
     codeenv->m_data_begin[4].m_native_or_jit_function = &print_int;
 
     woort_VMRuntime* vm;
