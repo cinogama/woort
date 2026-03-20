@@ -177,14 +177,18 @@ const woort_IRValue* const arg0 =
 const woort_IRValue* const n_sub_1 = 
     woort_IRBlock_SUBI(irblock_greater_then_2, arg0, val1);
 
-const woort_IRValue* const fib_n_sub_1 =
-    woort_IRBlock_CALLNWO(irblock_greater_then_2, const_val_func_jit, &n_sub_1, 1);
+woort_IRBlock_PUSH(n_sub_1);
+
+const woort_IRValue* fib_n_sub_1;
+woort_IRBlock_CALLNWO(irblock_greater_then_2, const_val_func_jit, 1 /* ARGC */, &fib_n_sub_1);
 
 const woort_IRValue* const n_sub_2 = 
     woort_IRBlock_SUBI(irblock_greater_then_2, n_sub_1, val1);
 
-const woort_IRValue* const fib_n_sub_2 =
-    woort_IRBlock_CALLNWO(irblock_greater_then_2, const_val_func_jit, &n_sub_2, 1);  
+woort_IRBlock_PUSH(n_sub_2);
+
+const woort_IRValue* fib_n_sub_2;
+woort_IRBlock_CALLNWO(irblock_greater_then_2, const_val_func_jit, 1, &fib_n_sub_2);  
 
 const woort_IRValue* const result =
 
@@ -207,11 +211,14 @@ woort_IRBlock* const irblock_main_entry =
 const woort_IRValue* const const_10 =
     woort_IRFunction_load_const(irfunc_main, const_val_10);
 
-const woort_IRValue* const fib_result =
-    woort_IRBlock_CALLNWO(irblock_main_entry, const_val_func_jit, &const_10, 1);
+woort_IRBlock_PUSH(const_10);
 
-const woort_IRValue* const print_int_result =
-    woort_IRBlock_CALLNFP(irblock_main_entry, const_val_print_int, &fib_result, 1);
+const woort_IRValue* fib_result; 
+woort_IRBlock_CALLNWO(irblock_main_entry, const_val_func_jit, 1, &fib_result);
+
+woort_IRBlock_PUSH(fib_result);
+
+woort_IRBlock_CALLNFP(irblock_main_entry, const_val_print_int, 1, NULL);
 
 (void)woort_IRBlock_ret_void(irblock_main_entry);
 
@@ -223,3 +230,10 @@ if (!woort_IRCompiler_finish(irc, &code_env))
 
 // 填充常量，获取符号表等等。。。
 ```
+
+## 注意
+
+* IRBlock 接口中，指令部分保持大写
+* woort_IRBlock_CALLNFP/woort_IRBlock_CALLNWO/woort_IRBlock_CALLNJIT/woort_IRBlock_CALL 包含参数数量和返回值接收；
+    参数数量仅用于生成 POPR/RESULT 指令时，指示所需弹出清理栈上空间的数量，如果返回值接收指定为 NULL，则不使用 RESULT
+    指令，直接 POPR.
