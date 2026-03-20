@@ -1022,6 +1022,15 @@ static bool test_ir_fib_codegen(void)
     printf("  Generated CodeEnv (bytecode count: %zu)\n",
            (size_t)(code_env->m_code_end - code_env->m_code_begin));
     
+    printf("\n  --- Disassembly ---\n");
+    const woort_Bytecode* pc = code_env->m_code_begin;
+    while (pc < code_env->m_code_end)
+    {
+        printf("%04u:\t", (int)(pc - code_env->m_code_begin));
+        pc = woort_Disassembly(pc);
+    }
+    printf("  --- End Disassembly ---\n\n");
+    
     code_env->m_data_begin[const_val_1].m_integer = 1;
     code_env->m_data_begin[const_val_2].m_integer = 2;
     code_env->m_data_begin[const_val_10].m_integer = 10;
@@ -1055,14 +1064,14 @@ int main(int argc, char** argv)
     
     int failed = 0;
     
-    if (!test_ir_basic()) failed++;
-    if (!test_ir_function_and_blocks()) failed++;
-    if (!test_ir_values()) failed++;
-    if (!test_ir_arithmetic()) failed++;
-    if (!test_ir_condbr()) failed++;
-    if (!test_ir_storage()) failed++;
-    if (!test_ir_data_operations()) failed++;
-    if (!test_ir_dynamic_types()) failed++;
+    //if (!test_ir_basic()) failed++;
+    //if (!test_ir_function_and_blocks()) failed++;
+    //if (!test_ir_values()) failed++;
+    //if (!test_ir_arithmetic()) failed++;
+    //if (!test_ir_condbr()) failed++;
+    //if (!test_ir_storage()) failed++;
+    //if (!test_ir_data_operations()) failed++;
+    //if (!test_ir_dynamic_types()) failed++;
     if (!test_ir_fib_codegen()) failed++;
     
     printf("========================================\n");

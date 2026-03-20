@@ -1049,13 +1049,27 @@ static bool _woort_IRCodeGen_resolve_fixups(woort_IRCodeGenContext* ctx)
         
         if (entry->m_opcode_kind == WOORT_OPCODE_JFWD)
         {
-            uint32_t abs_offset = (uint32_t)target_offset;
-            *bc = (*bc & ~WOORT_BYTECODE_MABC26_MASK) | (abs_offset << WOORT_BYTECODE_MABC26_SHIFT);
+            if (target_offset == entry->m_bytecode_offset + 1)
+            {
+                *bc = woort_OpCode_NOP();
+            }
+            else
+            {
+                uint32_t abs_offset = (uint32_t)target_offset;
+                *bc = (*bc & ~WOORT_BYTECODE_MABC26_MASK) | (abs_offset << WOORT_BYTECODE_MABC26_SHIFT);
+            }
         }
         else
         {
-            int32_t rel_offset = (int32_t)target_offset - (int32_t)entry->m_bytecode_offset;
-            *bc = (*bc & ~WOORT_BYTECODE_C8_MASK) | ((uint32_t)rel_offset << WOORT_BYTECODE_C8_SHIFT);
+            if (target_offset == entry->m_bytecode_offset + 1)
+            {
+                *bc = woort_OpCode_NOP();
+            }
+            else
+            {
+                int32_t rel_offset = (int32_t)target_offset - (int32_t)entry->m_bytecode_offset;
+                *bc = (*bc & ~WOORT_BYTECODE_C8_MASK) | ((uint32_t)rel_offset << WOORT_BYTECODE_C8_SHIFT);
+            }
         }
     }
     
@@ -1118,11 +1132,109 @@ bool _woort_IRCodeGen_create_code_env(
     size_t bytecode_count = ctx->m_bytecodes.m_size;
     woort_Bytecode* bytecodes = (woort_Bytecode*)ctx->m_bytecodes.m_data;
     
+    size_t* offset_map = (size_t*)malloc(bytecode_count * sizeof(size_t));
+    if (!offset_map)
+    {
+        return false;
+    }
+    
+    size_t new_count = 0;
+    for (size_t i = 0; i < bytecode_count; ++i)
+    {
+        offset_map[i] = new_count;
+        woort_Bytecode bc = bytecodes[i];
+        uint32_t op6 = WOORT_BYTECODE(OP6, bc);
+        if (op6 != WOORT_OPCODE_NOP)
+        {
+            new_count++;
+        }
+    }
+    
+    woort_Bytecode* new_bytecodes = (woort_Bytecode*)malloc(new_count * sizeof(woort_Bytecode));
+    if (!new_bytecodes)
+    {
+        free(offset_map);
+        return false;
+    }
+    
+    size_t j = 0;
+    for (size_t i = 0; i < bytecode_count; ++i)
+    {
+        woort_Bytecode bc = bytecodes[i];
+        uint32_t op6 = WOORT_BYTECODE(OP6, bc);
+        
+        if (op6 == WOORT_OPCODE_NOP)
+        {
+            continue;
+        }
+        
+        if (op6 == WOORT_OPCODE_JFWD)
+        {
+            uint32_t old_target = WOORT_BYTECODE(MABC26, bc);
+            uint32_t new_target = (uint32_t)offset_map[old_target];
+            bc = woort_OpCode_JFWD(new_target);
+        }
+        else if (op6 == WOORT_OPCODE_JFWDCND)
+        {
+            uint32_t m2 = WOORT_BYTECODE(M2, bc);
+            uint32_t a8 = WOORT_BYTECODE(A8, bc);
+            
+            if (m2 <= 1)
+            {
+                int16_t rel = (int16_t)WOORT_BYTECODE(BC16, bc);
+                size_t old_target = i + rel;
+                size_t new_target = offset_map[old_target];
+                int32_t new_rel = (int32_t)new_target - (int32_t)j;
+                
+                if (m2 == 0)
+                    bc = woort_OpCode_JFWDNZ((int8_t)a8, (uint16_t)new_rel);
+                else
+                    bc = woort_OpCode_JFWDZ((int8_t)a8, (uint16_t)new_rel);
+            }
+            else
+            {
+                int8_t rel = (int8_t)WOORT_BYTECODE(C8, bc);
+                size_t old_target = i + rel;
+                int32_t new_rel = (int32_t)offset_map[old_target] - (int32_t)j;
+                
+                uint32_t b8 = WOORT_BYTECODE(B8, bc);
+                
+                if (m2 == 2)
+                    bc = woort_OpCode_JFWDEQ((int8_t)a8, (int8_t)b8, (int8_t)new_rel);
+                else
+                    bc = woort_OpCode_JFWDNEQ((int8_t)a8, (int8_t)b8, (int8_t)new_rel);
+            }
+        }
+        else if (op6 == WOORT_OPCODE_JFDCMP)
+        {
+            int8_t rel = (int8_t)WOORT_BYTECODE(C8, bc);
+            size_t old_target = i + rel;
+            int32_t new_rel = (int32_t)offset_map[old_target] - (int32_t)j;
+            
+            uint32_t m2 = WOORT_BYTECODE(M2, bc);
+            uint32_t a8 = WOORT_BYTECODE(A8, bc);
+            uint32_t b8 = WOORT_BYTECODE(B8, bc);
+            
+            switch (m2)
+            {
+            case 0: bc = woort_OpCode_JFWDLT((int8_t)a8, (int8_t)b8, (int8_t)new_rel); break;
+            case 1: bc = woort_OpCode_JFWDGT((int8_t)a8, (int8_t)b8, (int8_t)new_rel); break;
+            case 2: bc = woort_OpCode_JFWDEL((int8_t)a8, (int8_t)b8, (int8_t)new_rel); break;
+            case 3: bc = woort_OpCode_JFWDEG((int8_t)a8, (int8_t)b8, (int8_t)new_rel); break;
+            }
+        }
+        
+        new_bytecodes[j++] = bc;
+    }
+    
     bool result = woort_CodeEnv_create(
-        bytecodes,
-        bytecode_count,
+        new_bytecodes,
+        new_count,
         ctx->m_compiler->m_global_count,
         out_code_env);
+    
+    free(new_bytecodes);
+    free(offset_map);
     
     return result;
 }
