@@ -10,7 +10,7 @@
 #include <string.h>
 
 /*******************************************************************************
- * IRBlock 创建（内部使用）
+ * IRBlock 创建（内部使用)
  ******************************************************************************/
 
 static woort_IRBlock* _woort_IRBlock_create(woort_IRFunction* function)
@@ -31,6 +31,7 @@ static woort_IRBlock* _woort_IRBlock_create(woort_IRFunction* function)
     woort_vector_init(&block->m_successors, sizeof(woort_IRBlock*));
     
     woort_vector_push_back(&g_ir_block_pool, 1, &block);
+    
     return block;
 }
 
@@ -56,13 +57,14 @@ bool woort_IRFunction_add_block(
         return false;
     }
     
+    if (!out_block)
+    {
+        return false;
+    }
+    
     woort_IRBlock* block = _woort_IRBlock_create(function);
     if (!block)
     {
-        if (out_block)
-        {
-            *out_block = NULL;
-        }
         return false;
     }
     
@@ -74,7 +76,6 @@ bool woort_IRFunction_add_block(
     }
     return true;
 }
-
 const woort_IRValue* woort_IRFunction_load_const(
     woort_IRFunction* function,
     woort_IRGlobalIndex global_index)
@@ -104,29 +105,11 @@ const woort_IRValue* woort_IRFunction_load_const(
         return NULL;
     }
     
-    /* 确保向量足够大 */
-    if (global_index >= compiler->m_const_values.m_size)
-    {
-        size_t old_size = compiler->m_const_values.m_size;
-        size_t new_size = global_index + 1;
-        woort_vector_resize(&compiler->m_const_values, new_size);
-        
-        /* 将新扩展的部分初始化为 NULL */
-        for (size_t i = old_size; i < new_size; ++i)
-        {
-            woort_IRValue* null_ptr = NULL;
-            woort_vector_push_back(&compiler->m_const_values, 1, &null_ptr);
-        }
-    }
-    
-    /* 缓存常量值 */
-    woort_IRValue** slot = (woort_IRValue**)woort_vector_at(
-        &compiler->m_const_values, global_index);
-    *slot = val;
+    /* 緻加到编译器的常量缓存 */
+    woort_vector_push_back(&compiler->m_const_values, 1, &val);
     
     return val;
 }
-
 const woort_IRValue* woort_IRFunction_load_argument(
     woort_IRFunction* function,
     size_t argument_index)
@@ -168,7 +151,6 @@ const woort_IRValue* woort_IRFunction_load_argument(
     
     return val;
 }
-
 woort_IRStorage* woort_IRFunction_create_storage(woort_IRFunction* function)
 {
     if (!function)
@@ -192,7 +174,6 @@ woort_IRStorage* woort_IRFunction_create_storage(woort_IRFunction* function)
     
     return storage;
 }
-
 woort_IRCompiler* woort_IRFunction_get_compiler(const woort_IRFunction* function)
 {
     if (!function)

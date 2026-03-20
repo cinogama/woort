@@ -20,3 +20,13 @@ target_include_directories(woort_test
 target_link_libraries(woort_test 
     PRIVATE woort
     PRIVATE woort_options)
+
+add_executable(test_ir test_ir.c)
+
+target_include_directories(test_ir 
+    PRIVATE "../include"
+    PRIVATE "../src")
+
+target_link_libraries(test_ir 
+    PRIVATE woort
+    PRIVATE woort_options)
