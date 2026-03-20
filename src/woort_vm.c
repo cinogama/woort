@@ -18,6 +18,8 @@
 #include "woort_gc_closure.h"
 #include "woort_utf8.h"
 
+#include "woort_disassembly.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -71,7 +73,7 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
         || vm->m_hangup_cv == NULL)
     {
         WOORT_DEBUG("Out of memory");
-        goto _label_failed_to_init;
+        goto _label_failed_to_init;     
     }
 
     vm->m_stack_end = vm->m_stack + WOORT_VM_DEFAULT_STACK_BEGIN_SIZE;
@@ -358,6 +360,14 @@ _label_continue_execution:
     case WOORT_VM_CASE_OP6_M2(CODE, 1):     \
     case WOORT_VM_CASE_OP6_M2(CODE, 2):     \
     case WOORT_VM_CASE_OP6_M2(CODE, 3)
+
+
+        for (const woort_Value* s = rt_sp; s <= rt_sb; ++s)
+        {
+            printf("%p:\t%lld\n", s, s->m_integer);
+        }
+        printf("\n");
+        woort_Disassembly(rt_ip);
 
         register const woort_Bytecode c = *rt_ip;
         switch ((uint8_t)(c >> 24))
