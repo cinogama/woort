@@ -292,7 +292,7 @@ void woort_IRBlock_UNPACKSTRUCT(woort_IRBlock* b, const woort_IRValue* c);
 const woort_IRValue* woort_IRBlock_UNPACKVEC(woort_IRBlock* b, const woort_IRValue* c);
 const woort_IRValue* woort_IRBlock_UNPACKVECX(woort_IRBlock* b, const woort_IRValue* c);
 
-void woort_IRBlock_PUSHIDXSTBOX(woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);
+void woort_IRBlock_PUSHIDXSTRUCT(woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);
 void woort_IRBlock_PUSHIDXSTBOXI(woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);
 void woort_IRBlock_PUSHIDXSTBOXR(woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);
 void woort_IRBlock_PUSHIDXSTBOXB(woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);

@@ -3245,6 +3245,22 @@ _label_continue_execution:
             rt_sp -= size;
             break;
         }
+        // PUSHIDXSTRUCT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 3):
+        {
+            if (rt_sp > rt_stack)
+            {
+                const size_t index = (size_t)WOORT_BYTECODE(A8, c);
+                woort_GCStruct* const gcstruct =
+                    rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct;
+
+                assert(index < gcstruct->m_size);
+
+                *(rt_sp--) = gcstruct->m_datas[index];
+                break;
+            }
+            WOORT_VM_THROW(stack_overflow);
+        }
         // PUSHIDXSTBOXI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 0):
         {

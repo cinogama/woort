@@ -1328,6 +1328,12 @@ const woort_Bytecode* woort_Disassembly(const woort_Bytecode* c)
         case 2:
             printf("UNPACKVECX   [SB %+d]\n", src);
             return c + 1;
+        case 3:
+        {
+            const uint8_t n = (uint8_t)WOORT_BYTECODE(A8, bc);
+            printf("PUSHIDXSTRUCT %u, [SB %+d]\n", n, src);
+            return c + 1;
+        }
         }
         break;
     }

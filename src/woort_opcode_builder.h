@@ -762,9 +762,11 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_UNPACK, 1, a8, bc16)
 #define woort_OpCode_UNPACKVECX(a8, bc16)   \
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_UNPACK, 2, a8, bc16)
+#define woort_OpCode_PUSHIDXSTRUCT(n8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_UNPACK, 3, n8, bc16)
 
-                                                           /*
-                                                            * PUSHIDXSTBOX - 压入结构体字段引用
+                                                            /*
+                                                             * PUSHIDXSTBOX - 压入结构体字段引用
                                                             * PUSHIDXSTBOXI/R/B/X: 压入 struct.n8 的引用到栈，类型 int/real/bool/dynamic
                                                             */
 #define woort_OpCode_PUSHIDXSTBOXI(n8, bc16) \
