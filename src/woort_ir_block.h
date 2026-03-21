@@ -1,0 +1,299 @@
+#pragma once
+
+/*
+woort_ir_block.h
+*/
+
+#include <stdint.h>
+#include <stddef.h>
+
+typedef struct woort_IRPhi woort_IRPhi;
+typedef struct woort_IRValue woort_IRValue;
+typedef uint32_t woort_IRConstantIndex;
+typedef uint32_t woort_IRStaticIndex;
+
+typedef struct woort_IRBlock {
+    char _;
+
+} woort_IRBlock;
+
+void woort_IRBlock_init(woort_IRBlock* block);
+void woort_IRBlock_deinit(woort_IRBlock* block);
+
+void woort_IRBlock_br(
+    woort_IRBlock* block,
+    woort_IRBlock* next);
+void woort_IRBlock_br_cond(
+    woort_IRBlock* block,
+    const woort_IRValue* cond,
+    woort_IRBlock* true_next,
+    woort_IRBlock* false_next);
+void woort_IRBlock_br_lt(
+    woort_IRBlock* block,
+    const woort_IRValue* a,
+    const woort_IRValue* b,
+    woort_IRBlock* true_next,
+    woort_IRBlock* false_next);
+void woort_IRBlock_br_le(
+    woort_IRBlock* block,
+    const woort_IRValue* a,
+    const woort_IRValue* b,
+    woort_IRBlock* true_next,
+    woort_IRBlock* false_next);
+#define woort_IRBlock_br_gt(block, a, b, true_next, false_next)\
+    woort_IRBlock_br_lt(block, b, a, false_next, true_next)
+#define woort_IRBlock_br_ge(block, a, b, true_next, false_next)\
+    woort_IRBlock_br_le(block, b, a, false_next, true_next)
+
+void woort_IRBlock_ret(
+    woort_IRBlock* block, const woort_IRValue* val);
+void woort_IRBlock_ret_void(woort_IRBlock* block);
+
+const woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* block, woort_IRPhi** out_phi);
+
+/*
+如果一个 Block 有 PHI 节点，那么所有 br 到此 Block 其他 Block 必须通过此声明
+传递目标 Block 的所有 PHI 来源值，IRCompiler 负责检查。
+*/
+void woort_IRPhi_from(
+    woort_IRPhi* phi,
+    woort_IRBlock* from_block,
+    const woort_IRValue* val);
+
+const woort_IRValue* woort_IRBlock_LOAD(woort_IRBlock* b, woort_IRStaticIndex idx);
+void woort_IRBlock_STORE(woort_IRBlock* b, woort_IRStaticIndex idx, const woort_IRValue* val);
+
+void woort_IRBlock_PUSHCHK(woort_IRBlock* b, const woort_IRValue* val);
+const woort_IRValue* woort_IRBlock_POP(woort_IRBlock* b);
+
+void woort_IRBlock_POPR(woort_IRBlock* b, size_t count);
+void woort_IRBlock_POPRS(woort_IRBlock* b, const woort_IRValue* val);
+
+const woort_IRValue* woort_IRBlock_ITOR(woort_IRBlock* b, const woort_IRValue* val);
+const woort_IRValue* woort_IRBlock_ITOS(woort_IRBlock* b, const woort_IRValue* val);
+const woort_IRValue* woort_IRBlock_RTOI(woort_IRBlock* b, const woort_IRValue* val);
+const woort_IRValue* woort_IRBlock_RTOS(woort_IRBlock* b, const woort_IRValue* val);
+const woort_IRValue* woort_IRBlock_STOI(woort_IRBlock* b, const woort_IRValue* val);
+const woort_IRValue* woort_IRBlock_STOR(woort_IRBlock* b, const woort_IRValue* val);
+
+void woort_IRBlock_CALLNWO(
+    woort_IRBlock* b, 
+    woort_IRConstantIndex f, 
+    size_t argc_to_pop, 
+    /* OPTIONAL */ const woort_IRValue** out_ret_val);
+void woort_IRBlock_CALLNFP(
+    woort_IRBlock* b,
+    woort_IRConstantIndex f,
+    size_t argc_to_pop,
+    /* OPTIONAL */ const woort_IRValue** out_ret_val);
+void woort_IRBlock_CALLNJIT(
+    woort_IRBlock* b,
+    woort_IRConstantIndex f,
+    size_t argc_to_pop,
+    /* OPTIONAL */ const woort_IRValue** out_ret_val);
+void woort_IRBlock_CALL(
+    woort_IRBlock* b,
+    const woort_IRValue* f_val,
+    size_t argc_to_pop,
+    /* OPTIONAL */ const woort_IRValue** out_ret_val);
+
+const woort_IRValue* woort_IRBlock_MKVEC(woort_IRBlock* b, size_t elem_count);
+const woort_IRValue* woort_IRBlock_MKMAP(woort_IRBlock* b, size_t kvpair_count);
+const woort_IRValue* woort_IRBlock_MKSTRUCT(woort_IRBlock* b, size_t elem_count);
+
+const woort_IRValue* woort_IRBlock_BOXDYN(
+    woort_IRBlock* b, uint8_t typ, const woort_IRValue* val);
+const woort_IRValue* woort_IRBlock_UNBOXDYN(
+    woort_IRBlock* b, uint8_t typ, const woort_IRValue* val);
+const woort_IRValue* woort_IRBlock_CHECKDYN(
+    woort_IRBlock* b, uint8_t typ, const woort_IRValue* val);
+void woort_IRBlock_PUSHBOXDYN(
+    woort_IRBlock* b, uint8_t typ, const woort_IRValue* val);
+
+const woort_IRValue* woort_IRBlock_ADDI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_SUBI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_MULI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_DIVI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_MODI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_NEGI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_NEGI(
+    woort_IRBlock* b, const woort_IRValue* val);
+const woort_IRValue* woort_IRBlock_LTI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_GTI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_LEI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_GEI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_EQI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_NEI(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+
+const woort_IRValue* woort_IRBlock_ADDR(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_SUBR(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_MULR(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_DIVR(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_MODR(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_NEGR(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_NEGR(
+    woort_IRBlock* b, const woort_IRValue* val);
+const woort_IRValue* woort_IRBlock_LTR(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_GTR(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_LER(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_GER(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_EQR(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_NER(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+
+const woort_IRValue* woort_IRBlock_ADDS(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_LTS(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_GTS(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_LES(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_GES(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_EQS(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_NES(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+
+const woort_IRValue* woort_IRBlock_LAND(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_LOR(
+    woort_IRBlock* b, const woort_IRValue* val1, const woort_IRValue* val2);
+const woort_IRValue* woort_IRBlock_LNOT(
+    woort_IRBlock* b, const woort_IRValue* val);
+
+const woort_IRValue* woort_IRBlock_LDIDXVEC(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx);
+const woort_IRValue* woort_IRBlock_LDIDXVECX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx);
+const woort_IRValue* woort_IRBlock_LDIDXSTRUCT(
+    woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);
+const woort_IRValue* woort_IRBlock_LDIDXSTRING(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx);
+
+const woort_IRValue* woort_IRBlock_LDIDXDICTI(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx);
+const woort_IRValue* woort_IRBlock_LDIDXDICTR(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx);
+const woort_IRValue* woort_IRBlock_LDIDXDICTB(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx);
+const woort_IRValue* woort_IRBlock_LDIDXDICTX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx);
+
+void woort_IRBlock_SDIDXVECI(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXVECR(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXVECB(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXVECX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+
+void woort_IRBlock_SDIDXDICTII(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTIR(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTIB(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTIX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+
+void woort_IRBlock_SDIDXDICTRI(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTRR(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTRB(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTRX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+
+void woort_IRBlock_SDIDXDICTBI(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTBR(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTBB(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTBX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+
+void woort_IRBlock_SDIDXDICTXI(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTXR(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTXB(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXDICTXX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+
+void woort_IRBlock_SDIDXMAPII(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPIR(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPIB(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPIX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+
+void woort_IRBlock_SDIDXMAPRI(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPRR(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPRB(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPRX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+
+void woort_IRBlock_SDIDXMAPBI(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPBR(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPBB(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPBX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+
+void woort_IRBlock_SDIDXMAPXI(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPXR(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPXB(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+void woort_IRBlock_SDIDXMAPXX(
+    woort_IRBlock* b, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+
+void woort_IRBlock_SDIDXSTRUCT(
+    woort_IRBlock* b, const woort_IRValue* c, uint32_t idx, const woort_IRValue* val);
+
+void woort_IRBlock_UNPACKSTRUCT(woort_IRBlock* b, const woort_IRValue* c);
+const woort_IRValue* woort_IRBlock_UNPACKVEC(woort_IRBlock* b, const woort_IRValue* c);
+const woort_IRValue* woort_IRBlock_UNPACKVECX(woort_IRBlock* b, const woort_IRValue* c);
+
+void woort_IRBlock_PUSHIDXSTBOX(woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);
+void woort_IRBlock_PUSHIDXSTBOXI(woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);
+void woort_IRBlock_PUSHIDXSTBOXR(woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);
+void woort_IRBlock_PUSHIDXSTBOXB(woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);
+void woort_IRBlock_PUSHIDXSTBOXX(woort_IRBlock* b, const woort_IRValue* c, uint32_t idx);
