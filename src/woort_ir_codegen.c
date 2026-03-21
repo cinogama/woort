@@ -154,6 +154,8 @@ typedef struct woort_IRCodeGenCtx
     
     int32_t* m_value_to_slot;
     
+    woort_IRBlock* m_current_block;
+    
     woort_IRJumpTarget* m_block_targets;
     uint32_t m_block_target_count;
     
@@ -172,6 +174,7 @@ WOORT_NODISCARD static bool _woort_ir_codegen_ctx_init(
     ctx->m_compiler = compiler;
     ctx->m_func = func;
     ctx->m_value_to_slot = value_to_slot;
+    ctx->m_current_block = NULL;
     
     if (!_woort_ir_emitter_init(&ctx->m_emitter))
     {
@@ -553,6 +556,57 @@ WOORT_NODISCARD static bool _woort_ir_codegen_emit_br(
     woort_IRBlock* target)
 {
     woort_IREmitter* e = &ctx->m_emitter;
+    woort_IRFunction* func = ctx->m_func;
+    woort_IRBlock* current = ctx->m_current_block;
+    
+    for (uint32_t i = 0; i < func->m_phi_count; ++i)
+    {
+        woort_IRPHI* phi = func->m_phis[i];
+        if (phi->m_block != target)
+        {
+            continue;
+        }
+        
+        const woort_IRValue* incoming_value = NULL;
+        for (uint32_t j = 0; j < phi->m_incoming_count; ++j)
+        {
+            if (phi->m_incomings[j].m_from_block == current)
+            {
+                incoming_value = phi->m_incomings[j].m_value;
+                break;
+            }
+        }
+        
+        if (incoming_value == NULL)
+        {
+            continue;
+        }
+        
+        int32_t src_slot = _woort_ir_codegen_get_slot(ctx, incoming_value);
+        int32_t dst_slot = _woort_ir_codegen_get_slot(ctx, &phi->m_value);
+        
+        if (src_slot != dst_slot)
+        {
+            if (_woort_ir_slot_fits_i8(dst_slot) && _woort_ir_slot_fits_i16(src_slot))
+            {
+                if (!_woort_ir_emitter_emit(e, woort_OpCode_MOVLD(dst_slot, src_slot)))
+                {
+                    return false;
+                }
+            }
+            else if (_woort_ir_slot_fits_i8(src_slot) && _woort_ir_slot_fits_i16(dst_slot))
+            {
+                if (!_woort_ir_emitter_emit(e, woort_OpCode_MOVST(src_slot, dst_slot)))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
     
     uint32_t patch_pos = _woort_ir_emitter_current_pos(e);
     
@@ -796,6 +850,8 @@ WOORT_NODISCARD static bool _woort_ir_codegen_emit_block(
     woort_IRCodeGenCtx* ctx,
     woort_IRBlock* block)
 {
+    ctx->m_current_block = block;
+    
     _woort_ir_codegen_record_block_target(ctx, block, _woort_ir_emitter_current_pos(&ctx->m_emitter));
     
     for (uint32_t i = 0; i < block->m_instr_count; ++i)

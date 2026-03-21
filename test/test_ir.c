@@ -244,7 +244,7 @@ static bool test_function_call(void)
  */
 static bool test_phi(void)
 {
-    printf("Testing PHI node...\n");
+    printf("Testing PHI node (simple)...\n");
     
     woort_IRCompiler* compiler;
     if (!woort_IRCompiler_init(&compiler))
@@ -297,7 +297,104 @@ static bool test_phi(void)
     
     printf("  SUCCESS: CodeEnv created\n");
     
-    dump_codeenv("phi (max)", codeenv);
+    dump_codeenv("phi (max - no actual PHI)", codeenv);
+    
+    woort_CodeEnv_drop(codeenv);
+    woort_IRCompiler_drop(compiler);
+    
+    return true;
+}
+
+/*
+ * 测试真正的 PHI 节点
+ * 
+ * int max_with_phi(int a, int b) {
+ *     int result;
+ *     if (a > b)
+ *         result = a;
+ *     else
+ *         result = b;
+ *     return result;  // PHI 节点在这里
+ * }
+ */
+static bool test_real_phi(void)
+{
+    printf("Testing real PHI node...\n");
+    
+    woort_IRCompiler* compiler;
+    if (!woort_IRCompiler_init(&compiler))
+    {
+        printf("  FAILED: Could not init compiler\n");
+        return false;
+    }
+    
+    woort_IRFunction* func;
+    if (!woort_IRCompiler_add_function(compiler, 2, &func))
+    {
+        printf("  FAILED: Could not add function: %s\n", woort_IRCompiler_get_error(compiler));
+        woort_IRCompiler_drop(compiler);
+        return false;
+    }
+    
+    woort_IRBlock* entry = woort_IRFunction_get_entry_block(func);
+    
+    woort_IRBlock* a_block;
+    if (!woort_IRFunction_add_block(func, &a_block))
+    {
+        printf("  FAILED: Could not add a_block\n");
+        woort_IRCompiler_drop(compiler);
+        return false;
+    }
+    
+    woort_IRBlock* b_block;
+    if (!woort_IRFunction_add_block(func, &b_block))
+    {
+        printf("  FAILED: Could not add b_block\n");
+        woort_IRCompiler_drop(compiler);
+        return false;
+    }
+    
+    woort_IRBlock* merge_block;
+    if (!woort_IRFunction_add_block(func, &merge_block))
+    {
+        printf("  FAILED: Could not add merge_block\n");
+        woort_IRCompiler_drop(compiler);
+        return false;
+    }
+    
+    const woort_IRValue* param_a = woort_IRFunction_get_param(func, 0);
+    const woort_IRValue* param_b = woort_IRFunction_get_param(func, 1);
+    
+    woort_IRBlock_br_gt(entry, param_a, param_b, a_block, b_block);
+    
+    woort_IRBlock_br(a_block, merge_block);
+    woort_IRBlock_br(b_block, merge_block);
+    
+    woort_IRPHI* phi = woort_IRFunction_create_phi(func, merge_block);
+    if (phi == NULL)
+    {
+        printf("  FAILED: Could not create PHI node\n");
+        woort_IRCompiler_drop(compiler);
+        return false;
+    }
+    
+    woort_IRPHI_add_incoming(phi, a_block, param_a);
+    woort_IRPHI_add_incoming(phi, b_block, param_b);
+    
+    const woort_IRValue* phi_value = woort_IRPHI_as_value(phi);
+    woort_IRBlock_ret(merge_block, phi_value);
+    
+    woort_CodeEnv* codeenv;
+    if (!woort_IRCompiler_finish(compiler, &codeenv))
+    {
+        printf("  FAILED: Could not finish compilation: %s\n", woort_IRCompiler_get_error(compiler));
+        woort_IRCompiler_drop(compiler);
+        return false;
+    }
+    
+    printf("  SUCCESS: CodeEnv created\n");
+    
+    dump_codeenv("real PHI (max_with_phi)", codeenv);
     
     woort_CodeEnv_drop(codeenv);
     woort_IRCompiler_drop(compiler);
@@ -331,6 +428,10 @@ int main(int argc, char** argv)
     printf("\n");
     total++;
     if (test_phi()) passed++;
+    
+    printf("\n");
+    total++;
+    if (test_real_phi()) passed++;
     
     printf("\n=== Results: %d/%d passed ===\n", passed, total);
     
