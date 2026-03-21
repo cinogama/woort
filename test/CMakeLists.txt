@@ -1,31 +1,22 @@
 cmake_minimum_required (VERSION 3.10)
 
-add_library(woort_test_options INTERFACE)
-target_include_directories(woort_test_options 
-    INTERFACE "../include"
-    INTERFACE "../src")
+file(GLOB_RECURSE woort_test_src_cpp *.cpp)
+file(GLOB_RECURSE woort_test_src_c *.c)
+file(GLOB_RECURSE woort_test_src_hpp *.hpp)
+file(GLOB_RECURSE woort_test_src_h *.h)
 
-target_link_libraries(woort_test_options 
-    INTERFACE woort_options
-    INTERFACE woort)
-
-# Main test
 add_executable(woort_test 
-    test_main.c)
+    ${woort_test_src_cpp} 
+    ${woort_test_src_c}
+    ${woort_test_src_hpp}
+    ${woort_test_src_h})
+
+
+target_include_directories(woort_test 
+    PRIVATE "../include"
+    # Only for test:
+    PRIVATE "../src")
 
 target_link_libraries(woort_test 
-    PRIVATE woort_test_options)
-
-# IR test
-add_executable(woort_ir_test
-    test_ir.c)
-
-target_link_libraries(woort_ir_test 
-    PRIVATE woort_test_options)
-
-# Exec IR test
-add_executable(woort_exec_ir_test
-    test_exec_ir.c)
-
-target_link_libraries(woort_exec_ir_test 
-    PRIVATE woort_test_options)
+    PRIVATE woort
+    PRIVATE woort_options)
