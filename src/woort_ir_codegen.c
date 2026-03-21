@@ -826,17 +826,17 @@ WOORT_NODISCARD static bool _woort_ir_codegen_emit_function(
     woort_IREmitter* e = &ctx->m_emitter;
     woort_IRFunction* func = ctx->m_func;
     
-    int32_t max_slot = 0;
+    int32_t min_slot = 1;
     for (uint32_t i = 0; i < func->m_next_value_index; ++i)
     {
         int32_t slot = ctx->m_value_to_slot[i];
-        if (slot != INT32_MAX && slot < max_slot)
+        if (slot != INT32_MAX && slot <= 0 && slot < min_slot)
         {
-            max_slot = slot;
+            min_slot = slot;
         }
     }
     
-    int32_t stack_size = -max_slot;
+    int32_t stack_size = (min_slot <= 0) ? -min_slot + 1 : 0;
     
     if (stack_size > 0)
     {
@@ -912,7 +912,7 @@ WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv
             return false;
         }
         
-        int32_t next_slot = -1;
+        int32_t next_local_slot = -1;
         for (uint32_t i = 0; i < func->m_next_value_index; ++i)
         {
             value_to_slot[i] = INT32_MAX;
@@ -921,9 +921,10 @@ WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv
         for (uint32_t i = 0; i < func->m_param_count; ++i)
         {
             uint32_t idx = func->m_params[i].m_index;
-            value_to_slot[idx] = next_slot--;
+            value_to_slot[idx] = (int32_t)(3 + i);
         }
         
+        int32_t local_count = 0;
         for (uint32_t block_idx = 0; block_idx < func->m_block_count; ++block_idx)
         {
             woort_IRBlock* block = func->m_blocks[block_idx];
@@ -935,7 +936,8 @@ WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv
                     uint32_t idx = instr->m_result->m_index;
                     if (idx < func->m_next_value_index && value_to_slot[idx] == INT32_MAX)
                     {
-                        value_to_slot[idx] = next_slot--;
+                        value_to_slot[idx] = -local_count;
+                        local_count++;
                     }
                 }
             }
@@ -947,7 +949,8 @@ WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv
             uint32_t idx = phi->m_value.m_index;
             if (idx < func->m_next_value_index && value_to_slot[idx] == INT32_MAX)
             {
-                value_to_slot[idx] = next_slot--;
+                value_to_slot[idx] = -local_count;
+                local_count++;
             }
         }
         
