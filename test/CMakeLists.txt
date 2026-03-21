@@ -27,5 +27,5 @@ target_link_libraries(woort_ir_test
 add_executable(woort_exec_ir_test
     test_exec_ir.c)
 
-target_link_libraries(woort_ir_test 
+target_link_libraries(woort_exec_ir_test 
     PRIVATE woort_test_options)
