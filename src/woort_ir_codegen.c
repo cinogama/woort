@@ -151,17 +151,21 @@ typedef struct woort_IRCodeGenCtx
     woort_IRCompiler* m_compiler;
     woort_IRFunction* m_func;
     woort_IREmitter m_emitter;
-    
+
     int32_t* m_value_to_slot;
-    
+
     woort_IRBlock* m_current_block;
-    
+
     woort_IRJumpTarget* m_block_targets;
     uint32_t m_block_target_count;
-    
+
     woort_IRJumpPatch* m_jump_patches;
     uint32_t m_jump_patch_count;
     uint32_t m_jump_patch_capacity;
+
+    /* 终止指令比较结果的临时槽位 */
+    int32_t m_term_cmp_slot;
+    uint32_t m_term_cmp_slot_count;
     
 } woort_IRCodeGenCtx;
 
@@ -198,7 +202,10 @@ WOORT_NODISCARD static bool _woort_ir_codegen_ctx_init(
     }
     ctx->m_jump_patch_count = 0;
     ctx->m_jump_patch_capacity = func->m_block_count * 2;
-    
+
+    ctx->m_term_cmp_slot = -1;
+    ctx->m_term_cmp_slot_count = 0;
+
     return true;
 }
 
@@ -621,8 +628,37 @@ WOORT_NODISCARD static bool _woort_ir_codegen_emit_br(
 }
 
 /*
+ * 检查值是否在任何 PHI incoming 中被使用（该 PHI incoming 来自指定的源块）
+ */
+static bool _woort_ir_value_used_in_phi_from_block(woort_IRCodeGenCtx* ctx, const woort_IRValue* val, woort_IRBlock* from_block)
+{
+    if (val == NULL || from_block == NULL)
+    {
+        return false;
+    }
+
+    woort_IRFunction* func = ctx->m_func;
+
+    /* 检查所有 PHI 的 incoming */
+    for (uint32_t phi_idx = 0; phi_idx < func->m_phi_count; ++phi_idx)
+    {
+        woort_IRPHI* phi = func->m_phis[phi_idx];
+        for (uint32_t incoming_idx = 0; incoming_idx < phi->m_incoming_count; ++incoming_idx)
+        {
+            if (phi->m_incomings[incoming_idx].m_from_block == from_block &&
+                phi->m_incomings[incoming_idx].m_value == val)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/*
  * 发射条件跳转
- * 
+ *
  * 由于 JFWDLT 等指令使用相对偏移（8位），我们改用：
  * 1. 比较指令生成布尔结果
  * 2. JFWDNZ 进行条件跳转
@@ -632,18 +668,43 @@ WOORT_NODISCARD static bool _woort_ir_codegen_emit_br_cmp(
     woort_IRInstrKind kind,
     int32_t a_slot,
     int32_t b_slot,
+    const woort_IRValue* a_val,
+    const woort_IRValue* b_val,
     woort_IRBlock* true_block,
     woort_IRBlock* false_block)
 {
     woort_IREmitter* e = &ctx->m_emitter;
-    
+
     if (!_woort_ir_slot_fits_i8(a_slot) || !_woort_ir_slot_fits_i8(b_slot))
     {
         return false;
     }
-    
-    int32_t result_slot = a_slot;
-    
+
+    /* 检查操作数是否在后继块的 PHI incoming 中被使用 */
+    bool a_used_in_phi = _woort_ir_value_used_in_phi_from_block(ctx, a_val, true_block) ||
+                         _woort_ir_value_used_in_phi_from_block(ctx, a_val, false_block);
+    bool b_used_in_phi = _woort_ir_value_used_in_phi_from_block(ctx, b_val, true_block) ||
+                         _woort_ir_value_used_in_phi_from_block(ctx, b_val, false_block);
+
+    /* 选择结果槽位：如果操作数在 PHI incoming 中被使用，则分配临时槽位 */
+    int32_t result_slot;
+    if (a_used_in_phi && b_used_in_phi)
+    {
+        /* 两个操作数都在 PHI incoming 中被使用，需要临时槽位 */
+        ctx->m_term_cmp_slot--;
+        result_slot = ctx->m_term_cmp_slot;
+    }
+    else if (a_used_in_phi)
+    {
+        /* a 在 PHI incoming 中被使用，使用 b 的槽位 */
+        result_slot = b_slot;
+    }
+    else
+    {
+        /* 默认使用 a 的槽位 */
+        result_slot = a_slot;
+    }
+
     uint32_t cmp_opcode = WOORT_OPCODE_OPIASMD;
     uint32_t cmp_mode = 0;
     
@@ -822,6 +883,8 @@ WOORT_NODISCARD static bool _woort_ir_codegen_emit_terminator(
             a_slot = _woort_ir_codegen_get_slot(ctx, terminator->m_op.m_br_cmp.m_a);
             b_slot = _woort_ir_codegen_get_slot(ctx, terminator->m_op.m_br_cmp.m_b);
             return _woort_ir_codegen_emit_br_cmp(ctx, terminator->m_kind, a_slot, b_slot,
+                terminator->m_op.m_br_cmp.m_a,
+                terminator->m_op.m_br_cmp.m_b,
                 terminator->m_op.m_br_cmp.m_true_block,
                 terminator->m_op.m_br_cmp.m_false_block);
             
