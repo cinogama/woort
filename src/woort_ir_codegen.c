@@ -923,6 +923,291 @@ WOORT_NODISCARD static bool _woort_ir_codegen_emit_function(
 }
 
 /*
+ * 计算每个值的最后使用位置
+ */
+WOORT_NODISCARD static bool _woort_ir_codegen_compute_last_use(
+    woort_IRFunction* func,
+    uint32_t** out_last_use)
+{
+    uint32_t value_count = func->m_next_value_index;
+    
+    uint32_t* last_use = (uint32_t*)malloc(sizeof(uint32_t) * value_count);
+    if (last_use == NULL)
+    {
+        return false;
+    }
+    
+    for (uint32_t i = 0; i < value_count; ++i)
+    {
+        last_use[i] = UINT32_MAX;
+    }
+    
+    uint32_t instr_pos = 0;
+    
+    for (uint32_t block_idx = 0; block_idx < func->m_block_count; ++block_idx)
+    {
+        woort_IRBlock* block = func->m_blocks[block_idx];
+        
+        for (uint32_t instr_idx = 0; instr_idx < block->m_instr_count; ++instr_idx)
+        {
+            woort_IRInstr* instr = &block->m_instrs[instr_idx];
+            
+            switch (instr->m_kind)
+            {
+                case WOORT_IR_INSTR_LOAD_CONST:
+                case WOORT_IR_INSTR_LOAD:
+                    break;
+                    
+                case WOORT_IR_INSTR_STORE:
+                    if (instr->m_op.m_store.m_val != NULL)
+                    {
+                        last_use[instr->m_op.m_store.m_val->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                case WOORT_IR_INSTR_ADD_I:
+                case WOORT_IR_INSTR_SUB_I:
+                case WOORT_IR_INSTR_MUL_I:
+                case WOORT_IR_INSTR_DIV_I:
+                case WOORT_IR_INSTR_MOD_I:
+                case WOORT_IR_INSTR_LT_I:
+                case WOORT_IR_INSTR_LE_I:
+                case WOORT_IR_INSTR_GT_I:
+                case WOORT_IR_INSTR_GE_I:
+                case WOORT_IR_INSTR_EQ_I:
+                case WOORT_IR_INSTR_NE_I:
+                case WOORT_IR_INSTR_ADD_R:
+                case WOORT_IR_INSTR_SUB_R:
+                case WOORT_IR_INSTR_MUL_R:
+                case WOORT_IR_INSTR_DIV_R:
+                case WOORT_IR_INSTR_MOD_R:
+                case WOORT_IR_INSTR_LT_R:
+                case WOORT_IR_INSTR_LE_R:
+                case WOORT_IR_INSTR_GT_R:
+                case WOORT_IR_INSTR_GE_R:
+                case WOORT_IR_INSTR_EQ_R:
+                case WOORT_IR_INSTR_NE_R:
+                case WOORT_IR_INSTR_ADD_S:
+                case WOORT_IR_INSTR_LT_S:
+                case WOORT_IR_INSTR_LE_S:
+                case WOORT_IR_INSTR_GT_S:
+                case WOORT_IR_INSTR_GE_S:
+                case WOORT_IR_INSTR_EQ_S:
+                case WOORT_IR_INSTR_NE_S:
+                case WOORT_IR_INSTR_EQ_B:
+                case WOORT_IR_INSTR_NE_B:
+                case WOORT_IR_INSTR_EQ_X:
+                case WOORT_IR_INSTR_NE_X:
+                case WOORT_IR_INSTR_LAND:
+                case WOORT_IR_INSTR_LOR:
+                    if (instr->m_op.m_binop.m_a != NULL)
+                    {
+                        last_use[instr->m_op.m_binop.m_a->m_index] = instr_pos;
+                    }
+                    if (instr->m_op.m_binop.m_b != NULL)
+                    {
+                        last_use[instr->m_op.m_binop.m_b->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                case WOORT_IR_INSTR_NEG_I:
+                case WOORT_IR_INSTR_NEG_R:
+                case WOORT_IR_INSTR_LNOT:
+                case WOORT_IR_INSTR_ITOR:
+                case WOORT_IR_INSTR_RTOI:
+                case WOORT_IR_INSTR_ITOS:
+                case WOORT_IR_INSTR_STOI:
+                case WOORT_IR_INSTR_STOR:
+                case WOORT_IR_INSTR_RTOS:
+                    if (instr->m_op.m_unop.m_a != NULL)
+                    {
+                        last_use[instr->m_op.m_unop.m_a->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                case WOORT_IR_INSTR_PUSH:
+                    if (instr->m_op.m_push.m_val != NULL)
+                    {
+                        last_use[instr->m_op.m_push.m_val->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                case WOORT_IR_INSTR_LDIDXVEC:
+                case WOORT_IR_INSTR_LDIDXVECX:
+                case WOORT_IR_INSTR_LDIDXDICT_I:
+                case WOORT_IR_INSTR_LDIDXDICT_R:
+                case WOORT_IR_INSTR_LDIDXDICT_B:
+                case WOORT_IR_INSTR_LDIDXDICT_X:
+                case WOORT_IR_INSTR_LDIDSTRING:
+                    if (instr->m_op.m_ldidx.m_container != NULL)
+                    {
+                        last_use[instr->m_op.m_ldidx.m_container->m_index] = instr_pos;
+                    }
+                    if (instr->m_op.m_ldidx.m_idx != NULL)
+                    {
+                        last_use[instr->m_op.m_ldidx.m_idx->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                case WOORT_IR_INSTR_LDIDSTRUCT:
+                    if (instr->m_op.m_ldidstruct.m_container != NULL)
+                    {
+                        last_use[instr->m_op.m_ldidstruct.m_container->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                case WOORT_IR_INSTR_STIDXVEC_I:
+                case WOORT_IR_INSTR_STIDXVEC_R:
+                case WOORT_IR_INSTR_STIDXVEC_B:
+                case WOORT_IR_INSTR_STIDXVEC_X:
+                    if (instr->m_op.m_stidx.m_container != NULL)
+                    {
+                        last_use[instr->m_op.m_stidx.m_container->m_index] = instr_pos;
+                    }
+                    if (instr->m_op.m_stidx.m_idx != NULL)
+                    {
+                        last_use[instr->m_op.m_stidx.m_idx->m_index] = instr_pos;
+                    }
+                    if (instr->m_op.m_stidx.m_val != NULL)
+                    {
+                        last_use[instr->m_op.m_stidx.m_val->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                case WOORT_IR_INSTR_STIDSTRUCT:
+                    if (instr->m_op.m_stidstruct.m_container != NULL)
+                    {
+                        last_use[instr->m_op.m_stidstruct.m_container->m_index] = instr_pos;
+                    }
+                    if (instr->m_op.m_stidstruct.m_val != NULL)
+                    {
+                        last_use[instr->m_op.m_stidstruct.m_val->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                case WOORT_IR_INSTR_MKVEC:
+                case WOORT_IR_INSTR_MKMAP:
+                case WOORT_IR_INSTR_MKSTRUCT:
+                case WOORT_IR_INSTR_MKCLOSURE:
+                case WOORT_IR_INSTR_CALLNWO:
+                case WOORT_IR_INSTR_CALLNFP:
+                case WOORT_IR_INSTR_CALLNJIT:
+                case WOORT_IR_INSTR_CALL:
+                    break;
+                    
+                default:
+                    break;
+            }
+            
+            instr_pos++;
+        }
+        
+        if (block->m_has_terminator)
+        {
+            woort_IRInstr* term = &block->m_terminator;
+            
+            switch (term->m_kind)
+            {
+                case WOORT_IR_INSTR_BR_LT:
+                case WOORT_IR_INSTR_BR_LE:
+                case WOORT_IR_INSTR_BR_GT:
+                case WOORT_IR_INSTR_BR_GE:
+                case WOORT_IR_INSTR_BR_EQ:
+                case WOORT_IR_INSTR_BR_NE:
+                    if (term->m_op.m_br_cmp.m_a != NULL)
+                    {
+                        last_use[term->m_op.m_br_cmp.m_a->m_index] = instr_pos;
+                    }
+                    if (term->m_op.m_br_cmp.m_b != NULL)
+                    {
+                        last_use[term->m_op.m_br_cmp.m_b->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                case WOORT_IR_INSTR_BR_COND:
+                    if (term->m_op.m_br_cond.m_cond != NULL)
+                    {
+                        last_use[term->m_op.m_br_cond.m_cond->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                case WOORT_IR_INSTR_RET:
+                    if (term->m_op.m_ret.m_val != NULL)
+                    {
+                        last_use[term->m_op.m_ret.m_val->m_index] = instr_pos;
+                    }
+                    break;
+                    
+                default:
+                    break;
+            }
+            
+            instr_pos++;
+        }
+    }
+    
+    *out_last_use = last_use;
+    return true;
+}
+
+/*
+ * 空闲槽位管理
+ */
+typedef struct woort_IRFreeSlotList
+{
+    int32_t* m_slots;
+    uint32_t m_count;
+    uint32_t m_capacity;
+} woort_IRFreeSlotList;
+
+WOORT_NODISCARD static bool _woort_ir_free_slot_list_init(woort_IRFreeSlotList* list, uint32_t capacity)
+{
+    list->m_slots = (int32_t*)malloc(sizeof(int32_t) * capacity);
+    if (list->m_slots == NULL)
+    {
+        return false;
+    }
+    list->m_count = 0;
+    list->m_capacity = capacity;
+    return true;
+}
+
+static void _woort_ir_free_slot_list_drop(woort_IRFreeSlotList* list)
+{
+    if (list->m_slots != NULL)
+    {
+        free(list->m_slots);
+    }
+}
+
+WOORT_NODISCARD static bool _woort_ir_free_slot_list_push(woort_IRFreeSlotList* list, int32_t slot)
+{
+    if (list->m_count >= list->m_capacity)
+    {
+        uint32_t new_capacity = list->m_capacity * 2;
+        int32_t* new_slots = (int32_t*)realloc(list->m_slots, sizeof(int32_t) * new_capacity);
+        if (new_slots == NULL)
+        {
+            return false;
+        }
+        list->m_slots = new_slots;
+        list->m_capacity = new_capacity;
+    }
+    list->m_slots[list->m_count++] = slot;
+    return true;
+}
+
+WOORT_NODISCARD static bool _woort_ir_free_slot_list_pop(woort_IRFreeSlotList* list, int32_t* out_slot)
+{
+    if (list->m_count == 0)
+    {
+        return false;
+    }
+    *out_slot = list->m_slots[--list->m_count];
+    return true;
+}
+
+/*
  * 完整代码生成
  */
 WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv** out_codeenv)
@@ -960,18 +1245,36 @@ WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv
     {
         woort_IRFunction* func = compiler->m_functions[func_idx];
         
+        uint32_t* last_use = NULL;
+        if (!_woort_ir_codegen_compute_last_use(func, &last_use))
+        {
+            free(all_code);
+            _woort_ir_compiler_set_error(compiler, "Failed to compute last use");
+            return false;
+        }
+        
         int32_t* value_to_slot = (int32_t*)malloc(sizeof(int32_t) * func->m_next_value_index);
         if (value_to_slot == NULL)
         {
+            free(last_use);
             free(all_code);
             _woort_ir_compiler_set_error(compiler, "Failed to allocate value_to_slot");
             return false;
         }
         
-        int32_t next_local_slot = -1;
         for (uint32_t i = 0; i < func->m_next_value_index; ++i)
         {
             value_to_slot[i] = INT32_MAX;
+        }
+        
+        woort_IRFreeSlotList free_slots;
+        if (!_woort_ir_free_slot_list_init(&free_slots, 64))
+        {
+            free(value_to_slot);
+            free(last_use);
+            free(all_code);
+            _woort_ir_compiler_set_error(compiler, "Failed to init free slot list");
+            return false;
         }
         
         for (uint32_t i = 0; i < func->m_param_count; ++i)
@@ -981,21 +1284,209 @@ WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv
         }
         
         int32_t local_count = 0;
+        uint32_t instr_pos = 0;
+        
         for (uint32_t block_idx = 0; block_idx < func->m_block_count; ++block_idx)
         {
             woort_IRBlock* block = func->m_blocks[block_idx];
+            
             for (uint32_t instr_idx = 0; instr_idx < block->m_instr_count; ++instr_idx)
             {
                 woort_IRInstr* instr = &block->m_instrs[instr_idx];
-                if (instr->m_result != NULL)
+                
+                if (instr->m_kind == WOORT_IR_INSTR_LOAD_CONST ||
+                    instr->m_kind == WOORT_IR_INSTR_LOAD)
                 {
-                    uint32_t idx = instr->m_result->m_index;
-                    if (idx < func->m_next_value_index && value_to_slot[idx] == INT32_MAX)
+                    if (instr->m_result != NULL)
                     {
-                        value_to_slot[idx] = -local_count;
-                        local_count++;
+                        uint32_t idx = instr->m_result->m_index;
+                        if (value_to_slot[idx] == INT32_MAX)
+                        {
+                            int32_t slot;
+                            if (!_woort_ir_free_slot_list_pop(&free_slots, &slot))
+                            {
+                                slot = -local_count;
+                                local_count++;
+                            }
+                            value_to_slot[idx] = slot;
+                        }
                     }
                 }
+                else if (instr->m_result != NULL)
+                {
+                    uint32_t idx = instr->m_result->m_index;
+                    if (value_to_slot[idx] == INT32_MAX)
+                    {
+                        int32_t slot;
+                        if (!_woort_ir_free_slot_list_pop(&free_slots, &slot))
+                        {
+                            slot = -local_count;
+                            local_count++;
+                        }
+                        value_to_slot[idx] = slot;
+                    }
+                }
+                
+                switch (instr->m_kind)
+                {
+                    case WOORT_IR_INSTR_STORE:
+                        if (instr->m_op.m_store.m_val != NULL)
+                        {
+                            uint32_t val_idx = instr->m_op.m_store.m_val->m_index;
+                            if (last_use[val_idx] == instr_pos)
+                            {
+                                _woort_ir_free_slot_list_push(&free_slots, value_to_slot[val_idx]);
+                            }
+                        }
+                        break;
+                        
+                    case WOORT_IR_INSTR_ADD_I:
+                    case WOORT_IR_INSTR_SUB_I:
+                    case WOORT_IR_INSTR_MUL_I:
+                    case WOORT_IR_INSTR_DIV_I:
+                    case WOORT_IR_INSTR_MOD_I:
+                    case WOORT_IR_INSTR_LT_I:
+                    case WOORT_IR_INSTR_LE_I:
+                    case WOORT_IR_INSTR_GT_I:
+                    case WOORT_IR_INSTR_GE_I:
+                    case WOORT_IR_INSTR_EQ_I:
+                    case WOORT_IR_INSTR_NE_I:
+                    case WOORT_IR_INSTR_ADD_R:
+                    case WOORT_IR_INSTR_SUB_R:
+                    case WOORT_IR_INSTR_MUL_R:
+                    case WOORT_IR_INSTR_DIV_R:
+                    case WOORT_IR_INSTR_MOD_R:
+                    case WOORT_IR_INSTR_LT_R:
+                    case WOORT_IR_INSTR_LE_R:
+                    case WOORT_IR_INSTR_GT_R:
+                    case WOORT_IR_INSTR_GE_R:
+                    case WOORT_IR_INSTR_EQ_R:
+                    case WOORT_IR_INSTR_NE_R:
+                    case WOORT_IR_INSTR_ADD_S:
+                    case WOORT_IR_INSTR_LT_S:
+                    case WOORT_IR_INSTR_LE_S:
+                    case WOORT_IR_INSTR_GT_S:
+                    case WOORT_IR_INSTR_GE_S:
+                    case WOORT_IR_INSTR_EQ_S:
+                    case WOORT_IR_INSTR_NE_S:
+                    case WOORT_IR_INSTR_EQ_B:
+                    case WOORT_IR_INSTR_NE_B:
+                    case WOORT_IR_INSTR_EQ_X:
+                    case WOORT_IR_INSTR_NE_X:
+                    case WOORT_IR_INSTR_LAND:
+                    case WOORT_IR_INSTR_LOR:
+                        if (instr->m_op.m_binop.m_a != NULL)
+                        {
+                            uint32_t a_idx = instr->m_op.m_binop.m_a->m_index;
+                            if (last_use[a_idx] == instr_pos)
+                            {
+                                _woort_ir_free_slot_list_push(&free_slots, value_to_slot[a_idx]);
+                            }
+                        }
+                        if (instr->m_op.m_binop.m_b != NULL)
+                        {
+                            uint32_t b_idx = instr->m_op.m_binop.m_b->m_index;
+                            if (last_use[b_idx] == instr_pos)
+                            {
+                                _woort_ir_free_slot_list_push(&free_slots, value_to_slot[b_idx]);
+                            }
+                        }
+                        break;
+                        
+                    case WOORT_IR_INSTR_NEG_I:
+                    case WOORT_IR_INSTR_NEG_R:
+                    case WOORT_IR_INSTR_LNOT:
+                    case WOORT_IR_INSTR_ITOR:
+                    case WOORT_IR_INSTR_RTOI:
+                    case WOORT_IR_INSTR_ITOS:
+                    case WOORT_IR_INSTR_STOI:
+                    case WOORT_IR_INSTR_STOR:
+                    case WOORT_IR_INSTR_RTOS:
+                        if (instr->m_op.m_unop.m_a != NULL)
+                        {
+                            uint32_t a_idx = instr->m_op.m_unop.m_a->m_index;
+                            if (last_use[a_idx] == instr_pos)
+                            {
+                                _woort_ir_free_slot_list_push(&free_slots, value_to_slot[a_idx]);
+                            }
+                        }
+                        break;
+                        
+                    case WOORT_IR_INSTR_PUSH:
+                        if (instr->m_op.m_push.m_val != NULL)
+                        {
+                            uint32_t val_idx = instr->m_op.m_push.m_val->m_index;
+                            if (last_use[val_idx] == instr_pos)
+                            {
+                                _woort_ir_free_slot_list_push(&free_slots, value_to_slot[val_idx]);
+                            }
+                        }
+                        break;
+                        
+                    default:
+                        break;
+                }
+                
+                instr_pos++;
+            }
+            
+            if (block->m_has_terminator)
+            {
+                woort_IRInstr* term = &block->m_terminator;
+                
+                switch (term->m_kind)
+                {
+                    case WOORT_IR_INSTR_BR_LT:
+                    case WOORT_IR_INSTR_BR_LE:
+                    case WOORT_IR_INSTR_BR_GT:
+                    case WOORT_IR_INSTR_BR_GE:
+                    case WOORT_IR_INSTR_BR_EQ:
+                    case WOORT_IR_INSTR_BR_NE:
+                        if (term->m_op.m_br_cmp.m_a != NULL)
+                        {
+                            uint32_t a_idx = term->m_op.m_br_cmp.m_a->m_index;
+                            if (last_use[a_idx] == instr_pos)
+                            {
+                                _woort_ir_free_slot_list_push(&free_slots, value_to_slot[a_idx]);
+                            }
+                        }
+                        if (term->m_op.m_br_cmp.m_b != NULL)
+                        {
+                            uint32_t b_idx = term->m_op.m_br_cmp.m_b->m_index;
+                            if (last_use[b_idx] == instr_pos)
+                            {
+                                _woort_ir_free_slot_list_push(&free_slots, value_to_slot[b_idx]);
+                            }
+                        }
+                        break;
+                        
+                    case WOORT_IR_INSTR_BR_COND:
+                        if (term->m_op.m_br_cond.m_cond != NULL)
+                        {
+                            uint32_t cond_idx = term->m_op.m_br_cond.m_cond->m_index;
+                            if (last_use[cond_idx] == instr_pos)
+                            {
+                                _woort_ir_free_slot_list_push(&free_slots, value_to_slot[cond_idx]);
+                            }
+                        }
+                        break;
+                        
+                    case WOORT_IR_INSTR_RET:
+                        if (term->m_op.m_ret.m_val != NULL)
+                        {
+                            uint32_t val_idx = term->m_op.m_ret.m_val->m_index;
+                            if (last_use[val_idx] == instr_pos)
+                            {
+                                _woort_ir_free_slot_list_push(&free_slots, value_to_slot[val_idx]);
+                            }
+                        }
+                        break;
+                        
+                    default:
+                        break;
+                }
+                
+                instr_pos++;
             }
         }
         
@@ -1010,10 +1501,13 @@ WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv
             }
         }
         
+        _woort_ir_free_slot_list_drop(&free_slots);
+        
         woort_IRCodeGenCtx ctx;
         if (!_woort_ir_codegen_ctx_init(&ctx, compiler, func, value_to_slot))
         {
             free(value_to_slot);
+            free(last_use);
             free(all_code);
             _woort_ir_compiler_set_error(compiler, "Failed to init codegen context");
             return false;
@@ -1023,6 +1517,7 @@ WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv
         {
             _woort_ir_codegen_ctx_drop(&ctx);
             free(value_to_slot);
+            free(last_use);
             free(all_code);
             _woort_ir_compiler_set_error(compiler, "Code generation failed for function %u", func_idx);
             return false;
@@ -1042,6 +1537,7 @@ WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv
                 {
                     _woort_ir_codegen_ctx_drop(&ctx);
                     free(value_to_slot);
+                    free(last_use);
                     free(all_code);
                     _woort_ir_compiler_set_error(compiler, "Failed to expand code buffer");
                     return false;
@@ -1057,6 +1553,7 @@ WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv
         
         _woort_ir_codegen_ctx_drop(&ctx);
         free(value_to_slot);
+        free(last_use);
     }
     
     woort_CodeEnv* codeenv;
