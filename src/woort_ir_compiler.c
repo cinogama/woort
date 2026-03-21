@@ -43,7 +43,10 @@ WOORT_NODISCARD bool woort_IRCompiler_init(woort_IRCompiler** out_compiler)
 
 void woort_IRCompiler_drop(woort_IRCompiler* compiler)
 {
-    assert(compiler != NULL);
+    if (compiler == NULL)
+    {
+        return;
+    }
 
     if (compiler->m_functions != NULL)
     {
@@ -52,7 +55,7 @@ void woort_IRCompiler_drop(woort_IRCompiler* compiler)
             woort_IRFunction* func = compiler->m_functions[i];
             if (func != NULL)
             {
-                /* TODO: woort_IRFunction_drop(func); */
+                _woort_ir_function_drop(func);
             }
         }
         free(compiler->m_functions);
@@ -89,12 +92,6 @@ WOORT_NODISCARD bool _woort_ir_compiler_ensure_function_capacity(woort_IRCompile
     return true;
 }
 
-extern WOORT_NODISCARD bool _woort_ir_function_init(
-    woort_IRFunction** out_func,
-    woort_IRCompiler* compiler,
-    uint32_t param_count,
-    uint32_t func_index);
-
 WOORT_NODISCARD bool woort_IRCompiler_add_function(
     woort_IRCompiler* compiler,
     uint32_t param_count,
@@ -130,18 +127,23 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(
     assert(compiler != NULL);
     assert(out_codeenv != NULL);
 
-    /* TODO: Implement full compilation pipeline
-     * 1. Collect all PHI nodes
-     * 2. Build CFG (predecessors/successors)
-     * 3. Validate IR
-     * 4. Register allocation
-     * 5. Instruction selection
-     * 6. Bytecode generation
-     */
+    if (compiler->m_function_count == 0)
+    {
+        _woort_ir_compiler_set_error(compiler, "No functions defined");
+        return false;
+    }
 
-    _woort_ir_compiler_set_error(compiler, "woort_IRCompiler_finish not yet implemented");
-    (void)out_codeenv;
-    return false;
+    if (!_woort_ir_validate(compiler))
+    {
+        return false;
+    }
+
+    if (!_woort_ir_codegen(compiler, out_codeenv))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 WOORT_NODISCARD const char* woort_IRCompiler_get_error(woort_IRCompiler* compiler)

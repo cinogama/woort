@@ -8,104 +8,150 @@
 #include <string.h>
 
 /*
- * 虚拟寄存器分配
- *
- * 将无限的 SSA 值映射到有限的栈槽位
+ * 虚拟寄存器分配上下文
  */
-
-typedef struct woort_IRRegAlloc
+typedef struct woort_IRRegAllocCtx
 {
-    uint32_t* m_value_to_slot;
+    woort_IRFunction* m_func;
+    
+    int32_t* m_value_to_slot;
     uint32_t m_value_count;
-    uint32_t m_slot_count;
-    uint32_t m_max_slot;
-} woort_IRRegAlloc;
+    
+    int32_t m_next_slot;
+    int32_t m_max_slot;
+} woort_IRRegAllocCtx;
 
-WOORT_NODISCARD bool _woort_ir_regalloc_init(
-    woort_IRRegAlloc* ra,
-    uint32_t value_count)
+WOORT_NODISCARD static bool _woort_ir_regalloc_ctx_init(
+    woort_IRRegAllocCtx* ctx,
+    woort_IRFunction* func)
 {
-    ra->m_value_to_slot = (uint32_t*)malloc(sizeof(uint32_t) * value_count);
-    if (ra->m_value_to_slot == NULL)
+    ctx->m_func = func;
+    ctx->m_value_count = func->m_next_value_index;
+    ctx->m_next_slot = -1;
+    ctx->m_max_slot = 0;
+    
+    ctx->m_value_to_slot = (int32_t*)malloc(sizeof(int32_t) * ctx->m_value_count);
+    if (ctx->m_value_to_slot == NULL)
     {
         return false;
     }
-
-    for (uint32_t i = 0; i < value_count; ++i)
+    
+    for (uint32_t i = 0; i < ctx->m_value_count; ++i)
     {
-        ra->m_value_to_slot[i] = UINT32_MAX;
+        ctx->m_value_to_slot[i] = INT32_MAX;
     }
-
-    ra->m_value_count = value_count;
-    ra->m_slot_count = 0;
-    ra->m_max_slot = 0;
-
+    
     return true;
 }
 
-void _woort_ir_regalloc_drop(woort_IRRegAlloc* ra)
+static void _woort_ir_regalloc_ctx_drop(woort_IRRegAllocCtx* ctx)
 {
-    if (ra->m_value_to_slot != NULL)
+    if (ctx->m_value_to_slot != NULL)
     {
-        free(ra->m_value_to_slot);
+        free(ctx->m_value_to_slot);
     }
 }
 
-/*
- * 获取值对应的栈槽位，如果尚未分配则分配一个新的
- */
-WOORT_NODISCARD uint32_t _woort_ir_regalloc_get_or_alloc_slot(woort_IRRegAlloc* ra, uint32_t value_index)
+WOORT_NODISCARD static int32_t _woort_ir_regalloc_get_slot(woort_IRRegAllocCtx* ctx, uint32_t value_index)
 {
-    if (value_index >= ra->m_value_count)
+    if (value_index >= ctx->m_value_count)
     {
-        return UINT32_MAX;
+        return INT32_MAX;
     }
+    return ctx->m_value_to_slot[value_index];
+}
 
-    if (ra->m_value_to_slot[value_index] != UINT32_MAX)
+WOORT_NODISCARD static int32_t _woort_ir_regalloc_alloc_slot(woort_IRRegAllocCtx* ctx, uint32_t value_index)
+{
+    if (value_index >= ctx->m_value_count)
     {
-        return ra->m_value_to_slot[value_index];
+        return INT32_MAX;
     }
-
-    uint32_t slot = ra->m_slot_count++;
-    ra->m_value_to_slot[value_index] = slot;
-    ra->m_max_slot = (slot > ra->m_max_slot) ? slot : ra->m_max_slot;
+    
+    if (ctx->m_value_to_slot[value_index] != INT32_MAX)
+    {
+        return ctx->m_value_to_slot[value_index];
+    }
+    
+    int32_t slot = ctx->m_next_slot;
+    ctx->m_next_slot--;
+    
+    if (slot < ctx->m_max_slot)
+    {
+        ctx->m_max_slot = slot;
+    }
+    
+    ctx->m_value_to_slot[value_index] = slot;
     return slot;
 }
 
-/*
- * 为函数进行寄存器分配
- */
-WOORT_NODISCARD bool _woort_ir_regalloc_function(woort_IRFunction* func, woort_IRRegAlloc* ra)
+static void _woort_ir_regalloc_assign_value(woort_IRRegAllocCtx* ctx, const woort_IRValue* val)
 {
-    if (!_woort_ir_regalloc_init(ra, func->m_next_value_index))
+    if (val == NULL)
+    {
+        return;
+    }
+    _woort_ir_regalloc_alloc_slot(ctx, val->m_index);
+}
+
+static void _woort_ir_regalloc_assign_block(woort_IRRegAllocCtx* ctx, woort_IRBlock* block)
+{
+    for (uint32_t i = 0; i < block->m_instr_count; ++i)
+    {
+        woort_IRInstr* instr = &block->m_instrs[i];
+        if (instr->m_result != NULL)
+        {
+            _woort_ir_regalloc_assign_value(ctx, instr->m_result);
+        }
+    }
+}
+
+static void _woort_ir_regalloc_assign_func(woort_IRRegAllocCtx* ctx)
+{
+    woort_IRFunction* func = ctx->m_func;
+    
+    for (uint32_t i = 0; i < func->m_param_count; ++i)
+    {
+        _woort_ir_regalloc_alloc_slot(ctx, func->m_params[i].m_index);
+    }
+    
+    for (uint32_t i = 0; i < func->m_block_count; ++i)
+    {
+        _woort_ir_regalloc_assign_block(ctx, func->m_blocks[i]);
+    }
+    
+    for (uint32_t i = 0; i < func->m_phi_count; ++i)
+    {
+        woort_IRPHI* phi = func->m_phis[i];
+        _woort_ir_regalloc_alloc_slot(ctx, phi->m_value.m_index);
+    }
+}
+
+WOORT_NODISCARD int32_t _woort_ir_regalloc_get_stack_size(woort_IRRegAllocCtx* ctx)
+{
+    return -ctx->m_max_slot;
+}
+
+WOORT_NODISCARD bool _woort_ir_regalloc_run(woort_IRFunction* func, woort_IRRegAllocCtx* out_ctx)
+{
+    if (!_woort_ir_regalloc_ctx_init(out_ctx, func))
     {
         return false;
     }
-
-    for (uint32_t i = 0; i < func->m_param_count; ++i)
-    {
-        _woort_ir_regalloc_get_or_alloc_slot(ra, func->m_params[i].m_index);
-    }
-
-    for (uint32_t block_idx = 0; block_idx < func->m_block_count; ++block_idx)
-    {
-        woort_IRBlock* block = func->m_blocks[block_idx];
-
-        for (uint32_t instr_idx = 0; instr_idx < block->m_instr_count; ++instr_idx)
-        {
-            woort_IRInstr* instr = &block->m_instrs[instr_idx];
-            if (instr->m_result != NULL)
-            {
-                _woort_ir_regalloc_get_or_alloc_slot(ra, instr->m_result->m_index);
-            }
-        }
-    }
-
-    for (uint32_t phi_idx = 0; phi_idx < func->m_phi_count; ++phi_idx)
-    {
-        woort_IRPHI* phi = func->m_phis[phi_idx];
-        _woort_ir_regalloc_get_or_alloc_slot(ra, phi->m_value.m_index);
-    }
-
+    
+    _woort_ir_regalloc_assign_func(out_ctx);
+    
     return true;
+}
+
+/*
+ * 获取值对应的栈槽
+ */
+WOORT_NODISCARD int32_t _woort_ir_value_get_slot(const woort_IRValue* val, woort_IRRegAllocCtx* ctx)
+{
+    if (val == NULL)
+    {
+        return 0;
+    }
+    return _woort_ir_regalloc_get_slot(ctx, val->m_index);
 }

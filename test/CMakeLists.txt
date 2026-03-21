@@ -1,22 +1,25 @@
 cmake_minimum_required (VERSION 3.10)
 
-file(GLOB_RECURSE woort_test_src_cpp *.cpp)
-file(GLOB_RECURSE woort_test_src_c *.c)
-file(GLOB_RECURSE woort_test_src_hpp *.hpp)
-file(GLOB_RECURSE woort_test_src_h *.h)
-
+# Main test
 add_executable(woort_test 
-    ${woort_test_src_cpp} 
-    ${woort_test_src_c}
-    ${woort_test_src_hpp}
-    ${woort_test_src_h})
-
+    test_main.c)
 
 target_include_directories(woort_test 
     PRIVATE "../include"
-    # Only for test:
     PRIVATE "../src")
 
 target_link_libraries(woort_test 
+    PRIVATE woort
+    PRIVATE woort_options)
+
+# IR test
+add_executable(woort_ir_test
+    test_ir.c)
+
+target_include_directories(woort_ir_test 
+    PRIVATE "../include"
+    PRIVATE "../src")
+
+target_link_libraries(woort_ir_test 
     PRIVATE woort
     PRIVATE woort_options)

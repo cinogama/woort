@@ -430,3 +430,19 @@ WOORT_NODISCARD bool _woort_ir_phi_init(
     uint32_t value_index);
 
 void _woort_ir_phi_drop(woort_IRPHI* phi);
+
+/*
+ * 内部辅助函数 - Validate
+ */
+WOORT_NODISCARD bool _woort_ir_validate(woort_IRCompiler* compiler);
+
+/*
+ * 内部辅助函数 - CFG
+ */
+void _woort_ir_cfg_build(woort_IRCompiler* compiler);
+WOORT_NODISCARD bool _woort_ir_cfg_check_reachability(woort_IRCompiler* compiler);
+
+/*
+ * 内部辅助函数 - CodeGen
+ */
+WOORT_NODISCARD bool _woort_ir_codegen(woort_IRCompiler* compiler, woort_CodeEnv** out_codeenv);
