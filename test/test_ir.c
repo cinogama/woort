@@ -231,7 +231,7 @@ static bool test_function_call(void)
 }
 
 /*
- * 测试 PHI 节点
+ * 测试条件分支节点
  * 
  * int max(int a, int b) {
  *     if (a > b)
@@ -242,9 +242,9 @@ static bool test_function_call(void)
  * 
  * 简化版本，不使用 PHI
  */
-static bool test_phi(void)
+static bool test_cond(void)
 {
-    printf("Testing PHI node (simple)...\n");
+    printf("Testing cond(simple)...\n");
     
     woort_IRCompiler* compiler;
     if (!woort_IRCompiler_init(&compiler))
@@ -297,7 +297,7 @@ static bool test_phi(void)
     
     printf("  SUCCESS: CodeEnv created\n");
     
-    dump_codeenv("phi (max - no actual PHI)", codeenv);
+    dump_codeenv("cond (max - no actual PHI)", codeenv);
     
     woort_CodeEnv_drop(codeenv);
     woort_IRCompiler_drop(compiler);
@@ -871,7 +871,7 @@ int main(int argc, char** argv)
     
     printf("\n");
     total++;
-    if (test_phi()) passed++;
+    if (test_cond()) passed++;
     
     printf("\n");
     total++;
