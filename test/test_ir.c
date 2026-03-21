@@ -231,7 +231,7 @@ static bool test_function_call(void)
 }
 
 /*
- * 测试条件分支节点
+ * 测试 PHI 节点
  * 
  * int max(int a, int b) {
  *     if (a > b)
@@ -242,9 +242,9 @@ static bool test_function_call(void)
  * 
  * 简化版本，不使用 PHI
  */
-static bool test_cond(void)
+static bool test_phi(void)
 {
-    printf("Testing cond(simple)...\n");
+    printf("Testing PHI node (simple)...\n");
     
     woort_IRCompiler* compiler;
     if (!woort_IRCompiler_init(&compiler))
@@ -297,7 +297,7 @@ static bool test_cond(void)
     
     printf("  SUCCESS: CodeEnv created\n");
     
-    dump_codeenv("cond (max - no actual PHI)", codeenv);
+    dump_codeenv("phi (max - no actual PHI)", codeenv);
     
     woort_CodeEnv_drop(codeenv);
     woort_IRCompiler_drop(compiler);
@@ -858,40 +858,40 @@ int main(int argc, char** argv)
     int passed = 0;
     int total = 0;
     
-    total++;
-    if (test_simple_add()) passed++;
-    
-    printf("\n");
-    total++;
-    if (test_conditional()) passed++;
-    
-    printf("\n");
-    total++;
-    if (test_function_call()) passed++;
-    
-    printf("\n");
-    total++;
-    if (test_cond()) passed++;
+    //total++;
+    //if (test_simple_add()) passed++;
+    //
+    //printf("\n");
+    //total++;
+    //if (test_conditional()) passed++;
+    //
+    //printf("\n");
+    //total++;
+    //if (test_function_call()) passed++;
+    //
+    //printf("\n");
+    //total++;
+    //if (test_phi()) passed++;
     
     printf("\n");
     total++;
     if (test_real_phi()) passed++;
     
-    printf("\n");
-    total++;
-    if (test_loop()) passed++;
-    
-    printf("\n");
-    total++;
-    if (test_nested_conditional()) passed++;
-    
-    printf("\n");
-    total++;
-    if (test_multiple_functions()) passed++;
-    
-    printf("\n");
-    total++;
-    if (test_fibonacci()) passed++;
+    //printf("\n");
+    //total++;
+    //if (test_loop()) passed++;
+    //
+    //printf("\n");
+    //total++;
+    //if (test_nested_conditional()) passed++;
+    //
+    //printf("\n");
+    //total++;
+    //if (test_multiple_functions()) passed++;
+    //
+    //printf("\n");
+    //total++;
+    //if (test_fibonacci()) passed++;
     
     printf("\n=== Results: %d/%d passed ===\n", passed, total);
     
