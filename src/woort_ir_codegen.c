@@ -251,7 +251,7 @@ static void _woort_ir_codegen_apply_patches(woort_IRCodeGenCtx* ctx)
             }
             else if ((instr & WOORT_BYTECODE_OP6_MASK) == WOORT_MAKE_BYTECODE(OP6, WOORT_OPCODE_JFWDCND))
             {
-                instr = (instr & ~WOORT_BYTECODE_BC16_MASK) | WOORT_MAKE_BYTECODE(BC16, target_pos - patch->m_patch_pos - 1);
+                instr = (instr & ~WOORT_BYTECODE_BC16_MASK) | WOORT_MAKE_BYTECODE(BC16, target_pos - patch->m_patch_pos);
             }
             else
             {
