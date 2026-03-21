@@ -177,7 +177,7 @@ const woort_IRValue* const arg0 =
 const woort_IRValue* const n_sub_1 = 
     woort_IRBlock_SUBI(irblock_greater_then_2, arg0, val1);
 
-woort_IRBlock_PUSH(n_sub_1);
+woort_IRBlock_PUSH(irblock_greater_then_2, n_sub_1);
 
 const woort_IRValue* fib_n_sub_1;
 woort_IRBlock_CALLNWO(irblock_greater_then_2, const_val_func_jit, 1 /* ARGC */, &fib_n_sub_1);
@@ -185,7 +185,7 @@ woort_IRBlock_CALLNWO(irblock_greater_then_2, const_val_func_jit, 1 /* ARGC */, 
 const woort_IRValue* const n_sub_2 = 
     woort_IRBlock_SUBI(irblock_greater_then_2, n_sub_1, val1);
 
-woort_IRBlock_PUSH(n_sub_2);
+woort_IRBlock_PUSH(irblock_greater_then_2, n_sub_2);
 
 const woort_IRValue* fib_n_sub_2;
 woort_IRBlock_CALLNWO(irblock_greater_then_2, const_val_func_jit, 1, &fib_n_sub_2);  
@@ -211,12 +211,12 @@ woort_IRBlock* const irblock_main_entry =
 const woort_IRValue* const const_10 =
     woort_IRFunction_load_const(irfunc_main, const_val_10);
 
-woort_IRBlock_PUSH(const_10);
+woort_IRBlock_PUSH(irblock_main_entry, const_10);
 
 const woort_IRValue* fib_result; 
 woort_IRBlock_CALLNWO(irblock_main_entry, const_val_func_jit, 1, &fib_result);
 
-woort_IRBlock_PUSH(fib_result);
+woort_IRBlock_PUSH(irblock_main_entry, fib_result);
 
 woort_IRBlock_CALLNFP(irblock_main_entry, const_val_print_int, 1, NULL);
 

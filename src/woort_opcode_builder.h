@@ -175,7 +175,7 @@
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_RET, 3, bc16)
 
                 /*
-                 * RESULT - 获取调用结果
+                 * RESULT - 获取调用结果，并从调用栈中弹出指定的元素数量
                  * RESULT [SB + bc16], POP n10
                  */
 #define woort_OpCode_RESULT(n10, bc16)  \
