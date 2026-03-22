@@ -16,6 +16,8 @@ typedef struct woort_IRPhi woort_IRPhi;
 
 typedef enum woort_IRBlock_EndWay
 {
+    WOORT_IRBLOCK_ENDWAY_NOT_FINISHED,
+
     WOORT_IRBLOCK_ENDWAY_BR,
     WOORT_IRBLOCK_ENDWAY_BR_COND,
     WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT,
@@ -86,7 +88,7 @@ woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* block, woort_IRPhi** out_phi);
 
 /*
 如果一个 Block 有 PHI 节点，那么所有 br 到此 Block 其他 Block 必须通过此声明
-传递目标 Block 的所有 PHI 来源值，IRCompiler 负责检查。
+传递目标 Block 的所有 PHI 来源值，IRCompiler 在 finish 阶段负责检查。
 */
 void woort_IRPhi_from(
     woort_IRPhi* phi,
