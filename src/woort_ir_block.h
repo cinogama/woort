@@ -12,7 +12,27 @@ woort_ir_block.h
 #include "woort_linklist.h"
 #include "woort_vector.h"
 
-typedef struct woort_IRPhi woort_IRPhi;
+typedef struct woort_IRBlock woort_IRBlock;
+typedef struct woort_IRFunction woort_IRFunction;
+
+typedef struct woort_IRPhi_ReentryRecord
+{
+    woort_IRBlock* m_from_block;
+    woort_IRValue* m_value;
+
+}woort_IRPhi_ReentryRecord;
+
+typedef struct woort_IRPhi 
+{
+    woort_IRValue* m_phi_value;
+
+    /*
+    Phi 节点的 m_records 数量和来源块应当和所属的 Block 的 m_prev_blocks
+    保持一致
+    */
+    woort_LinkList /* woort_IRPhi_ReentryRecord */ m_records;
+
+} woort_IRPhi;
 
 typedef enum woort_IRBlock_EndWay
 {
@@ -23,10 +43,14 @@ typedef enum woort_IRBlock_EndWay
     WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT,
     WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE,
     WOORT_IRBLOCK_ENDWAY_RET,
-};
 
-typedef struct woort_IRBlock {
+}woort_IRBlock_EndWay;
+
+struct woort_IRBlock {
+    woort_IRFunction* m_ir_func;
+
     woort_LinkList /* woort_IROp */ m_operates;
+    woort_LinkList /* woort_IRPhi */ m_phis;
 
     woort_Vector /* woort_IRBlock* */ m_prev_blocks;
 
@@ -50,9 +74,9 @@ typedef struct woort_IRBlock {
         };
     };
 
-} woort_IRBlock;
+};
 
-void woort_IRBlock_init(woort_IRBlock* block);
+void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func);
 void woort_IRBlock_deinit(woort_IRBlock* block);
 
 void woort_IRBlock_br(
@@ -112,8 +136,8 @@ woort_IRValue* woort_IRBlock_STOI(woort_IRBlock* b, woort_IRValue* val);
 woort_IRValue* woort_IRBlock_STOR(woort_IRBlock* b, woort_IRValue* val);
 
 void woort_IRBlock_CALLNWO(
-    woort_IRBlock* b, 
-    woort_IRConstantIndex f, 
+    woort_IRBlock* b,
+    woort_IRConstantIndex f,
     uint32_t argc_to_pop,
     /* OPTIONAL */ woort_IRValue** out_ret_val);
 void woort_IRBlock_CALLNFP(
@@ -333,3 +357,7 @@ void woort_IRBlock_PUSHIDXSTBOXI(woort_IRBlock* b, woort_IRValue* c, uint32_t id
 void woort_IRBlock_PUSHIDXSTBOXR(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
 void woort_IRBlock_PUSHIDXSTBOXB(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
 void woort_IRBlock_PUSHIDXSTBOXX(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
+
+// Phi
+void woort_IRPhi_init(woort_IRPhi* phi, woort_IRBlock* b);
+void woort_IRPhi_deinit(woort_IRPhi* phi);

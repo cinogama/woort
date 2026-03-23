@@ -1,11 +1,15 @@
 #include "woort_ir_block.h"
+#include "woort_ir_function.h"
 
 #include <string.h>
 #include <assert.h>
 
-void woort_IRBlock_init(woort_IRBlock* block)
+void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func)
 {
+    block->m_ir_func = ir_func;
+
     woort_linklist_init(&block->m_operates, sizeof(woort_IROp));
+    woort_linklist_init(&block->m_phis, sizeof(woort_IRPhi));
     woort_vector_init(&block->m_prev_blocks, sizeof(woort_IRBlock*));
 
     block->m_cond_type = WOORT_IRBLOCK_ENDWAY_NOT_FINISHED;
@@ -13,7 +17,15 @@ void woort_IRBlock_init(woort_IRBlock* block)
 
 void woort_IRBlock_deinit(woort_IRBlock* block)
 {
+    for (woort_IRPhi* phi = woort_linklist_iter(&block->m_phis);
+        phi != NULL;
+        phi = woort_linklist_next(phi))
+    {
+        woort_IRPhi_deinit(phi);
+    }
+
     woort_linklist_deinit(&block->m_operates);
+    woort_linklist_deinit(&block->m_phis);
     woort_vector_deinit(&block->m_prev_blocks);
 }
 
@@ -97,5 +109,19 @@ void woort_IRBlock_ret_void(woort_IRBlock* block)
 
     block->m_cond_type = WOORT_IRBLOCK_ENDWAY_RET;
     block->m_ret_value_may_null = NULL;
+}
+
+void woort_IRPhi_init(woort_IRPhi* phi, woort_IRBlock* b)
+{
+    phi->m_phi_value = _woort_IRFunction_new_value(b->m_ir_func);
+
+    woort_linklist_init(
+        &phi->m_records, 
+        sizeof(woort_IRPhi_ReentryRecord));
+}
+
+void woort_IRPhi_deinit(woort_IRPhi* phi)
+{
+    woort_linklist_deinit(&phi->m_records);
 }
 
