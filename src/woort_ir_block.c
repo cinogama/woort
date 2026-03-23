@@ -1,8 +1,10 @@
 #include "woort_ir_block.h"
 #include "woort_ir_function.h"
+#include "woort_diagnosis.h"
 
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 
 void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func)
 {
@@ -29,21 +31,22 @@ void woort_IRBlock_deinit(woort_IRBlock* block)
     woort_vector_deinit(&block->m_prev_blocks);
 }
 
-static void _woort_IRBlock_add_prev(woort_IRBlock* target, woort_IRBlock* from)
+WOORT_NODISCARD bool _woort_IRBlock_add_prev(woort_IRBlock* target, woort_IRBlock* from)
 {
-    woort_vector_push_back(&target->m_prev_blocks, 1, &from);
+    return woort_vector_push_back(&target->m_prev_blocks, 1, &from);
 }
 
-void woort_IRBlock_br(woort_IRBlock* block, woort_IRBlock* next)
+WOORT_NODISCARD bool woort_IRBlock_br(woort_IRBlock* block, woort_IRBlock* next)
 {
     assert(block->m_cond_type == WOORT_IRBLOCK_ENDWAY_NOT_FINISHED);
 
     block->m_cond_type = WOORT_IRBLOCK_ENDWAY_BR;
     block->m_br_next_block = next;
-    _woort_IRBlock_add_prev(next, block);
+
+    return _woort_IRBlock_add_prev(next, block);
 }
 
-void woort_IRBlock_br_cond(
+WOORT_NODISCARD bool woort_IRBlock_br_cond(
     woort_IRBlock* block,
     woort_IRValue* cond,
     woort_IRBlock* true_next,
@@ -55,11 +58,13 @@ void woort_IRBlock_br_cond(
     block->m_br_cond_value = cond;
     block->m_br_next_block_cond_true = true_next;
     block->m_br_next_block_cond_false = false_next;
-    _woort_IRBlock_add_prev(true_next, block);
-    _woort_IRBlock_add_prev(false_next, block);
+
+    return
+        _woort_IRBlock_add_prev(true_next, block)
+        && _woort_IRBlock_add_prev(false_next, block);
 }
 
-void woort_IRBlock_br_lt(
+WOORT_NODISCARD bool woort_IRBlock_br_lt(
     woort_IRBlock* block,
     woort_IRValue* a,
     woort_IRValue* b,
@@ -73,11 +78,12 @@ void woort_IRBlock_br_lt(
     block->m_br_compare_values[1] = b;
     block->m_br_next_block_compare_true = true_next;
     block->m_br_next_block_compare_false = false_next;
-    _woort_IRBlock_add_prev(true_next, block);
-    _woort_IRBlock_add_prev(false_next, block);
+
+    return _woort_IRBlock_add_prev(true_next, block)
+        && _woort_IRBlock_add_prev(false_next, block);
 }
 
-void woort_IRBlock_br_le(
+WOORT_NODISCARD bool woort_IRBlock_br_le(
     woort_IRBlock* block,
     woort_IRValue* a,
     woort_IRValue* b,
@@ -91,8 +97,9 @@ void woort_IRBlock_br_le(
     block->m_br_compare_values[1] = b;
     block->m_br_next_block_compare_true = true_next;
     block->m_br_next_block_compare_false = false_next;
-    _woort_IRBlock_add_prev(true_next, block);
-    _woort_IRBlock_add_prev(false_next, block);
+
+    return _woort_IRBlock_add_prev(true_next, block)
+        && _woort_IRBlock_add_prev(false_next, block);
 }
 
 void woort_IRBlock_ret(woort_IRBlock* block, woort_IRValue* val)
@@ -116,7 +123,7 @@ void woort_IRPhi_init(woort_IRPhi* phi, woort_IRBlock* b)
     phi->m_phi_value = _woort_IRFunction_new_value(b->m_ir_func);
 
     woort_linklist_init(
-        &phi->m_records, 
+        &phi->m_records,
         sizeof(woort_IRPhi_ReentryRecord));
 }
 

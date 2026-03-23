@@ -11,6 +11,7 @@ woort_ir_block.h
 #include "woort_ir_op.h"
 #include "woort_linklist.h"
 #include "woort_vector.h"
+#include "woort_diagnosis.h"
 
 typedef struct woort_IRBlock woort_IRBlock;
 typedef struct woort_IRFunction woort_IRFunction;
@@ -79,21 +80,21 @@ struct woort_IRBlock {
 void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func);
 void woort_IRBlock_deinit(woort_IRBlock* block);
 
-void woort_IRBlock_br(
+WOORT_NODISCARD bool woort_IRBlock_br(
     woort_IRBlock* block,
     woort_IRBlock* next);
-void woort_IRBlock_br_cond(
+WOORT_NODISCARD bool woort_IRBlock_br_cond(
     woort_IRBlock* block,
     woort_IRValue* cond,
     woort_IRBlock* true_next,
     woort_IRBlock* false_next);
-void woort_IRBlock_br_lt(
+WOORT_NODISCARD bool woort_IRBlock_br_lt(
     woort_IRBlock* block,
     woort_IRValue* a,
     woort_IRValue* b,
     woort_IRBlock* true_next,
     woort_IRBlock* false_next);
-void woort_IRBlock_br_le(
+WOORT_NODISCARD bool woort_IRBlock_br_le(
     woort_IRBlock* block,
     woort_IRValue* a,
     woort_IRValue* b,
@@ -180,8 +181,6 @@ woort_IRValue* woort_IRBlock_DIVI(
 woort_IRValue* woort_IRBlock_MODI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
 woort_IRValue* woort_IRBlock_NEGI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_NEGI(
     woort_IRBlock* b, woort_IRValue* val);
 woort_IRValue* woort_IRBlock_LTI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
@@ -205,8 +204,6 @@ woort_IRValue* woort_IRBlock_MULR(
 woort_IRValue* woort_IRBlock_DIVR(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
 woort_IRValue* woort_IRBlock_MODR(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_NEGR(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
 woort_IRValue* woort_IRBlock_NEGR(
     woort_IRBlock* b, woort_IRValue* val);

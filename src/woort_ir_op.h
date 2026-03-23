@@ -143,7 +143,7 @@ typedef enum woort_IROp_Kind
 
 struct woort_IROp
 {
-    woort_IROp_Kind m_type;
+    woort_IROp_Kind m_op;
 
     /* OPTIONAL */ const woort_IRValue* m_r[3];
     /* OPTIONAL */ const woort_IRValue* m_w;

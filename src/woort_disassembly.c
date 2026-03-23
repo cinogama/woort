@@ -1373,4 +1373,7 @@ const woort_Bytecode* woort_Disassembly(const woort_Bytecode* c)
         printf("UNKNOWN_OPCODE(%u)\n", op6);
         return c + 1;
     }
+
+    // Never been here.
+    abort();
 }
