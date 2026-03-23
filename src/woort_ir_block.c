@@ -118,7 +118,7 @@ void woort_IRBlock_ret_void(woort_IRBlock* block)
     block->m_ret_value_may_null = NULL;
 }
 
-WOORT_NODISCARD woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* block, woort_IRPhi** out_phi)
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* block, woort_IRPhi** out_phi)
 {
     woort_IRValue* const phi_value = _woort_IRFunction_new_value(block->m_ir_func);
     if (phi_value == NULL)
