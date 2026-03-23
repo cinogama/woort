@@ -118,9 +118,26 @@ void woort_IRBlock_ret_void(woort_IRBlock* block)
     block->m_ret_value_may_null = NULL;
 }
 
-void woort_IRPhi_init(woort_IRPhi* phi, woort_IRBlock* b)
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* block, woort_IRPhi** out_phi)
 {
-    phi->m_phi_value = _woort_IRFunction_new_value(b->m_ir_func);
+    woort_IRValue* const phi_value = _woort_IRFunction_new_value(block->m_ir_func);
+    if (phi_value == NULL)
+        return NULL;
+
+    if (!woort_linklist_emplace_back(&block->m_phis, (void**)out_phi))
+        return NULL;
+
+    woort_IRValue_init_phi(phi_value);
+    woort_IRPhi_init(*out_phi, phi_value);
+
+    return phi_value;
+}
+
+void woort_IRPhi_init(woort_IRPhi* phi, woort_IRValue* phi_value)
+{
+    assert(phi_value->m_source == WOORT_IRVALUE_SOURCE_PHI);
+
+    phi->m_phi_value = phi_value;
 
     woort_linklist_init(
         &phi->m_records,

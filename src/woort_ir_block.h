@@ -356,5 +356,5 @@ void woort_IRBlock_PUSHIDXSTBOXB(woort_IRBlock* b, woort_IRValue* c, uint32_t id
 void woort_IRBlock_PUSHIDXSTBOXX(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
 
 // Phi
-void woort_IRPhi_init(woort_IRPhi* phi, woort_IRBlock* b);
+void woort_IRPhi_init(woort_IRPhi* phi, woort_IRValue* phi_value);
 void woort_IRPhi_deinit(woort_IRPhi* phi);
