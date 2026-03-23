@@ -109,7 +109,7 @@ void woort_IRBlock_ret(
     woort_IRBlock* block, woort_IRValue* val);
 void woort_IRBlock_ret_void(woort_IRBlock* block);
 
-woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* block, woort_IRPhi** out_phi);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* block, woort_IRPhi** out_phi);
 
 /*
 如果一个 Block 有 PHI 节点，那么所有 br 到此 Block 其他 Block 必须通过此声明
@@ -120,21 +120,21 @@ void woort_IRPhi_from(
     woort_IRBlock* from_block,
     woort_IRValue* val);
 
-woort_IRValue* woort_IRBlock_LOAD(woort_IRBlock* b, woort_IRStaticIndex idx);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LOAD(woort_IRBlock* b, woort_IRStaticIndex idx);
 void woort_IRBlock_STORE(woort_IRBlock* b, woort_IRStaticIndex idx, woort_IRValue* val);
 
 void woort_IRBlock_PUSHCHK(woort_IRBlock* b, woort_IRValue* val);
-woort_IRValue* woort_IRBlock_POP(woort_IRBlock* b);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_POP(woort_IRBlock* b);
 
 void woort_IRBlock_POPR(woort_IRBlock* b, uint32_t count);
 void woort_IRBlock_POPRS(woort_IRBlock* b, woort_IRValue* val);
 
-woort_IRValue* woort_IRBlock_ITOR(woort_IRBlock* b, woort_IRValue* val);
-woort_IRValue* woort_IRBlock_ITOS(woort_IRBlock* b, woort_IRValue* val);
-woort_IRValue* woort_IRBlock_RTOI(woort_IRBlock* b, woort_IRValue* val);
-woort_IRValue* woort_IRBlock_RTOS(woort_IRBlock* b, woort_IRValue* val);
-woort_IRValue* woort_IRBlock_STOI(woort_IRBlock* b, woort_IRValue* val);
-woort_IRValue* woort_IRBlock_STOR(woort_IRBlock* b, woort_IRValue* val);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_ITOR(woort_IRBlock* b, woort_IRValue* val);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_ITOS(woort_IRBlock* b, woort_IRValue* val);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_RTOI(woort_IRBlock* b, woort_IRValue* val);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_RTOS(woort_IRBlock* b, woort_IRValue* val);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_STOI(woort_IRBlock* b, woort_IRValue* val);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_STOR(woort_IRBlock* b, woort_IRValue* val);
 
 void woort_IRBlock_CALLNWO(
     woort_IRBlock* b,
@@ -157,107 +157,107 @@ void woort_IRBlock_CALL(
     uint32_t argc_to_pop,
     /* OPTIONAL */ woort_IRValue** out_ret_val);
 
-woort_IRValue* woort_IRBlock_MKVEC(woort_IRBlock* b, uint32_t elem_count);
-woort_IRValue* woort_IRBlock_MKMAP(woort_IRBlock* b, uint32_t kvpair_count);
-woort_IRValue* woort_IRBlock_MKSTRUCT(woort_IRBlock* b, uint32_t elem_count);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_MKVEC(woort_IRBlock* b, uint32_t elem_count);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_MKMAP(woort_IRBlock* b, uint32_t kvpair_count);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_MKSTRUCT(woort_IRBlock* b, uint32_t elem_count);
 
-woort_IRValue* woort_IRBlock_BOXDYN(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_BOXDYN(
     woort_IRBlock* b, uint8_t typ, woort_IRValue* val);
-woort_IRValue* woort_IRBlock_UNBOXDYN(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_UNBOXDYN(
     woort_IRBlock* b, uint8_t typ, woort_IRValue* val);
-woort_IRValue* woort_IRBlock_CHECKDYN(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_CHECKDYN(
     woort_IRBlock* b, uint8_t typ, woort_IRValue* val);
 void woort_IRBlock_PUSHBOXDYN(
     woort_IRBlock* b, uint8_t typ, woort_IRValue* val);
 
-woort_IRValue* woort_IRBlock_ADDI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_ADDI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_SUBI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_SUBI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_MULI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_MULI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_DIVI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_DIVI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_MODI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_MODI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_NEGI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_NEGI(
     woort_IRBlock* b, woort_IRValue* val);
-woort_IRValue* woort_IRBlock_LTI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LTI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_GTI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_GTI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_LEI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LEI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_GEI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_GEI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_EQI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_EQI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_NEI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_NEI(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
 
-woort_IRValue* woort_IRBlock_ADDR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_ADDR(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_SUBR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_SUBR(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_MULR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_MULR(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_DIVR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_DIVR(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_MODR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_MODR(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_NEGR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_NEGR(
     woort_IRBlock* b, woort_IRValue* val);
-woort_IRValue* woort_IRBlock_LTR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LTR(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_GTR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_GTR(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_LER(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LER(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_GER(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_GER(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_EQR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_EQR(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_NER(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-
-woort_IRValue* woort_IRBlock_ADDS(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_LTS(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_GTS(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_LES(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_GES(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_EQS(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_NES(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_NER(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
 
-woort_IRValue* woort_IRBlock_LAND(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_ADDS(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_LOR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LTS(
     woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-woort_IRValue* woort_IRBlock_LNOT(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_GTS(
+    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LES(
+    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_GES(
+    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_EQS(
+    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_NES(
+    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
+
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LAND(
+    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LOR(
+    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LNOT(
     woort_IRBlock* b, woort_IRValue* val);
 
-woort_IRValue* woort_IRBlock_LDIDXVEC(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LDIDXVEC(
     woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
-woort_IRValue* woort_IRBlock_LDIDXVECX(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LDIDXVECX(
     woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
-woort_IRValue* woort_IRBlock_LDIDXSTRUCT(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LDIDXSTRUCT(
     woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
-woort_IRValue* woort_IRBlock_LDIDXSTRING(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LDIDXSTRING(
     woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
 
-woort_IRValue* woort_IRBlock_LDIDXDICTI(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LDIDXDICTI(
     woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
-woort_IRValue* woort_IRBlock_LDIDXDICTR(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LDIDXDICTR(
     woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
-woort_IRValue* woort_IRBlock_LDIDXDICTB(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LDIDXDICTB(
     woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
-woort_IRValue* woort_IRBlock_LDIDXDICTX(
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_LDIDXDICTX(
     woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
 
 void woort_IRBlock_SDIDXVECI(
@@ -345,8 +345,8 @@ void woort_IRBlock_SDIDXSTRUCT(
     woort_IRBlock* b, woort_IRValue* c, uint32_t idx, woort_IRValue* val);
 
 void woort_IRBlock_UNPACKSTRUCT(woort_IRBlock* b, woort_IRValue* c);
-woort_IRValue* woort_IRBlock_UNPACKVEC(woort_IRBlock* b, woort_IRValue* c);
-woort_IRValue* woort_IRBlock_UNPACKVECX(woort_IRBlock* b, woort_IRValue* c);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_UNPACKVEC(woort_IRBlock* b, woort_IRValue* c);
+WOORT_NODISCARD woort_IRValue* woort_IRBlock_UNPACKVECX(woort_IRBlock* b, woort_IRValue* c);
 
 void woort_IRBlock_PUSHIDXSTRUCT(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
 
