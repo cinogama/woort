@@ -35,7 +35,6 @@ typedef struct woort_IRValue {
     };
 
     int32_t m_assigned_stack_offset;
-    int32_t m_use_count;
 
 } woort_IRValue;
 

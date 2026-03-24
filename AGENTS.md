@@ -61,31 +61,32 @@ git submodule sync --recursive && git submodule update --init --recursive
 
 ### WOORT_NODISCARD (Required)
 
-Any function with non-void return type must be marked `WOORT_NODISCARD`:
+**任何返回值类型非 void 的函数，都必须标记为 WOORT_NODISCARD。**
 
 ```c
 WOORT_NODISCARD bool woort_hashmap_find(woort_HashMap* map, const void* key, void** out_value_addr);
-WOORT_NODISCARD /* OPTIONAL */ woort_HashMapEntry* _woort_hashmap_get_free_entry(woort_HashMap* map);
+WOORT_NODISCARD woort_hashmap_Result woort_hashmap_insert(woort_HashMap* map, const void* key, const void* value);
 ```
 
 ### /* OPTIONAL */ (Required)
 
-Mark any member, parameter, local variable, or return value that may be NULL:
+**如果一个成员、参数、局部变量、返回值可能为空（NULL），类型前都必须加 `/* OPTIONAL */`。**
 
 ```c
-/* Struct member */
+/* 结构体成员 */
 typedef struct woort_HashMap {
     /* OPTIONAL */ struct woort_HashMapEntry** m_buckets;
     /* OPTIONAL */ struct woort_HashMapEntry* m_free_entries;
 } woort_HashMap;
 
-/* Function parameter */
+/* 函数参数 */
 void woomem_init(
     /* OPTIONAL */ woomem_UserContext user_ctx,
     /* OPTIONAL */ woomem_MarkCallbackFunc marker);
 
-/* Function return value */
+/* 函数返回值 */
 WOORT_NODISCARD /* OPTIONAL */ void* woomem_alloc_normal(size_t size);
+WOORT_NODISCARD /* OPTIONAL */ woort_HashMapEntry* _woort_hashmap_get_free_entry(woort_HashMap* map);
 ```
 
 ### Error Handling
@@ -94,14 +95,12 @@ WOORT_NODISCARD /* OPTIONAL */ void* woomem_alloc_normal(size_t size);
 2. **Output via pointer-to-pointer**: `Type** out_result`
 3. **Panic for unrecoverable errors**: `woort_panic(reason, msgfmt, ...)`
 4. **Result enums for multiple outcomes**: `woort_hashmap_Result` with `WOORT_HASHMAP_RESULT_*`
-5. **Debug logging**: Use `WOORT_DEBUG("format", args...)` for debug messages
 
 ### Function Declaration Style
-
 ```c
 void woort_hashmap_clear(woort_HashMap* map);  /* Short: one line */
 
-/* Long: parameter per line with aligned indentation */
+/* Long: parameter per line */
 WOORT_NODISCARD bool woort_hashmap_get_or_emplace(
     woort_HashMap* map,
     const void* key,
@@ -109,11 +108,8 @@ WOORT_NODISCARD bool woort_hashmap_get_or_emplace(
 ```
 
 ### Inline Functions
-
 ```c
-static inline void woort_GC_mixed_write_barrier_value(
-    woort_Value* modified_value,
-    woort_Value src_value)
+static inline void woort_GC_mixed_write_barrier_value(woort_Value* modified_value, woort_Value src_value)
 {
     if (g_gc_in_marking)
         woomem_try_mark_unit((intptr_t)src_value.m_gcinstance);
@@ -122,14 +118,11 @@ static inline void woort_GC_mixed_write_barrier_value(
 ```
 
 ### Macros
-
 ```c
-#define woort_RuntimeFunction_kind(function) \
-    ((woort_RuntimeFunction_Kind)(((woort_RuntimeFunction)(function)) >> 62))
+#define woort_RuntimeFunction_kind(function) ((woort_RuntimeFunction_Kind)(((woort_RuntimeFunction)(function)) >> 62))
 ```
 
 ### Platform Detection
-
 ```c
 #if defined(_MSC_VER)
     /* MSVC */
@@ -141,18 +134,15 @@ static inline void woort_GC_mixed_write_barrier_value(
 ### C++ Compatibility
 Public headers (`include/woort.h`) must have `extern "C"` guards.
 
-### Static Assertions & Layout Checks
-
+### Static Assertions
 ```c
 _Static_assert(sizeof(woort_Value) == sizeof(woort_value),
     "woort_Value and woort_value must have the same size");
-_Static_assert(offsetof(woort_CodeEnv, m_gc_unit) == 0, 
-    "woort_GCUnit must be head of woort_CodeEnv.");
 ```
 
 ## Memory Management (woomem)
 
-- GC-managed objects inherit from `woort_GCUnit` (must be first member)
+- GC-managed objects inherit from `woort_GCUnit`
 - Use `woort_GCUnit_alloc_attrib(ATTRIB, SIZE)` macro
 - Write barriers required when writing to GC-managed memory:
   - `woort_GC_mixed_write_barrier_value()`
@@ -172,15 +162,9 @@ woort/
 ## Testing
 
 Test files in `test/` directory. Pattern:
-
 ```c
 #include "woort.h"
 #include "woort_vm.h"
-
-woort_api my_native_func(woort_vm vm, woort_value* args) {
-    /* Native function implementation */
-    return WOORT_VM_CALL_STATUS_NORMAL;
-}
 
 int main(int argc, char** argv) {
     woort_init();
@@ -198,4 +182,4 @@ int main(int argc, char** argv) {
 
 ## Supported Platforms
 
-Windows (MSVC), macOS ARM64, Ubuntu 22.04 ARM64, Ubuntu 20.04
+Windows(MSVC), macOS ARM64, Ubuntu 22.04 ARM64, Ubuntu 20.04
