@@ -81,13 +81,13 @@ void woort_IRFunction_deinit(woort_IRFunction* ir_function)
 }
 
 /* OPTIONAL */ woort_IRValue* woort_IRFunction_operate_result(
-    woort_IRFunction* f, const woort_IROp* op)
+    woort_IRFunction* f, woort_IROp* modify_op)
 {
     woort_IRValue* const value = _woort_IRFunction_new_value(f);
     if (value == NULL)
         return NULL;
 
-    woort_IRValue_init_operate(value, op);
+    woort_IRValue_init_operate(value, modify_op);
 
     return value;
 }

@@ -163,3 +163,39 @@ WOORT_NODISCARD bool woort_IRPhi_from(
     return true;
 }
 
+// IRBlock operate.
+
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LOAD(woort_IRBlock* b, woort_IRStaticIndex idx)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return NULL;
+    
+    op->m_op = WOORT_IROP_KIND_LOAD;
+    op->m_r[0] = NULL;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+    op->m_static_index = idx;
+   
+    woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+    if (result == NULL)
+        return NULL;
+
+    assert(op->m_w == result);
+
+    return result;
+}
+
+void woort_IRBlock_STORE(woort_IRBlock* b, woort_IRStaticIndex idx, woort_IRValue* val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return;
+
+    op->m_op = WOORT_IROP_KIND_STORE;
+    op->m_w = NULL;
+    op->m_r[0] = val;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+    op->m_static_index = idx;
+}

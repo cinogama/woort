@@ -36,5 +36,5 @@ void woort_IRFunction_deinit(woort_IRFunction* ir_function);
 /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_argument(
     woort_IRFunction* f, uint32_t param_idx);
 /* OPTIONAL */ woort_IRValue* woort_IRFunction_operate_result(
-    woort_IRFunction* f, const woort_IROp* op);
+    woort_IRFunction* f, woort_IROp* modify_op);
 /* OPTIONAL */ woort_IRValue* woort_IRFunction_phi_value(woort_IRFunction* f);

@@ -39,6 +39,6 @@ typedef struct woort_IRValue {
 } woort_IRValue;
 
 void woort_IRValue_init_constant(woort_IRValue* ir_value, woort_IRConstantIndex idx);
-void woort_IRValue_init_operate(woort_IRValue* ir_value, const woort_IROp* op);
+void woort_IRValue_init_operate(woort_IRValue* ir_value, woort_IROp* modify_op);
 void woort_IRValue_init_phi(woort_IRValue* ir_value);
 void woort_IRValue_init_argument(woort_IRValue* ir_value, uint32_t argument_idx);

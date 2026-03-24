@@ -1,4 +1,5 @@
 #include "woort_ir_value.h"
+#include "woort_ir_op.h"
 
 void woort_IRValue_init_constant(woort_IRValue* ir_value, woort_IRConstantIndex idx)
 {
@@ -7,11 +8,13 @@ void woort_IRValue_init_constant(woort_IRValue* ir_value, woort_IRConstantIndex 
     ir_value->m_assigned_stack_offset = WOORT_IRVALUE_STACK_NOT_ASSIGN;
 }
 
-void woort_IRValue_init_operate(woort_IRValue* ir_value, const woort_IROp* op)
+void woort_IRValue_init_operate(woort_IRValue* ir_value, woort_IROp* modify_op)
 {
     ir_value->m_source = WOORT_IRVALUE_SOURCE_RESULT;
-    ir_value->m_operate = op;
+    ir_value->m_operate = modify_op;
     ir_value->m_assigned_stack_offset = WOORT_IRVALUE_STACK_NOT_ASSIGN;
+
+    modify_op->m_w = ir_value;
 }
 
 void woort_IRValue_init_phi(woort_IRValue* ir_value)
