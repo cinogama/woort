@@ -120,14 +120,13 @@ void woort_IRBlock_ret_void(woort_IRBlock* block)
 
 WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* block, woort_IRPhi** out_phi)
 {
-    woort_IRValue* const phi_value = _woort_IRFunction_new_value(block->m_ir_func);
+    woort_IRValue* const phi_value = woort_IRFunction_phi_value(block->m_ir_func);
     if (phi_value == NULL)
         return NULL;
 
     if (!woort_linklist_emplace_back(&block->m_phis, (void**)out_phi))
         return NULL;
 
-    woort_IRValue_init_phi(phi_value);
     woort_IRPhi_init(*out_phi, phi_value);
 
     return phi_value;
