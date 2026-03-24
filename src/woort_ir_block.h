@@ -115,7 +115,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* b
 如果一个 Block 有 PHI 节点，那么所有 br 到此 Block 其他 Block 必须通过此声明
 传递目标 Block 的所有 PHI 来源值，IRCompiler 在 finish 阶段负责检查。
 */
-void woort_IRPhi_from(
+WOORT_NODISCARD bool woort_IRPhi_from(
     woort_IRPhi* phi,
     woort_IRBlock* from_block,
     woort_IRValue* val);

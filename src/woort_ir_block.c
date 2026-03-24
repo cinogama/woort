@@ -149,3 +149,18 @@ void woort_IRPhi_deinit(woort_IRPhi* phi)
     woort_linklist_deinit(&phi->m_records);
 }
 
+WOORT_NODISCARD bool woort_IRPhi_from(
+    woort_IRPhi* phi,
+    woort_IRBlock* from_block,
+    woort_IRValue* val)
+{
+    woort_IRPhi_ReentryRecord* record;
+    if (!woort_linklist_emplace_back(&phi->m_records, (void**)&record))
+        return false;
+
+    record->m_from_block = from_block;
+    record->m_value = val;
+
+    return true;
+}
+
