@@ -38,3 +38,5 @@ void woort_IRFunction_deinit(woort_IRFunction* ir_function);
 /* OPTIONAL */ woort_IRValue* woort_IRFunction_operate_result(
     woort_IRFunction* f, const woort_IROp* op);
 /* OPTIONAL */ woort_IRValue* woort_IRFunction_phi_value(woort_IRFunction* f);
+
+uint32_t woort_IRFunction_stack_slot_allocation(woort_IRFunction* f);
