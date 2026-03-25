@@ -6,6 +6,7 @@ woort_ir_value.h
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef struct woort_IROp woort_IROp;
 
@@ -29,7 +30,11 @@ typedef struct woort_IRValue {
 
     union
     {
-        woort_IRConstantIndex m_constant;
+        struct
+        {
+            woort_IRConstantIndex m_constant;
+            bool m_constant_need_stack_slot;
+        };
         const woort_IROp* m_operate;
         uint32_t m_argument_idx;
     };
@@ -42,3 +47,5 @@ void woort_IRValue_init_constant(woort_IRValue* ir_value, woort_IRConstantIndex 
 void woort_IRValue_init_operate(woort_IRValue* ir_value, woort_IROp* modify_op);
 void woort_IRValue_init_phi(woort_IRValue* ir_value);
 void woort_IRValue_init_argument(woort_IRValue* ir_value, uint32_t argument_idx);
+
+void woort_IRValue_mark_constant_need_stack_slot(woort_IRValue* ir_value);

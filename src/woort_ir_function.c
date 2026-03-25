@@ -2,6 +2,8 @@
 #include "woort_ir_block.h"
 
 #include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 size_t _woort_IRFunction_constant_hash(const void* key)
 {
