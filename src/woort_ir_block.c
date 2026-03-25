@@ -6,6 +6,22 @@
 #include <assert.h>
 #include <stdbool.h>
 
+void woort_IRPhi_init(woort_IRPhi* phi, woort_IRValue* phi_value)
+{
+    assert(phi_value->m_source == WOORT_IRVALUE_SOURCE_PHI);
+
+    phi->m_phi_value = phi_value;
+
+    woort_linklist_init(
+        &phi->m_records,
+        sizeof(woort_IRPhi_ReentryRecord));
+}
+
+void woort_IRPhi_deinit(woort_IRPhi* phi)
+{
+    woort_linklist_deinit(&phi->m_records);
+}
+
 void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func)
 {
     block->m_ir_func = ir_func;
@@ -132,22 +148,6 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* b
     return phi_value;
 }
 
-void woort_IRPhi_init(woort_IRPhi* phi, woort_IRValue* phi_value)
-{
-    assert(phi_value->m_source == WOORT_IRVALUE_SOURCE_PHI);
-
-    phi->m_phi_value = phi_value;
-
-    woort_linklist_init(
-        &phi->m_records,
-        sizeof(woort_IRPhi_ReentryRecord));
-}
-
-void woort_IRPhi_deinit(woort_IRPhi* phi)
-{
-    woort_linklist_deinit(&phi->m_records);
-}
-
 WOORT_NODISCARD bool woort_IRPhi_from(
     woort_IRPhi* phi,
     woort_IRBlock* from_block,
@@ -194,7 +194,7 @@ void woort_IRBlock_STORE(woort_IRBlock* b, woort_IRStaticIndex idx, woort_IRValu
 
     op->m_op = WOORT_IROP_KIND_STORE;
     op->m_w = NULL;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_static_index = idx;
@@ -255,7 +255,7 @@ void woort_IRBlock_POPRS(woort_IRBlock* b, woort_IRValue* val)
 
     op->m_op = WOORT_IROP_KIND_POPRS;
     op->m_w = NULL;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 }
@@ -267,7 +267,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ITOR(woort_IRBlock* 
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_ITOR;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -287,7 +287,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ITOS(woort_IRBlock* 
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_ITOS;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -307,7 +307,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_RTOI(woort_IRBlock* 
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_RTOI;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -327,7 +327,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_RTOS(woort_IRBlock* 
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_RTOS;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -347,7 +347,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_STOI(woort_IRBlock* 
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_STOI;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -367,7 +367,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_STOR(woort_IRBlock* 
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_STOR;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -463,7 +463,7 @@ void woort_IRBlock_CALL(
         return;
 
     op->m_op = WOORT_IROP_KIND_CALL;
-    op->m_r[0] = f_val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(f_val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_argument_count = argc_to_pop;
@@ -564,7 +564,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_BOXDYN(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_BOXDYN;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_type = typ;
@@ -585,7 +585,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_UNBOXDYN(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_UNBOXDYN;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_type = typ;
@@ -606,7 +606,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_CHECKDYN(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_CHECKDYN;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_type = typ;
@@ -628,7 +628,7 @@ void woort_IRBlock_PUSHBOXDYN(
 
     op->m_op = WOORT_IROP_KIND_PUSHBOXDYN;
     op->m_w = NULL;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_type = typ;
@@ -642,8 +642,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ADDI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_ADDI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -662,8 +662,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_SUBI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_SUBI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -682,8 +682,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MULI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_MULI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -702,8 +702,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_DIVI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_DIVI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -722,8 +722,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MODI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_MODI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -742,7 +742,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_NEGI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_NEGI;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -762,8 +762,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LTI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LTI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -782,8 +782,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GTI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_GTI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -802,8 +802,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LEI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LEI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -822,8 +822,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GEI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_GEI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -842,8 +842,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_EQI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_EQI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -862,8 +862,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_NEI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_NEI;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -882,8 +882,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ADDR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_ADDR;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -902,8 +902,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_SUBR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_SUBR;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -922,8 +922,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MULR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_MULR;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -942,8 +942,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_DIVR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_DIVR;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -962,8 +962,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MODR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_MODR;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -982,7 +982,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_NEGR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_NEGR;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -1002,8 +1002,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LTR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LTR;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1022,8 +1022,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GTR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_GTR;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1042,8 +1042,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LER(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LER;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1062,8 +1062,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GER(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_GER;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1082,8 +1082,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_EQR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_EQR;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1102,8 +1102,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_NER(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_NER;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1122,8 +1122,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ADDS(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_ADDS;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1142,8 +1142,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LTS(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LTS;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1162,8 +1162,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GTS(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_GTS;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1182,8 +1182,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LES(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LES;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1202,8 +1202,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GES(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_GES;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1222,8 +1222,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_EQS(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_EQS;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1242,8 +1242,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_NES(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_NES;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1262,8 +1262,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LAND(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LAND;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1282,8 +1282,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LOR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LOR;
-    op->m_r[0] = val1;
-    op->m_r[1] = val2;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val1);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val2);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1302,7 +1302,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LNOT(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LNOT;
-    op->m_r[0] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -1322,8 +1322,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXVEC(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LDIDXVEC;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1342,8 +1342,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXVECX(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LDIDXVECX;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1362,7 +1362,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXSTRUCT(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LDIDXSTRUCT;
-    op->m_r[0] = c;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_index = idx;
@@ -1383,8 +1383,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXSTRING(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LDIDXSTRING;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1403,8 +1403,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXDICTI(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LDIDXDICTI;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1423,8 +1423,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXDICTR(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LDIDXDICTR;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1443,8 +1443,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXDICTB(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LDIDXDICTB;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1463,8 +1463,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXDICTX(
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_LDIDXDICTX;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
     op->m_r[2] = NULL;
 
     woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
@@ -1484,9 +1484,9 @@ void woort_IRBlock_SDIDXVECI(
 
     op->m_op = WOORT_IROP_KIND_SDIDXVECI;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXVECR(
@@ -1498,9 +1498,9 @@ void woort_IRBlock_SDIDXVECR(
 
     op->m_op = WOORT_IROP_KIND_SDIDXVECR;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXVECB(
@@ -1512,9 +1512,9 @@ void woort_IRBlock_SDIDXVECB(
 
     op->m_op = WOORT_IROP_KIND_SDIDXVECB;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXVECX(
@@ -1526,9 +1526,9 @@ void woort_IRBlock_SDIDXVECX(
 
     op->m_op = WOORT_IROP_KIND_SDIDXVECX;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTII(
@@ -1540,9 +1540,9 @@ void woort_IRBlock_SDIDXDICTII(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTII;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTIR(
@@ -1554,9 +1554,9 @@ void woort_IRBlock_SDIDXDICTIR(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTIR;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTIB(
@@ -1568,9 +1568,9 @@ void woort_IRBlock_SDIDXDICTIB(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTIB;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTIX(
@@ -1582,9 +1582,9 @@ void woort_IRBlock_SDIDXDICTIX(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTIX;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTRI(
@@ -1596,9 +1596,9 @@ void woort_IRBlock_SDIDXDICTRI(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTRI;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTRR(
@@ -1610,9 +1610,9 @@ void woort_IRBlock_SDIDXDICTRR(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTRR;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTRB(
@@ -1624,9 +1624,9 @@ void woort_IRBlock_SDIDXDICTRB(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTRB;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTRX(
@@ -1638,9 +1638,9 @@ void woort_IRBlock_SDIDXDICTRX(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTRX;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTBI(
@@ -1652,9 +1652,9 @@ void woort_IRBlock_SDIDXDICTBI(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTBI;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTBR(
@@ -1666,9 +1666,9 @@ void woort_IRBlock_SDIDXDICTBR(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTBR;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTBB(
@@ -1680,9 +1680,9 @@ void woort_IRBlock_SDIDXDICTBB(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTBB;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTBX(
@@ -1694,9 +1694,9 @@ void woort_IRBlock_SDIDXDICTBX(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTBX;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTXI(
@@ -1708,9 +1708,9 @@ void woort_IRBlock_SDIDXDICTXI(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTXI;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTXR(
@@ -1722,9 +1722,9 @@ void woort_IRBlock_SDIDXDICTXR(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTXR;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTXB(
@@ -1736,9 +1736,9 @@ void woort_IRBlock_SDIDXDICTXB(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTXB;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXDICTXX(
@@ -1750,9 +1750,9 @@ void woort_IRBlock_SDIDXDICTXX(
 
     op->m_op = WOORT_IROP_KIND_SDIDXDICTXX;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPII(
@@ -1764,9 +1764,9 @@ void woort_IRBlock_SDIDXMAPII(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPII;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPIR(
@@ -1778,9 +1778,9 @@ void woort_IRBlock_SDIDXMAPIR(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPIR;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPIB(
@@ -1792,9 +1792,9 @@ void woort_IRBlock_SDIDXMAPIB(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPIB;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPIX(
@@ -1806,9 +1806,9 @@ void woort_IRBlock_SDIDXMAPIX(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPIX;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPRI(
@@ -1820,9 +1820,9 @@ void woort_IRBlock_SDIDXMAPRI(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPRI;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPRR(
@@ -1834,9 +1834,9 @@ void woort_IRBlock_SDIDXMAPRR(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPRR;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPRB(
@@ -1848,9 +1848,9 @@ void woort_IRBlock_SDIDXMAPRB(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPRB;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPRX(
@@ -1862,9 +1862,9 @@ void woort_IRBlock_SDIDXMAPRX(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPRX;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPBI(
@@ -1876,9 +1876,9 @@ void woort_IRBlock_SDIDXMAPBI(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPBI;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPBR(
@@ -1890,9 +1890,9 @@ void woort_IRBlock_SDIDXMAPBR(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPBR;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPBB(
@@ -1904,9 +1904,9 @@ void woort_IRBlock_SDIDXMAPBB(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPBB;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPBX(
@@ -1918,9 +1918,9 @@ void woort_IRBlock_SDIDXMAPBX(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPBX;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPXI(
@@ -1932,9 +1932,9 @@ void woort_IRBlock_SDIDXMAPXI(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPXI;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPXR(
@@ -1946,9 +1946,9 @@ void woort_IRBlock_SDIDXMAPXR(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPXR;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPXB(
@@ -1960,9 +1960,9 @@ void woort_IRBlock_SDIDXMAPXB(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPXB;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXMAPXX(
@@ -1974,9 +1974,9 @@ void woort_IRBlock_SDIDXMAPXX(
 
     op->m_op = WOORT_IROP_KIND_SDIDXMAPXX;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = idx;
-    op->m_r[2] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(idx);
+    op->m_r[2] = woort_IRValue_ensure_constant_stack_slot(val);
 }
 
 void woort_IRBlock_SDIDXSTRUCT(
@@ -1988,8 +1988,8 @@ void woort_IRBlock_SDIDXSTRUCT(
 
     op->m_op = WOORT_IROP_KIND_SDIDXSTRUCT;
     op->m_w = NULL;
-    op->m_r[0] = c;
-    op->m_r[1] = val;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
+    op->m_r[1] = woort_IRValue_ensure_constant_stack_slot(val);
     op->m_r[2] = NULL;
     op->m_index = idx;
 }
@@ -2002,7 +2002,7 @@ void woort_IRBlock_UNPACKSTRUCT(woort_IRBlock* b, woort_IRValue* c)
 
     op->m_op = WOORT_IROP_KIND_UNPACKSTRUCT;
     op->m_w = NULL;
-    op->m_r[0] = c;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 }
@@ -2014,7 +2014,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_UNPACKVEC(woort_IRBl
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_UNPACKVEC;
-    op->m_r[0] = c;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -2033,7 +2033,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_UNPACKVECX(woort_IRB
         return NULL;
 
     op->m_op = WOORT_IROP_KIND_UNPACKVECX;
-    op->m_r[0] = c;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
 
@@ -2053,7 +2053,7 @@ void woort_IRBlock_PUSHIDXSTRUCT(woort_IRBlock* b, woort_IRValue* c, uint32_t id
 
     op->m_op = WOORT_IROP_KIND_PUSHIDXSTRUCT;
     op->m_w = NULL;
-    op->m_r[0] = c;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_index = idx;
@@ -2067,7 +2067,7 @@ void woort_IRBlock_PUSHIDXSTBOXI(woort_IRBlock* b, woort_IRValue* c, uint32_t id
 
     op->m_op = WOORT_IROP_KIND_PUSHIDXSTBOXI;
     op->m_w = NULL;
-    op->m_r[0] = c;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_index = idx;
@@ -2081,7 +2081,7 @@ void woort_IRBlock_PUSHIDXSTBOXR(woort_IRBlock* b, woort_IRValue* c, uint32_t id
 
     op->m_op = WOORT_IROP_KIND_PUSHIDXSTBOXR;
     op->m_w = NULL;
-    op->m_r[0] = c;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_index = idx;
@@ -2095,7 +2095,7 @@ void woort_IRBlock_PUSHIDXSTBOXB(woort_IRBlock* b, woort_IRValue* c, uint32_t id
 
     op->m_op = WOORT_IROP_KIND_PUSHIDXSTBOXB;
     op->m_w = NULL;
-    op->m_r[0] = c;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_index = idx;
@@ -2109,7 +2109,7 @@ void woort_IRBlock_PUSHIDXSTBOXX(woort_IRBlock* b, woort_IRValue* c, uint32_t id
 
     op->m_op = WOORT_IROP_KIND_PUSHIDXSTBOXX;
     op->m_w = NULL;
-    op->m_r[0] = c;
+    op->m_r[0] = woort_IRValue_ensure_constant_stack_slot(c);
     op->m_r[1] = NULL;
     op->m_r[2] = NULL;
     op->m_index = idx;

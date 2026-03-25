@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 const woort_Bytecode* woort_Disassembly(const woort_Bytecode* c)
 {

@@ -48,4 +48,4 @@ void woort_IRValue_init_operate(woort_IRValue* ir_value, woort_IROp* modify_op);
 void woort_IRValue_init_phi(woort_IRValue* ir_value);
 void woort_IRValue_init_argument(woort_IRValue* ir_value, uint32_t argument_idx);
 
-void woort_IRValue_mark_constant_need_stack_slot(woort_IRValue* ir_value);
+woort_IRValue* woort_IRValue_ensure_constant_stack_slot(woort_IRValue* ir_value);
