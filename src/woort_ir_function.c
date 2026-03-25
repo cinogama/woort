@@ -478,7 +478,7 @@ static int32_t _find_reusable_slot(
 
 /* ========== Main Implementation ========== */
 
-size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
+WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
 {
     size_t value_count = 0;
     for (woort_IRValue* v = woort_linklist_iter(&f->m_ir_values);
