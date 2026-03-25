@@ -199,3 +199,278 @@ void woort_IRBlock_STORE(woort_IRBlock* b, woort_IRStaticIndex idx, woort_IRValu
     op->m_r[2] = NULL;
     op->m_static_index = idx;
 }
+
+void woort_IRBlock_PUSHCHK(woort_IRBlock* b, woort_IRValue* val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return;
+
+    op->m_op = WOORT_IROP_KIND_PUSHCHK;
+    op->m_w = NULL;
+    op->m_r[0] = val;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_POP(woort_IRBlock* b)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return NULL;
+
+    op->m_op = WOORT_IROP_KIND_POP;
+    op->m_r[0] = NULL;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+
+    woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+    if (result == NULL)
+        return NULL;
+
+    assert(op->m_w == result);
+
+    return result;
+}
+
+void woort_IRBlock_POPR(woort_IRBlock* b, uint32_t count)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return;
+
+    op->m_op = WOORT_IROP_KIND_POPR;
+    op->m_w = NULL;
+    op->m_r[0] = NULL;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+    op->m_count = count;
+}
+
+void woort_IRBlock_POPRS(woort_IRBlock* b, woort_IRValue* val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return;
+
+    op->m_op = WOORT_IROP_KIND_POPRS;
+    op->m_w = NULL;
+    op->m_r[0] = val;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ITOR(woort_IRBlock* b, woort_IRValue* val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return NULL;
+
+    op->m_op = WOORT_IROP_KIND_ITOR;
+    op->m_r[0] = val;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+
+    woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+    if (result == NULL)
+        return NULL;
+
+    assert(op->m_w == result);
+
+    return result;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ITOS(woort_IRBlock* b, woort_IRValue* val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return NULL;
+
+    op->m_op = WOORT_IROP_KIND_ITOS;
+    op->m_r[0] = val;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+
+    woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+    if (result == NULL)
+        return NULL;
+
+    assert(op->m_w == result);
+
+    return result;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_RTOI(woort_IRBlock* b, woort_IRValue* val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return NULL;
+
+    op->m_op = WOORT_IROP_KIND_RTOI;
+    op->m_r[0] = val;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+
+    woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+    if (result == NULL)
+        return NULL;
+
+    assert(op->m_w == result);
+
+    return result;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_RTOS(woort_IRBlock* b, woort_IRValue* val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return NULL;
+
+    op->m_op = WOORT_IROP_KIND_RTOS;
+    op->m_r[0] = val;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+
+    woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+    if (result == NULL)
+        return NULL;
+
+    assert(op->m_w == result);
+
+    return result;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_STOI(woort_IRBlock* b, woort_IRValue* val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return NULL;
+
+    op->m_op = WOORT_IROP_KIND_STOI;
+    op->m_r[0] = val;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+
+    woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+    if (result == NULL)
+        return NULL;
+
+    assert(op->m_w == result);
+
+    return result;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_STOR(woort_IRBlock* b, woort_IRValue* val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return NULL;
+
+    op->m_op = WOORT_IROP_KIND_STOR;
+    op->m_r[0] = val;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+
+    woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+    if (result == NULL)
+        return NULL;
+
+    assert(op->m_w == result);
+
+    return result;
+}
+
+void woort_IRBlock_CALLNWO(
+    woort_IRBlock* b,
+    woort_IRConstantIndex f,
+    uint32_t argc_to_pop,
+    /* OPTIONAL */ woort_IRValue** out_ret_val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return;
+
+    op->m_op = WOORT_IROP_KIND_CALLNWO;
+    op->m_r[0] = NULL;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+    op->m_calln_target = f;
+    op->m_argument_count = argc_to_pop;
+
+    if (out_ret_val != NULL)
+    {
+        woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+        *out_ret_val = result;
+    }
+}
+
+void woort_IRBlock_CALLNFP(
+    woort_IRBlock* b,
+    woort_IRConstantIndex f,
+    uint32_t argc_to_pop,
+    /* OPTIONAL */ woort_IRValue** out_ret_val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return;
+
+    op->m_op = WOORT_IROP_KIND_CALLNFP;
+    op->m_r[0] = NULL;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+    op->m_calln_target = f;
+    op->m_argument_count = argc_to_pop;
+
+    if (out_ret_val != NULL)
+    {
+        woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+        *out_ret_val = result;
+    }
+}
+
+void woort_IRBlock_CALLNJIT(
+    woort_IRBlock* b,
+    woort_IRConstantIndex f,
+    uint32_t argc_to_pop,
+    /* OPTIONAL */ woort_IRValue** out_ret_val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return;
+
+    op->m_op = WOORT_IROP_KIND_CALLNJIT;
+    op->m_r[0] = NULL;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+    op->m_calln_target = f;
+    op->m_argument_count = argc_to_pop;
+
+    if (out_ret_val != NULL)
+    {
+        woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+        *out_ret_val = result;
+    }
+}
+
+void woort_IRBlock_CALL(
+    woort_IRBlock* b,
+    woort_IRValue* f_val,
+    uint32_t argc_to_pop,
+    /* OPTIONAL */ woort_IRValue** out_ret_val)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return;
+
+    op->m_op = WOORT_IROP_KIND_CALL;
+    op->m_r[0] = f_val;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+    op->m_argument_count = argc_to_pop;
+
+    if (out_ret_val != NULL)
+    {
+        woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+        *out_ret_val = result;
+    }
+}
