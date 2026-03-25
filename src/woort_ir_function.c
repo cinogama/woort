@@ -3,6 +3,16 @@
 
 #include <stddef.h>
 
+size_t _woort_IRFunction_constant_hash(const void* key)
+{
+    return (size_t)(*(const woort_IRConstantIndex*)key);
+}
+
+bool _woort_IRFunction_constant_equal(const void* key1, const void* key2)
+{
+    return *(const woort_IRConstantIndex*)key1 == *(const woort_IRConstantIndex*)key2;
+}
+
 void woort_IRFunction_init(woort_IRFunction* ir_function, uint32_t param_count)
 {
     ir_function->m_param_count = param_count;
@@ -10,6 +20,12 @@ void woort_IRFunction_init(woort_IRFunction* ir_function, uint32_t param_count)
 
     woort_linklist_init(&ir_function->m_ir_values, sizeof(woort_IRValue));
     woort_linklist_init(&ir_function->m_ir_blocks, sizeof(woort_IRBlock));
+    woort_hashmap_init(
+        &ir_function->m_ir_constant_values,
+        sizeof(woort_IRConstantIndex),
+        sizeof(woort_IRValue*),
+        _woort_IRFunction_constant_hash,
+        _woort_IRFunction_constant_equal);
 }
 
 void woort_IRFunction_deinit(woort_IRFunction* ir_function)
@@ -23,6 +39,7 @@ void woort_IRFunction_deinit(woort_IRFunction* ir_function)
 
     woort_linklist_deinit(&ir_function->m_ir_values);
     woort_linklist_deinit(&ir_function->m_ir_blocks);
+    woort_hashmap_deinit(&ir_function->m_ir_constant_values);
 }
 
 /* OPTIONAL */ woort_IRBlock* woort_IRFunction_entry_block(woort_IRFunction* f)
@@ -59,11 +76,18 @@ void woort_IRFunction_deinit(woort_IRFunction* ir_function)
 /* OPTIONAL */ woort_IRValue* woort_IRFuntion_load_constant(
     woort_IRFunction* f, woort_IRConstantIndex c)
 {
+    woort_IRValue* existing_value;
+    if (woort_hashmap_find(&f->m_ir_constant_values, &c, (void**)&existing_value))
+        return existing_value;
+
     woort_IRValue* const value = _woort_IRFunction_new_value(f);
     if (value == NULL)
         return NULL;
 
     woort_IRValue_init_constant(value, c);
+
+    if (woort_hashmap_insert(&f->m_ir_constant_values, &c, &value) != WOORT_HASHMAP_RESULT_OK)
+        return NULL;
 
     return value;
 }

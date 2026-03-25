@@ -8,6 +8,7 @@ woort_ir_function.h
 #include "woort_ir_block.h"
 #include "woort_ir_value.h"
 #include "woort_linklist.h"
+#include "woort_hashmap.h"
 #include "woort_ir_op.h"
 
 #include <stdbool.h>
@@ -19,6 +20,7 @@ struct woort_IRFunction{
 
     woort_LinkList /* woort_IRValue */ m_ir_values;
     woort_LinkList /* woort_IRBlock */ m_ir_blocks;
+    woort_HashMap /* woort_IRConstantIndex, woort_IRValue* */ m_ir_constant_values;
 
     /* OPTIONAL */ woort_IRBlock* m_entry_block;
 };
