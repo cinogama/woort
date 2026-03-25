@@ -157,6 +157,9 @@ void woort_IRBlock_CALL(
     uint32_t argc_to_pop,
     /* OPTIONAL */ woort_IRValue** out_ret_val);
 
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKCLOSURE(
+    woort_IRBlock* b, uint32_t elem_count, woort_IRConstantIndex f);
+
 WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKVEC(woort_IRBlock* b, uint32_t elem_count);
 WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKMAP(woort_IRBlock* b, uint32_t kvpair_count);
 WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKSTRUCT(woort_IRBlock* b, uint32_t elem_count);
@@ -354,7 +357,3 @@ void woort_IRBlock_PUSHIDXSTBOXI(woort_IRBlock* b, woort_IRValue* c, uint32_t id
 void woort_IRBlock_PUSHIDXSTBOXR(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
 void woort_IRBlock_PUSHIDXSTBOXB(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
 void woort_IRBlock_PUSHIDXSTBOXX(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
-
-// Phi
-void woort_IRPhi_init(woort_IRPhi* phi, woort_IRValue* phi_value);
-void woort_IRPhi_deinit(woort_IRPhi* phi);

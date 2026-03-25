@@ -475,6 +475,27 @@ void woort_IRBlock_CALL(
     }
 }
 
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKCLOSURE(woort_IRBlock* b, uint32_t elem_count, woort_IRConstantIndex f)
+{
+    woort_IROp* op;
+    if (!woort_linklist_emplace_back(&b->m_operates, (void**)&op))
+        return NULL;
+
+    op->m_op = WOORT_IROP_KIND_MKCLOSURE;
+    op->m_r[0] = NULL;
+    op->m_r[1] = NULL;
+    op->m_r[2] = NULL;
+    op->m_calln_target = f;
+    op->m_argument_count = elem_count;
+
+    woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
+    if (result == NULL)
+        return NULL;
+
+    assert(op->m_w == result);
+    return result;
+}
+
 WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKVEC(woort_IRBlock* b, uint32_t elem_count)
 {
     woort_IROp* op;
