@@ -1001,10 +1001,12 @@ static /* OPTIONAL */ woort_IRBlock* _find_best_loading_block(
 /* ==========================================================================
  *  主函数: woort_IRFunction_stack_slot_assign
  *
- *  返回分配的栈槽总数。如果发生 OOM 则返回 0。
+ *  成功返回 true，*out_stack_space 为分配的栈槽总数（可能为 0）。
+ *  发生 OOM 时返回 false。
  * ========================================================================== */
 
-WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
+WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
+    woort_IRFunction* f, size_t* out_stack_space)
 {
     /* =====================================================================
      *  Phase 1: 收集需要分配的 value，建立映射
@@ -1020,11 +1022,14 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
     }
 
     if (value_count == 0)
-        return 0;
+    {
+        *out_stack_space = 0;
+        return true;
+    }
 
     _woort_ValueIndexMap idx_map;
     if (!_value_index_map_init(&idx_map, value_count))
-        return 0;
+        return false;
 
     {
         size_t idx = 0;
@@ -1037,7 +1042,7 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
                 if (!_value_index_map_insert(&idx_map, v, idx))
                 {
                     _value_index_map_deinit(&idx_map);
-                    return 0;
+                    return false;
                 }
                 idx++;
             }
@@ -1056,7 +1061,8 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
     if (block_count == 0)
     {
         _value_index_map_deinit(&idx_map);
-        return 0;
+        *out_stack_space = 0;
+        return true;
     }
 
     /* 建立 block index 映射（含反向查找数组） */
@@ -1065,7 +1071,7 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
     if (!_block_index_map_init(&block_index_map, f, &index_to_block, block_count))
     {
         _value_index_map_deinit(&idx_map);
-        return 0;
+        return false;
     }
 
     /* =====================================================================
@@ -1082,7 +1088,7 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
         free(index_to_block);
         woort_hashmap_deinit(&block_index_map);
         _value_index_map_deinit(&idx_map);
-        return 0;
+        return false;
     }
 
     for (woort_IRBlock* B = woort_linklist_iter(&f->m_ir_blocks);
@@ -1540,7 +1546,8 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
         woort_hashmap_deinit(&block_index_map);
         _value_index_map_deinit(&idx_map);
 
-        return slot_count;
+        *out_stack_space = slot_count;
+        return true;
     }
 
     /* 错误处理: 统一 cleanup 路径 */
@@ -1558,5 +1565,5 @@ fail_after_ds:
     free(index_to_block);
     woort_hashmap_deinit(&block_index_map);
     _value_index_map_deinit(&idx_map);
-    return 0;
+    return false;
 }
