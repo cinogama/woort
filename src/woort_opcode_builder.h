@@ -28,14 +28,14 @@
 
     /*
      * LOADEX - 扩展加载
-     * LOADEX [SB + bc16] = G[c32]
+     * LOADEX [SB + bc16] = G[ex32]
      */
 #define woort_OpCode_LOADEX(bc16)       \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LOADEX, 0, bc16)
 
      /*
       * STOREEX - 扩展存储
-      * STOREEX G[c32] = [SB + bc16]
+      * STOREEX G[ex32] = [SB + bc16]
       */
 #define woort_OpCode_STOREEX(bc16)      \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_STOREEX, 0, bc16)
@@ -270,10 +270,10 @@
 
                        /*
                         * MKCLOSURE - 闭包创建
-                        * 创建闭包，捕获 n10 个值，函数在 G[c32]
+                        * 创建闭包，捕获 n10 个值，函数在 G[ex32]
                         */
-#define woort_OpCode_MKCLOSURE(n10, c32) \
-    woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_MKCLOSURE, n10, c32)
+#define woort_OpCode_MKCLOSURE(n10, bc16) \
+    woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_MKCLOSURE, n10, bc16)
 
                         /*
                          * DYN - 动态类型操作
@@ -616,37 +616,37 @@
                                                 * LDIDSTRINGEXT(mode=3): str[SB + bc16] -> [SB + c16], str in [SB + a16]
                                                 * 注: 这些指令需要扩展格式，使用 32 位扩展字段
                                                 */
-#define woort_OpCode_LDIDXVECEXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDXVECEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXEX, 0, bc16)
-#define woort_OpCode_LDIDXVECXEXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDXVECXEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXEX, 1, bc16)
-#define woort_OpCode_LDIDSTRUCTEXT(n24, b16, c16) \
+#define woort_OpCode_LDIDSTRUCTEXT(n24) \
     woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_LDIDXEX, 2, n24)
-#define woort_OpCode_LDIDSTRINGEXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDSTRINGEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXEX, 3, bc16)
 
                                                 /*
                                                  * LDIDXDICTEX - 扩展字典索引加载（按键类型）
                                                  */
-#define woort_OpCode_LDIDXDICTIEXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDXDICTIEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEX, 0, bc16)
-#define woort_OpCode_LDIDXDICTREXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDXDICTREXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEX, 1, bc16)
-#define woort_OpCode_LDIDXDICTBEXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDXDICTBEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEX, 2, bc16)
-#define woort_OpCode_LDIDXDICTXEXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDXDICTXEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEX, 3, bc16)
 
                                                  /*
                                                   * LDIDXDICTEXX - 扩展字典索引加载（动态值类型，按键类型）
                                                   */
-#define woort_OpCode_LDIDXDICTIXEXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDXDICTIXEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEXX, 0, bc16)
-#define woort_OpCode_LDIDXDICTRXEXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDXDICTRXEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEXX, 1, bc16)
-#define woort_OpCode_LDIDXDICTBXEXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDXDICTBXEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEXX, 2, bc16)
-#define woort_OpCode_LDIDXDICTXXEXT(bc16, b16, c16) \
+#define woort_OpCode_LDIDXDICTXXEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEXX, 3, bc16)
 
                                                   /*
@@ -720,34 +720,34 @@
                                                         * MKMAPEXT    (mode=1): 构造字典，n32 个键值对 -> [SB + bc16]
                                                         * MKSTRUCTEXT (mode=2): 构造结构体，n32 个字段 -> [SB + bc16]
                                                         */
-#define woort_OpCode_MKVECEXT(bc16, n32) \
+#define woort_OpCode_MKVECEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CONSEX, 0, bc16)
-#define woort_OpCode_MKMAPEXT(bc16, n32) \
+#define woort_OpCode_MKMAPEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CONSEX, 1, bc16)
-#define woort_OpCode_MKSTRUCTEXT(bc16, n32) \
+#define woort_OpCode_MKSTRUCTEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CONSEX, 2, bc16)
 
                                                         /*
                                                          * PUSHCEXT/POPCEXT/PUSHCCHKEXT - 扩展常量操作
-                                                         * PUSHCEXT    : 压入常量 G[c32]
-                                                         * POPCEXT     : 弹出到常量 G[c32]
-                                                         * PUSHCCHKEXT : 检查常量 G[c32]
+                                                         * PUSHCEXT    : 压入常量 G[ex32]
+                                                         * POPCEXT     : 弹出到常量 G[ex32]
+                                                         * PUSHCCHKEXT : 检查常量 G[ex32]
                                                          */
-#define woort_OpCode_PUSHCEXT(c32) \
+#define woort_OpCode_PUSHCEXT() \
     woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_PUSH, 3)
-#define woort_OpCode_POPCEXT(c32) \
+#define woort_OpCode_POPCEXT() \
     woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_POP, 3)
-#define woort_OpCode_PUSHCCHKEXT(c32) \
+#define woort_OpCode_PUSHCCHKEXT() \
     woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_PUSHCHK, 3)
 
                                                          /*
                                                           * MOVLDEXT/MOVSTEXT - 扩展移动操作
-                                                          * MOVLDEXT (mode=2): [SB + bc16] = G[c32]
-                                                          * MOVSTEXT (mode=3): G[c32] = [SB + bc16]
+                                                          * MOVLDEXT (mode=2): [SB + bc16] = [SB + ex32]
+                                                          * MOVSTEXT (mode=3): [SB + ex32] = [SB + bc16]
                                                           */
-#define woort_OpCode_MOVLDEXT(bc16, c32) \
+#define woort_OpCode_MOVLDEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_MOV, 2, bc16)
-#define woort_OpCode_MOVSTEXT(bc16, c32) \
+#define woort_OpCode_MOVSTEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_MOV, 3, bc16)
 
                                                           /*

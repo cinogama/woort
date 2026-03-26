@@ -41,5 +41,5 @@ void woort_IRFunction_deinit(woort_IRFunction* ir_function);
     woort_IRFunction* f, woort_IROp* modify_op);
 /* OPTIONAL */ woort_IRValue* woort_IRFunction_phi_value(woort_IRFunction* f);
 
-WOORT_NODISCARD bool woort_IRFunction_stack_slot_assign(
+WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
     woort_IRFunction* f, size_t* out_stack_space);
