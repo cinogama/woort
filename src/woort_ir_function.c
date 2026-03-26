@@ -322,27 +322,20 @@ static bool _value_index_map_get(_woort_ValueIndexMap* map, woort_IRValue* v, si
 
 static bool _block_liveness_init(_woort_BlockLiveness* bl, size_t value_count)
 {
-    if (!woort_bitset_init(&bl->m_use, value_count))
-        return false;
-    if (!woort_bitset_init(&bl->m_def, value_count))
-    {
-        woort_bitset_deinit(&bl->m_use);
-        return false;
-    }
-    if (!woort_bitset_init(&bl->m_live_in, value_count))
-    {
-        woort_bitset_deinit(&bl->m_use);
-        woort_bitset_deinit(&bl->m_def);
-        return false;
-    }
-    if (!woort_bitset_init(&bl->m_live_out, value_count))
+    bool init_result = woort_bitset_init(&bl->m_use, value_count);
+    init_result = woort_bitset_init(&bl->m_def, value_count) && init_result;
+    init_result = woort_bitset_init(&bl->m_live_in, value_count) && init_result;
+    init_result = woort_bitset_init(&bl->m_live_out, value_count) && init_result;
+
+    if (!init_result)
     {
         woort_bitset_deinit(&bl->m_use);
         woort_bitset_deinit(&bl->m_def);
         woort_bitset_deinit(&bl->m_live_in);
-        return false;
+        woort_bitset_deinit(&bl->m_live_out);
     }
-    return true;
+
+    return init_result;
 }
 
 static void _block_liveness_deinit(_woort_BlockLiveness* bl)

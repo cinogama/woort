@@ -2,8 +2,9 @@
 #include "woort_ir_block.h"
 
 /*
-ÔÚÕ»²Û·ÖÅäÍê³ÉÖ®ºó£¬¸ù¾İ¿éÖĞµÄ m_operates£¬Éú³É¿éÄÚµÄ×Ö½ÚÂëµ½ m_bytecodes_in_block ÖĞ
+åœ¨æ ˆæ§½åˆ†é…å®Œæˆä¹‹åï¼Œæ ¹æ®å—ä¸­çš„ m_operatesï¼Œç”Ÿæˆå—å†…çš„å­—èŠ‚ç åˆ° m_bytecodes_in_block ä¸­
 */
 bool _woort_IRCompiler_commit_codes_in_block(woort_IRBlock* block)
 {
+
 }
