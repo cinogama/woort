@@ -92,6 +92,7 @@ struct woort_IRBlock {
      * Constants to load at block entry (filled during stack slot assignment)
      */
     woort_Vector /* woort_IRValue* */ m_loading_constants;
+    woort_Vector /* woort_Bytecode */ m_bytecodes_in_block;
 };
 
 void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func);

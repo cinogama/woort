@@ -1,6 +1,7 @@
 #include "woort_ir_block.h"
 #include "woort_ir_function.h"
 #include "woort_diagnosis.h"
+#include "woort_value.h"
 
 #include <string.h>
 #include <assert.h>
@@ -40,6 +41,7 @@ void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func)
     block->m_loop_header = NULL;
 
     woort_vector_init(&block->m_loading_constants, sizeof(woort_IRValue*));
+    woort_vector_init(&block->m_bytecodes_in_block, sizeof(woort_Bytecode));
 }
 
 void woort_IRBlock_deinit(woort_IRBlock* block)
@@ -56,6 +58,7 @@ void woort_IRBlock_deinit(woort_IRBlock* block)
     woort_vector_deinit(&block->m_prev_blocks);
     woort_vector_deinit(&block->m_dom_children);
     woort_vector_deinit(&block->m_loading_constants);
+    woort_vector_deinit(&block->m_bytecodes_in_block);
 }
 
 WOORT_NODISCARD bool _woort_IRBlock_add_prev(woort_IRBlock* target, woort_IRBlock* from)
