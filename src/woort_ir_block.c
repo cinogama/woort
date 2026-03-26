@@ -31,6 +31,15 @@ void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func)
     woort_vector_init(&block->m_prev_blocks, sizeof(woort_IRBlock*));
 
     block->m_cond_type = WOORT_IRBLOCK_ENDWAY_NOT_FINISHED;
+
+    block->m_idom = NULL;
+    woort_vector_init(&block->m_dom_children, sizeof(woort_IRBlock*));
+    block->m_dom_depth = 0;
+
+    block->m_is_in_loop = false;
+    block->m_loop_header = NULL;
+
+    woort_vector_init(&block->m_loading_constants, sizeof(woort_IRValue*));
 }
 
 void woort_IRBlock_deinit(woort_IRBlock* block)
@@ -45,6 +54,8 @@ void woort_IRBlock_deinit(woort_IRBlock* block)
     woort_linklist_deinit(&block->m_operates);
     woort_linklist_deinit(&block->m_phis);
     woort_vector_deinit(&block->m_prev_blocks);
+    woort_vector_deinit(&block->m_dom_children);
+    woort_vector_deinit(&block->m_loading_constants);
 }
 
 WOORT_NODISCARD bool _woort_IRBlock_add_prev(woort_IRBlock* target, woort_IRBlock* from)

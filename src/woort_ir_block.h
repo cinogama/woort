@@ -75,6 +75,23 @@ struct woort_IRBlock {
         };
     };
 
+    /*
+     * Dominator analysis results (filled during stack slot assignment)
+     */
+    /* OPTIONAL */ woort_IRBlock* m_idom;
+    woort_Vector /* woort_IRBlock* */ m_dom_children;
+    uint32_t m_dom_depth;
+
+    /*
+     * Loop information (filled during stack slot assignment)
+     */
+    bool m_is_in_loop;
+    /* OPTIONAL */ woort_IRBlock* m_loop_header;
+
+    /*
+     * Constants to load at block entry (filled during stack slot assignment)
+     */
+    woort_Vector /* woort_IRValue* */ m_loading_constants;
 };
 
 void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func);

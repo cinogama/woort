@@ -142,6 +142,8 @@ typedef struct {
 typedef struct {
     size_t m_first_def;
     size_t m_last_use;
+    woort_IRBlock* m_first_use_block;
+    woort_Bitset m_use_blocks;
 } _woort_LivenessInfo;
 
 typedef struct {
@@ -163,6 +165,11 @@ typedef struct {
     int32_t m_next_slot;
     size_t m_value_count;
 } _woort_SlotAssignResult;
+
+typedef struct {
+    woort_Bitset* m_dom_sets;
+    size_t m_block_count;
+} _woort_DominatorInfo;
 
 /* ========== Helper Functions ========== */
 
@@ -377,6 +384,15 @@ static void _bitset_union(woort_Bitset* dst, const woort_Bitset* src)
         dst->m_data[i] |= src->m_data[i];
 }
 
+static void _bitset_intersect(woort_Bitset* dst, const woort_Bitset* src)
+{
+    size_t word_count = dst->m_word_count < src->m_word_count ? dst->m_word_count : src->m_word_count;
+    for (size_t i = 0; i < word_count; i++)
+        dst->m_data[i] &= src->m_data[i];
+    for (size_t i = word_count; i < dst->m_word_count; i++)
+        dst->m_data[i] = 0;
+}
+
 static void _bitset_copy(woort_Bitset* dst, const woort_Bitset* src)
 {
     size_t word_count = dst->m_word_count < src->m_word_count ? dst->m_word_count : src->m_word_count;
@@ -476,7 +492,363 @@ static int32_t _find_reusable_slot(
     return -1;
 }
 
-/* ========== Main Implementation ========== */
+/* ========== Dominator Analysis ========== */
+
+static bool _dominator_info_init(_woort_DominatorInfo* info, size_t block_count)
+{
+    info->m_block_count = block_count;
+    info->m_dom_sets = (woort_Bitset*)malloc(block_count * sizeof(woort_Bitset));
+    if (info->m_dom_sets == NULL)
+        return false;
+
+    for (size_t i = 0; i < block_count; i++)
+        woort_bitset_init(&info->m_dom_sets[i], block_count);
+
+    return true;
+}
+
+static void _dominator_info_deinit(_woort_DominatorInfo* info)
+{
+    for (size_t i = 0; i < info->m_block_count; i++)
+        woort_bitset_deinit(&info->m_dom_sets[i]);
+    free(info->m_dom_sets);
+    info->m_dom_sets = NULL;
+}
+
+static size_t _get_successors(woort_IRBlock* B, woort_IRBlock** successors)
+{
+    size_t count = 0;
+
+    switch (B->m_cond_type)
+    {
+    case WOORT_IRBLOCK_ENDWAY_BR:
+        successors[count++] = B->m_br_next_block;
+        break;
+    case WOORT_IRBLOCK_ENDWAY_BR_COND:
+        successors[count++] = B->m_br_next_block_cond_true;
+        successors[count++] = B->m_br_next_block_cond_false;
+        break;
+    case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT:
+    case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE:
+        successors[count++] = B->m_br_next_block_compare_true;
+        successors[count++] = B->m_br_next_block_compare_false;
+        break;
+    default:
+        break;
+    }
+
+    return count;
+}
+
+static bool _compute_dominators(
+    woort_IRFunction* f,
+    _woort_DominatorInfo* dom_info,
+    woort_HashMap* block_index_map,
+    size_t block_count)
+{
+    woort_IRBlock* entry = f->m_entry_block;
+    if (entry == NULL)
+        return false;
+
+    size_t entry_idx;
+    if (!_block_index_map_get(block_index_map, entry, &entry_idx))
+        return false;
+
+    for (size_t i = 0; i < block_count; i++)
+    {
+        for (size_t j = 0; j < block_count; j++)
+            woort_bitset_set(&dom_info->m_dom_sets[i], j);
+    }
+
+    woort_bitset_clear(&dom_info->m_dom_sets[entry_idx]);
+    woort_bitset_set(&dom_info->m_dom_sets[entry_idx], entry_idx);
+
+    bool changed = true;
+    while (changed)
+    {
+        changed = false;
+
+        for (woort_IRBlock* B = woort_linklist_iter(&f->m_ir_blocks);
+             B != NULL;
+             B = woort_linklist_next(B))
+        {
+            size_t B_idx;
+            _block_index_map_get(block_index_map, B, &B_idx);
+
+            if (B_idx == entry_idx)
+                continue;
+
+            woort_Bitset new_dom;
+            if (!woort_bitset_init(&new_dom, block_count))
+                continue;
+
+            bool first_pred = true;
+            for (size_t i = 0; i < woort_vector_size(&B->m_prev_blocks); i++)
+            {
+                woort_IRBlock* pred = *(woort_IRBlock**)woort_vector_at(&B->m_prev_blocks, i);
+                size_t pred_idx;
+                _block_index_map_get(block_index_map, pred, &pred_idx);
+
+                if (first_pred)
+                {
+                    _bitset_copy(&new_dom, &dom_info->m_dom_sets[pred_idx]);
+                    first_pred = false;
+                }
+                else
+                {
+                    _bitset_intersect(&new_dom, &dom_info->m_dom_sets[pred_idx]);
+                }
+            }
+
+            woort_bitset_set(&new_dom, B_idx);
+
+            if (!_bitset_equal(&new_dom, &dom_info->m_dom_sets[B_idx]))
+            {
+                _bitset_copy(&dom_info->m_dom_sets[B_idx], &new_dom);
+                changed = true;
+            }
+
+            woort_bitset_deinit(&new_dom);
+        }
+    }
+
+    return true;
+}
+
+static void _build_dominator_tree(
+    woort_IRFunction* f,
+    _woort_DominatorInfo* dom_info,
+    woort_HashMap* block_index_map,
+    size_t block_count)
+{
+    woort_IRBlock* entry = f->m_entry_block;
+    size_t entry_idx;
+    _block_index_map_get(block_index_map, entry, &entry_idx);
+
+    for (woort_IRBlock* B = woort_linklist_iter(&f->m_ir_blocks);
+         B != NULL;
+         B = woort_linklist_next(B))
+    {
+        size_t B_idx;
+        _block_index_map_get(block_index_map, B, &B_idx);
+
+        if (B_idx == entry_idx)
+        {
+            B->m_idom = NULL;
+            B->m_dom_depth = 0;
+            continue;
+        }
+
+        woort_IRBlock* idom = NULL;
+        uint32_t max_depth = 0;
+
+        for (size_t i = 0; i < block_count; i++)
+        {
+            if (i == B_idx)
+                continue;
+
+            if (woort_bitset_test(&dom_info->m_dom_sets[B_idx], i))
+            {
+                bool is_strict = !woort_bitset_test(&dom_info->m_dom_sets[i], B_idx);
+
+                if (is_strict)
+                {
+                    size_t other_dom_count = 0;
+                    for (size_t j = 0; j < block_count; j++)
+                    {
+                        if (woort_bitset_test(&dom_info->m_dom_sets[i], j))
+                            other_dom_count++;
+                    }
+
+                    bool is_idom_candidate = true;
+                    for (size_t j = 0; j < block_count; j++)
+                    {
+                        if (j == i || j == B_idx)
+                            continue;
+
+                        if (woort_bitset_test(&dom_info->m_dom_sets[B_idx], j) &&
+                            woort_bitset_test(&dom_info->m_dom_sets[j], i))
+                        {
+                            is_idom_candidate = false;
+                            break;
+                        }
+                    }
+
+                    if (is_idom_candidate)
+                    {
+                        woort_IRBlock* candidate = NULL;
+                        for (woort_IRBlock* tmp = woort_linklist_iter(&f->m_ir_blocks);
+                             tmp != NULL;
+                             tmp = woort_linklist_next(tmp))
+                        {
+                            size_t tmp_idx;
+                            _block_index_map_get(block_index_map, tmp, &tmp_idx);
+                            if (tmp_idx == i)
+                            {
+                                candidate = tmp;
+                                break;
+                            }
+                        }
+
+                        if (candidate != NULL && candidate->m_dom_depth >= max_depth)
+                        {
+                            idom = candidate;
+                            max_depth = candidate->m_dom_depth;
+                        }
+                    }
+                }
+            }
+        }
+
+        B->m_idom = idom;
+        B->m_dom_depth = idom ? idom->m_dom_depth + 1 : 1;
+
+        if (idom != NULL)
+        {
+            woort_vector_push_back(&idom->m_dom_children, 1, &B);
+        }
+    }
+}
+
+/* ========== Loop Detection ========== */
+
+static void _mark_loop_blocks(
+    woort_IRBlock* header,
+    woort_IRBlock* back_edge_src,
+    woort_HashMap* block_index_map)
+{
+    size_t header_idx, src_idx;
+    _block_index_map_get(block_index_map, header, &header_idx);
+    _block_index_map_get(block_index_map, back_edge_src, &src_idx);
+
+    header->m_is_in_loop = true;
+    header->m_loop_header = header;
+
+    woort_Vector worklist;
+    woort_vector_init(&worklist, sizeof(woort_IRBlock*));
+
+    if (back_edge_src != header)
+    {
+        back_edge_src->m_is_in_loop = true;
+        back_edge_src->m_loop_header = header;
+        woort_vector_push_back(&worklist, 1, &back_edge_src);
+    }
+
+    while (woort_vector_size(&worklist) > 0)
+    {
+        woort_IRBlock* current = *(woort_IRBlock**)woort_vector_at(&worklist, woort_vector_size(&worklist) - 1);
+        woort_vector_pop_back(&worklist);
+
+        for (size_t i = 0; i < woort_vector_size(&current->m_prev_blocks); i++)
+        {
+            woort_IRBlock* pred = *(woort_IRBlock**)woort_vector_at(&current->m_prev_blocks, i);
+
+            if (!pred->m_is_in_loop)
+            {
+                pred->m_is_in_loop = true;
+                pred->m_loop_header = header;
+                woort_vector_push_back(&worklist, 1, &pred);
+            }
+        }
+    }
+
+    woort_vector_deinit(&worklist);
+}
+
+static void _detect_loops(
+    woort_IRFunction* f,
+    _woort_DominatorInfo* dom_info,
+    woort_HashMap* block_index_map)
+{
+    for (woort_IRBlock* B = woort_linklist_iter(&f->m_ir_blocks);
+         B != NULL;
+         B = woort_linklist_next(B))
+    {
+        woort_IRBlock* successors[2];
+        size_t succ_count = _get_successors(B, successors);
+
+        for (size_t i = 0; i < succ_count; i++)
+        {
+            woort_IRBlock* S = successors[i];
+
+            size_t B_idx, S_idx;
+            _block_index_map_get(block_index_map, B, &B_idx);
+            _block_index_map_get(block_index_map, S, &S_idx);
+
+            if (woort_bitset_test(&dom_info->m_dom_sets[B_idx], S_idx))
+            {
+                _mark_loop_blocks(S, B, block_index_map);
+            }
+        }
+    }
+}
+
+/* ========== Constant Loading Block Decision ========== */
+
+static woort_IRBlock* _find_common_dominator(
+    woort_IRBlock* a,
+    woort_IRBlock* b)
+{
+    if (a == NULL)
+        return b;
+    if (b == NULL)
+        return a;
+
+    while (a != b)
+    {
+        if (a->m_dom_depth > b->m_dom_depth)
+            a = a->m_idom;
+        else if (b->m_dom_depth > a->m_dom_depth)
+            b = b->m_idom;
+        else
+        {
+            a = a->m_idom;
+            b = b->m_idom;
+        }
+    }
+
+    return a;
+}
+
+static woort_IRBlock* _find_best_loading_block(
+    woort_IRFunction* f,
+    woort_IRValue* constant,
+    _woort_LivenessInfo* liveness,
+    size_t value_count)
+{
+    (void)value_count;
+
+    woort_IRBlock* common_dom = liveness->m_first_use_block;
+
+    if (common_dom == NULL)
+    {
+        return f->m_entry_block;
+    }
+
+    for (size_t i = 0; i < woort_bitset_size(&liveness->m_use_blocks); i++)
+    {
+        if (woort_bitset_test(&liveness->m_use_blocks, i))
+        {
+            continue;
+        }
+    }
+
+    while (common_dom->m_is_in_loop && common_dom->m_loop_header != NULL)
+    {
+        woort_IRBlock* header = common_dom->m_loop_header;
+        if (header->m_idom != NULL)
+        {
+            common_dom = header->m_idom;
+        }
+        else
+        {
+            common_dom = f->m_entry_block;
+            break;
+        }
+    }
+
+    return common_dom;
+}
 
 WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
 {
@@ -581,6 +953,18 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
     {
         liveness[i].m_first_def = SIZE_MAX;
         liveness[i].m_last_use = 0;
+        liveness[i].m_first_use_block = NULL;
+        if (!woort_bitset_init(&liveness[i].m_use_blocks, block_count))
+        {
+            for (size_t j = 0; j < i; j++)
+                woort_bitset_deinit(&liveness[j].m_use_blocks);
+            free(liveness);
+            free(block_liveness);
+            _disjoint_set_deinit(&ds);
+            woort_hashmap_deinit(&block_index_map);
+            _value_index_map_deinit(&idx_map);
+            return 0;
+        }
     }
 
     bool init_success = true;
@@ -643,6 +1027,9 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
                         if (!woort_bitset_test(&bl->m_def, r_idx))
                             woort_bitset_set(&bl->m_use, r_idx);
                         liveness[r_idx].m_last_use = global_inst_idx;
+                        woort_bitset_set(&liveness[r_idx].m_use_blocks, block_idx);
+                        if (liveness[r_idx].m_first_use_block == NULL)
+                            liveness[r_idx].m_first_use_block = B;
                     }
                 }
             }
@@ -756,6 +1143,8 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
         free(result.m_rep_slot);
         free(result.m_rep_def);
         free(result.m_rep_last_use);
+        for (size_t i = 0; i < value_count; i++)
+            woort_bitset_deinit(&liveness[i].m_use_blocks);
         free(liveness);
         for (size_t i = 0; i < block_count; i++)
             _block_liveness_deinit(&block_liveness[i]);
@@ -811,6 +1200,34 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
     free(result.m_rep_slot);
     free(result.m_rep_def);
     free(result.m_rep_last_use);
+
+    _woort_DominatorInfo dom_info;
+    if (_dominator_info_init(&dom_info, block_count))
+    {
+        if (_compute_dominators(f, &dom_info, &block_index_map, block_count))
+        {
+            _build_dominator_tree(f, &dom_info, &block_index_map, block_count);
+            _detect_loops(f, &dom_info, &block_index_map);
+
+            for (size_t i = 0; i < value_count; i++)
+            {
+                woort_IRValue* v = idx_map.m_index_to_value[i];
+                if (v->m_source == WOORT_IRVALUE_SOURCE_CONSTANT && v->m_constant_need_stack_slot)
+                {
+                    woort_IRBlock* loading_block = _find_best_loading_block(
+                        f, v, &liveness[i], value_count);
+                    if (loading_block != NULL)
+                    {
+                        woort_vector_push_back(&loading_block->m_loading_constants, 1, &v);
+                    }
+                }
+            }
+        }
+        _dominator_info_deinit(&dom_info);
+    }
+
+    for (size_t i = 0; i < value_count; i++)
+        woort_bitset_deinit(&liveness[i].m_use_blocks);
     free(liveness);
     for (size_t i = 0; i < block_count; i++)
         _block_liveness_deinit(&block_liveness[i]);

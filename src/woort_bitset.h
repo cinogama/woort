@@ -25,4 +25,7 @@ WOORT_NODISCARD bool woort_bitset_set(woort_Bitset* bitset, size_t index);
 WOORT_NODISCARD bool woort_bitset_reset(woort_Bitset* bitset, size_t index);
 WOORT_NODISCARD bool woort_bitset_test(const woort_Bitset* bitset, size_t index);
 
+void woort_bitset_clear(woort_Bitset* bitset);
+WOORT_NODISCARD size_t woort_bitset_size(const woort_Bitset* bitset);
+
 WOORT_NODISCARD bool woort_bitset_find_first_unset(const woort_Bitset* bitset, size_t* out_index);

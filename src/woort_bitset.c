@@ -54,6 +54,16 @@ WOORT_NODISCARD bool woort_bitset_test(const woort_Bitset* bitset, size_t index)
     return (bitset->m_data[index / 64] & (1ULL << (index % 64))) != 0;
 }
 
+void woort_bitset_clear(woort_Bitset* bitset)
+{
+    memset(bitset->m_data, 0, bitset->m_word_count * sizeof(uint64_t));
+}
+
+WOORT_NODISCARD size_t woort_bitset_size(const woort_Bitset* bitset)
+{
+    return bitset->m_bit_count;
+}
+
 WOORT_NODISCARD bool woort_bitset_find_first_unset(const woort_Bitset* bitset, size_t* out_index)
 {
     for (size_t i = 0; i < bitset->m_word_count; ++i)
