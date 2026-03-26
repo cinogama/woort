@@ -695,23 +695,41 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
         if ((constant_fact_stack_slot >= INT8_MIN && constant_fact_stack_slot <= INT8_MAX)
             && loading_constant->m_constant <= WOORT_UINT18_MAX)
         {
+            /*
+            Case 1: 栈槽在 S8 范围内，常量索引在 U18 范围内
+            使用 LOAD [SB + c8] = G[mab18] 单条紧凑指令完成加载
+            */
             loading_result = _woort_IRBlock_emit_bytecode(
                 b, woort_OpCode_LOAD(loading_constant->m_constant, constant_fact_stack_slot));
         }
         else if (constant_fact_stack_slot >= INT16_MIN && constant_fact_stack_slot <= INT16_MAX)
         {
+            /*
+            Case 2: 栈槽在 S16 范围内（包括 S8 但常量索引超过 U18 的情况）
+            使用 LOADEX [SB + bc16] = G[ex32] 扩展指令完成加载
+            */
             loading_result = _woort_IRBlock_emit_bytecode_ext(
-                b, woort_OpCode_LOADEX(constant_fact_stack_slot), loading_constant->m_constant);
+                b, woort_OpCode_LOADEX(constant_fact_stack_slot), (uint32_t)loading_constant->m_constant);
         }
         else if (loading_constant->m_constant <= WOORT_UINT18_MAX)
         {
+            /*
+            Case 3: 栈槽超出 S16 范围，但常量索引在 U18 范围内
+            先用 LOAD [SB + -128] = G[mab18] 加载到临时槽
+            再用 MOVSTEXT [SB + ex32] = [SB + -128] 移动到目标槽
+            */
             loading_result = _woort_IRBlock_emit_bytecode(
                 b, woort_OpCode_LOAD(loading_constant->m_constant, -128));
-            loading_result = loading_result&& _woort_IRBlock_emit_bytecode_ext(
+            loading_result = loading_result && _woort_IRBlock_emit_bytecode_ext(
                 b, woort_OpCode_MOVSTEXT(-128), (uint32_t)constant_fact_stack_slot);
         }
         else
         {
+            /*
+            Case 4: 栈槽超出 S16 范围，常量索引也超出 U18 范围
+            先用 LOADEX [SB + -128] = G[ex32] 加载到临时槽
+            再用 MOVSTEXT [SB + ex32] = [SB + -128] 移动到目标槽
+            */
             loading_result = _woort_IRBlock_emit_bytecode_ext(
                 b, woort_OpCode_LOADEX(-128), loading_constant->m_constant);
             loading_result = loading_result && _woort_IRBlock_emit_bytecode_ext(
@@ -722,6 +740,9 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
             return false;
     }
 
+    /*
+    STEP 2: 提交块的本体指令
+    */
     for (woort_IROp* ir_op = woort_linklist_iter(&b->m_operates);
         ir_op != NULL;
         ir_op = woort_linklist_next(ir_op))
@@ -731,6 +752,11 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
         if (!_ir_op_commit_callbacks[ir_op->m_op](b, ir_op, c))
             return false;
     }
+
+    /*
+    完成，块的跳转和 PHI 合并将在所有块的 _woort_IRBlock_commit_codes 完成之后执行。
+    */
+    return true;
 }
 
 /*
