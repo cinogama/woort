@@ -752,7 +752,7 @@ static size_t _bitset_popcount(const woort_Bitset* bs)
  *
  * 构建完 idom 后，用 BFS 从 entry 出发计算 m_dom_depth。
  */
-static void _build_dominator_tree(
+static bool _build_dominator_tree(
     woort_IRFunction* f,
     _woort_DominatorInfo* dom_info,
     woort_HashMap* block_index_map,
@@ -805,7 +805,10 @@ static void _build_dominator_tree(
 
         B->m_idom = idom;
         if (idom != NULL)
-            woort_vector_push_back(&idom->m_dom_children, 1, &B);
+        {
+            if (!woort_vector_push_back(&idom->m_dom_children, 1, &B))
+                return false;
+        }
     }
 
     /* Phase 2: BFS 计算 m_dom_depth */
@@ -813,7 +816,11 @@ static void _build_dominator_tree(
 
     woort_Vector bfs_queue;
     woort_vector_init(&bfs_queue, sizeof(woort_IRBlock*));
-    woort_vector_push_back(&bfs_queue, 1, &entry);
+    if (!woort_vector_push_back(&bfs_queue, 1, &entry))
+    {
+        woort_vector_deinit(&bfs_queue);
+        return false;
+    }
 
     size_t front = 0;
     while (front < bfs_queue.m_size)
@@ -825,16 +832,21 @@ static void _build_dominator_tree(
         {
             woort_IRBlock* child = *(woort_IRBlock**)woort_vector_at(&cur->m_dom_children, i);
             child->m_dom_depth = cur->m_dom_depth + 1;
-            woort_vector_push_back(&bfs_queue, 1, &child);
+            if (!woort_vector_push_back(&bfs_queue, 1, &child))
+            {
+                woort_vector_deinit(&bfs_queue);
+                return false;
+            }
         }
     }
 
     woort_vector_deinit(&bfs_queue);
+    return true;
 }
 
 /* ========== 循环检测 ========== */
 
-static void _mark_loop_blocks(
+static bool _mark_loop_blocks(
     woort_IRBlock* header,
     woort_IRBlock* back_edge_src)
 {
@@ -842,14 +854,18 @@ static void _mark_loop_blocks(
     header->m_loop_header = header;
 
     if (back_edge_src == header)
-        return;
+        return true;
 
     woort_Vector worklist;
     woort_vector_init(&worklist, sizeof(woort_IRBlock*));
 
     back_edge_src->m_is_in_loop = true;
     back_edge_src->m_loop_header = header;
-    woort_vector_push_back(&worklist, 1, &back_edge_src);
+    if (!woort_vector_push_back(&worklist, 1, &back_edge_src))
+    {
+        woort_vector_deinit(&worklist);
+        return false;
+    }
 
     while (worklist.m_size > 0)
     {
@@ -864,18 +880,23 @@ static void _mark_loop_blocks(
             {
                 pred->m_is_in_loop = true;
                 pred->m_loop_header = header;
-                woort_vector_push_back(&worklist, 1, &pred);
+                if (!woort_vector_push_back(&worklist, 1, &pred))
+                {
+                    woort_vector_deinit(&worklist);
+                    return false;
+                }
             }
         }
     }
 
     woort_vector_deinit(&worklist);
+    return true;
 }
 
 /*
  * 检测 back-edge (B -> S 且 S 支配 B) 来识别自然循环。
  */
-static void _detect_loops(
+static bool _detect_loops(
     woort_IRFunction* f,
     _woort_DominatorInfo* dom_info,
     woort_HashMap* block_index_map)
@@ -898,10 +919,13 @@ static void _detect_loops(
             /* S 支配 B => B->S 是 back-edge */
             if (woort_bitset_test(&dom_info->m_dom_sets[B_idx], S_idx))
             {
-                _mark_loop_blocks(S, B);
+                if (!_mark_loop_blocks(S, B))
+                    return false;
             }
         }
     }
+
+    return true;
 }
 
 /* ========== 常量加载放置 ========== */
@@ -1456,9 +1480,18 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
         {
             if (_compute_dominators(f, &dom_info, &block_index_map, block_count))
             {
-                _build_dominator_tree(f, &dom_info, &block_index_map,
-                                      index_to_block, block_count);
-                _detect_loops(f, &dom_info, &block_index_map);
+                if (!_build_dominator_tree(f, &dom_info, &block_index_map,
+                                           index_to_block, block_count))
+                {
+                    _dominator_info_deinit(&dom_info);
+                    goto fail_after_liveness;
+                }
+
+                if (!_detect_loops(f, &dom_info, &block_index_map))
+                {
+                    _dominator_info_deinit(&dom_info);
+                    goto fail_after_liveness;
+                }
 
                 /* =============================================================
                  *  Phase 6: 常量加载放置
@@ -1481,7 +1514,11 @@ WOORT_NODISCARD size_t woort_IRFunction_stack_slot_assign(woort_IRFunction* f)
 
                     if (loading_block != NULL)
                     {
-                        woort_vector_push_back(&loading_block->m_loading_constants, 1, &v);
+                        if (!woort_vector_push_back(&loading_block->m_loading_constants, 1, &v))
+                        {
+                            _dominator_info_deinit(&dom_info);
+                            goto fail_after_liveness;
+                        }
                     }
                 }
             }
