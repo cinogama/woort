@@ -141,6 +141,8 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_PUSHIDXSTBOXB,
     WOORT_IROP_KIND_PUSHIDXSTBOXX,
 
+    WOORT_IROP_KIND_count,
+
 } woort_IROp_Kind;
 
 struct woort_IROp

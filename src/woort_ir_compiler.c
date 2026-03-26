@@ -71,6 +71,53 @@ WOORT_NODISCARD bool _woort_IRBlock_load_value_storage16(
     int16_t temp_slot_idx,
     int16_t* storage_16)
 {
+    assert(temp_slot_idx == -126 || temp_slot_idx == -127 || temp_slot_idx == -128);
+    assert(v->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN);
+
+    int32_t fact_value_assigned_stack_offset = v->m_assigned_stack_offset;
+    if (fact_value_assigned_stack_offset <= -126)
+        // Make shift.
+        fact_value_assigned_stack_offset -= 3;
+
+    if (fact_value_assigned_stack_offset < INT16_MIN
+        || fact_value_assigned_stack_offset > INT16_MAX)
+    {
+        if (!_woort_IRBlock_emit_bytecode_ext(b,
+            woort_OpCode_MOVLDEXT(temp_slot_idx),
+            (uint32_t)fact_value_assigned_stack_offset))
+        {
+            return false;
+        }
+        *storage_16 = temp_slot_idx;
+    }
+    else
+        *storage_16 = fact_value_assigned_stack_offset;
+
+    return true;
+}
+
+typedef bool (*_woort_IRBlock_CommitCallback)(woort_IRBlock* b, woort_IROp* op);
+
+WOORT_NODISCARD bool _woort_IRBlock_commit_LOAD(woort_IRBlock* b, woort_IROp* op)
+{
+    // TODO;
+    abort();
+    return false;
+}
+
+WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b)
+{
+    const _woort_IRBlock_CommitCallback ir_op_commit_callbacks[WOORT_IROP_KIND_count] = 
+    {
+
+    };
+
+    for (woort_IROp* ir_op = woort_linklist_iter(&b->m_operates);
+        ir_op != NULL;
+        ir_op = woort_linklist_next(ir_op))
+    {
+        assert(ir_op->m_op >= 0 && ir_op->m_op < WOORT_IROP_KIND_count);
+    }
 }
 
 /*
@@ -83,5 +130,24 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f)
     if (!_woort_IRFunction_stack_slot_assign(f, &used_function_stack_slot_count))
         return false;
 
+    // 开始提交代码
+    // 向函数的起始块开头提交 PUSHRCHK 指令
+    woort_IRBlock* const entry_block = woort_IRFunction_entry_block(f);
 
+    // TODO: 应该……用不到 U24 那么多栈空间罢
+    if (!_woort_IRBlock_emit_bytecode(
+        entry_block, woort_OpCode_PUSHRCHK(used_function_stack_slot_count)))
+    {
+        return false;
+    }
+
+    for (woort_IRBlock* b = woort_linklist_iter(&f->m_ir_blocks);
+        b != NULL;
+        b = woort_linklist_next(b))
+    {
+        if (!_woort_IRBlock_commit_codes(b))
+        {
+            return false;
+        }
+    }
 }
