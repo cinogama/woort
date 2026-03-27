@@ -1452,36 +1452,40 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ADDI(woort_IRBlock* b, woort_IROp* op
     */
     (void)c;
 
-    const int32_t r0 = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
-    const int32_t r1 = _woort_IR_get_fact_stack_storage(op->m_r[1]->m_assigned_stack_offset);
-    const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
-
-    /* 检查是否可以使用 CADDI: 目标 == 右操作数 */
-    if (w == r1 && r1 >= INT16_MIN && r1 <= INT16_MAX)
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
     {
-        int8_t a8;
-        if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -126, &a8))
-            return false;
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
 
-        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_CADDI(a8, (int16_t)r1)))
-            return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CADDI(r, write_aim));
+        }
+        else if (op->m_w->m_assigned_stack_offset == op->m_r[1]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+                return false;
 
-        return _woort_IRBlock_apply_store_value(b, op->m_w, (int16_t)r1);
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CADDI(r, write_aim));
+        }
     }
-
-    /* 使用普通 ADDI */
-    int8_t a8, b8;
-    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &a8))
+    
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
         return false;
-    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &b8))
-        return false;
-
-    const int8_t c8 = _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
-
-    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ADDI(a8, b8, c8)))
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
         return false;
 
-    return _woort_IRBlock_apply_store_value(b, op->m_w, c8);
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ADDI(r1, r2, w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SUBI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
