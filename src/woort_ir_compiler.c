@@ -1229,7 +1229,30 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_CALL(woort_IRBlock* b, woort_IROp* op
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MKCLOSURE(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    MKCLOSURE: 创建闭包
+    m_calln_target = 函数在常量区的索引 G[ex32]
+    m_argument_count = 捕获的值数量 (n10, 最大1023)
+    m_w = 返回值
+
+    生成字节码：
+    MKCLOSURE n10, bc16; ex32
+    */
+    (void)c;
+
+    assert(op->m_argument_count <= WOORT_UINT10_MAX);
+
+    const int16_t w16 =
+        _woort_IRBlock_get_place_to_store_value_storage16(
+            (woort_IRValue*)op->m_w, -128);
+
+    const uint32_t target = op->m_calln_target;
+
+    if (!_woort_IRBlock_emit_bytecode_ext(
+        b, woort_OpCode_MKCLOSURE(op->m_argument_count, w16), target))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MKVEC(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
