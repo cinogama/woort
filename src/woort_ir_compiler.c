@@ -143,13 +143,37 @@ WOORT_NODISCARD bool _woort_IRBlock_apply_store_value(
     woort_IRValue* v,
     int32_t storage)
 {
+    assert(v->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN);
+
     const int32_t fact_value_assigned_stack_offset =
         _woort_IR_get_fact_stack_storage(v->m_assigned_stack_offset);
 
+    /*
+    如果 storage 和实际栈偏移相同，说明指令已经直接写入了目标位置，
+    无需额外搬运。
+    */
     if (fact_value_assigned_stack_offset == storage)
         return true;
 
+    /*
+    storage 是临时槽（-126/-127/-128，一定在 S8 范围内），
+    需要将值从临时槽搬运到 v 的实际栈位置。
+    */
+    assert(storage == -126 || storage == -127 || storage == -128);
 
+    if (fact_value_assigned_stack_offset >= INT16_MIN
+        && fact_value_assigned_stack_offset <= INT16_MAX)
+    {
+        /* 目标在 S16 范围内，使用 MOVST [SB + bc16] = [SB + a8] */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_MOVST((int8_t)storage, (int16_t)fact_value_assigned_stack_offset));
+    }
+    else
+    {
+        /* 目标超出 S16 范围，使用 MOVSTEXT [SB + ex32] = [SB + bc16] */
+        return _woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_MOVSTEXT((int16_t)storage), (uint32_t)fact_value_assigned_stack_offset);
+    }
 }
 
 typedef bool (*_woort_IRBlock_CommitCallback)(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c);
@@ -320,7 +344,14 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_PUSHCHK(woort_IRBlock* b, woort_IROp*
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_POP(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    const int16_t w =
+        _woort_IRBlock_get_place_to_store_value_storage16(
+            op->m_w, -128);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_POPS(w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_POPR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -340,7 +371,53 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_POPRS(woort_IRBlock* b, woort_IROp* o
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_ITOR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    ITOR: 整数转实数
+    m_r[0] = 源值（整数），m_w = 目标值（实数）
+
+    ITORST (mode=0): [SB + a8(源)] -> [SB + bc16(目标)]   源S8, 目标S16
+    ITORLD (mode=1): [SB + bc16(源)] -> [SB + a8(目标)]   源S16, 目标S8
+
+    优先根据原始操作数范围选择变体，避免不必要的 MOV 搬运。
+    */
+
+    const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
+    const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+
+    if (r >= INT8_MIN && r <= INT8_MAX
+        && w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /* Case 1: 源在 S8，目标在 S16，使用 ITORST */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_ITORST((int8_t)r, (int16_t)w));
+    }
+    else if (w >= INT8_MIN && w <= INT8_MAX
+        && r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /* Case 2: 目标在 S8，源在 S16，使用 ITORLD */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_ITORLD((int8_t)w, (int16_t)r));
+    }
+    else
+    {
+        /*
+        Case 3: 源和目标都超出了 ITORST/ITORLD 能直接编码的范围，
+        需要借助临时槽搬运。将源搬入 S8 临时槽，使用 ITORST 写入 S16 临时槽，
+        再将结果搬出到目标。
+        */
+        int8_t r8;
+        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+            return false;
+
+        const int16_t w16 =
+            _woort_IRBlock_get_place_to_store_value_storage16(
+                (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ITORST(r8, w16)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    }
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_ITOS(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
