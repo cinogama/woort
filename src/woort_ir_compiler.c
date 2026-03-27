@@ -1069,7 +1069,6 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_CALLNWO(woort_IRBlock* b, woort_IROp*
             _woort_IRBlock_get_place_to_store_value_storage16(
                 (woort_IRValue*)op->m_w, -128);
 
-
         if (op->m_argument_count <= WOORT_UINT10_MAX)
         {
             if (!_woort_IRBlock_emit_bytecode(
@@ -1078,7 +1077,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_CALLNWO(woort_IRBlock* b, woort_IROp*
         }
         else
         {
-            assert(op->m_argument_count <= WOORT_UINT10_MAX);
+            assert(op->m_argument_count <= WOORT_UINT24_MAX);
 
             if (!_woort_IRBlock_emit_bytecode(
                 b, woort_OpCode_RESULT(0, w16)))
@@ -1106,11 +1105,135 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_CALLNWO(woort_IRBlock* b, woort_IROp*
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_CALLNFP(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    CALLNFP: 调用原生函数指针（NEAR 调用）
+    m_calln_target = 函数在常量区的索引 G[u26]
+    m_argument_count = 调用后需弹出的参数数量
+    m_w = 返回值接收（OPTIONAL，为 NULL 时不接收返回值）
+
+    生成字节码序列：
+    1. CALLNFP G[target]
+    2a. 有返回值: RESULT [SB + bc16], POP n10
+    2b. 无返回值: POPR n24
+    */
+
+    const uint32_t target = op->m_calln_target;
+    assert(target <= WOORT_UINT26_MAX);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_CALLNFP(target)))
+        return false;
+
+    if (op->m_w != NULL)
+    {
+        /*
+        有返回值：使用 RESULT 指令弹出参数并将返回值存入目标栈槽。
+        RESULT [SB + bc16], POP n10
+        n10 = 参数数量 (10位, 最大1023)
+        bc16 = 目标栈槽 (S16)
+        */
+        const int16_t w16 =
+            _woort_IRBlock_get_place_to_store_value_storage16(
+                (woort_IRValue*)op->m_w, -128);
+
+        if (op->m_argument_count <= WOORT_UINT10_MAX)
+        {
+            if (!_woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_RESULT(op->m_argument_count, w16)))
+                return false;
+        }
+        else
+        {
+            assert(op->m_argument_count <= WOORT_UINT24_MAX);
+
+            if (!_woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_RESULT(0, w16)))
+                return false;
+
+            if (!_woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_POPR(op->m_argument_count)))
+                return false;
+        }
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    }
+    else
+    {
+        /*
+        无返回值：使用 POPR 指令仅弹出参数。
+        POPR n24
+        */
+        assert(op->m_argument_count <= WOORT_UINT24_MAX);
+
+        return op->m_argument_count == 0
+            || _woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_POPR(op->m_argument_count));
+    }
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_CALLNJIT(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    CALLNJIT: 调用 JIT 编译函数（NEAR 调用）
+    m_calln_target = 函数在常量区的索引 G[u26]
+    m_argument_count = 调用后需弹出的参数数量
+    m_w = 返回值接收（OPTIONAL，为 NULL 时不接收返回值）
+
+    生成字节码序列：
+    1. CALLNJIT G[target]
+    2a. 有返回值: RESULT [SB + bc16], POP n10
+    2b. 无返回值: POPR n24
+    */
+
+    const uint32_t target = op->m_calln_target;
+    assert(target <= WOORT_UINT26_MAX);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_CALLNJIT(target)))
+        return false;
+
+    if (op->m_w != NULL)
+    {
+        /*
+        有返回值：使用 RESULT 指令弹出参数并将返回值存入目标栈槽。
+        RESULT [SB + bc16], POP n10
+        n10 = 参数数量 (10位, 最大1023)
+        bc16 = 目标栈槽 (S16)
+        */
+        const int16_t w16 =
+            _woort_IRBlock_get_place_to_store_value_storage16(
+                (woort_IRValue*)op->m_w, -128);
+
+        if (op->m_argument_count <= WOORT_UINT10_MAX)
+        {
+            if (!_woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_RESULT(op->m_argument_count, w16)))
+                return false;
+        }
+        else
+        {
+            assert(op->m_argument_count <= WOORT_UINT24_MAX);
+
+            if (!_woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_RESULT(0, w16)))
+                return false;
+
+            if (!_woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_POPR(op->m_argument_count)))
+                return false;
+        }
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    }
+    else
+    {
+        /*
+        无返回值：使用 POPR 指令仅弹出参数。
+        POPR n24
+        */
+        assert(op->m_argument_count <= WOORT_UINT24_MAX);
+
+        return op->m_argument_count == 0
+            || _woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_POPR(op->m_argument_count));
+    }
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_CALL(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
