@@ -178,8 +178,10 @@ WOORT_NODISCARD bool _woort_IRBlock_apply_store_value(
 
 typedef bool (*_woort_IRBlock_CommitCallback)(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c);
 
+#define WOORT_UINT10_MAX ((1u << 10) - 1)
 #define WOORT_UINT18_MAX ((1u << 18) - 1)
 #define WOORT_UINT24_MAX ((1u << 24) - 1)
+#define WOORT_UINT26_MAX ((1u << 26) - 1)
 
 WOORT_NODISCARD bool _woort_IRBlock_commit_LOAD_op(
     woort_IRBlock* b,
@@ -1037,7 +1039,56 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOR(woort_IRBlock* b, woort_IROp* op
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_CALLNWO(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    CALLNWO: 调用脚本函数（NEAR 调用）
+    m_calln_target = 函数在常量区的索引 G[u26]
+    m_argument_count = 调用后需弹出的参数数量
+    m_w = 返回值接收（OPTIONAL，为 NULL 时不接收返回值）
+
+    生成字节码序列：
+    1. CALLNWO G[target]
+    2a. 有返回值: RESULT [SB + bc16], POP n10
+    2b. 无返回值: POPR n24
+    */
+
+    const uint32_t target = op->m_calln_target;
+    assert(target <= WOORT_UINT26_MAX);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_CALLNWO(target)))
+        return false;
+
+    if (op->m_w != NULL)
+    {
+        /*
+        有返回值：使用 RESULT 指令弹出参数并将返回值存入目标栈槽。
+        RESULT [SB + bc16], POP n10
+        n10 = 参数数量 (10位, 最大1023)
+        bc16 = 目标栈槽 (S16)
+        */
+        assert(op->m_argument_count <= WOORT_UINT10_MAX);
+
+        const int16_t w16 =
+            _woort_IRBlock_get_place_to_store_value_storage16(
+                (woort_IRValue*)op->m_w, -128);
+
+        if (!_woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_RESULT(op->m_argument_count, w16)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    }
+    else
+    {
+        /*
+        无返回值：使用 POPR 指令仅弹出参数。
+        POPR n24
+        */
+        assert(op->m_argument_count <= WOORT_UINT24_MAX);
+
+        return op->m_argument_count == 0
+            || _woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_POPR(op->m_argument_count));
+    }
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_CALLNFP(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
