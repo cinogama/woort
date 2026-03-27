@@ -1065,15 +1065,29 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_CALLNWO(woort_IRBlock* b, woort_IROp*
         n10 = 参数数量 (10位, 最大1023)
         bc16 = 目标栈槽 (S16)
         */
-        assert(op->m_argument_count <= WOORT_UINT10_MAX);
-
         const int16_t w16 =
             _woort_IRBlock_get_place_to_store_value_storage16(
                 (woort_IRValue*)op->m_w, -128);
 
-        if (!_woort_IRBlock_emit_bytecode(
-            b, woort_OpCode_RESULT(op->m_argument_count, w16)))
-            return false;
+
+        if (op->m_argument_count <= WOORT_UINT10_MAX)
+        {
+            if (!_woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_RESULT(op->m_argument_count, w16)))
+                return false;
+        }
+        else
+        {
+            assert(op->m_argument_count <= WOORT_UINT10_MAX);
+
+            if (!_woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_RESULT(0, w16)))
+                return false;
+
+            if (!_woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_POPR(op->m_argument_count)))
+                return false;
+        }
 
         return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
     }
