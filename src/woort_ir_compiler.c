@@ -182,6 +182,7 @@ typedef bool (*_woort_IRBlock_CommitCallback)(woort_IRBlock* b, woort_IROp* op, 
 #define WOORT_UINT18_MAX ((1u << 18) - 1)
 #define WOORT_UINT24_MAX ((1u << 24) - 1)
 #define WOORT_UINT26_MAX ((1u << 26) - 1)
+#define WOORT_UINT8_MAX ((1u << 8) - 1)
 
 WOORT_NODISCARD bool _woort_IRBlock_commit_LOAD_op(
     woort_IRBlock* b,
@@ -1256,15 +1257,102 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_MKCLOSURE(woort_IRBlock* b, woort_IRO
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MKVEC(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    MKVEC: 构造向量
+    m_count = 元素数量 (n8, 最大255; 超过则使用 MKVECEXT + ex32)
+    m_w = 返回值
+
+    生成字节码：
+    MKVEC n8, bc16
+    或
+    MKVECEXT bc16; ex32
+    */
+    (void)c;
+
+    const int16_t w16 =
+        _woort_IRBlock_get_place_to_store_value_storage16(
+            (woort_IRValue*)op->m_w, -128);
+
+    if (op->m_count <= WOORT_UINT8_MAX)
+    {
+        if (!_woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_MKVEC(op->m_count, w16)))
+            return false;
+    }
+    else
+    {
+        if (!_woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_MKVECEXT(w16), op->m_count))
+            return false;
+    }
+
+    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MKMAP(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    MKMAP: 构造字典
+    m_count = 键值对数量 (n8, 最大255; 超过则使用 MKMAPEXT + ex32)
+    m_w = 返回值
+
+    生成字节码：
+    MKMAP n8, bc16
+    或
+    MKMAPEXT bc16; ex32
+    */
+    (void)c;
+
+    const int16_t w16 =
+        _woort_IRBlock_get_place_to_store_value_storage16(
+            (woort_IRValue*)op->m_w, -128);
+
+    if (op->m_count <= WOORT_UINT8_MAX)
+    {
+        if (!_woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_MKMAP(op->m_count, w16)))
+            return false;
+    }
+    else
+    {
+        if (!_woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_MKMAPEXT(w16), op->m_count))
+            return false;
+    }
+
+    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MKSTRUCT(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    MKSTRUCT: 构造结构体
+    m_count = 字段数量 (n8, 最大255; 超过则使用 MKSTRUCTEXT + ex32)
+    m_w = 返回值
+
+    生成字节码：
+    MKSTRUCT n8, bc16
+    或
+    MKSTRUCTEXT bc16; ex32
+    */
+    (void)c;
+
+    const int16_t w16 =
+        _woort_IRBlock_get_place_to_store_value_storage16(
+            (woort_IRValue*)op->m_w, -128);
+
+    if (op->m_count <= WOORT_UINT8_MAX)
+    {
+        if (!_woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_MKSTRUCT(op->m_count, w16)))
+            return false;
+    }
+    else
+    {
+        if (!_woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_MKSTRUCTEXT(w16), op->m_count))
+            return false;
+    }
+
+    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_BOXDYN(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
