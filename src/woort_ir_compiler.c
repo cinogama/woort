@@ -1441,7 +1441,47 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_PUSHBOXDYN(woort_IRBlock* b, woort_IR
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_ADDI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    ADDI: 整数加法
+    m_r[0] = 左操作数，m_r[1] = 右操作数，m_w = 目标
+
+    ADDI a8, b8, c8: [SB + a8] + [SB + b8] -> [SB + c8]
+    CADDI a8, bc16:  [SB + a8] + [SB + bc16] -> [SB + bc16] (复合加法)
+
+    如果目标与右操作数相同，且右操作数在 S16 范围内，使用 CADDI 优化。
+    */
+    (void)c;
+
+    const int32_t r0 = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
+    const int32_t r1 = _woort_IR_get_fact_stack_storage(op->m_r[1]->m_assigned_stack_offset);
+    const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+
+    /* 检查是否可以使用 CADDI: 目标 == 右操作数 */
+    if (w == r1 && r1 >= INT16_MIN && r1 <= INT16_MAX)
+    {
+        int8_t a8;
+        if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -126, &a8))
+            return false;
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_CADDI(a8, (int16_t)r1)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, op->m_w, (int16_t)r1);
+    }
+
+    /* 使用普通 ADDI */
+    int8_t a8, b8;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &a8))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &b8))
+        return false;
+
+    const int8_t c8 = _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ADDI(a8, b8, c8)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, c8);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SUBI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
