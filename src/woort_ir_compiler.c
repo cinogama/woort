@@ -34,7 +34,7 @@ WOORT_NODISCARD bool _woort_IRBlock_emit_bytecode_ext(woort_IRBlock* b, woort_By
 
 WOORT_NODISCARD bool _woort_IRBlock_load_value_storage8(
     woort_IRBlock* b,
-    woort_IRValue* v,
+    const woort_IRValue* v,
     int8_t temp_slot_idx,
     int8_t* storage_8)
 {
@@ -75,7 +75,7 @@ WOORT_NODISCARD bool _woort_IRBlock_load_value_storage8(
 
 WOORT_NODISCARD bool _woort_IRBlock_load_value_storage16(
     woort_IRBlock* b,
-    woort_IRValue* v,
+    const woort_IRValue* v,
     int8_t temp_slot_idx,
     int16_t* storage_16)
 {
@@ -103,7 +103,7 @@ WOORT_NODISCARD bool _woort_IRBlock_load_value_storage16(
 }
 
 WOORT_NODISCARD int8_t _woort_IRBlock_get_place_to_store_value_storage8(
-    woort_IRValue* v,
+    const woort_IRValue* v,
     int8_t temp_slot_idx)
 {
     assert(temp_slot_idx == -126 || temp_slot_idx == -127 || temp_slot_idx == -128);
@@ -121,7 +121,7 @@ WOORT_NODISCARD int8_t _woort_IRBlock_get_place_to_store_value_storage8(
 }
 
 WOORT_NODISCARD int16_t _woort_IRBlock_get_place_to_store_value_storage16(
-    woort_IRValue* v,
+    const woort_IRValue* v,
     int8_t temp_slot_idx)
 {
     assert(temp_slot_idx == -126 || temp_slot_idx == -127 || temp_slot_idx == -128);
@@ -140,7 +140,7 @@ WOORT_NODISCARD int16_t _woort_IRBlock_get_place_to_store_value_storage16(
 
 WOORT_NODISCARD bool _woort_IRBlock_apply_store_value(
     woort_IRBlock* b,
-    woort_IRValue* v,
+    const woort_IRValue* v,
     int32_t storage)
 {
     assert(v->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN);
@@ -415,12 +415,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOR(woort_IRBlock* b, woort_IROp* op
         源天然满足 ITORST 的 a8 要求，只需将目标搬入临时 S16 槽。
         */
         const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ITORST((int8_t)r, w16)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
     }
 
     if (w >= INT8_MIN && w <= INT8_MAX)
@@ -430,7 +430,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOR(woort_IRBlock* b, woort_IROp* op
         目标天然满足 ITORLD 的 a8 要求，只需将源搬入临时 S16 槽。
         */
         int16_t r16;
-        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+        if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r16))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -444,7 +444,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOR(woort_IRBlock* b, woort_IROp* op
         目标天然满足 ITORST 的 bc16 要求，只需将源搬入临时 S8 槽。
         */
         int8_t r8;
-        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -458,12 +458,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOR(woort_IRBlock* b, woort_IROp* op
         源天然满足 ITORLD 的 bc16 要求，只需将目标搬入临时 S8 槽。
         */
         const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ITORLD(w8, (int16_t)r)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w8);
     }
 
     /*
@@ -472,16 +472,16 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOR(woort_IRBlock* b, woort_IROp* op
     使用 ITORST 完成转换后再将结果搬回目标实际位置。
     */
     int8_t r8;
-    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
         return false;
 
     const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-        (woort_IRValue*)op->m_w, -127);
+        op->m_w, -127);
 
     if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ITORST(r8, w16)))
         return false;
 
-    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_ITOS(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -526,12 +526,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOS(woort_IRBlock* b, woort_IROp* op
         源天然满足 ITOSST 的 a8 要求，只需将目标搬入临时 S16 槽。
         */
         const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ITOSST((int8_t)r, w16)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
     }
 
     if (w >= INT8_MIN && w <= INT8_MAX)
@@ -541,7 +541,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOS(woort_IRBlock* b, woort_IROp* op
         目标天然满足 ITOSLD 的 a8 要求，只需将源搬入临时 S16 槽。
         */
         int16_t r16;
-        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+        if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r16))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -555,7 +555,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOS(woort_IRBlock* b, woort_IROp* op
         目标天然满足 ITOSST 的 bc16 要求，只需将源搬入临时 S8 槽。
         */
         int8_t r8;
-        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -569,12 +569,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOS(woort_IRBlock* b, woort_IROp* op
         源天然满足 ITOSLD 的 bc16 要求，只需将目标搬入临时 S8 槽。
         */
         const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ITOSLD(w8, (int16_t)r)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w8);
     }
 
     /*
@@ -583,16 +583,16 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOS(woort_IRBlock* b, woort_IROp* op
     使用 ITOSST 完成转换后再将结果搬回目标实际位置。
     */
     int8_t r8;
-    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
         return false;
 
     const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-        (woort_IRValue*)op->m_w, -127);
+        op->m_w, -127);
 
     if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ITOSST(r8, w16)))
         return false;
 
-    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_RTOI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -637,12 +637,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOI(woort_IRBlock* b, woort_IROp* op
         源天然满足 RTOIST 的 a8 要求，只需将目标搬入临时 S16 槽。
         */
         const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOIST((int8_t)r, w16)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
     }
 
     if (w >= INT8_MIN && w <= INT8_MAX)
@@ -652,7 +652,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOI(woort_IRBlock* b, woort_IROp* op
         目标天然满足 RTOILD 的 a8 要求，只需将源搬入临时 S16 槽。
         */
         int16_t r16;
-        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+        if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r16))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -666,7 +666,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOI(woort_IRBlock* b, woort_IROp* op
         目标天然满足 RTOIST 的 bc16 要求，只需将源搬入临时 S8 槽。
         */
         int8_t r8;
-        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -680,12 +680,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOI(woort_IRBlock* b, woort_IROp* op
         源天然满足 RTOILD 的 bc16 要求，只需将目标搬入临时 S8 槽。
         */
         const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOILD(w8, (int16_t)r)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w8);
     }
 
     /*
@@ -694,16 +694,16 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOI(woort_IRBlock* b, woort_IROp* op
     使用 RTOIST 完成转换后再将结果搬回目标实际位置。
     */
     int8_t r8;
-    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
         return false;
 
     const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-        (woort_IRValue*)op->m_w, -127);
+        op->m_w, -127);
 
     if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOIST(r8, w16)))
         return false;
 
-    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_RTOS(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -748,12 +748,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOS(woort_IRBlock* b, woort_IROp* op
         源天然满足 RTOSST 的 a8 要求，只需将目标搬入临时 S16 槽。
         */
         const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOSST((int8_t)r, w16)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
     }
 
     if (w >= INT8_MIN && w <= INT8_MAX)
@@ -763,7 +763,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOS(woort_IRBlock* b, woort_IROp* op
         目标天然满足 RTOSLD 的 a8 要求，只需将源搬入临时 S16 槽。
         */
         int16_t r16;
-        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+        if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r16))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -777,7 +777,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOS(woort_IRBlock* b, woort_IROp* op
         目标天然满足 RTOSST 的 bc16 要求，只需将源搬入临时 S8 槽。
         */
         int8_t r8;
-        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -791,12 +791,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOS(woort_IRBlock* b, woort_IROp* op
         源天然满足 RTOSLD 的 bc16 要求，只需将目标搬入临时 S8 槽。
         */
         const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOSLD(w8, (int16_t)r)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w8);
     }
 
     /*
@@ -805,16 +805,16 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOS(woort_IRBlock* b, woort_IROp* op
     使用 RTOSST 完成转换后再将结果搬回目标实际位置。
     */
     int8_t r8;
-    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
         return false;
 
     const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-        (woort_IRValue*)op->m_w, -127);
+        op->m_w, -127);
 
     if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOSST(r8, w16)))
         return false;
 
-    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_STOI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -859,12 +859,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOI(woort_IRBlock* b, woort_IROp* op
         源天然满足 STOIST 的 a8 要求，只需将目标搬入临时 S16 槽。
         */
         const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STOIST((int8_t)r, w16)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
     }
 
     if (w >= INT8_MIN && w <= INT8_MAX)
@@ -874,7 +874,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOI(woort_IRBlock* b, woort_IROp* op
         目标天然满足 STOILD 的 a8 要求，只需将源搬入临时 S16 槽。
         */
         int16_t r16;
-        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+        if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r16))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -888,7 +888,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOI(woort_IRBlock* b, woort_IROp* op
         目标天然满足 STOIST 的 bc16 要求，只需将源搬入临时 S8 槽。
         */
         int8_t r8;
-        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -902,12 +902,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOI(woort_IRBlock* b, woort_IROp* op
         源天然满足 STOILD 的 bc16 要求，只需将目标搬入临时 S8 槽。
         */
         const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STOILD(w8, (int16_t)r)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w8);
     }
 
     /*
@@ -916,16 +916,16 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOI(woort_IRBlock* b, woort_IROp* op
     使用 STOIST 完成转换后再将结果搬回目标实际位置。
     */
     int8_t r8;
-    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
         return false;
 
     const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-        (woort_IRValue*)op->m_w, -127);
+        op->m_w, -127);
 
     if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STOIST(r8, w16)))
         return false;
 
-    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_STOR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -970,12 +970,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOR(woort_IRBlock* b, woort_IROp* op
         源天然满足 STORST 的 a8 要求，只需将目标搬入临时 S16 槽。
         */
         const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STORST((int8_t)r, w16)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
     }
 
     if (w >= INT8_MIN && w <= INT8_MAX)
@@ -985,7 +985,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOR(woort_IRBlock* b, woort_IROp* op
         目标天然满足 STORLD 的 a8 要求，只需将源搬入临时 S16 槽。
         */
         int16_t r16;
-        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+        if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r16))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -999,7 +999,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOR(woort_IRBlock* b, woort_IROp* op
         目标天然满足 STORST 的 bc16 要求，只需将源搬入临时 S8 槽。
         */
         int8_t r8;
-        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
             return false;
 
         return _woort_IRBlock_emit_bytecode(
@@ -1013,12 +1013,12 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOR(woort_IRBlock* b, woort_IROp* op
         源天然满足 STORLD 的 bc16 要求，只需将目标搬入临时 S8 槽。
         */
         const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
-            (woort_IRValue*)op->m_w, -127);
+            op->m_w, -127);
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STORLD(w8, (int16_t)r)))
             return false;
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w8);
     }
 
     /*
@@ -1027,16 +1027,16 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOR(woort_IRBlock* b, woort_IROp* op
     使用 STORST 完成转换后再将结果搬回目标实际位置。
     */
     int8_t r8;
-    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r8))
         return false;
 
     const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
-        (woort_IRValue*)op->m_w, -127);
+        op->m_w, -127);
 
     if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STORST(r8, w16)))
         return false;
 
-    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
 }
 WOORT_NODISCARD static bool _woort_IRBlock_commit_CALLN_common(
     woort_IRBlock* b,
@@ -1056,7 +1056,7 @@ WOORT_NODISCARD static bool _woort_IRBlock_commit_CALLN_common(
         */
         const int16_t w16 =
             _woort_IRBlock_get_place_to_store_value_storage16(
-                (woort_IRValue*)op->m_w, -128);
+                op->m_w, -128);
 
         if (op->m_argument_count <= WOORT_UINT10_MAX)
         {
@@ -1077,7 +1077,7 @@ WOORT_NODISCARD static bool _woort_IRBlock_commit_CALLN_common(
                 return false;
         }
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
     }
     else
     {
@@ -1174,7 +1174,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_CALL(woort_IRBlock* b, woort_IROp* op
     if (op->m_r[0]->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN)
     {
         int16_t f16;
-        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &f16))
+        if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &f16))
             return false;
 
         if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_CALLS(f16)))
@@ -1196,7 +1196,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_CALL(woort_IRBlock* b, woort_IROp* op
     {
         const int16_t w16 =
             _woort_IRBlock_get_place_to_store_value_storage16(
-                (woort_IRValue*)op->m_w, -128);
+                op->m_w, -128);
 
         if (op->m_argument_count <= WOORT_UINT10_MAX)
         {
@@ -1217,7 +1217,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_CALL(woort_IRBlock* b, woort_IROp* op
                 return false;
         }
 
-        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+        return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
     }
     else
     {
@@ -1245,7 +1245,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_MKCLOSURE(woort_IRBlock* b, woort_IRO
 
     const int16_t w16 =
         _woort_IRBlock_get_place_to_store_value_storage16(
-            (woort_IRValue*)op->m_w, -128);
+            op->m_w, -128);
 
     const uint32_t target = op->m_calln_target;
 
@@ -1253,7 +1253,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_MKCLOSURE(woort_IRBlock* b, woort_IRO
         b, woort_OpCode_MKCLOSURE(op->m_argument_count, w16), target))
         return false;
 
-    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MKVEC(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -1271,7 +1271,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_MKVEC(woort_IRBlock* b, woort_IROp* o
 
     const int16_t w16 =
         _woort_IRBlock_get_place_to_store_value_storage16(
-            (woort_IRValue*)op->m_w, -128);
+            op->m_w, -128);
 
     if (op->m_count <= WOORT_UINT8_MAX)
     {
@@ -1286,7 +1286,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_MKVEC(woort_IRBlock* b, woort_IROp* o
             return false;
     }
 
-    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MKMAP(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -1304,7 +1304,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_MKMAP(woort_IRBlock* b, woort_IROp* o
 
     const int16_t w16 =
         _woort_IRBlock_get_place_to_store_value_storage16(
-            (woort_IRValue*)op->m_w, -128);
+            op->m_w, -128);
 
     if (op->m_count <= WOORT_UINT8_MAX)
     {
@@ -1319,7 +1319,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_MKMAP(woort_IRBlock* b, woort_IROp* o
             return false;
     }
 
-    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MKSTRUCT(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -1337,7 +1337,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_MKSTRUCT(woort_IRBlock* b, woort_IROp
 
     const int16_t w16 =
         _woort_IRBlock_get_place_to_store_value_storage16(
-            (woort_IRValue*)op->m_w, -128);
+            op->m_w, -128);
 
     if (op->m_count <= WOORT_UINT8_MAX)
     {
@@ -1352,23 +1352,92 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_MKSTRUCT(woort_IRBlock* b, woort_IROp
             return false;
     }
 
-    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_BOXDYN(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    BOXDYN: 将值装箱为动态类型
+    m_r[0] = 源值，m_w = 目标值，m_type = 类型
+
+    BOXDYN t8, b8, c8: [SB + b8] -> [SB + c8]
+    源和目标都必须在 S8 范围内
+    */
+    (void)c;
+
+    int8_t r;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+        return false;
+
+    const int8_t w = 
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -127);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_BOXDYN(op->m_type, r, w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_UNBOXDYN(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    UNBOXDYN: 将动态类型拆箱为指定类型
+    m_r[0] = 源值，m_w = 目标值，m_type = 类型
+
+    UNBOXDYN t8, b8, c8: [SB + b8] -> [SB + c8]
+    源和目标都必须在 S8 范围内
+    */
+    (void)c;
+
+    int8_t r;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+        return false;
+
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -127);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_UNBOXDYN(op->m_type, r, w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_CHECKDYN(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    CHECKDYN: 检查动态类型是否为指定类型
+    m_r[0] = 源值，m_w = 目标值，m_type = 类型
+
+    CHECKDYN t8, b8, c8: [SB + b8] -> [SB + c8]
+    源和目标都必须在 S8 范围内
+    */
+    (void)c;
+
+    int8_t r;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+        return false;
+
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -127);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_CHECKDYN(op->m_type, r, w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_PUSHBOXDYN(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    PUSHBOXDYN: 将值装箱为动态类型并压栈
+    m_r[0] = 源值，m_type = 类型
+
+    PUSHBOXDYN t8, bc16: [SB + bc16] 装箱并压栈
+    */
+    (void)c;
+
+    int16_t r;
+    if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r))
+        return false;
+
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_PUSHBOXDYN(op->m_type, r));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_ADDI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
