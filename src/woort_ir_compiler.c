@@ -76,7 +76,7 @@ WOORT_NODISCARD bool _woort_IRBlock_load_value_storage8(
 WOORT_NODISCARD bool _woort_IRBlock_load_value_storage16(
     woort_IRBlock* b,
     woort_IRValue* v,
-    int16_t temp_slot_idx,
+    int8_t temp_slot_idx,
     int16_t* storage_16)
 {
     assert(temp_slot_idx == -126 || temp_slot_idx == -127 || temp_slot_idx == -128);
@@ -102,25 +102,221 @@ WOORT_NODISCARD bool _woort_IRBlock_load_value_storage16(
     return true;
 }
 
+WOORT_NODISCARD int8_t _woort_IRBlock_get_place_to_store_value_storage8(
+    woort_IRValue* v,
+    int8_t temp_slot_idx)
+{
+    assert(temp_slot_idx == -126 || temp_slot_idx == -127 || temp_slot_idx == -128);
+    assert(v->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN);
+
+    const int32_t fact_value_assigned_stack_offset =
+        _woort_IR_get_fact_stack_storage(v->m_assigned_stack_offset);
+
+    if (fact_value_assigned_stack_offset < INT8_MIN
+        || fact_value_assigned_stack_offset > INT8_MAX)
+    {
+        return temp_slot_idx;
+    }
+    return fact_value_assigned_stack_offset;
+}
+
+WOORT_NODISCARD int16_t _woort_IRBlock_get_place_to_store_value_storage16(
+    woort_IRValue* v,
+    int8_t temp_slot_idx)
+{
+    assert(temp_slot_idx == -126 || temp_slot_idx == -127 || temp_slot_idx == -128);
+    assert(v->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN);
+
+    const int32_t fact_value_assigned_stack_offset =
+        _woort_IR_get_fact_stack_storage(v->m_assigned_stack_offset);
+
+    if (fact_value_assigned_stack_offset < INT16_MIN
+        || fact_value_assigned_stack_offset > INT16_MAX)
+    {
+        return temp_slot_idx;
+    }
+    return fact_value_assigned_stack_offset;
+}
+
+WOORT_NODISCARD bool _woort_IRBlock_apply_store_value(
+    woort_IRBlock* b,
+    woort_IRValue* v,
+    int32_t storage)
+{
+    const int32_t fact_value_assigned_stack_offset =
+        _woort_IR_get_fact_stack_storage(v->m_assigned_stack_offset);
+
+    if (fact_value_assigned_stack_offset == storage)
+        return true;
+
+
+}
+
 typedef bool (*_woort_IRBlock_CommitCallback)(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c);
 
 #define WOORT_UINT18_MAX ((1u << 18) - 1)
 #define WOORT_UINT24_MAX ((1u << 24) - 1)
 
+WOORT_NODISCARD bool _woort_IRBlock_commit_LOAD_op(
+    woort_IRBlock* b,
+    int32_t fact_stack_slot,
+    uint32_t constant_storage)
+{
+    bool loading_result = false;
+
+    if ((fact_stack_slot >= INT8_MIN && fact_stack_slot <= INT8_MAX)
+        && constant_storage <= WOORT_UINT18_MAX)
+    {
+        /*
+        Case 1: 栈槽在 S8 范围内，常量索引在 U18 范围内
+        使用 LOAD [SB + c8] = G[mab18] 单条紧凑指令完成加载
+        */
+        loading_result = _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_LOAD(constant_storage, fact_stack_slot));
+    }
+    else if (fact_stack_slot >= INT16_MIN && fact_stack_slot <= INT16_MAX)
+    {
+        /*
+        Case 2: 栈槽在 S16 范围内（包括 S8 但常量索引超过 U18 的情况）
+        使用 LOADEX [SB + bc16] = G[ex32] 扩展指令完成加载
+        */
+        loading_result = _woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_LOADEX(fact_stack_slot), (uint32_t)constant_storage);
+    }
+    else if (constant_storage <= WOORT_UINT18_MAX)
+    {
+        /*
+        Case 3: 栈槽超出 S16 范围，但常量索引在 U18 范围内
+        先用 LOAD [SB + -128] = G[mab18] 加载到临时槽
+        再用 MOVSTEXT [SB + ex32] = [SB + -128] 移动到目标槽
+        */
+        loading_result = _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_LOAD(constant_storage, -128));
+        loading_result = loading_result && _woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_MOVSTEXT(-128), (uint32_t)fact_stack_slot);
+    }
+    else
+    {
+        /*
+        Case 4: 栈槽超出 S16 范围，常量索引也超出 U18 范围
+        先用 LOADEX [SB + -128] = G[ex32] 加载到临时槽
+        再用 MOVSTEXT [SB + ex32] = [SB + -128] 移动到目标槽
+        */
+        loading_result = _woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_LOADEX(-128), constant_storage);
+        loading_result = loading_result && _woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_MOVSTEXT(-128), (uint32_t)fact_stack_slot);
+    }
+
+    return loading_result;
+}
+WOORT_NODISCARD bool _woort_IRBlock_commit_STORE_op(
+    woort_IRBlock* b,
+    int32_t fact_stack_slot,
+    uint32_t constant_storage)
+{
+    bool storing_result = false;
+
+    if ((fact_stack_slot >= INT8_MIN && fact_stack_slot <= INT8_MAX)
+        && constant_storage <= WOORT_UINT18_MAX)
+    {
+        /*
+        Case 1: 栈槽在 S8 范围内，常量索引在 U18 范围内
+        使用 STORE G[mab18] = [SB + c8] 单条紧凑指令完成存储
+        */
+        storing_result = _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_STORE(constant_storage, fact_stack_slot));
+    }
+    else if (fact_stack_slot >= INT16_MIN && fact_stack_slot <= INT16_MAX)
+    {
+        /*
+        Case 2: 栈槽在 S16 范围内（包括 S8 但常量索引超过 U18 的情况）
+        使用 STOREEX G[ex32] = [SB + bc16] 扩展指令完成存储
+        */
+        storing_result = _woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_STOREEX(fact_stack_slot), constant_storage);
+    }
+    else if (constant_storage <= WOORT_UINT18_MAX)
+    {
+        /*
+        Case 3: 栈槽超出 S16 范围，但常量索引在 U18 范围内
+        先用 MOVLDEXT [SB + -128] = [SB + ex32] 将源值移动到临时槽
+        再用 STORE G[mab18] = [SB + -128] 从临时槽存储到全局
+        */
+        storing_result = _woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_MOVLDEXT(-128), (uint32_t)fact_stack_slot);
+        storing_result = storing_result && _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_STORE(constant_storage, -128));
+    }
+    else
+    {
+        /*
+        Case 4: 栈槽超出 S16 范围，常量索引也超出 U18 范围
+        先用 MOVLDEXT [SB + -128] = [SB + ex32] 将源值移动到临时槽
+        再用 STOREEX G[ex32] = [SB + -128] 从临时槽存储到全局
+        */
+        storing_result = _woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_MOVLDEXT(-128), (uint32_t)fact_stack_slot);
+        storing_result = storing_result && _woort_IRBlock_emit_bytecode_ext(
+            b, woort_OpCode_STOREEX(-128), constant_storage);
+    }
+
+    return storing_result;
+}
+
 WOORT_NODISCARD bool _woort_IRBlock_commit_LOAD(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
     /*
-    NOTE:
+    NOTE: IR-Operate 的 LOAD & STORE 是用于处理静态存储的，不需要考虑常量
     */
-    abort();
+    const uint32_t storage_place = op->m_static_index + c->m_constant_alloc_count;
+    const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+
+    return _woort_IRBlock_commit_LOAD_op(b, w, storage_place);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_STORE(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    NOTE: IR-Operate 的 LOAD & STORE 是用于处理静态存储的，不需要考虑常量
+    STORE 从栈槽 (m_r[0]) 读取值，写入静态存储 (m_static_index)
+    */
+    const uint32_t storage_place = op->m_static_index + c->m_constant_alloc_count;
+    const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
+
+    return _woort_IRBlock_commit_STORE_op(b, r, storage_place);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_PUSHCHK(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    if (op->m_r[0]->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN)
+    {
+        // Have stack slot, use PUSHSCHK
+        int16_t r;
+        if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r))
+            return false;
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_PUSHSCHK(r)))
+            return false;
+    }
+    else
+    {
+        // Use PUSHCCHK
+        assert(op->m_r[0]->m_source == WOORT_IRVALUE_SOURCE_CONSTANT
+            && !op->m_r[0]->m_constant_need_stack_slot);
+
+        if (op->m_r[0]->m_constant <= WOORT_UINT24_MAX)
+        {
+            if (!_woort_IRBlock_emit_bytecode(
+                b, woort_OpCode_PUSHCCHK(op->m_r[0]->m_constant)))
+                return false;
+        }
+        else
+        {
+            if (!_woort_IRBlock_emit_bytecode_ext(
+                b, woort_OpCode_PUSHCCHKEXT(), (uint32_t)op->m_r[0]->m_constant))
+                return false;
+        }
+    }
+    return true;
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_POP(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -128,11 +324,19 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_POP(woort_IRBlock* b, woort_IROp* op,
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_POPR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    assert(op->m_count <= WOORT_UINT24_MAX);
+
+    return _woort_IRBlock_emit_bytecode(
+        b, woort_OpCode_POPR(op->m_count));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_POPRS(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    int16_t r;
+    if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r))
+        return false;
+
+    return _woort_IRBlock_emit_bytecode(
+        b, woort_OpCode_POPRS(r));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_ITOR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -690,7 +894,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
             entry_record != NULL;
             entry_record = woort_linklist_next(&phi->m_records))
         {
-            assert(phi->m_phi_value->m_assigned_stack_offset 
+            assert(phi->m_phi_value->m_assigned_stack_offset
                 == entry_record->m_value->m_constant_need_stack_slot);
         }
     }
@@ -710,53 +914,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
         const int32_t constant_fact_stack_slot =
             _woort_IR_get_fact_stack_storage(loading_constant->m_assigned_stack_offset);
 
-        bool loading_result = false;
-
-        if ((constant_fact_stack_slot >= INT8_MIN && constant_fact_stack_slot <= INT8_MAX)
-            && loading_constant->m_constant <= WOORT_UINT18_MAX)
-        {
-            /*
-            Case 1: 栈槽在 S8 范围内，常量索引在 U18 范围内
-            使用 LOAD [SB + c8] = G[mab18] 单条紧凑指令完成加载
-            */
-            loading_result = _woort_IRBlock_emit_bytecode(
-                b, woort_OpCode_LOAD(loading_constant->m_constant, constant_fact_stack_slot));
-        }
-        else if (constant_fact_stack_slot >= INT16_MIN && constant_fact_stack_slot <= INT16_MAX)
-        {
-            /*
-            Case 2: 栈槽在 S16 范围内（包括 S8 但常量索引超过 U18 的情况）
-            使用 LOADEX [SB + bc16] = G[ex32] 扩展指令完成加载
-            */
-            loading_result = _woort_IRBlock_emit_bytecode_ext(
-                b, woort_OpCode_LOADEX(constant_fact_stack_slot), (uint32_t)loading_constant->m_constant);
-        }
-        else if (loading_constant->m_constant <= WOORT_UINT18_MAX)
-        {
-            /*
-            Case 3: 栈槽超出 S16 范围，但常量索引在 U18 范围内
-            先用 LOAD [SB + -128] = G[mab18] 加载到临时槽
-            再用 MOVSTEXT [SB + ex32] = [SB + -128] 移动到目标槽
-            */
-            loading_result = _woort_IRBlock_emit_bytecode(
-                b, woort_OpCode_LOAD(loading_constant->m_constant, -128));
-            loading_result = loading_result && _woort_IRBlock_emit_bytecode_ext(
-                b, woort_OpCode_MOVSTEXT(-128), (uint32_t)constant_fact_stack_slot);
-        }
-        else
-        {
-            /*
-            Case 4: 栈槽超出 S16 范围，常量索引也超出 U18 范围
-            先用 LOADEX [SB + -128] = G[ex32] 加载到临时槽
-            再用 MOVSTEXT [SB + ex32] = [SB + -128] 移动到目标槽
-            */
-            loading_result = _woort_IRBlock_emit_bytecode_ext(
-                b, woort_OpCode_LOADEX(-128), loading_constant->m_constant);
-            loading_result = loading_result && _woort_IRBlock_emit_bytecode_ext(
-                b, woort_OpCode_MOVSTEXT(-128), (uint32_t)constant_fact_stack_slot);
-        }
-
-        if (!loading_result)
+        if (!_woort_IRBlock_commit_LOAD_op(b, constant_fact_stack_slot, loading_constant->m_constant))
             return false;
     }
 
@@ -794,8 +952,9 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
     woort_IRBlock* const entry_block = woort_IRFunction_entry_block(f);
 
     // TODO: 应该……用不到 U24 那么多栈空间罢
-    if (!_woort_IRBlock_emit_bytecode(
-        entry_block, woort_OpCode_PUSHRCHK(used_function_stack_slot_count)))
+    if (used_function_stack_slot_count != 0
+        && !_woort_IRBlock_emit_bytecode(
+            entry_block, woort_OpCode_PUSHRCHK(used_function_stack_slot_count)))
     {
         return false;
     }
