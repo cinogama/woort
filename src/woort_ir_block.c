@@ -171,8 +171,11 @@ WOORT_NODISCARD bool woort_IRPhi_from(
     if (!woort_linklist_emplace_back(&phi->m_records, (void**)&record))
         return false;
 
+    /*
+    NOTE: 如果一个常量值将被作为 PHI 的输入，那么应当为其分配一个栈槽
+    */
     record->m_from_block = from_block;
-    record->m_value = val;
+    record->m_value = woort_IRValue_ensure_constant_stack_slot(val);
 
     return true;
 }

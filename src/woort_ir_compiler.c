@@ -7,6 +7,7 @@
 #include "woort_opcode_builder.h"
 
 #include <assert.h>
+#include <stdlib.h>
 
 WOORT_NODISCARD int32_t _woort_IR_get_fact_stack_storage(int32_t place)
 {
@@ -23,12 +24,12 @@ WOORT_NODISCARD int32_t _woort_IR_get_fact_stack_storage(int32_t place)
 
 WOORT_NODISCARD bool _woort_IRBlock_emit_bytecode(woort_IRBlock* b, woort_Bytecode c)
 {
-    return woort_vector_push_back(b, 1, &c);
+    return woort_vector_push_back(&b->m_bytecodes_in_block, 1, &c);
 }
 WOORT_NODISCARD bool _woort_IRBlock_emit_bytecode_ext(woort_IRBlock* b, woort_Bytecode c, uint32_t ex)
 {
     const uint32_t cs[2] = { c, ex };
-    return woort_vector_push_back(b, 2, cs);
+    return woort_vector_push_back(&b->m_bytecodes_in_block, 2, cs);
 }
 
 WOORT_NODISCARD bool _woort_IRBlock_load_value_storage8(
@@ -676,6 +677,25 @@ _Static_assert(
 
 WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompiler* c)
 {
+#ifndef _NDEBUG
+    /*
+    STEP 0: 检查 PHI 节点的输入节点是否共享相同的栈槽
+    */
+    for (woort_IRPhi* phi = woort_linklist_iter(&b->m_phis);
+        phi != NULL;
+        phi = woort_linklist_next(&b->m_phis))
+    {
+        assert(phi->m_phi_value->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN);
+        for (woort_IRPhi_ReentryRecord* entry_record = woort_linklist_iter(&phi->m_records);
+            entry_record != NULL;
+            entry_record = woort_linklist_next(&phi->m_records))
+        {
+            assert(phi->m_phi_value->m_assigned_stack_offset 
+                == entry_record->m_value->m_constant_need_stack_slot);
+        }
+    }
+#endif
+
     /*
     STEP 1: 块起始时，先加载当前块所需载入的常量
     */
@@ -754,7 +774,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
     }
 
     /*
-    完成，块的跳转和 PHI 合并将在所有块的 _woort_IRBlock_commit_codes 完成之后执行。
+    完成，块的跳转将在所有块的 _woort_IRBlock_commit_codes 完成之后执行。
     */
     return true;
 }
@@ -789,6 +809,9 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
             return false;
         }
     }
+
+    // todo
+    abort();
 }
 
 void woort_IRCompiler_init(woort_IRCompiler* c)

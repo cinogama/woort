@@ -283,7 +283,6 @@ static bool _value_index_map_init(_woort_ValueIndexMap* map, size_t capacity)
     map->m_index_to_value = (woort_IRValue**)malloc(capacity * sizeof(woort_IRValue*));
     if (map->m_index_to_value == NULL)
     {
-        woort_hashmap_deinit(&map->m_value_to_index);
         return false;
     }
 
@@ -294,8 +293,10 @@ static bool _value_index_map_init(_woort_ValueIndexMap* map, size_t capacity)
 static void _value_index_map_deinit(_woort_ValueIndexMap* map)
 {
     woort_hashmap_deinit(&map->m_value_to_index);
-    free(map->m_index_to_value);
-    map->m_index_to_value = NULL;
+
+    if (map->m_index_to_value != NULL)
+        free(map->m_index_to_value);
+
     map->m_count = 0;
 }
 
@@ -1029,8 +1030,12 @@ WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
 
     _woort_ValueIndexMap idx_map;
     if (!_value_index_map_init(&idx_map, value_count))
+    {
+        _value_index_map_deinit(&idx_map);
         return false;
+    }
 
+    do
     {
         size_t idx = 0;
         for (woort_IRValue* v = woort_linklist_iter(&f->m_ir_values);
@@ -1047,7 +1052,7 @@ WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
                 idx++;
             }
         }
-    }
+    } while (0);
 
     /* 统计 block 数量 */
     size_t block_count = 0;
