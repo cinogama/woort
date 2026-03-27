@@ -1489,7 +1489,43 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ADDI(woort_IRBlock* b, woort_IROp* op
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SUBI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    SUBI: 整数减法
+    m_r[0] = 左操作数，m_r[1] = 右操作数，m_w = 目标
+
+    SUBI a8, b8, c8: [SB + a8] - [SB + b8] -> [SB + c8]
+    CSUBI a8, bc16:  [SB + a8] - [SB + bc16] -> [SB + bc16] (复合减法)
+
+    注意：减法不满足交换律，CSUBI 只在目标与右操作数相同时可优化。
+    */
+    (void)c;
+
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[1]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+                return false;
+
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CSUBI(r, write_aim));
+        }
+    }
+
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_SUBI(r1, r2, w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MULI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -1509,7 +1545,27 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_NEGI(woort_IRBlock* b, woort_IROp* op
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LTI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    LTI: 整数小于比较
+    m_r[0] = 左操作数，m_r[1] = 右操作数，m_w = 目标
+
+    LTI a8, b8, c8: [SB + a8] < [SB + b8] -> [SB + c8]
+    */
+    (void)c;
+
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LTI(r1, r2, w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_GTI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -2041,6 +2097,8 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
             return false;
         }
     }
+
+    // Ok, 当前函数的所有块已经提交，我们开始准备块的跳转
 
     // todo
     abort();
