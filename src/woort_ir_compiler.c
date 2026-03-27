@@ -482,23 +482,558 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOR(woort_IRBlock* b, woort_IROp* op
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_ITOS(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    ITOS: 整数转字符串
+    m_r[0] = 源值（整数），m_w = 目标值（字符串）
+
+    ITOSST (mode=2): [SB + a8(源)] -> [SB + bc16(目标)]   源S8, 目标S16
+    ITOSLD (mode=3): [SB + bc16(源)] -> [SB + a8(目标)]   源S16, 目标S8
+
+    优先根据原始操作数范围选择变体，避免不必要的 MOV 搬运。
+    */
+
+    const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
+    const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+
+    if (r >= INT8_MIN && r <= INT8_MAX
+        && w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /* Case 1: 源在 S8，目标在 S16，使用 ITOSST，无需搬运 */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_ITOSST((int8_t)r, (int16_t)w));
+    }
+
+    if (w >= INT8_MIN && w <= INT8_MAX
+        && r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /* Case 2: 目标在 S8，源在 S16，使用 ITOSLD，无需搬运 */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_ITOSLD((int8_t)w, (int16_t)r));
+    }
+
+    /*
+    Case 3: ITOSST / ITOSLD 均无法直接编码两个操作数，
+    需要根据各操作数的实际范围细分处理。
+    */
+
+    if (r >= INT8_MIN && r <= INT8_MAX)
+    {
+        /*
+        Case 3a: 源在 S8，目标超出 S16
+        源天然满足 ITOSST 的 a8 要求，只需将目标搬入临时 S16 槽。
+        */
+        const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
+            (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ITOSST((int8_t)r, w16)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    }
+
+    if (w >= INT8_MIN && w <= INT8_MAX)
+    {
+        /*
+        Case 3b: 目标在 S8，源超出 S16
+        目标天然满足 ITOSLD 的 a8 要求，只需将源搬入临时 S16 槽。
+        */
+        int16_t r16;
+        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+            return false;
+
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_ITOSLD((int8_t)w, r16));
+    }
+
+    if (w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /*
+        Case 3c: 目标在 S16（但不在 S8），源不在 S8
+        目标天然满足 ITOSST 的 bc16 要求，只需将源搬入临时 S8 槽。
+        */
+        int8_t r8;
+        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+            return false;
+
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_ITOSST(r8, (int16_t)w));
+    }
+
+    if (r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /*
+        Case 3d: 源在 S16（但不在 S8），目标超出 S16
+        源天然满足 ITOSLD 的 bc16 要求，只需将目标搬入临时 S8 槽。
+        */
+        const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
+            (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ITOSLD(w8, (int16_t)r)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+    }
+
+    /*
+    Case 3e: 源和目标均超出 S16
+    将源搬入临时 S8 槽，目标使用临时 S16 槽，
+    使用 ITOSST 完成转换后再将结果搬回目标实际位置。
+    */
+    int8_t r8;
+    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        return false;
+
+    const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
+        (woort_IRValue*)op->m_w, -127);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ITOSST(r8, w16)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_RTOI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    RTOI: 实数转整数
+    m_r[0] = 源值（实数），m_w = 目标值（整数）
+
+    RTOIST (mode=0): [SB + a8(源)] -> [SB + bc16(目标)]   源S8, 目标S16
+    RTOILD (mode=1): [SB + bc16(源)] -> [SB + a8(目标)]   源S16, 目标S8
+
+    优先根据原始操作数范围选择变体，避免不必要的 MOV 搬运。
+    */
+
+    const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
+    const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+
+    if (r >= INT8_MIN && r <= INT8_MAX
+        && w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /* Case 1: 源在 S8，目标在 S16，使用 RTOIST，无需搬运 */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_RTOIST((int8_t)r, (int16_t)w));
+    }
+
+    if (w >= INT8_MIN && w <= INT8_MAX
+        && r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /* Case 2: 目标在 S8，源在 S16，使用 RTOILD，无需搬运 */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_RTOILD((int8_t)w, (int16_t)r));
+    }
+
+    /*
+    Case 3: RTOIST / RTOILD 均无法直接编码两个操作数，
+    需要根据各操作数的实际范围细分处理。
+    */
+
+    if (r >= INT8_MIN && r <= INT8_MAX)
+    {
+        /*
+        Case 3a: 源在 S8，目标超出 S16
+        源天然满足 RTOIST 的 a8 要求，只需将目标搬入临时 S16 槽。
+        */
+        const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
+            (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOIST((int8_t)r, w16)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    }
+
+    if (w >= INT8_MIN && w <= INT8_MAX)
+    {
+        /*
+        Case 3b: 目标在 S8，源超出 S16
+        目标天然满足 RTOILD 的 a8 要求，只需将源搬入临时 S16 槽。
+        */
+        int16_t r16;
+        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+            return false;
+
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_RTOILD((int8_t)w, r16));
+    }
+
+    if (w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /*
+        Case 3c: 目标在 S16（但不在 S8），源不在 S8
+        目标天然满足 RTOIST 的 bc16 要求，只需将源搬入临时 S8 槽。
+        */
+        int8_t r8;
+        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+            return false;
+
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_RTOIST(r8, (int16_t)w));
+    }
+
+    if (r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /*
+        Case 3d: 源在 S16（但不在 S8），目标超出 S16
+        源天然满足 RTOILD 的 bc16 要求，只需将目标搬入临时 S8 槽。
+        */
+        const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
+            (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOILD(w8, (int16_t)r)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+    }
+
+    /*
+    Case 3e: 源和目标均超出 S16
+    将源搬入临时 S8 槽，目标使用临时 S16 槽，
+    使用 RTOIST 完成转换后再将结果搬回目标实际位置。
+    */
+    int8_t r8;
+    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        return false;
+
+    const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
+        (woort_IRValue*)op->m_w, -127);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOIST(r8, w16)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_RTOS(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    RTOS: 实数转字符串
+    m_r[0] = 源值（实数），m_w = 目标值（字符串）
+
+    RTOSST (mode=2): [SB + a8(源)] -> [SB + bc16(目标)]   源S8, 目标S16
+    RTOSLD (mode=3): [SB + bc16(源)] -> [SB + a8(目标)]   源S16, 目标S8
+
+    优先根据原始操作数范围选择变体，避免不必要的 MOV 搬运。
+    */
+
+    const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
+    const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+
+    if (r >= INT8_MIN && r <= INT8_MAX
+        && w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /* Case 1: 源在 S8，目标在 S16，使用 RTOSST，无需搬运 */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_RTOSST((int8_t)r, (int16_t)w));
+    }
+
+    if (w >= INT8_MIN && w <= INT8_MAX
+        && r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /* Case 2: 目标在 S8，源在 S16，使用 RTOSLD，无需搬运 */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_RTOSLD((int8_t)w, (int16_t)r));
+    }
+
+    /*
+    Case 3: RTOSST / RTOSLD 均无法直接编码两个操作数，
+    需要根据各操作数的实际范围细分处理。
+    */
+
+    if (r >= INT8_MIN && r <= INT8_MAX)
+    {
+        /*
+        Case 3a: 源在 S8，目标超出 S16
+        源天然满足 RTOSST 的 a8 要求，只需将目标搬入临时 S16 槽。
+        */
+        const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
+            (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOSST((int8_t)r, w16)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    }
+
+    if (w >= INT8_MIN && w <= INT8_MAX)
+    {
+        /*
+        Case 3b: 目标在 S8，源超出 S16
+        目标天然满足 RTOSLD 的 a8 要求，只需将源搬入临时 S16 槽。
+        */
+        int16_t r16;
+        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+            return false;
+
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_RTOSLD((int8_t)w, r16));
+    }
+
+    if (w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /*
+        Case 3c: 目标在 S16（但不在 S8），源不在 S8
+        目标天然满足 RTOSST 的 bc16 要求，只需将源搬入临时 S8 槽。
+        */
+        int8_t r8;
+        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+            return false;
+
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_RTOSST(r8, (int16_t)w));
+    }
+
+    if (r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /*
+        Case 3d: 源在 S16（但不在 S8），目标超出 S16
+        源天然满足 RTOSLD 的 bc16 要求，只需将目标搬入临时 S8 槽。
+        */
+        const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
+            (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOSLD(w8, (int16_t)r)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+    }
+
+    /*
+    Case 3e: 源和目标均超出 S16
+    将源搬入临时 S8 槽，目标使用临时 S16 槽，
+    使用 RTOSST 完成转换后再将结果搬回目标实际位置。
+    */
+    int8_t r8;
+    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        return false;
+
+    const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
+        (woort_IRValue*)op->m_w, -127);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RTOSST(r8, w16)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_STOI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    STOI: 字符串转整数
+    m_r[0] = 源值（字符串），m_w = 目标值（整数）
+
+    STOIST (mode=0): [SB + a8(源)] -> [SB + bc16(目标)]   源S8, 目标S16
+    STOILD (mode=1): [SB + bc16(源)] -> [SB + a8(目标)]   源S16, 目标S8
+
+    优先根据原始操作数范围选择变体，避免不必要的 MOV 搬运。
+    */
+
+    const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
+    const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+
+    if (r >= INT8_MIN && r <= INT8_MAX
+        && w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /* Case 1: 源在 S8，目标在 S16，使用 STOIST，无需搬运 */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_STOIST((int8_t)r, (int16_t)w));
+    }
+
+    if (w >= INT8_MIN && w <= INT8_MAX
+        && r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /* Case 2: 目标在 S8，源在 S16，使用 STOILD，无需搬运 */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_STOILD((int8_t)w, (int16_t)r));
+    }
+
+    /*
+    Case 3: STOIST / STOILD 均无法直接编码两个操作数，
+    需要根据各操作数的实际范围细分处理。
+    */
+
+    if (r >= INT8_MIN && r <= INT8_MAX)
+    {
+        /*
+        Case 3a: 源在 S8，目标超出 S16
+        源天然满足 STOIST 的 a8 要求，只需将目标搬入临时 S16 槽。
+        */
+        const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
+            (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STOIST((int8_t)r, w16)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    }
+
+    if (w >= INT8_MIN && w <= INT8_MAX)
+    {
+        /*
+        Case 3b: 目标在 S8，源超出 S16
+        目标天然满足 STOILD 的 a8 要求，只需将源搬入临时 S16 槽。
+        */
+        int16_t r16;
+        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+            return false;
+
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_STOILD((int8_t)w, r16));
+    }
+
+    if (w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /*
+        Case 3c: 目标在 S16（但不在 S8），源不在 S8
+        目标天然满足 STOIST 的 bc16 要求，只需将源搬入临时 S8 槽。
+        */
+        int8_t r8;
+        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+            return false;
+
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_STOIST(r8, (int16_t)w));
+    }
+
+    if (r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /*
+        Case 3d: 源在 S16（但不在 S8），目标超出 S16
+        源天然满足 STOILD 的 bc16 要求，只需将目标搬入临时 S8 槽。
+        */
+        const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
+            (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STOILD(w8, (int16_t)r)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+    }
+
+    /*
+    Case 3e: 源和目标均超出 S16
+    将源搬入临时 S8 槽，目标使用临时 S16 槽，
+    使用 STOIST 完成转换后再将结果搬回目标实际位置。
+    */
+    int8_t r8;
+    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        return false;
+
+    const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
+        (woort_IRValue*)op->m_w, -127);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STOIST(r8, w16)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_STOR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    STOR: 字符串转实数
+    m_r[0] = 源值（字符串），m_w = 目标值（实数）
+
+    STORST (mode=2): [SB + a8(源)] -> [SB + bc16(目标)]   源S8, 目标S16
+    STORLD (mode=3): [SB + bc16(源)] -> [SB + a8(目标)]   源S16, 目标S8
+
+    优先根据原始操作数范围选择变体，避免不必要的 MOV 搬运。
+    */
+
+    const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
+    const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+
+    if (r >= INT8_MIN && r <= INT8_MAX
+        && w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /* Case 1: 源在 S8，目标在 S16，使用 STORST，无需搬运 */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_STORST((int8_t)r, (int16_t)w));
+    }
+
+    if (w >= INT8_MIN && w <= INT8_MAX
+        && r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /* Case 2: 目标在 S8，源在 S16，使用 STORLD，无需搬运 */
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_STORLD((int8_t)w, (int16_t)r));
+    }
+
+    /*
+    Case 3: STORST / STORLD 均无法直接编码两个操作数，
+    需要根据各操作数的实际范围细分处理。
+    */
+
+    if (r >= INT8_MIN && r <= INT8_MAX)
+    {
+        /*
+        Case 3a: 源在 S8，目标超出 S16
+        源天然满足 STORST 的 a8 要求，只需将目标搬入临时 S16 槽。
+        */
+        const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
+            (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STORST((int8_t)r, w16)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
+    }
+
+    if (w >= INT8_MIN && w <= INT8_MAX)
+    {
+        /*
+        Case 3b: 目标在 S8，源超出 S16
+        目标天然满足 STORLD 的 a8 要求，只需将源搬入临时 S16 槽。
+        */
+        int16_t r16;
+        if (!_woort_IRBlock_load_value_storage16(b, (woort_IRValue*)op->m_r[0], -128, &r16))
+            return false;
+
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_STORLD((int8_t)w, r16));
+    }
+
+    if (w >= INT16_MIN && w <= INT16_MAX)
+    {
+        /*
+        Case 3c: 目标在 S16（但不在 S8），源不在 S8
+        目标天然满足 STORST 的 bc16 要求，只需将源搬入临时 S8 槽。
+        */
+        int8_t r8;
+        if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+            return false;
+
+        return _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_STORST(r8, (int16_t)w));
+    }
+
+    if (r >= INT16_MIN && r <= INT16_MAX)
+    {
+        /*
+        Case 3d: 源在 S16（但不在 S8），目标超出 S16
+        源天然满足 STORLD 的 bc16 要求，只需将目标搬入临时 S8 槽。
+        */
+        const int8_t w8 = _woort_IRBlock_get_place_to_store_value_storage8(
+            (woort_IRValue*)op->m_w, -127);
+
+        if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STORLD(w8, (int16_t)r)))
+            return false;
+
+        return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w8);
+    }
+
+    /*
+    Case 3e: 源和目标均超出 S16
+    将源搬入临时 S8 槽，目标使用临时 S16 槽，
+    使用 STORST 完成转换后再将结果搬回目标实际位置。
+    */
+    int8_t r8;
+    if (!_woort_IRBlock_load_value_storage8(b, (woort_IRValue*)op->m_r[0], -128, &r8))
+        return false;
+
+    const int16_t w16 = _woort_IRBlock_get_place_to_store_value_storage16(
+        (woort_IRValue*)op->m_w, -127);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_STORST(r8, w16)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, (woort_IRValue*)op->m_w, w16);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_CALLNWO(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
