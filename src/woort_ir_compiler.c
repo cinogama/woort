@@ -2100,6 +2100,7 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
 
     // Ok, 当前函数的所有块已经提交，我们开始准备块的跳转
 
+
     // todo
     abort();
 }
@@ -2109,6 +2110,8 @@ void woort_IRCompiler_init(woort_IRCompiler* c)
     woort_linklist_init(&c->m_ir_functions, sizeof(woort_IRFunction));
     c->m_constant_alloc_count = 0;
     c->m_static_storage_alloc_count = 0;
+
+    woort_vector_init(&c->m_commited_codes, sizeof(woort_Bytecode));
 }
 
 void woort_IRCompiler_deinit(woort_IRCompiler* c)
@@ -2120,6 +2123,7 @@ void woort_IRCompiler_deinit(woort_IRCompiler* c)
         woort_IRFunction_deinit(f);
     }
     woort_linklist_deinit(&c->m_ir_functions);
+    woort_vector_deinit(&c->m_commited_codes);
 }
 
 WOORT_NODISCARD bool woort_IRCompiler_add_function(

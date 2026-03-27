@@ -17,6 +17,8 @@ typedef struct woort_IRCompiler
     uint32_t m_constant_alloc_count;
     uint32_t m_static_storage_alloc_count;
 
+    woort_Vector /* woort_Bytecode */ m_commited_codes;
+
 }woort_IRCompiler;
 
 void woort_IRCompiler_init(woort_IRCompiler* ir_compiler);

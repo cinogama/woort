@@ -43,6 +43,7 @@ typedef enum woort_IRBlock_EndWay
     WOORT_IRBLOCK_ENDWAY_BR_COND,
     WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT,
     WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE,
+    WOORT_IRBLOCK_ENDWAY_BR_COMPARE_EQ,
     WOORT_IRBLOCK_ENDWAY_RET,
 
 }woort_IRBlock_EndWay;
@@ -118,10 +119,19 @@ WOORT_NODISCARD bool woort_IRBlock_br_le(
     woort_IRValue* b,
     woort_IRBlock* true_next,
     woort_IRBlock* false_next);
+WOORT_NODISCARD bool woort_IRBlock_br_eq(
+    woort_IRBlock* block,
+    woort_IRValue* a,
+    woort_IRValue* b,
+    woort_IRBlock* true_next,
+    woort_IRBlock* false_next);
+
 #define woort_IRBlock_br_gt(block, a, b, true_next, false_next)\
     woort_IRBlock_br_lt(block, b, a, false_next, true_next)
 #define woort_IRBlock_br_ge(block, a, b, true_next, false_next)\
     woort_IRBlock_br_le(block, b, a, false_next, true_next)
+#define woort_IRBlock_br_ne(block, a, b, true_next, false_next)\
+    woort_IRBlock_br_eq(block, b, a, false_next, true_next)
 
 void woort_IRBlock_ret(
     woort_IRBlock* block, woort_IRValue* val);

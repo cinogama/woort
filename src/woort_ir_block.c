@@ -132,6 +132,25 @@ WOORT_NODISCARD bool woort_IRBlock_br_le(
         && _woort_IRBlock_add_prev(false_next, block);
 }
 
+WOORT_NODISCARD bool woort_IRBlock_br_eq(
+    woort_IRBlock* block,
+    woort_IRValue* a,
+    woort_IRValue* b,
+    woort_IRBlock* true_next,
+    woort_IRBlock* false_next)
+{
+    assert(block->m_cond_type == WOORT_IRBLOCK_ENDWAY_NOT_FINISHED);
+
+    block->m_cond_type = WOORT_IRBLOCK_ENDWAY_BR_COMPARE_EQ;
+    block->m_br_compare_values[0] = a;
+    block->m_br_compare_values[1] = b;
+    block->m_br_next_block_compare_true = true_next;
+    block->m_br_next_block_compare_false = false_next;
+
+    return _woort_IRBlock_add_prev(true_next, block)
+        && _woort_IRBlock_add_prev(false_next, block);
+}
+
 void woort_IRBlock_ret(woort_IRBlock* block, woort_IRValue* val)
 {
     assert(block->m_cond_type == WOORT_IRBLOCK_ENDWAY_NOT_FINISHED);
