@@ -2968,8 +2968,8 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
             entry_record != NULL;
             entry_record = woort_linklist_next(entry_record))
         {
-            //assert(phi->m_phi_value->m_assigned_stack_offset 
-            //    == entry_record->m_value->m_assigned_stack_offset);
+            assert(phi->m_phi_value->m_assigned_stack_offset 
+                == entry_record->m_value->m_assigned_stack_offset);
         }
     }
 #endif

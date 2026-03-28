@@ -53,6 +53,21 @@ static int g_tests_passed = 0;
         }                                                       \
     } while(0)
 
+/* 反汇编输出 */
+void dump_Code(woort_CodeEnv* cenv)
+{
+    const woort_Bytecode* pc = cenv->m_code_begin;
+
+    printf("\n");
+
+    while (pc < cenv->m_code_end)
+        pc = woort_Disassembly(pc);
+
+    printf("\n");
+
+    fflush(stdout);
+}
+
 /*
 辅助：用于从 native 函数中捕获 IR 编译函数的返回值。
 调用约定：被调函数的返回值在 vm->m_sp[0] 中（通过 RESULT 指令获取）。
@@ -312,14 +327,6 @@ static void test_branch_helper(woort_Int a, woort_Int b, woort_Int expected)
     cenv->m_data_begin[ca].m_integer = a;
     cenv->m_data_begin[cb].m_integer = b;
 
-    /* 反汇编输出 */
-    {
-        const woort_Bytecode* pc = cenv->m_code_begin;
-        while (pc < cenv->m_code_end)
-            pc = woort_Disassembly(pc);
-        fflush(stdout);
-    }
-
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
 
@@ -422,6 +429,8 @@ static void test_loop_phi(void)
     cenv->m_data_begin[cn].m_integer = 10;
     cenv->m_data_begin[c0].m_integer = 0;
     cenv->m_data_begin[c1].m_integer = 1;
+
+    dump_Code(cenv);
 
     woort_VMRuntime* vm;
     TEST_ASSERT(woort_VMRuntime_create(&vm));
