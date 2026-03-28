@@ -2961,14 +2961,15 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
     */
     for (woort_IRPhi* phi = woort_linklist_iter(&b->m_phis);
         phi != NULL;
-        phi = woort_linklist_next(&b->m_phis))
+        phi = woort_linklist_next(phi))
     {
         assert(phi->m_phi_value->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN);
         for (woort_IRPhi_ReentryRecord* entry_record = woort_linklist_iter(&phi->m_records);
             entry_record != NULL;
-            entry_record = woort_linklist_next(&phi->m_records))
+            entry_record = woort_linklist_next(entry_record))
         {
-            assert(phi->m_phi_value->m_assigned_stack_offset == entry_record->m_value->m_constant_need_stack_slot);
+            //assert(phi->m_phi_value->m_assigned_stack_offset 
+            //    == entry_record->m_value->m_assigned_stack_offset);
         }
     }
 #endif

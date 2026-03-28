@@ -939,6 +939,7 @@ _label_continue_execution:
             case WOORT_CALL_WAY_NEAR:
                 break;
             case WOORT_CALL_WAY_FROM_NATIVE:
+                WOORT_VM_SYNC_STATE();
                 return WOORT_VM_CALL_STATUS_NORMAL;
             case WOORT_CALL_WAY_FAR:
             {
@@ -971,6 +972,7 @@ _label_continue_execution:
             case WOORT_CALL_WAY_NEAR:
                 break;
             case WOORT_CALL_WAY_FROM_NATIVE:
+                WOORT_VM_SYNC_STATE();
                 return WOORT_VM_CALL_STATUS_NORMAL;
             case WOORT_CALL_WAY_FAR:
             {
@@ -1002,6 +1004,7 @@ _label_continue_execution:
             case WOORT_CALL_WAY_NEAR:
                 break;
             case WOORT_CALL_WAY_FROM_NATIVE:
+                WOORT_VM_SYNC_STATE();
                 return WOORT_VM_CALL_STATUS_NORMAL;
             case WOORT_CALL_WAY_FAR:
             {

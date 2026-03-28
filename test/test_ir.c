@@ -55,7 +55,7 @@ static int g_tests_passed = 0;
 
 /*
 辅助：用于从 native 函数中捕获 IR 编译函数的返回值。
-调用约定：被调函数的返回值在 vm->m_sb[2] 中（通过 RESULT 指令获取）。
+调用约定：被调函数的返回值在 vm->m_sp[0] 中（通过 RESULT 指令获取）。
 native 函数将其拷贝到全局变量，以便测试代码检查。
 */
 static woort_Int g_captured_int = 0;
@@ -102,7 +102,7 @@ static void test_constant_return(void)
 
     woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(42, vm->m_sb[2].m_integer);
+    TEST_ASSERT_EQ_INT(42, vm->m_sp[0].m_integer);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -157,7 +157,7 @@ static void test_integer_arithmetic(void)
 
     woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(91, vm->m_sb[2].m_integer);
+    TEST_ASSERT_EQ_INT(91, vm->m_sp[0].m_integer);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -212,7 +212,7 @@ static void test_divmod(void)
 
     woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(5, vm->m_sb[2].m_integer);
+    TEST_ASSERT_EQ_INT(5, vm->m_sp[0].m_integer);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -260,7 +260,7 @@ static void test_negate(void)
 
     woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(-42, vm->m_sb[2].m_integer);
+    TEST_ASSERT_EQ_INT(-42, vm->m_sp[0].m_integer);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -325,7 +325,7 @@ static void test_branch_helper(woort_Int a, woort_Int b, woort_Int expected)
 
     woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
     assert(status == WOORT_VM_CALL_STATUS_NORMAL);
-    assert(vm->m_sb[2].m_integer == expected);
+    assert(vm->m_sp[0].m_integer == expected);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -428,7 +428,7 @@ static void test_loop_phi(void)
 
     woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(55, vm->m_sb[2].m_integer);
+    TEST_ASSERT_EQ_INT(55, vm->m_sp[0].m_integer);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -549,7 +549,7 @@ static void test_fibonacci(void)
     woort_VmCallStatus status = woort_VMRuntime_invoke(
         vm, cenv->m_code_begin + fib_code_len);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(55, vm->m_sb[2].m_integer);
+    TEST_ASSERT_EQ_INT(55, vm->m_sp[0].m_integer);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -607,7 +607,7 @@ static void test_logic_ops(void)
 
     woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(2, vm->m_sb[2].m_integer);
+    TEST_ASSERT_EQ_INT(2, vm->m_sp[0].m_integer);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -673,7 +673,7 @@ static void test_integer_comparisons(void)
 
     woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(3, vm->m_sb[2].m_integer);
+    TEST_ASSERT_EQ_INT(3, vm->m_sp[0].m_integer);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -725,7 +725,7 @@ static void test_fallthrough(void)
 
     woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(99, vm->m_sb[2].m_integer);
+    TEST_ASSERT_EQ_INT(99, vm->m_sp[0].m_integer);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -802,14 +802,13 @@ int main(int argc, char** argv)
     test_divmod();
     test_negate();
     test_branch_ge();
-    /*
     test_loop_phi();
     test_fibonacci();
     test_logic_ops();
     test_integer_comparisons();
     test_fallthrough();
     test_call_native();
-    */
+    
 
     (void)printf("\n=== Results: %d/%d passed ===\n", g_tests_passed, g_tests_run);
 
