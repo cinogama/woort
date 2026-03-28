@@ -2893,3 +2893,25 @@ WOORT_NODISCARD woort_IRStaticIndex woort_IRCompiler_add_static(woort_IRCompiler
 {
     return c->m_static_storage_alloc_count++;
 }
+
+WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv** out_cenv)
+{
+    /* 提交所有函数的字节码到 m_commited_codes */
+    for (woort_IRFunction* f = woort_linklist_iter(&c->m_ir_functions);
+        f != NULL;
+        f = woort_linklist_next(f))
+    {
+        if (!_woort_IRFunction_commit_codes(f, c))
+            return false;
+    }
+
+    /* 创建 CodeEnv */
+    size_t constant_and_static_count =
+        (size_t)c->m_constant_alloc_count + (size_t)c->m_static_storage_alloc_count;
+
+    return woort_CodeEnv_create(
+        (const woort_Bytecode*)c->m_commited_codes.m_data,
+        c->m_commited_codes.m_size,
+        constant_and_static_count,
+        out_cenv);
+}
