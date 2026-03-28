@@ -776,6 +776,945 @@ static void test_call_native(void)
     TEST_END();
 }
 
+/* ========== 测试 12: 多参数函数调用 ========== */
+/*
+func add3(a, b, c: int) => int {
+    return a + b + c;
+}
+main: add3(10, 20, 30) => 60
+*/
+static void test_multi_param(void)
+{
+    TEST_BEGIN("multi_param (add3(10,20,30) = 60)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c20 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c30 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex cfn = woort_IRCompiler_add_constant(&irc);
+
+    /* func add3(a, b, c) */
+    woort_IRFunction* f_add3;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 3, &f_add3));
+    {
+        woort_IRValue* a = woort_IRFunction_get_argument(f_add3, 0);
+        woort_IRValue* b = woort_IRFunction_get_argument(f_add3, 1);
+        woort_IRValue* c = woort_IRFunction_get_argument(f_add3, 2);
+        woort_IRValue* tmp = woort_IRFunction_new_vreg(f_add3);
+        woort_IRValue* res = woort_IRFunction_new_vreg(f_add3);
+        TEST_ASSERT(a && b && c && tmp && res);
+
+        TEST_ASSERT(woort_IR_ADDI(f_add3, tmp, a, b));
+        TEST_ASSERT(woort_IR_ADDI(f_add3, res, tmp, c));
+        TEST_ASSERT(woort_IR_ret(f_add3, res));
+    }
+
+    /* func main() */
+    woort_IRFunction* f_main;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f_main));
+    {
+        woort_IRValue* v10 = woort_IRFunction_new_vreg(f_main);
+        woort_IRValue* v20 = woort_IRFunction_new_vreg(f_main);
+        woort_IRValue* v30 = woort_IRFunction_new_vreg(f_main);
+        woort_IRValue* result = woort_IRFunction_new_vreg(f_main);
+        TEST_ASSERT(v10 && v20 && v30 && result);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f_main, v10, c10));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f_main, v20, c20));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f_main, v30, c30));
+
+        /* 参数按逆序压栈: 先压最后一个参数 */
+        TEST_ASSERT(woort_IR_PUSHCHK(f_main, v10));
+        TEST_ASSERT(woort_IR_PUSHCHK(f_main, v20));
+        TEST_ASSERT(woort_IR_PUSHCHK(f_main, v30));
+        TEST_ASSERT(woort_IR_CALLNWO(f_main, cfn, 3, result));
+        TEST_ASSERT(woort_IR_ret(f_main, result));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c10].m_integer = 10;
+    cenv->m_data_begin[c20].m_integer = 20;
+    cenv->m_data_begin[c30].m_integer = 30;
+    cenv->m_data_begin[cfn].m_script_function = cenv->m_code_begin + 0;
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(
+        vm, cenv->m_code_begin + f_add3->m_code_length);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(60, vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 13: jcc/jccz 条件跳转 ========== */
+/*
+func abs(x: int) => int {
+    neg = -x;
+    cond = x < 0;          // cond = (x < 0)
+    if (cond) goto L_neg;  // jcc: if cond != 0
+    return x;
+    L_neg:
+    return neg;
+}
+
+测试: abs(5)=5, abs(-7)=7, abs(0)=0
+*/
+static void test_jcc_helper(woort_Int x, woort_Int expected)
+{
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex cx = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    (void)woort_IRCompiler_add_function(&irc, 0, &f);
+    {
+        woort_IRValue* vx = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v0 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* neg = woort_IRFunction_new_vreg(f);
+        woort_IRValue* cond = woort_IRFunction_new_vreg(f);
+
+        woort_IRLabel* L_neg = woort_IRFunction_new_label(f);
+
+        (void)woort_IR_LOAD_CONST(f, vx, cx);
+        (void)woort_IR_LOAD_CONST(f, v0, c0);
+        (void)woort_IR_NEGI(f, neg, vx);
+        (void)woort_IR_LTI(f, cond, vx, v0);   /* cond = (x < 0) */
+
+        (void)woort_IR_jcc(f, cond, L_neg);     /* if (cond != 0) goto L_neg */
+
+        (void)woort_IR_ret(f, vx);              /* return x */
+
+        (void)woort_IR_bind(f, L_neg);
+        (void)woort_IR_ret(f, neg);             /* return -x */
+    }
+
+    woort_CodeEnv* cenv;
+    (void)woort_IRCompiler_finish(&irc, &cenv);
+    cenv->m_data_begin[cx].m_integer = x;
+    cenv->m_data_begin[c0].m_integer = 0;
+
+    woort_VMRuntime* vm;
+    (void)woort_VMRuntime_create(&vm);
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+    assert(vm->m_sp[0].m_integer == expected);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+}
+
+static void test_jcc(void)
+{
+    TEST_BEGIN("jcc (abs via bool cond)");
+
+    test_jcc_helper(5, 5);
+    test_jcc_helper(-7, 7);
+    test_jcc_helper(0, 0);
+
+    TEST_END();
+}
+
+/* ========== 测试 14: jccz 条件跳转 ========== */
+/*
+func is_zero(x) => int {
+    eq_zero = (x == 0);
+    if (eq_zero == 0) goto L_not_zero;  // jccz: if cond == 0
+    return 1;
+    L_not_zero:
+    return 0;
+}
+测试: is_zero(0)=1, is_zero(5)=0, is_zero(-3)=0
+*/
+static void test_jccz_helper(woort_Int x, woort_Int expected)
+{
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex cx = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    (void)woort_IRCompiler_add_function(&irc, 0, &f);
+    {
+        woort_IRValue* vx = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v0 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v1 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* cond = woort_IRFunction_new_vreg(f);
+
+        woort_IRLabel* L_not_zero = woort_IRFunction_new_label(f);
+
+        (void)woort_IR_LOAD_CONST(f, vx, cx);
+        (void)woort_IR_LOAD_CONST(f, v0, c0);
+        (void)woort_IR_LOAD_CONST(f, v1, c1);
+        (void)woort_IR_EQI(f, cond, vx, v0);   /* cond = (x == 0) */
+
+        (void)woort_IR_jccz(f, cond, L_not_zero);  /* if (cond == 0) goto L_not_zero */
+
+        (void)woort_IR_ret(f, v1);              /* return 1 */
+
+        (void)woort_IR_bind(f, L_not_zero);
+        (void)woort_IR_ret(f, v0);              /* return 0 */
+    }
+
+    woort_CodeEnv* cenv;
+    (void)woort_IRCompiler_finish(&irc, &cenv);
+    cenv->m_data_begin[cx].m_integer = x;
+    cenv->m_data_begin[c0].m_integer = 0;
+    cenv->m_data_begin[c1].m_integer = 1;
+
+    woort_VMRuntime* vm;
+    (void)woort_VMRuntime_create(&vm);
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+    assert(vm->m_sp[0].m_integer == expected);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+}
+
+static void test_jccz(void)
+{
+    TEST_BEGIN("jccz (is_zero via jccz)");
+
+    test_jccz_helper(0, 1);
+    test_jccz_helper(5, 0);
+    test_jccz_helper(-3, 0);
+
+    TEST_END();
+}
+
+/* ========== 测试 15: jcc_lt / jcc_eq / jcc_ne 全覆盖 ========== */
+/*
+func clamp(x, lo, hi) => int {
+    if (x < lo) return lo;     // jcc_lt
+    if (x == hi) return hi;    // jcc_eq
+    if (x != lo) return x;    // jcc_ne
+    return lo;
+}
+测试: clamp(1,5,10)=5, clamp(10,5,10)=10, clamp(7,5,10)=7, clamp(5,5,10)=5
+*/
+static void test_jcc_variants_helper(woort_Int x, woort_Int lo, woort_Int hi,
+                                     woort_Int expected)
+{
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex cx = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex clo = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex chi = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    (void)woort_IRCompiler_add_function(&irc, 0, &f);
+    {
+        woort_IRValue* vx = woort_IRFunction_new_vreg(f);
+        woort_IRValue* vlo = woort_IRFunction_new_vreg(f);
+        woort_IRValue* vhi = woort_IRFunction_new_vreg(f);
+
+        woort_IRLabel* L_lt = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_eq = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_ne = woort_IRFunction_new_label(f);
+
+        (void)woort_IR_LOAD_CONST(f, vx, cx);
+        (void)woort_IR_LOAD_CONST(f, vlo, clo);
+        (void)woort_IR_LOAD_CONST(f, vhi, chi);
+
+        (void)woort_IR_jcc_lt(f, vx, vlo, L_lt);   /* if (x < lo) goto L_lt */
+        (void)woort_IR_jcc_eq(f, vx, vhi, L_eq);   /* if (x == hi) goto L_eq */
+        (void)woort_IR_jcc_ne(f, vx, vlo, L_ne);   /* if (x != lo) goto L_ne */
+        /* fall-through: x == lo */
+        (void)woort_IR_ret(f, vlo);
+
+        (void)woort_IR_bind(f, L_lt);
+        (void)woort_IR_ret(f, vlo);
+
+        (void)woort_IR_bind(f, L_eq);
+        (void)woort_IR_ret(f, vhi);
+
+        (void)woort_IR_bind(f, L_ne);
+        (void)woort_IR_ret(f, vx);
+    }
+
+    woort_CodeEnv* cenv;
+    (void)woort_IRCompiler_finish(&irc, &cenv);
+    cenv->m_data_begin[cx].m_integer = x;
+    cenv->m_data_begin[clo].m_integer = lo;
+    cenv->m_data_begin[chi].m_integer = hi;
+
+    woort_VMRuntime* vm;
+    (void)woort_VMRuntime_create(&vm);
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+    assert(vm->m_sp[0].m_integer == expected);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+}
+
+static void test_jcc_variants(void)
+{
+    TEST_BEGIN("jcc_lt/eq/ne variants (clamp)");
+
+    test_jcc_variants_helper(1, 5, 10, 5);    /* x < lo => return lo */
+    test_jcc_variants_helper(10, 5, 10, 10);  /* x == hi => return hi */
+    test_jcc_variants_helper(7, 5, 10, 7);    /* x != lo => return x */
+    test_jcc_variants_helper(5, 5, 10, 5);    /* x == lo, fall-through => return lo */
+
+    TEST_END();
+}
+
+/* ========== 测试 16: 嵌套循环 ========== */
+/*
+func nested_sum() => int {
+    // sum = 0
+    // for i in 1..3:
+    //   for j in 1..4:
+    //     sum += i * j
+    // return sum
+    //
+    // = 1*(1+2+3+4) + 2*(1+2+3+4) + 3*(1+2+3+4)
+    // = (1+2+3)*10 = 60
+}
+*/
+static void test_nested_loop(void)
+{
+    TEST_BEGIN("nested_loop (sum i*j, i=1..3, j=1..4)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c3 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c4 = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* v0 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v1 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v3 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v4 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* sum = woort_IRFunction_new_vreg(f);
+        woort_IRValue* i = woort_IRFunction_new_vreg(f);
+        woort_IRValue* j = woort_IRFunction_new_vreg(f);
+        woort_IRValue* prod = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v0 && v1 && v3 && v4 && sum && i && j && prod);
+
+        woort_IRLabel* L_outer = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_inner = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_inner_end = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_outer_end = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_outer && L_inner && L_inner_end && L_outer_end);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v0, c0));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v1, c1));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v3, c3));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v4, c4));
+
+        TEST_ASSERT(woort_IR_MOV(f, sum, v0));  /* sum = 0 */
+        TEST_ASSERT(woort_IR_MOV(f, i, v1));    /* i = 1 */
+
+        /* L_outer: */
+        TEST_ASSERT(woort_IR_bind(f, L_outer));
+        TEST_ASSERT(woort_IR_jcc_gt(f, i, v3, L_outer_end));  /* if (i > 3) exit */
+
+        TEST_ASSERT(woort_IR_MOV(f, j, v1));    /* j = 1 */
+
+        /* L_inner: */
+        TEST_ASSERT(woort_IR_bind(f, L_inner));
+        TEST_ASSERT(woort_IR_jcc_gt(f, j, v4, L_inner_end));  /* if (j > 4) inner_exit */
+
+        TEST_ASSERT(woort_IR_MULI(f, prod, i, j));    /* prod = i * j */
+        TEST_ASSERT(woort_IR_ADDI(f, sum, sum, prod)); /* sum += prod */
+        TEST_ASSERT(woort_IR_ADDI(f, j, j, v1));      /* j++ */
+        TEST_ASSERT(woort_IR_jmp(f, L_inner));
+
+        /* L_inner_end: */
+        TEST_ASSERT(woort_IR_bind(f, L_inner_end));
+        TEST_ASSERT(woort_IR_ADDI(f, i, i, v1));      /* i++ */
+        TEST_ASSERT(woort_IR_jmp(f, L_outer));
+
+        /* L_outer_end: */
+        TEST_ASSERT(woort_IR_bind(f, L_outer_end));
+        TEST_ASSERT(woort_IR_ret(f, sum));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c0].m_integer = 0;
+    cenv->m_data_begin[c1].m_integer = 1;
+    cenv->m_data_begin[c3].m_integer = 3;
+    cenv->m_data_begin[c4].m_integer = 4;
+
+    dump_Code(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(60, vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 17: compound 指令选择验证 ========== */
+/*
+验证 dst == src 时触发 compound 指令（CADDI/CSUBI 等）。
+func compound_ops() => int {
+    a = 10;
+    a = a + 5;      // 应当生成 CADDI
+    a = a - 3;      // 应当生成 CSUBI
+    a = a * 2;      // 应当生成 CMULI
+    return a;       // 10 + 5 - 3 = 12, 12 * 2 = 24
+}
+*/
+static void test_compound_ops(void)
+{
+    TEST_BEGIN("compound_ops (CADDI/CSUBI/CMULI)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c5 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c3 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c2 = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* a = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v5 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v3 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v2 = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(a && v5 && v3 && v2);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, a, c10));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v5, c5));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v3, c3));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v2, c2));
+
+        /* dst == src[0] 的情况: a = a + v5 → CADDI */
+        TEST_ASSERT(woort_IR_ADDI(f, a, a, v5));
+
+        /* dst == src[0] 的情况: a = a - v3 → CSUBI */
+        TEST_ASSERT(woort_IR_SUBI(f, a, a, v3));
+
+        /* dst == src[0] 的情况: a = a * v2 → CMULI */
+        TEST_ASSERT(woort_IR_MULI(f, a, a, v2));
+
+        TEST_ASSERT(woort_IR_ret(f, a));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c10].m_integer = 10;
+    cenv->m_data_begin[c5].m_integer = 5;
+    cenv->m_data_begin[c3].m_integer = 3;
+    cenv->m_data_begin[c2].m_integer = 2;
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(24, vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 18: vreg 复用（同一寄存器多次写入） ========== */
+/*
+验证可变虚拟寄存器的核心特性：同一寄存器被反复写入不同值。
+func reuse() => int {
+    x = 1;
+    x = x + x;     // 2
+    x = x * x;     // 4
+    x = x + x;     // 8
+    x = x + x;     // 16
+    return x;
+}
+*/
+static void test_vreg_reuse(void)
+{
+    TEST_BEGIN("vreg_reuse (single reg 1->2->4->8->16)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* x = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(x != NULL);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, x, c1));    /* x = 1 */
+        TEST_ASSERT(woort_IR_ADDI(f, x, x, x));         /* x = x + x = 2 */
+        TEST_ASSERT(woort_IR_MULI(f, x, x, x));         /* x = x * x = 4 */
+        TEST_ASSERT(woort_IR_ADDI(f, x, x, x));         /* x = x + x = 8 */
+        TEST_ASSERT(woort_IR_ADDI(f, x, x, x));         /* x = x + x = 16 */
+        TEST_ASSERT(woort_IR_ret(f, x));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c1].m_integer = 1;
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(16, vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 19: 多路分支 (if-elseif-else) ========== */
+/*
+func sign(x) => int {
+    if (x < 0) return -1;
+    if (x == 0) return 0;
+    return 1;
+}
+测试: sign(-5)=-1, sign(0)=0, sign(7)=1
+*/
+static void test_multi_branch_helper(woort_Int x, woort_Int expected)
+{
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex cx = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex cm1 = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    (void)woort_IRCompiler_add_function(&irc, 0, &f);
+    {
+        woort_IRValue* vx = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v0 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v1 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* vm1 = woort_IRFunction_new_vreg(f);
+
+        woort_IRLabel* L_negative = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_zero = woort_IRFunction_new_label(f);
+
+        (void)woort_IR_LOAD_CONST(f, vx, cx);
+        (void)woort_IR_LOAD_CONST(f, v0, c0);
+        (void)woort_IR_LOAD_CONST(f, v1, c1);
+        (void)woort_IR_LOAD_CONST(f, vm1, cm1);
+
+        (void)woort_IR_jcc_lt(f, vx, v0, L_negative);  /* if (x < 0) goto neg */
+        (void)woort_IR_jcc_eq(f, vx, v0, L_zero);      /* if (x == 0) goto zero */
+        (void)woort_IR_ret(f, v1);                      /* return 1 (positive) */
+
+        (void)woort_IR_bind(f, L_negative);
+        (void)woort_IR_ret(f, vm1);                     /* return -1 */
+
+        (void)woort_IR_bind(f, L_zero);
+        (void)woort_IR_ret(f, v0);                      /* return 0 */
+    }
+
+    woort_CodeEnv* cenv;
+    (void)woort_IRCompiler_finish(&irc, &cenv);
+    cenv->m_data_begin[cx].m_integer = x;
+    cenv->m_data_begin[c0].m_integer = 0;
+    cenv->m_data_begin[c1].m_integer = 1;
+    cenv->m_data_begin[cm1].m_integer = -1;
+
+    woort_VMRuntime* vm;
+    (void)woort_VMRuntime_create(&vm);
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+    assert(vm->m_sp[0].m_integer == expected);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+}
+
+static void test_multi_branch(void)
+{
+    TEST_BEGIN("multi_branch (sign: -1/0/1)");
+
+    test_multi_branch_helper(-5, -1);
+    test_multi_branch_helper(0, 0);
+    test_multi_branch_helper(7, 1);
+
+    TEST_END();
+}
+
+/* ========== 测试 20: 空函数 (ret_void) ========== */
+/*
+func noop() => void { }
+只是验证没有局部变量的空函数能正确编译和执行。
+*/
+static void test_empty_func(void)
+{
+    TEST_BEGIN("empty_func (ret_void only)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        TEST_ASSERT(woort_IR_ret_void(f));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 21: LOAD/STORE 静态存储 ========== */
+/*
+使用 static 存储来模拟全局可变变量：
+func inc_counter() => int {
+    val = LOAD(counter);
+    val = val + 1;
+    STORE(counter, val);
+    return val;
+}
+连续调用两次，验证计数器累加。
+*/
+static void test_static_storage(void)
+{
+    TEST_BEGIN("static_storage (LOAD/STORE counter)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(&irc);
+    woort_IRStaticIndex s_counter = woort_IRCompiler_add_static(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* val = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v1 = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(val && v1);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v1, c1));
+        TEST_ASSERT(woort_IR_LOAD(f, val, s_counter));    /* val = G[static] */
+        TEST_ASSERT(woort_IR_ADDI(f, val, val, v1));       /* val = val + 1 */
+        TEST_ASSERT(woort_IR_STORE(f, s_counter, val));    /* G[static] = val */
+        TEST_ASSERT(woort_IR_ret(f, val));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c1].m_integer = 1;
+
+    /* 静态存储的 data 索引 = constant_count + static_index */
+    uint32_t counter_data_idx = irc.m_constant_alloc_count + s_counter;
+    cenv->m_data_begin[counter_data_idx].m_integer = 0;  /* 初始值 0 */
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    /* 第一次调用: 0 + 1 = 1 */
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(1, vm->m_sp[0].m_integer);
+
+    /* 第二次调用: 1 + 1 = 2 */
+    status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(2, vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 22: 多 native 调用 + 多参数压栈 ========== */
+/*
+func main() {
+    capture_int(100);
+    capture_int(200);
+    capture_int(300);
+}
+验证连续调用 native 函数，每次都正确传递参数。
+*/
+static void test_multi_native_call(void)
+{
+    TEST_BEGIN("multi_native_call (3x capture_int)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c100 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c200 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c300 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c_fn = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* v100 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v200 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v300 = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v100 && v200 && v300);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v100, c100));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v200, c200));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v300, c300));
+
+        /* 第一次调用 */
+        TEST_ASSERT(woort_IR_PUSHCHK(f, v100));
+        TEST_ASSERT(woort_IR_CALLNFP(f, c_fn, 1, NULL));
+
+        /* 第二次调用 */
+        TEST_ASSERT(woort_IR_PUSHCHK(f, v200));
+        TEST_ASSERT(woort_IR_CALLNFP(f, c_fn, 1, NULL));
+
+        /* 第三次调用 */
+        TEST_ASSERT(woort_IR_PUSHCHK(f, v300));
+        TEST_ASSERT(woort_IR_CALLNFP(f, c_fn, 1, NULL));
+
+        TEST_ASSERT(woort_IR_ret_void(f));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c100].m_integer = 100;
+    cenv->m_data_begin[c200].m_integer = 200;
+    cenv->m_data_begin[c300].m_integer = 300;
+    cenv->m_data_begin[c_fn].m_native_or_jit_function = &capture_int;
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    g_captured_int = 0;
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    /* 最后一次 capture_int(300) 的结果应当留在 g_captured_int */
+    TEST_ASSERT_EQ_INT(300, g_captured_int);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 23: 迭代 Fibonacci（循环版，验证 MOV 替代 PHI 的复杂场景） ========== */
+/*
+func fib_iter(n: int) => int {
+    if (n < 2) return n;
+    a = 0; b = 1;
+    i = 2;
+    while (i <= n) {
+        t = a + b;
+        a = b;
+        b = t;
+        i = i + 1;
+    }
+    return b;
+}
+fib_iter(10) = 55
+*/
+static void test_fib_iterative(void)
+{
+    TEST_BEGIN("fib_iterative (fib_iter(10) = 55)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex cn = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c2 = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* vn = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v0 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v1 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v2 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* a = woort_IRFunction_new_vreg(f);
+        woort_IRValue* b = woort_IRFunction_new_vreg(f);
+        woort_IRValue* i = woort_IRFunction_new_vreg(f);
+        woort_IRValue* t = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(vn && v0 && v1 && v2 && a && b && i && t);
+
+        woort_IRLabel* L_base = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_loop = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_end = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_base && L_loop && L_end);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, vn, cn));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v0, c0));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v1, c1));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v2, c2));
+
+        /* if (n < 2) goto L_base */
+        TEST_ASSERT(woort_IR_jcc_lt(f, vn, v2, L_base));
+
+        /* a = 0; b = 1; i = 2 */
+        TEST_ASSERT(woort_IR_MOV(f, a, v0));
+        TEST_ASSERT(woort_IR_MOV(f, b, v1));
+        TEST_ASSERT(woort_IR_MOV(f, i, v2));
+
+        /* L_loop: */
+        TEST_ASSERT(woort_IR_bind(f, L_loop));
+        TEST_ASSERT(woort_IR_jcc_gt(f, i, vn, L_end));  /* if (i > n) exit */
+
+        /* t = a + b; a = b; b = t; i++ */
+        TEST_ASSERT(woort_IR_ADDI(f, t, a, b));
+        TEST_ASSERT(woort_IR_MOV(f, a, b));
+        TEST_ASSERT(woort_IR_MOV(f, b, t));
+        TEST_ASSERT(woort_IR_ADDI(f, i, i, v1));
+        TEST_ASSERT(woort_IR_jmp(f, L_loop));
+
+        /* L_end: return b */
+        TEST_ASSERT(woort_IR_bind(f, L_end));
+        TEST_ASSERT(woort_IR_ret(f, b));
+
+        /* L_base: return n */
+        TEST_ASSERT(woort_IR_bind(f, L_base));
+        TEST_ASSERT(woort_IR_ret(f, vn));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[cn].m_integer = 10;
+    cenv->m_data_begin[c0].m_integer = 0;
+    cenv->m_data_begin[c1].m_integer = 1;
+    cenv->m_data_begin[c2].m_integer = 2;
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(55, vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 24: jcc_le 后向跳转（do-while 循环模式） ========== */
+/*
+func countdown(n) => int {
+    sum = 0;
+    L_body:
+    sum = sum + n;
+    n = n - 1;
+    if (n >= 1) goto L_body;    // jcc_ge 后向跳转
+    return sum;
+}
+countdown(5) = 5+4+3+2+1 = 15
+*/
+static void test_backward_jcc(void)
+{
+    TEST_BEGIN("backward_jcc (do-while countdown)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex cn = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* n = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v0 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v1 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* sum = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(n && v0 && v1 && sum);
+
+        woort_IRLabel* L_body = woort_IRFunction_new_label(f);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, n, cn));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v0, c0));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v1, c1));
+        TEST_ASSERT(woort_IR_MOV(f, sum, v0));   /* sum = 0 */
+
+        /* L_body: */
+        TEST_ASSERT(woort_IR_bind(f, L_body));
+        TEST_ASSERT(woort_IR_ADDI(f, sum, sum, n));   /* sum += n */
+        TEST_ASSERT(woort_IR_SUBI(f, n, n, v1));      /* n-- */
+        TEST_ASSERT(woort_IR_jcc_ge(f, n, v1, L_body)); /* if (n >= 1) goto body */
+
+        TEST_ASSERT(woort_IR_ret(f, sum));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[cn].m_integer = 5;
+    cenv->m_data_begin[c0].m_integer = 0;
+    cenv->m_data_begin[c1].m_integer = 1;
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(15, vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
 /* ========== main ========== */
 
 int main(int argc, char** argv)
@@ -798,6 +1737,19 @@ int main(int argc, char** argv)
     test_integer_comparisons();
     test_fallthrough();
     test_call_native();
+    test_multi_param();
+    test_jcc();
+    test_jccz();
+    test_jcc_variants();
+    test_nested_loop();
+    test_compound_ops();
+    test_vreg_reuse();
+    test_multi_branch();
+    test_empty_func();
+    test_static_storage();
+    test_multi_native_call();
+    test_fib_iterative();
+    test_backward_jcc();
 
     (void)printf("\n=== Results: %d/%d passed ===\n", g_tests_passed, g_tests_run);
 
