@@ -18,4 +18,6 @@ endif()
 
 add_subdirectory ("3rd/woomem")
 add_subdirectory ("src")
+
+enable_testing()
 add_subdirectory ("test")

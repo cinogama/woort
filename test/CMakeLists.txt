@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
+enable_testing()
+
 file(GLOB woort_test_sources "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
 
 foreach(src ${woort_test_sources})
@@ -11,4 +13,5 @@ foreach(src ${woort_test_sources})
     target_link_libraries(${name}
         PRIVATE woort
         PRIVATE woort_options)
+    add_test(NAME ${name} COMMAND ${name})
 endforeach()
