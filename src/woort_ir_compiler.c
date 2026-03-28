@@ -2957,7 +2957,8 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
 {
 #ifndef _NDEBUG
     /*
-    STEP 0: 检查 PHI 节点的输入节点是否共享相同的栈槽
+    STEP 0: 检查 PHI 节点的输入节点是否已分配栈槽
+    （不再要求相同——slot 不同的情况由 PHI copy 阶段处理 MOV）
     */
     for (woort_IRPhi* phi = woort_linklist_iter(&b->m_phis);
         phi != NULL;
@@ -2968,8 +2969,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
             entry_record != NULL;
             entry_record = woort_linklist_next(entry_record))
         {
-            assert(phi->m_phi_value->m_assigned_stack_offset 
-                == entry_record->m_value->m_assigned_stack_offset);
+            assert(entry_record->m_value->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN);
         }
     }
 #endif
@@ -3077,6 +3077,68 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
         if (!_woort_IRBlock_commit_codes(b, c))
         {
             return false;
+        }
+    }
+
+    /*
+    PHI copy 阶段: 对于每个包含 PHI 节点的块，检查其 PHI 输入值的栈槽是否与
+    PHI 输出一致。如果不一致，在前驱块的末尾（body code 之后、跳转之前）生成
+    MOV 指令，将 PHI 输入值复制到 PHI 输出的栈槽中。
+
+    注意: 对于条件分支的前驱块，如果两个后继块的 PHI 同时需要 MOV，这些 MOV
+    都会被发射到前驱块中（因为它们在跳转之前执行）。只要 MOV 的目标不与其他
+    PHI 输入冲突，这是安全的。
+    */
+    for (woort_IRBlock* b = woort_linklist_iter(&f->m_ir_blocks);
+        b != NULL;
+        b = woort_linklist_next(b))
+    {
+        for (woort_IRPhi* phi = woort_linklist_iter(&b->m_phis);
+            phi != NULL;
+            phi = woort_linklist_next(phi))
+        {
+            if (phi->m_phi_value->m_assigned_stack_offset == WOORT_IRVALUE_STACK_NOT_ASSIGN)
+                continue;
+
+            const int32_t phi_slot = phi->m_phi_value->m_assigned_stack_offset;
+
+            for (woort_IRPhi_ReentryRecord* rec = woort_linklist_iter(&phi->m_records);
+                rec != NULL;
+                rec = woort_linklist_next(rec))
+            {
+                if (rec->m_value->m_assigned_stack_offset == phi_slot)
+                    continue; /* 已合并，无需 copy */
+
+                /* 在前驱块末尾生成 MOV: [phi_slot] = [rec_slot] */
+                woort_IRBlock* pred = rec->m_from_block;
+                const int32_t src_slot = rec->m_value->m_assigned_stack_offset;
+
+                assert(src_slot != WOORT_IRVALUE_STACK_NOT_ASSIGN);
+
+                const int32_t fact_phi_slot = _woort_IR_get_fact_stack_storage(phi_slot);
+                const int32_t fact_src_slot = _woort_IR_get_fact_stack_storage(src_slot);
+
+                if (fact_phi_slot >= INT8_MIN && fact_phi_slot <= INT8_MAX &&
+                    fact_src_slot >= INT16_MIN && fact_src_slot <= INT16_MAX)
+                {
+                    if (!_woort_IRBlock_emit_bytecode(pred,
+                        woort_OpCode_MOVLD((int8_t)fact_phi_slot, (int16_t)fact_src_slot)))
+                        return false;
+                }
+                else if (fact_src_slot >= INT8_MIN && fact_src_slot <= INT8_MAX &&
+                         fact_phi_slot >= INT16_MIN && fact_phi_slot <= INT16_MAX)
+                {
+                    if (!_woort_IRBlock_emit_bytecode(pred,
+                        woort_OpCode_MOVST((int8_t)fact_src_slot, (int16_t)fact_phi_slot)))
+                        return false;
+                }
+                else
+                {
+                    /* 极端情况：使用扩展 MOV（通过临时 slot） */
+                    assert(false && "PHI copy requires extended MOV, not yet implemented");
+                    return false;
+                }
+            }
         }
     }
 

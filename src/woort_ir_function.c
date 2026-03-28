@@ -511,6 +511,7 @@ static void _analyze_terminator_uses(
 
     case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT:
     case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE:
+    case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_EQ:
         values_to_check[0] = B->m_br_compare_values[0];
         values_to_check[1] = B->m_br_compare_values[1];
         check_count = 2;
@@ -592,6 +593,13 @@ static void _analyze_phi_incoming_uses(
 /* ========== Slot 复用 ========== */
 
 /*
+ * 栈槽分配中 "尚未分配" 的哨兵值。
+ * 不能使用 -1，因为 slot 从 0 往负方向分配 (0, -1, -2, ...)，
+ * -1 是合法的 slot 值。
+ */
+#define _SLOT_NOT_ASSIGNED INT32_MIN
+
+/*
  * 在已分配的 slot 列表中查找一个可复用的 slot。
  * 复用条件：两者的活跃区间不重叠 (last_use_b < def_a || last_use_a < def_b)
  */
@@ -609,10 +617,8 @@ static int32_t _find_reusable_slot(
         if (last_use_b < def_a || last_use_a < def_b)
             return allocated[i].m_slot;
     }
-    return -1;
+    return _SLOT_NOT_ASSIGNED;
 }
-
-/* ========== 支配者分析 ========== */
 
 static bool _dominator_info_init(_woort_DominatorInfo* info, size_t block_count)
 {
@@ -1085,6 +1091,9 @@ WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
      *  使用 union-find 将每个 phi 的 result 与其所有 incoming value 合并。
      *  在 SSA 中, phi 的 incoming 来自不同前驱, 不会同时活跃,
      *  因此直接合并是安全的。
+     *
+     *  但注意: 如果一个 phi 的 incoming value 在 phi 之外的操作中也被使用,
+     *  则不能将其合并——否则 phi 更新会覆盖该值, 导致其他使用处读到错误数据。
      * ===================================================================== */
 
     _woort_DisjointSet ds;
@@ -1094,6 +1103,73 @@ WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
         woort_hashmap_deinit(&block_index_map);
         _value_index_map_deinit(&idx_map);
         return false;
+    }
+
+    /* 标记哪些 value 被 phi 之外的操作引用 (操作数、terminator) */
+    woort_Bitset used_outside_phi;
+    if (!woort_bitset_init(&used_outside_phi, value_count))
+    {
+        _disjoint_set_deinit(&ds);
+        free(index_to_block);
+        woort_hashmap_deinit(&block_index_map);
+        _value_index_map_deinit(&idx_map);
+        return false;
+    }
+
+    for (woort_IRBlock* B = woort_linklist_iter(&f->m_ir_blocks);
+         B != NULL;
+         B = woort_linklist_next(B))
+    {
+        /* 操作的操作数 */
+        for (woort_IROp* op = woort_linklist_iter(&B->m_operates);
+             op != NULL;
+             op = woort_linklist_next(op))
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                if (op->m_r[i] != NULL)
+                {
+                    size_t v_idx;
+                    if (_value_index_map_get(&idx_map, (woort_IRValue*)op->m_r[i], &v_idx))
+                        woort_bitset_set(&used_outside_phi, v_idx);
+                }
+            }
+        }
+
+        /* Terminator 使用 */
+        switch (B->m_cond_type)
+        {
+        case WOORT_IRBLOCK_ENDWAY_BR_COND:
+        {
+            size_t v_idx;
+            if (_value_index_map_get(&idx_map, B->m_br_cond_value, &v_idx))
+                woort_bitset_set(&used_outside_phi, v_idx);
+            break;
+        }
+    case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT:
+    case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE:
+    case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_EQ:
+        {
+            size_t v_idx;
+            if (_value_index_map_get(&idx_map, B->m_br_compare_values[0], &v_idx))
+                woort_bitset_set(&used_outside_phi, v_idx);
+            if (_value_index_map_get(&idx_map, B->m_br_compare_values[1], &v_idx))
+                woort_bitset_set(&used_outside_phi, v_idx);
+            break;
+        }
+        case WOORT_IRBLOCK_ENDWAY_RET:
+        {
+            if (B->m_ret_value_may_null != NULL)
+            {
+                size_t v_idx;
+                if (_value_index_map_get(&idx_map, B->m_ret_value_may_null, &v_idx))
+                    woort_bitset_set(&used_outside_phi, v_idx);
+            }
+            break;
+        }
+        default:
+            break;
+        }
     }
 
     for (woort_IRBlock* B = woort_linklist_iter(&f->m_ir_blocks);
@@ -1114,10 +1190,19 @@ WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
             {
                 size_t rec_idx;
                 if (_value_index_map_get(&idx_map, rec->m_value, &rec_idx))
-                    _disjoint_set_union(&ds, phi_idx, rec_idx);
+                {
+                    /*
+                     * 只有当 incoming value 不被 phi 以外的操作使用时才合并。
+                     * 否则, phi 更新会覆盖该 slot, 导致其他操作读到错误的值。
+                     */
+                    if (!woort_bitset_test(&used_outside_phi, rec_idx))
+                        _disjoint_set_union(&ds, phi_idx, rec_idx);
+                }
             }
         }
     }
+
+    woort_bitset_deinit(&used_outside_phi);
 
     /* =====================================================================
      *  Phase 3: 活跃性分析
@@ -1371,7 +1456,7 @@ WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
      * ===================================================================== */
     {
         /*
-         * rep_slot[i]:     representative i 被分配的 slot (-1 表示尚未分配)
+         * rep_slot[i]:     representative i 被分配的 slot (_SLOT_NOT_ASSIGNED 表示尚未分配)
          * rep_def[i]:      representative i 的合并 first_def
          * rep_last_use[i]: representative i 的合并 last_use
          */
@@ -1389,7 +1474,7 @@ WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
 
         for (size_t i = 0; i < value_count; i++)
         {
-            rep_slot[i] = -1;
+            rep_slot[i] = _SLOT_NOT_ASSIGNED;
             rep_def[i] = SIZE_MAX;
             rep_last_use[i] = 0;
         }
@@ -1427,7 +1512,7 @@ WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
         {
             size_t rep = _disjoint_set_find(&ds, i);
 
-            if (rep_slot[rep] != -1)
+            if (rep_slot[rep] != _SLOT_NOT_ASSIGNED)
             {
                 /* representative 已有 slot，直接赋值 */
                 idx_map.m_index_to_value[i]->m_assigned_stack_offset = rep_slot[rep];
@@ -1439,7 +1524,7 @@ WOORT_NODISCARD bool _woort_IRFunction_stack_slot_assign(
                 allocated, allocated_count,
                 rep_def[rep], rep_last_use[rep]);
 
-            if (slot == -1)
+            if (slot == _SLOT_NOT_ASSIGNED)
             {
                 /* 分配新 slot */
                 slot = next_slot;
