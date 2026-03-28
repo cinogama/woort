@@ -86,7 +86,7 @@ WOORT_NODISCARD bool woort_IRBlock_br_cond(
     assert(block->m_cond_type == WOORT_IRBLOCK_ENDWAY_NOT_FINISHED);
 
     block->m_cond_type = WOORT_IRBLOCK_ENDWAY_BR_COND;
-    block->m_br_cond_value = cond;
+    block->m_br_cond_value = woort_IRValue_ensure_constant_stack_slot(cond);
     block->m_br_next_block_cond_true = true_next;
     block->m_br_next_block_cond_false = false_next;
 
@@ -105,8 +105,8 @@ WOORT_NODISCARD bool woort_IRBlock_br_lt(
     assert(block->m_cond_type == WOORT_IRBLOCK_ENDWAY_NOT_FINISHED);
 
     block->m_cond_type = WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT;
-    block->m_br_compare_values[0] = a;
-    block->m_br_compare_values[1] = b;
+    block->m_br_compare_values[0] = woort_IRValue_ensure_constant_stack_slot(a);
+    block->m_br_compare_values[1] = woort_IRValue_ensure_constant_stack_slot(b);
     block->m_br_next_block_compare_true = true_next;
     block->m_br_next_block_compare_false = false_next;
 
@@ -124,8 +124,8 @@ WOORT_NODISCARD bool woort_IRBlock_br_le(
     assert(block->m_cond_type == WOORT_IRBLOCK_ENDWAY_NOT_FINISHED);
 
     block->m_cond_type = WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE;
-    block->m_br_compare_values[0] = a;
-    block->m_br_compare_values[1] = b;
+    block->m_br_compare_values[0] = woort_IRValue_ensure_constant_stack_slot(a);
+    block->m_br_compare_values[1] = woort_IRValue_ensure_constant_stack_slot(b);
     block->m_br_next_block_compare_true = true_next;
     block->m_br_next_block_compare_false = false_next;
 
@@ -143,8 +143,8 @@ WOORT_NODISCARD bool woort_IRBlock_br_eq(
     assert(block->m_cond_type == WOORT_IRBLOCK_ENDWAY_NOT_FINISHED);
 
     block->m_cond_type = WOORT_IRBLOCK_ENDWAY_BR_COMPARE_EQ;
-    block->m_br_compare_values[0] = a;
-    block->m_br_compare_values[1] = b;
+    block->m_br_compare_values[0] = woort_IRValue_ensure_constant_stack_slot(a);
+    block->m_br_compare_values[1] = woort_IRValue_ensure_constant_stack_slot(b);
     block->m_br_next_block_compare_true = true_next;
     block->m_br_next_block_compare_false = false_next;
 
