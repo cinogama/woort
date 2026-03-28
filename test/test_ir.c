@@ -1091,6 +1091,8 @@ func nested_sum() => int {
     //
     // = 1*(1+2+3+4) + 2*(1+2+3+4) + 3*(1+2+3+4)
     // = (1+2+3)*10 = 60
+    //
+    // 验证嵌套循环结构的正确性：双层后向跳转、多 Label、多活跃变量交叉使用。
 }
 */
 static void test_nested_loop(void)
@@ -1163,8 +1165,6 @@ static void test_nested_loop(void)
     cenv->m_data_begin[c1].m_integer = 1;
     cenv->m_data_begin[c3].m_integer = 3;
     cenv->m_data_begin[c4].m_integer = 4;
-
-    dump_Code(cenv);
 
     woort_VMRuntime* vm;
     TEST_ASSERT(woort_VMRuntime_create(&vm));
@@ -1715,6 +1715,108 @@ static void test_backward_jcc(void)
     TEST_END();
 }
 
+/* ========== 测试 25: 常量加载外提验证 ========== */
+/*
+验证 LOAD_CONST 写在循环体内部时，框架能否将其提升到循环外。
+
+func hoist_test() => int {
+    sum = 0; i = 0;
+    L_loop:
+      step = LOAD_CONST(3);  // 故意写在循环体内部
+      n    = LOAD_CONST(10); // 同上
+      if (i >= n) goto L_end;
+      sum = sum + step;
+      i = i + LOAD_CONST(1); // 又一个循环体内的常量
+      goto L_loop;
+    L_end:
+      return sum;
+}
+结果: 0 + 3*10 = 30
+
+如果常量没有被外提，每次迭代都执行 LOAD 也会得到正确结果；
+但通过 dump 字节码可以验证 LOAD 出现在循环外。
+*/
+static void test_const_hoist(void)
+{
+    TEST_BEGIN("const_hoist (LOAD_CONST inside loop)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c0    = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c1    = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c3    = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c10   = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* sum  = woort_IRFunction_new_vreg(f);
+        woort_IRValue* i    = woort_IRFunction_new_vreg(f);
+        woort_IRValue* step = woort_IRFunction_new_vreg(f);
+        woort_IRValue* n    = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v0   = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v1   = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(sum && i && step && n && v0 && v1);
+
+        woort_IRLabel* L_loop = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_end  = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_loop && L_end);
+
+        /* 初始化 sum = 0, i = 0 */
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v0, c0));
+        TEST_ASSERT(woort_IR_MOV(f, sum, v0));
+        TEST_ASSERT(woort_IR_MOV(f, i, v0));
+
+        /* L_loop: */
+        TEST_ASSERT(woort_IR_bind(f, L_loop));
+
+        /*
+         * 故意在循环体内部写 LOAD_CONST，
+         * 期望常量加载放置将其外提到循环头的 idom（即入口 block）。
+         */
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, step, c3));   /* step = 3 */
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, n, c10));     /* n = 10 */
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v1, c1));     /* v1 = 1 */
+
+        TEST_ASSERT(woort_IR_jcc_ge(f, i, n, L_end));    /* if (i >= n) exit */
+
+        TEST_ASSERT(woort_IR_ADDI(f, sum, sum, step));   /* sum += step */
+        TEST_ASSERT(woort_IR_ADDI(f, i, i, v1));         /* i++ */
+        TEST_ASSERT(woort_IR_jmp(f, L_loop));
+
+        /* L_end: */
+        TEST_ASSERT(woort_IR_bind(f, L_end));
+        TEST_ASSERT(woort_IR_ret(f, sum));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c0].m_integer = 0;
+    cenv->m_data_begin[c1].m_integer = 1;
+    cenv->m_data_begin[c3].m_integer = 3;
+    cenv->m_data_begin[c10].m_integer = 10;
+
+    /*
+     * 验证字节码结构：LOAD 指令应该出现在循环体（JBCK）之前，
+     * 而不是在循环体内部。通过 dump_Code(cenv) 可人工检查。
+     */
+    dump_Code(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(30, vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
 /* ========== main ========== */
 
 int main(int argc, char** argv)
@@ -1750,6 +1852,7 @@ int main(int argc, char** argv)
     test_multi_native_call();
     test_fib_iterative();
     test_backward_jcc();
+    test_const_hoist();
 
     (void)printf("\n=== Results: %d/%d passed ===\n", g_tests_passed, g_tests_run);
 

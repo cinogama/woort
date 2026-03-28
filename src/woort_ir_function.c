@@ -1304,6 +1304,41 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
             }
         }
 
+        /*
+         * 安全性检查：如果放置块不是原始定义块，需要检查目标 vreg 在放置块
+         * 入口处是否活跃。如果不活跃，说明该栈槽可能被其他 vreg 占用，
+         * 此时不能外提，退回到第一个使用块。
+         */
+        {
+            uint32_t first_use_blk = *(uint32_t*)woort_vector_at(
+                &info->m_use_blocks, 0);
+            uint32_t vreg_id = info->m_dst_vreg->m_id;
+
+            if (common_dom >= 0 && (uint32_t)common_dom != first_use_blk)
+            {
+                woort_IRBlock* place_blk = (woort_IRBlock*)woort_vector_at(
+                    &f->m_blocks, (uint32_t)common_dom);
+
+                /*
+                 * 检查 vreg 在放置块入口是否活跃。
+                 * 如果不活跃，退回到第一个使用块。
+                 */
+                if (place_blk->m_live_in.m_data != NULL &&
+                    vreg_id < place_blk->m_live_in.m_bit_count)
+                {
+                    if (!woort_bitset_test(&place_blk->m_live_in, vreg_id))
+                    {
+                        common_dom = (int32_t)first_use_blk;
+                    }
+                }
+                else
+                {
+                    /* bitset 未初始化或 vreg 不在范围内，保守回退 */
+                    common_dom = (int32_t)first_use_blk;
+                }
+            }
+        }
+
         /* 在公共支配者 block 中记录常量加载 */
         if (common_dom >= 0 && (uint32_t)common_dom < block_count)
         {
