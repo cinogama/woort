@@ -51,6 +51,16 @@ typedef struct woort_IRValue
     /* finish 阶段填充的栈偏移 */
     int32_t m_assigned_stack_offset;
 
+    /*
+     * 常量直连优化 (Phase 2b 填充)
+     *
+     * 如果此 vreg 仅由一条 LOAD_CONST 定义且仅被一条支持常量直连的指令
+     * （PUSHCHK / RET）使用，则标记为 true。
+     * 发射层将直接发出 PUSHCCHK / RETVC，跳过 LOAD 和栈槽分配。
+     */
+    bool m_is_const_direct;
+    woort_IRConstantIndex m_direct_const_index;
+
 } woort_IRValue;
 
 void woort_IRValue_init_vreg(woort_IRValue* v, uint32_t id);

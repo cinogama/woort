@@ -569,6 +569,16 @@ static bool _emit_op(
     case WOORT_IROP_KIND_PUSHCHK:
     {
         assert(op->m_src[0] != NULL);
+
+        /* 常量直连优化：直接发 PUSHCCHK，跳过 LOAD + PUSHSCHK */
+        if (op->m_src[0]->m_is_const_direct)
+        {
+            uint32_t cidx = op->m_src[0]->m_direct_const_index;
+            if (cidx <= WOORT_UINT24_MAX_VAL)
+                return _emit_bc(blk, woort_OpCode_PUSHCCHK(cidx));
+            return _emit_bc_ex32(blk, woort_OpCode_PUSHCCHKEXT(), cidx);
+        }
+
         int16_t r;
         if (!_load_to_s16(blk, op->m_src[0], -128, &r))
             return false;
@@ -1224,6 +1234,16 @@ static bool _emit_op(
     {
         (void)c;
         assert(op->m_src[0] != NULL);
+
+        /* 常量直连优化：直接发 RETVC，跳过 LOAD + RETVS */
+        if (op->m_src[0]->m_is_const_direct)
+        {
+            uint32_t cidx = op->m_src[0]->m_direct_const_index;
+            if (cidx <= WOORT_UINT24_MAX_VAL)
+                return _emit_bc(blk, woort_OpCode_RETVC(cidx));
+            /* 超出 24-bit 范围，回退到 RETVS（需要栈槽，不应该到这里） */
+        }
+
         int16_t r;
         if (!_load_to_s16(blk, op->m_src[0], -128, &r))
             return false;

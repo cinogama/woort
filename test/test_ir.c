@@ -1817,6 +1817,305 @@ static void test_const_hoist(void)
     TEST_END();
 }
 
+/* ========== 测试 26: RETVC 常量直接返回 ========== */
+/*
+验证 LOAD_CONST c -> v; RET v 在 v 仅被 RET 使用时生成 RETVC 而非 LOAD + RETVS。
+
+func return_const() => int { return 42; }
+
+期望字节码: RETVC G[0]  (没有 LOAD，没有 PUSHRCHK)
+*/
+static void test_retvc(void)
+{
+    TEST_BEGIN("retvc (const direct return)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c42 = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* v = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v != NULL);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v, c42));
+        TEST_ASSERT(woort_IR_ret(f, v));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c42].m_integer = 42;
+
+    /*
+     * v 仅被 RET 使用 → 应标记为 const_direct
+     * 期望字节码: 仅 RETVC G[0]，无 LOAD / RETVS / PUSHRCHK
+     */
+    dump_Code(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(42, vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 27: PUSHCCHK 常量直接压栈 ========== */
+/*
+验证 LOAD_CONST c -> v; PUSHCHK v 在 v 仅被 PUSHCHK 使用时生成 PUSHCCHK。
+
+func main() { capture_int(999); }
+
+期望: PUSHCCHK G[0] 而非 LOAD + PUSHSCHK
+*/
+static void test_pushcchk(void)
+{
+    TEST_BEGIN("pushcchk (const direct push)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c_val = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c_fn = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* v = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v != NULL);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v, c_val));
+        TEST_ASSERT(woort_IR_PUSHCHK(f, v));
+        TEST_ASSERT(woort_IR_CALLNFP(f, c_fn, 1, NULL));
+        TEST_ASSERT(woort_IR_ret_void(f));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c_val].m_integer = 999;
+    cenv->m_data_begin[c_fn].m_native_or_jit_function = &capture_int;
+
+    /*
+     * v 仅被 PUSHCHK 使用 → 应标记为 const_direct
+     * 期望: PUSHCCHK G[0] + CALLNFP + POPR 1 + RET
+     */
+    dump_Code(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    g_captured_int = 0;
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(999, g_captured_int);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 28: 常量直连不触发（多次使用） ========== */
+/*
+验证 vreg 被多条指令使用时，不会触发常量直连优化。
+
+func multi_use() => int {
+    v = LOAD_CONST(10);
+    PUSHCHK v;           // 第一次使用
+    result = v + v;      // 第二次+第三次使用 → 不能直连
+    return result;
+}
+
+期望: 仍有 LOAD + PUSHSCHK（不是 PUSHCCHK）
+*/
+static void test_const_direct_no_trigger(void)
+{
+    TEST_BEGIN("const_direct_no_trigger (multi use)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c_fn = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* v = woort_IRFunction_new_vreg(f);
+        woort_IRValue* result = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v && result);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v, c10));
+        TEST_ASSERT(woort_IR_PUSHCHK(f, v));            /* 使用 1 */
+        TEST_ASSERT(woort_IR_CALLNFP(f, c_fn, 1, NULL));
+        TEST_ASSERT(woort_IR_ADDI(f, result, v, v));    /* 使用 2+3 */
+        TEST_ASSERT(woort_IR_ret(f, result));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c10].m_integer = 10;
+    cenv->m_data_begin[c_fn].m_native_or_jit_function = &capture_int;
+
+    /*
+     * v 被 PUSHCHK + ADDI(两次) = 3 次使用 → 不触发直连
+     * 期望: LOAD + PUSHSCHK（非 PUSHCCHK）
+     */
+    dump_Code(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    g_captured_int = 0;
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(20, vm->m_sp[0].m_integer);    /* 10 + 10 = 20 */
+    TEST_ASSERT_EQ_INT(10, g_captured_int);            /* capture_int(10) */
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 29: 重复常量加载合并 ========== */
+/*
+验证同一 const_index 被多个不同 vreg 加载时，后续的 LOAD_CONST 被合并为 MOV。
+
+func dup_const() => int {
+    a = LOAD_CONST(7);
+    b = LOAD_CONST(7);      // 应合并为 MOV b = a
+    c = LOAD_CONST(7);      // 应合并为 MOV c = a
+    return a + b + c;       // 7 + 7 + 7 = 21
+}
+
+期望字节码: 只有一条 LOAD G[0]，后续是 MOVLD
+*/
+static void test_const_merge(void)
+{
+    TEST_BEGIN("const_merge (dup LOAD_CONST -> MOV)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c7 = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* a = woort_IRFunction_new_vreg(f);
+        woort_IRValue* b = woort_IRFunction_new_vreg(f);
+        woort_IRValue* c = woort_IRFunction_new_vreg(f);
+        woort_IRValue* t = woort_IRFunction_new_vreg(f);
+        woort_IRValue* result = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(a && b && c && t && result);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, a, c7));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, b, c7));    /* 应合并为 MOV b = a */
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, c, c7));    /* 应合并为 MOV c = a */
+        TEST_ASSERT(woort_IR_ADDI(f, t, a, b));
+        TEST_ASSERT(woort_IR_ADDI(f, result, t, c));
+        TEST_ASSERT(woort_IR_ret(f, result));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c7].m_integer = 7;
+
+    /*
+     * 期望: 只有一条 LOAD G[0]，b 和 c 的赋值变为 MOV
+     */
+    dump_Code(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(21, vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 30: PUSHCCHK + RETVC 组合 ========== */
+/*
+func fib_base(n) => int {
+    if (n < 2) return n;
+    v = LOAD_CONST(0);
+    PUSHCHK v;             // v 仅被 PUSHCHK 使用 → PUSHCCHK
+    CALLNFP capture_int;
+    w = LOAD_CONST(99);
+    return w;              // w 仅被 RET 使用 → RETVC
+}
+
+验证同一函数中 PUSHCCHK 和 RETVC 可以共存。
+*/
+static void test_pushcchk_retvc_combo(void)
+{
+    TEST_BEGIN("pushcchk_retvc_combo (both in one fn)");
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c99 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c_fn = woort_IRCompiler_add_constant(&irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    {
+        woort_IRValue* v_push = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v_ret = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v_push && v_ret);
+
+        /* PUSHCCHK: v_push 仅被 PUSHCHK 使用 */
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v_push, c0));
+        TEST_ASSERT(woort_IR_PUSHCHK(f, v_push));
+        TEST_ASSERT(woort_IR_CALLNFP(f, c_fn, 1, NULL));
+
+        /* RETVC: v_ret 仅被 RET 使用 */
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v_ret, c99));
+        TEST_ASSERT(woort_IR_ret(f, v_ret));
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    cenv->m_data_begin[c0].m_integer = 0;
+    cenv->m_data_begin[c99].m_integer = 99;
+    cenv->m_data_begin[c_fn].m_native_or_jit_function = &capture_int;
+
+    dump_Code(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+
+    g_captured_int = -1;
+    woort_VmCallStatus status = woort_VMRuntime_invoke(vm, cenv->m_code_begin);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(99, vm->m_sp[0].m_integer);
+    TEST_ASSERT_EQ_INT(0, g_captured_int);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_deinit(&irc);
+
+    TEST_END();
+}
+
 /* ========== main ========== */
 
 int main(int argc, char** argv)
@@ -1853,6 +2152,11 @@ int main(int argc, char** argv)
     test_fib_iterative();
     test_backward_jcc();
     test_const_hoist();
+    test_retvc();
+    test_pushcchk();
+    test_const_direct_no_trigger();
+    test_const_merge();
+    test_pushcchk_retvc_combo();
 
     (void)printf("\n=== Results: %d/%d passed ===\n", g_tests_passed, g_tests_run);
 

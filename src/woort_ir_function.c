@@ -539,6 +539,257 @@ static bool _phase2_liveness_analysis(woort_IRFunction* f)
 }
 
 /* ===================================================================
+ * Phase 2b: 常量优化分析
+ *
+ *   2b-i:  常量直接使用标记 (PUSHCCHK / RETVC)
+ *          如果一个 vreg 仅由 LOAD_CONST 定义，且仅被一条 PUSHCHK 或 RET
+ *          使用，则标记为常量直连，发射层直接发出 PUSHCCHK / RETVC。
+ *
+ *   2b-ii: 跨块重复常量加载合并
+ *          同一 const_index 被多个不同 vreg 加载时，如果"主 vreg"在后续
+ *          加载点仍然持有常量值（即主 vreg 只有唯一一条 LOAD_CONST 定义，
+ *          未被其他指令覆写），则将后续的 LOAD_CONST 替换为 MOV。
+ * =================================================================== */
+
+static bool _phase2b_const_optimization(woort_IRFunction* f)
+{
+    const size_t instr_count = f->m_instructions.m_size;
+    const uint32_t vreg_count = f->m_next_vreg_id;
+    const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
+    woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
+
+    if (instr_count == 0 || vreg_count == 0)
+        return true;
+
+    /*
+     * 建立 vreg_by_id 快速查找表
+     */
+    woort_IRValue** vreg_by_id = (woort_IRValue**)calloc(
+        vreg_count, sizeof(woort_IRValue*));
+    if (vreg_by_id == NULL)
+        return false;
+
+    for (woort_IRValue* v = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
+         v != NULL;
+         v = (woort_IRValue*)woort_linklist_next(v))
+    {
+        assert(v->m_id < vreg_count);
+        vreg_by_id[v->m_id] = v;
+    }
+
+    /*
+     * 统计每个 vreg 作为 m_dst 被写入的次数（def_count）
+     * 和作为 m_src[] 被读取的次数（use_count）
+     */
+    uint32_t* def_count = (uint32_t*)calloc(vreg_count, sizeof(uint32_t));
+    uint32_t* use_count = (uint32_t*)calloc(vreg_count, sizeof(uint32_t));
+    if (def_count == NULL || use_count == NULL)
+    {
+        free(def_count);
+        free(use_count);
+        free(vreg_by_id);
+        return false;
+    }
+
+    for (size_t i = 0; i < instr_count; ++i)
+    {
+        woort_IROp* op = &instrs[i];
+        if (op->m_dst != NULL)
+            def_count[op->m_dst->m_id]++;
+        for (int s = 0; s < 3; ++s)
+        {
+            if (op->m_src[s] != NULL)
+                use_count[op->m_src[s]->m_id]++;
+        }
+    }
+
+    /*
+     * 2b-i: 常量直接使用标记
+     *
+     * 条件：
+     *  - vreg 有且仅有 1 条 LOAD_CONST 定义（def_count == 1）
+     *  - vreg 有且仅有 1 次读取（use_count == 1）
+     *  - 该唯一读取指令是 PUSHCHK 或 RET
+     */
+    for (size_t i = 0; i < instr_count; ++i)
+    {
+        woort_IROp* op = &instrs[i];
+        if (op->m_op != WOORT_IROP_KIND_LOAD_CONST)
+            continue;
+        if (op->m_dst == NULL)
+            continue;
+
+        woort_IRValue* vreg = op->m_dst;
+        uint32_t vid = vreg->m_id;
+
+        if (def_count[vid] != 1 || use_count[vid] != 1)
+            continue;
+
+        /* 找到唯一使用该 vreg 的指令 */
+        for (size_t j = i + 1; j < instr_count; ++j)
+        {
+            woort_IROp* user = &instrs[j];
+            bool found = false;
+
+            for (int s = 0; s < 3; ++s)
+            {
+                if (user->m_src[s] == vreg)
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+                continue;
+
+            /* 检查使用指令是否是 PUSHCHK 或 RET */
+            if (user->m_op == WOORT_IROP_KIND_PUSHCHK ||
+                user->m_op == WOORT_IROP_KIND_RET)
+            {
+                vreg->m_is_const_direct = true;
+                vreg->m_direct_const_index = op->m_const_index;
+            }
+            break; /* 只有一次使用，找到就退出 */
+        }
+    }
+
+    /*
+     * 2b-ii: 跨块重复常量加载合并
+     *
+     * 对于同一 const_index 被多个不同 vreg 加载的情况：
+     *  - 选择第一个 LOAD_CONST 的目标 vreg 作为"主 vreg"
+     *  - 对后续的 LOAD_CONST c -> other_vreg:
+     *    条件：主 vreg 只有唯一一条定义（def_count == 1），保证它始终持有常量值
+     *    安全性：主 vreg 在 other_vreg 的 LOAD_CONST 所在块的 LIVE_IN 中，
+     *            或者主 vreg 在同一块中且定义在前
+     *    满足条件则将 LOAD_CONST 替换为 MOV
+     */
+
+    /* 构建 instruction → block 映射 */
+    uint32_t* instr_to_block = NULL;
+    if (block_count > 0)
+    {
+        instr_to_block = (uint32_t*)malloc(instr_count * sizeof(uint32_t));
+        if (instr_to_block == NULL)
+        {
+            free(def_count);
+            free(use_count);
+            free(vreg_by_id);
+            return false;
+        }
+
+        for (uint32_t b = 0; b < block_count; ++b)
+        {
+            woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, b);
+            for (uint32_t ii = blk->m_begin; ii < blk->m_end; ++ii)
+                instr_to_block[ii] = b;
+        }
+    }
+
+    /*
+     * 收集 LOAD_CONST: 按 const_index 分组，记录 {指令索引, dst vreg}
+     * 使用简单的两层循环（常量数量通常很少）
+     */
+    for (size_t i = 0; i < instr_count; ++i)
+    {
+        woort_IROp* op_primary = &instrs[i];
+        if (op_primary->m_op != WOORT_IROP_KIND_LOAD_CONST)
+            continue;
+        if (op_primary->m_dst == NULL)
+            continue;
+
+        woort_IRValue* primary_vreg = op_primary->m_dst;
+        woort_IRConstantIndex cidx = op_primary->m_const_index;
+
+        /* 跳过已标记为常量直连的 vreg（它们不需要栈槽，不会参与合并） */
+        if (primary_vreg->m_is_const_direct)
+            continue;
+
+        /* 主 vreg 必须只有唯一一条定义，才能保证它始终持有常量值 */
+        if (def_count[primary_vreg->m_id] != 1)
+            continue;
+
+        /* 向后查找同一 const_index 的其他 LOAD_CONST */
+        for (size_t j = i + 1; j < instr_count; ++j)
+        {
+            woort_IROp* op_other = &instrs[j];
+            if (op_other->m_op != WOORT_IROP_KIND_LOAD_CONST)
+                continue;
+            if (op_other->m_const_index != cidx)
+                continue;
+            if (op_other->m_dst == NULL)
+                continue;
+
+            woort_IRValue* other_vreg = op_other->m_dst;
+
+            /* 跳过已标记为常量直连的 */
+            if (other_vreg->m_is_const_direct)
+                continue;
+
+            /* 跳过同一 vreg 的重复加载（Phase 4c 会处理） */
+            if (other_vreg == primary_vreg)
+                continue;
+
+            /*
+             * 安全性检查：主 vreg 在 other 的 LOAD_CONST 位置是否持有值？
+             *
+             * 由于主 vreg 只有唯一一条 LOAD_CONST 定义（def_count==1），
+             * 它从定义点到生命周期结束始终持有常量值。
+             *
+             * 需要确认主 vreg 在 other 的位置"活跃"（已定义且可访问）：
+             *  - 同块：主的定义在 other 之前（i < j，已由循环保证）
+             *  - 跨块：主 vreg 在 other 所在块的 LIVE_IN 中
+             */
+            bool safe = false;
+
+            if (instr_to_block != NULL)
+            {
+                uint32_t blk_primary = instr_to_block[i];
+                uint32_t blk_other = instr_to_block[j];
+
+                if (blk_primary == blk_other)
+                {
+                    /* 同块，i < j 已保证主定义在前 */
+                    safe = true;
+                }
+                else
+                {
+                    /* 跨块：检查主 vreg 在 other 块的 LIVE_IN */
+                    woort_IRBlock* other_blk = (woort_IRBlock*)woort_vector_at(
+                        &f->m_blocks, blk_other);
+                    if (other_blk->m_live_in.m_data != NULL &&
+                        primary_vreg->m_id < other_blk->m_live_in.m_bit_count)
+                    {
+                        safe = woort_bitset_test(
+                            &other_blk->m_live_in, primary_vreg->m_id);
+                    }
+                }
+            }
+
+            if (!safe)
+                continue;
+
+            /*
+             * 合并：将 LOAD_CONST c -> other_vreg 替换为 MOV other_vreg = primary_vreg
+             */
+            op_other->m_op = WOORT_IROP_KIND_MOV;
+            op_other->m_dst = other_vreg;
+            op_other->m_src[0] = primary_vreg;
+            op_other->m_src[1] = NULL;
+            op_other->m_src[2] = NULL;
+            /* union 字段不再需要 m_const_index */
+        }
+    }
+
+    free(instr_to_block);
+    free(def_count);
+    free(use_count);
+    free(vreg_by_id);
+    return true;
+}
+
+/* ===================================================================
  * Phase 3: 栈槽分配（线性扫描）
  * =================================================================== */
 
@@ -645,7 +896,7 @@ static bool _phase3_stack_allocation(
     }
 
     /*
-     * 构建需要分配的活跃区间列表（排除参数和未使用的 vreg）
+     * 构建需要分配的活跃区间列表（排除参数、常量直连和未使用的 vreg）
      */
     uint32_t interval_count = 0;
     for (uint32_t id = 0; id < vreg_count; ++id)
@@ -655,6 +906,8 @@ static bool _phase3_stack_allocation(
             continue;
         if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
             continue; /* 参数已有预分配的栈偏移 SB+3+idx */
+        if (v->m_is_const_direct)
+            continue; /* 常量直连不需要栈槽 */
         if (first_point[id] == UINT32_MAX)
             continue; /* 从未出现 */
         interval_count++;
@@ -680,6 +933,8 @@ static bool _phase3_stack_allocation(
             if (v == NULL)
                 continue;
             if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
+                continue;
+            if (v->m_is_const_direct)
                 continue;
             if (first_point[id] == UINT32_MAX)
                 continue;
@@ -1204,6 +1459,10 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
         if (op->m_op != WOORT_IROP_KIND_LOAD_CONST)
             continue;
 
+        /* 常量直连的 LOAD_CONST 不需要放置 LOAD（发射层直接用 PUSHCCHK/RETVC） */
+        if (op->m_dst != NULL && op->m_dst->m_is_const_direct)
+            continue;
+
         woort_IRConstantIndex cidx = op->m_const_index;
         uint32_t blk_idx = instr_to_block[i];
 
@@ -1386,6 +1645,10 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
 
     /* Phase 2: 活跃性分析 */
     if (!_phase2_liveness_analysis(f))
+        return false;
+
+    /* Phase 2b: 常量优化（直接使用标记 + 重复加载合并） */
+    if (!_phase2b_const_optimization(f))
         return false;
 
     /* Phase 3: 栈槽分配（线性扫描） */
