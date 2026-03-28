@@ -439,6 +439,8 @@ void woort_IRBlock_CALLNWO(
         woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
         *out_ret_val = result;
     }
+    else
+        op->m_w = NULL;
 }
 
 void woort_IRBlock_CALLNFP(
@@ -463,6 +465,8 @@ void woort_IRBlock_CALLNFP(
         woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
         *out_ret_val = result;
     }
+    else
+        op->m_w = NULL;
 }
 
 void woort_IRBlock_CALLNJIT(
@@ -487,6 +491,8 @@ void woort_IRBlock_CALLNJIT(
         woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
         *out_ret_val = result;
     }
+    else
+        op->m_w = NULL;
 }
 
 void woort_IRBlock_CALL(
@@ -510,6 +516,8 @@ void woort_IRBlock_CALL(
         woort_IRValue* const result = woort_IRFunction_operate_result(b->m_ir_func, op);
         *out_ret_val = result;
     }
+    else
+        op->m_w = NULL;
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKCLOSURE(woort_IRBlock* b, uint32_t elem_count, woort_IRConstantIndex f)

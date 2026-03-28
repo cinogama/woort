@@ -82,9 +82,9 @@ void woort_IRFunction_deinit(woort_IRFunction* ir_function)
 /* OPTIONAL */ woort_IRValue* woort_IRFuntion_load_constant(
     woort_IRFunction* f, woort_IRConstantIndex c)
 {
-    woort_IRValue* existing_value;
+    woort_IRValue** existing_value;
     if (woort_hashmap_find(&f->m_ir_constant_values, &c, (void**)&existing_value))
-        return existing_value;
+        return *existing_value;
 
     woort_IRValue* const value = _woort_IRFunction_new_value(f);
     if (value == NULL)
@@ -312,8 +312,8 @@ static bool _value_index_map_insert(_woort_ValueIndexMap* map, woort_IRValue* v,
 
 static bool _value_index_map_get(_woort_ValueIndexMap* map, woort_IRValue* v, size_t* out_index)
 {
-    void* val_ptr = NULL;
-    if (!woort_hashmap_find(&map->m_value_to_index, &v, &val_ptr))
+    size_t* val_ptr = NULL;
+    if (!woort_hashmap_find(&map->m_value_to_index, &v, (void**)&val_ptr))
         return false;
     *out_index = *(size_t*)val_ptr;
     return true;
@@ -434,8 +434,8 @@ static bool _block_index_map_init(
 
 static bool _block_index_map_get(woort_HashMap* map, woort_IRBlock* B, size_t* out_index)
 {
-    void* val_ptr = NULL;
-    if (!woort_hashmap_find(map, &B, &val_ptr))
+    size_t* val_ptr = NULL;
+    if (!woort_hashmap_find(map, &B, (void**)&val_ptr))
         return false;
     *out_index = *(size_t*)val_ptr;
     return true;
