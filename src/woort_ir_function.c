@@ -647,8 +647,21 @@ static bool _phase2b_const_optimization(woort_IRFunction* f)
             if (user->m_op == WOORT_IROP_KIND_PUSHCHK ||
                 user->m_op == WOORT_IROP_KIND_RET)
             {
-                vreg->m_is_const_direct = true;
-                vreg->m_direct_const_index = op->m_const_index;
+                /*
+                 * RETVC 没有扩展编码，const_index 超出 U24 范围时无法使用。
+                 * PUSHCCHK 有 PUSHCCHKEXT 所以不受限。
+                 * 对于 RET，如果 const_index 超限则不标记直连。
+                 */
+                if (user->m_op == WOORT_IROP_KIND_RET &&
+                    op->m_const_index > ((1u << 24) - 1))
+                {
+                    /* 不标记，回退到正常 LOAD + RETVS 路径 */
+                }
+                else
+                {
+                    vreg->m_is_const_direct = true;
+                    vreg->m_direct_const_index = op->m_const_index;
+                }
             }
             break; /* 只有一次使用，找到就退出 */
         }
@@ -1466,13 +1479,13 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
         woort_IRConstantIndex cidx = op->m_const_index;
         uint32_t blk_idx = instr_to_block[i];
 
-        /* 查找已有记录 */
+        /* 查找已有记录: 按 (const_index, dst_vreg) 联合键去重 */
         _woort_ConstUseInfo* found = NULL;
         for (size_t ci = 0; ci < const_infos.m_size; ++ci)
         {
             _woort_ConstUseInfo* info = (_woort_ConstUseInfo*)woort_vector_at(
                 &const_infos, ci);
-            if (info->m_const_index == cidx)
+            if (info->m_const_index == cidx && info->m_dst_vreg == op->m_dst)
             {
                 found = info;
                 break;
@@ -1650,6 +1663,62 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     /* Phase 2b: 常量优化（直接使用标记 + 重复加载合并） */
     if (!_phase2b_const_optimization(f))
         return false;
+
+    /*
+     * Phase 2b 可能将 LOAD_CONST 替换为 MOV，导致 Phase 2 的活跃性数据过时。
+     * 重新计算活跃性：清零已分配的 bitset 并重新分析。
+     */
+    {
+        const uint32_t block_count_2 = (uint32_t)f->m_blocks.m_size;
+        woort_IROp* instrs_2 = (woort_IROp*)f->m_instructions.m_data;
+
+        for (uint32_t b = 0; b < block_count_2; ++b)
+        {
+            woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, b);
+            woort_bitset_clear(&blk->m_use);
+            woort_bitset_clear(&blk->m_def);
+            woort_bitset_clear(&blk->m_live_in);
+            woort_bitset_clear(&blk->m_live_out);
+
+            for (uint32_t i = blk->m_begin; i < blk->m_end; ++i)
+            {
+                woort_IROp* op = &instrs_2[i];
+                if (op->m_op == WOORT_IROP_KIND_LABEL)
+                    continue;
+                _record_use(&blk->m_use, &blk->m_def, op->m_src[0]);
+                _record_use(&blk->m_use, &blk->m_def, op->m_src[1]);
+                _record_use(&blk->m_use, &blk->m_def, op->m_src[2]);
+                _record_def(&blk->m_def, op->m_dst);
+            }
+        }
+
+        {
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
+                for (uint32_t bi = block_count_2; bi > 0; --bi)
+                {
+                    uint32_t b = bi - 1;
+                    woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(
+                        &f->m_blocks, b);
+                    for (size_t si = 0; si < blk->m_successors.m_size; ++si)
+                    {
+                        uint32_t succ_idx = *(uint32_t*)woort_vector_at(
+                            &blk->m_successors, si);
+                        woort_IRBlock* succ = (woort_IRBlock*)woort_vector_at(
+                            &f->m_blocks, succ_idx);
+                        if (_bitset_union_into(&blk->m_live_out, &succ->m_live_in))
+                            changed = true;
+                    }
+                    if (_bitset_assign_live_in(
+                            &blk->m_live_in, &blk->m_use,
+                            &blk->m_live_out, &blk->m_def))
+                        changed = true;
+                }
+            }
+        }
+    }
 
     /* Phase 3: 栈槽分配（线性扫描） */
     if (!_phase3_stack_allocation(f, out_stack_space))
