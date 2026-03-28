@@ -1,389 +1,275 @@
 #pragma once
 
 /*
-woort_ir_block.h
-*/
-
-#include <stdint.h>
-#include <stddef.h>
+ * woort_ir_block.h
+ *
+ * 新 IR 接口：
+ *   - woort_IRLabel: 跳转目标
+ *   - woort_IRBlock: 内部概念，finish() 时从 Label/跳转自动切分
+ *   - woort_IR_*: 指令发射函数（在 IRFunction 上操作）
+ *
+ * 用户通过 woort_IR_* 函数向 IRFunction 追加指令。
+ * 控制流通过 Label + 显式 JMP/JCC 表达。
+ */
 
 #include "woort_ir_value.h"
 #include "woort_ir_op.h"
-#include "woort_linklist.h"
 #include "woort_vector.h"
+#include "woort_bitset.h"
 #include "woort_diagnosis.h"
 
-typedef struct woort_IRBlock woort_IRBlock;
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+
 typedef struct woort_IRFunction woort_IRFunction;
 
-typedef struct woort_IRPhi_ReentryRecord
+/*
+ * Label：跳转目标
+ *
+ * 由 woort_IRFunction_new_label 创建。
+ * 用 woort_IR_bind 绑定到当前指令位置。
+ * 在 finish 阶段解析为字节码地址。
+ */
+struct woort_IRLabel
 {
-    woort_IRBlock* m_from_block;
-    woort_IRValue* m_value;
+    uint32_t m_id;
 
-}woort_IRPhi_ReentryRecord;
-
-typedef struct woort_IRPhi 
-{
-    woort_IRValue* m_phi_value;
-
-    /*
-    Phi 节点的 m_records 数量和来源块应当和所属的 Block 的 m_prev_blocks
-    保持一致
-    */
-    woort_LinkList /* woort_IRPhi_ReentryRecord */ m_records;
-
-} woort_IRPhi;
-
-typedef enum woort_IRBlock_EndWay
-{
-    WOORT_IRBLOCK_ENDWAY_NOT_FINISHED,
-
-    WOORT_IRBLOCK_ENDWAY_BR,
-    WOORT_IRBLOCK_ENDWAY_BR_COND,
-    WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT,
-    WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE,
-    WOORT_IRBLOCK_ENDWAY_BR_COMPARE_EQ,
-    WOORT_IRBLOCK_ENDWAY_RET,
-
-}woort_IRBlock_EndWay;
-
-struct woort_IRBlock {
-    woort_IRFunction* m_ir_func;
-
-    woort_LinkList /* woort_IROp */ m_operates;
-    woort_LinkList /* woort_IRPhi */ m_phis;
-
-    woort_Vector /* woort_IRBlock* */ m_prev_blocks;
-
-    woort_IRBlock_EndWay m_cond_type;
-
-    union
-    {
-        woort_IRBlock* m_br_next_block;
-        /* OPTIONAL */ woort_IRValue* m_ret_value_may_null;
-        struct
-        {
-            woort_IRValue* m_br_cond_value;
-            woort_IRBlock* m_br_next_block_cond_true;
-            woort_IRBlock* m_br_next_block_cond_false;
-        };
-        struct
-        {
-            woort_IRValue* m_br_compare_values[2];
-            woort_IRBlock* m_br_next_block_compare_true;
-            woort_IRBlock* m_br_next_block_compare_false;
-        };
-    };
-
-    /*
-     * Dominator analysis results (filled during stack slot assignment)
-     */
-    /* OPTIONAL */ woort_IRBlock* m_idom;
-    woort_Vector /* woort_IRBlock* */ m_dom_children;
-    uint32_t m_dom_depth;
-
-    /*
-     * Loop information (filled during stack slot assignment)
-     */
-    bool m_is_in_loop;
-    /* OPTIONAL */ woort_IRBlock* m_loop_header;
-
-    /*
-     * Constants to load at block entry (filled during stack slot assignment)
-     */
-    woort_Vector /* woort_IRValue* */ m_loading_constants;
-    woort_Vector /* woort_Bytecode */ m_bytecodes_in_block;
-
-    size_t m_body_codes_len;
+    /* finish 阶段填充 */
+    bool m_bound;           /* 是否已绑定 */
+    uint32_t m_bind_index;  /* 在指令列表中的位置（绑定的 IROp 索引） */
+    uint32_t m_block_index; /* 所属 block 编号 */
 };
 
-void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func);
-void woort_IRBlock_deinit(woort_IRBlock* block);
+/*
+ * 基本块（内部数据结构）
+ *
+ * 在 finish() 时由框架根据 Label 和跳转指令自动切分。
+ * 用户不直接创建或操作 Block。
+ */
+typedef struct woort_IRBlock
+{
+    /* 在指令列表中的范围 [m_begin, m_end) */
+    uint32_t m_begin;
+    uint32_t m_end;
 
-WOORT_NODISCARD bool woort_IRBlock_br(
-    woort_IRBlock* block,
-    woort_IRBlock* next);
-WOORT_NODISCARD bool woort_IRBlock_br_cond(
-    woort_IRBlock* block,
-    woort_IRValue* cond,
-    woort_IRBlock* true_next,
-    woort_IRBlock* false_next);
-WOORT_NODISCARD bool woort_IRBlock_br_lt(
-    woort_IRBlock* block,
-    woort_IRValue* a,
-    woort_IRValue* b,
-    woort_IRBlock* true_next,
-    woort_IRBlock* false_next);
-WOORT_NODISCARD bool woort_IRBlock_br_le(
-    woort_IRBlock* block,
-    woort_IRValue* a,
-    woort_IRValue* b,
-    woort_IRBlock* true_next,
-    woort_IRBlock* false_next);
-WOORT_NODISCARD bool woort_IRBlock_br_eq(
-    woort_IRBlock* block,
-    woort_IRValue* a,
-    woort_IRValue* b,
-    woort_IRBlock* true_next,
-    woort_IRBlock* false_next);
+    /* CFG 边 */
+    woort_Vector /* uint32_t (block index) */ m_successors;
+    woort_Vector /* uint32_t (block index) */ m_predecessors;
 
-#define woort_IRBlock_br_gt(block, a, b, true_next, false_next)\
-    woort_IRBlock_br_lt(block, b, a, true_next, false_next)
-#define woort_IRBlock_br_ge(block, a, b, true_next, false_next)\
-    woort_IRBlock_br_le(block, b, a, true_next, false_next)
-#define woort_IRBlock_br_ne(block, a, b, true_next, false_next)\
-    woort_IRBlock_br_eq(block, b, a, false_next, true_next)
+    /* 活跃性分析 */
+    woort_Bitset m_use;
+    woort_Bitset m_def;
+    woort_Bitset m_live_in;
+    woort_Bitset m_live_out;
 
-void woort_IRBlock_ret(
-    woort_IRBlock* block, woort_IRValue* val);
-void woort_IRBlock_ret_void(woort_IRBlock* block);
+    /* Dominator 分析 */
+    int32_t m_idom;     /* immediate dominator block index, -1 if none */
+    uint32_t m_dom_depth;
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_PHI(woort_IRBlock* block, woort_IRPhi** out_phi);
+    /* 循环信息 */
+    bool m_is_in_loop;
+    int32_t m_loop_header;  /* loop header block index, -1 if not in loop */
+
+    /* 常量加载放置 */
+    woort_Vector /* _woort_ConstLoadInfo */ m_const_loads;
+
+    /* 字节码发射结果 */
+    woort_Vector /* woort_Bytecode */ m_bytecodes;
+
+} woort_IRBlock;
+
+void _woort_IRBlock_init(woort_IRBlock* block);
+void _woort_IRBlock_deinit(woort_IRBlock* block);
+
+/* ========== 指令发射 API ========== */
 
 /*
-如果一个 Block 有 PHI 节点，那么所有 br 到此 Block 其他 Block 必须通过此声明
-传递目标 Block 的所有 PHI 来源值，IRCompiler 在 finish 阶段负责检查。
-*/
-WOORT_NODISCARD bool woort_IRPhi_from(
-    woort_IRPhi* phi,
-    woort_IRBlock* from_block,
-    woort_IRValue* val);
+ * 所有 woort_IR_* 函数向 f 的线性指令列表追加一条 IROp。
+ * 返回 false 表示 OOM。
+ */
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LOAD(woort_IRBlock* b, woort_IRStaticIndex idx);
-void woort_IRBlock_STORE(woort_IRBlock* b, woort_IRStaticIndex idx, woort_IRValue* val);
+/* --- 数据移动 --- */
+WOORT_NODISCARD bool woort_IR_MOV(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_LOAD_CONST(woort_IRFunction* f, woort_IRValue* dst, woort_IRConstantIndex idx);
+WOORT_NODISCARD bool woort_IR_LOAD(woort_IRFunction* f, woort_IRValue* dst, woort_IRStaticIndex idx);
+WOORT_NODISCARD bool woort_IR_STORE(woort_IRFunction* f, woort_IRStaticIndex idx, woort_IRValue* src);
 
-void woort_IRBlock_PUSHCHK(woort_IRBlock* b, woort_IRValue* val);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_POP(woort_IRBlock* b);
+/* --- 栈操作 --- */
+WOORT_NODISCARD bool woort_IR_PUSHCHK(woort_IRFunction* f, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_POP(woort_IRFunction* f, woort_IRValue* dst);
+WOORT_NODISCARD bool woort_IR_POPR(woort_IRFunction* f, uint32_t count);
+WOORT_NODISCARD bool woort_IR_POPRS(woort_IRFunction* f, woort_IRValue* count_src);
 
-void woort_IRBlock_POPR(woort_IRBlock* b, uint32_t count);
-void woort_IRBlock_POPRS(woort_IRBlock* b, woort_IRValue* val);
+/* --- 类型转换 --- */
+WOORT_NODISCARD bool woort_IR_ITOR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_ITOS(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_RTOI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_RTOS(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_STOI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_STOR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ITOR(woort_IRBlock* b, woort_IRValue* val);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ITOS(woort_IRBlock* b, woort_IRValue* val);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_RTOI(woort_IRBlock* b, woort_IRValue* val);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_RTOS(woort_IRBlock* b, woort_IRValue* val);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_STOI(woort_IRBlock* b, woort_IRValue* val);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_STOR(woort_IRBlock* b, woort_IRValue* val);
+/* --- 函数调用 --- */
+WOORT_NODISCARD bool woort_IR_CALLNWO(
+    woort_IRFunction* f, woort_IRConstantIndex target,
+    uint32_t argc, /* OPTIONAL */ woort_IRValue* dst);
+WOORT_NODISCARD bool woort_IR_CALLNFP(
+    woort_IRFunction* f, woort_IRConstantIndex target,
+    uint32_t argc, /* OPTIONAL */ woort_IRValue* dst);
+WOORT_NODISCARD bool woort_IR_CALLNJIT(
+    woort_IRFunction* f, woort_IRConstantIndex target,
+    uint32_t argc, /* OPTIONAL */ woort_IRValue* dst);
+WOORT_NODISCARD bool woort_IR_CALL(
+    woort_IRFunction* f, woort_IRValue* func_val,
+    uint32_t argc, /* OPTIONAL */ woort_IRValue* dst);
 
-void woort_IRBlock_CALLNWO(
-    woort_IRBlock* b,
-    woort_IRConstantIndex f,
-    uint32_t argc_to_pop,
-    /* OPTIONAL */ woort_IRValue** out_ret_val);
-void woort_IRBlock_CALLNFP(
-    woort_IRBlock* b,
-    woort_IRConstantIndex f,
-    uint32_t argc_to_pop,
-    /* OPTIONAL */ woort_IRValue** out_ret_val);
-void woort_IRBlock_CALLNJIT(
-    woort_IRBlock* b,
-    woort_IRConstantIndex f,
-    uint32_t argc_to_pop,
-    /* OPTIONAL */ woort_IRValue** out_ret_val);
-void woort_IRBlock_CALL(
-    woort_IRBlock* b,
-    woort_IRValue* f_val,
-    uint32_t argc_to_pop,
-    /* OPTIONAL */ woort_IRValue** out_ret_val);
+/* --- 闭包/容器 --- */
+WOORT_NODISCARD bool woort_IR_MKCLOSURE(
+    woort_IRFunction* f, woort_IRValue* dst, uint32_t elem_count, woort_IRConstantIndex func_idx);
+WOORT_NODISCARD bool woort_IR_MKVEC(woort_IRFunction* f, woort_IRValue* dst, uint32_t elem_count);
+WOORT_NODISCARD bool woort_IR_MKMAP(woort_IRFunction* f, woort_IRValue* dst, uint32_t kvpair_count);
+WOORT_NODISCARD bool woort_IR_MKSTRUCT(woort_IRFunction* f, woort_IRValue* dst, uint32_t elem_count);
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKCLOSURE(
-    woort_IRBlock* b, uint32_t elem_count, woort_IRConstantIndex f);
+/* --- 动态类型 --- */
+WOORT_NODISCARD bool woort_IR_BOXDYN(woort_IRFunction* f, woort_IRValue* dst, uint8_t typ, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_UNBOXDYN(woort_IRFunction* f, woort_IRValue* dst, uint8_t typ, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_CHECKDYN(woort_IRFunction* f, woort_IRValue* dst, uint8_t typ, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_PUSHBOXDYN(woort_IRFunction* f, uint8_t typ, woort_IRValue* src);
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKVEC(woort_IRBlock* b, uint32_t elem_count);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKMAP(woort_IRBlock* b, uint32_t kvpair_count);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MKSTRUCT(woort_IRBlock* b, uint32_t elem_count);
+/* --- 整数算术 (dst = src1 op src2) --- */
+WOORT_NODISCARD bool woort_IR_ADDI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_SUBI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_MULI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_DIVI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_MODI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_NEGI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_BOXDYN(
-    woort_IRBlock* b, uint8_t typ, woort_IRValue* val);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_UNBOXDYN(
-    woort_IRBlock* b, uint8_t typ, woort_IRValue* val);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_CHECKDYN(
-    woort_IRBlock* b, uint8_t typ, woort_IRValue* val);
-void woort_IRBlock_PUSHBOXDYN(
-    woort_IRBlock* b, uint8_t typ, woort_IRValue* val);
+/* --- 整数比较 --- */
+WOORT_NODISCARD bool woort_IR_LTI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_GTI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_LEI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_GEI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_EQI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_NEI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ADDI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_SUBI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MULI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_DIVI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MODI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_NEGI(
-    woort_IRBlock* b, woort_IRValue* val);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LTI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GTI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LEI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GEI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_EQI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_NEI(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
+/* --- 实数算术 --- */
+WOORT_NODISCARD bool woort_IR_ADDR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_SUBR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_MULR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_DIVR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_MODR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_NEGR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ADDR(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_SUBR(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MULR(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_DIVR(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_MODR(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_NEGR(
-    woort_IRBlock* b, woort_IRValue* val);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LTR(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GTR(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LER(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GER(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_EQR(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_NER(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
+/* --- 实数比较 --- */
+WOORT_NODISCARD bool woort_IR_LTR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_GTR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_LER(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_GER(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_EQR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_NER(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_ADDS(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LTS(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GTS(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LES(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_GES(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_EQS(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_NES(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
+/* --- 字符串 --- */
+WOORT_NODISCARD bool woort_IR_ADDS(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_LTS(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_GTS(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_LES(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_GES(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_EQS(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_NES(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LAND(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LOR(
-    woort_IRBlock* b, woort_IRValue* val1, woort_IRValue* val2);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LNOT(
-    woort_IRBlock* b, woort_IRValue* val);
+/* --- 逻辑 --- */
+WOORT_NODISCARD bool woort_IR_LAND(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_LOR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* a, woort_IRValue* b);
+WOORT_NODISCARD bool woort_IR_LNOT(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXVEC(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXVECX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXSTRUCT(
-    woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXSTRING(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
+/* --- 索引加载 --- */
+WOORT_NODISCARD bool woort_IR_LDIDXVEC(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* container, woort_IRValue* idx);
+WOORT_NODISCARD bool woort_IR_LDIDXVECX(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* container, woort_IRValue* idx);
+WOORT_NODISCARD bool woort_IR_LDIDXSTRUCT(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* container, uint32_t idx);
+WOORT_NODISCARD bool woort_IR_LDIDXSTRING(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* container, woort_IRValue* idx);
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXDICTI(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXDICTR(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXDICTB(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_LDIDXDICTX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx);
+WOORT_NODISCARD bool woort_IR_LDIDXDICTI(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* container, woort_IRValue* idx);
+WOORT_NODISCARD bool woort_IR_LDIDXDICTR(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* container, woort_IRValue* idx);
+WOORT_NODISCARD bool woort_IR_LDIDXDICTB(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* container, woort_IRValue* idx);
+WOORT_NODISCARD bool woort_IR_LDIDXDICTX(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* container, woort_IRValue* idx);
 
-void woort_IRBlock_SDIDXVECI(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXVECR(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXVECB(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXVECX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+/* --- 索引存储 (不返回值) --- */
+WOORT_NODISCARD bool woort_IR_SDIDXVECI(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXVECR(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXVECB(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXVECX(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
 
-void woort_IRBlock_SDIDXDICTII(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTIR(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTIB(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTIX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTII(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTIR(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTIB(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTIX(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTRI(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTRR(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTRB(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTRX(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTBI(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTBR(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTBB(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTBX(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTXI(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTXR(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTXB(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXDICTXX(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
 
-void woort_IRBlock_SDIDXDICTRI(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTRR(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTRB(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTRX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPII(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPIR(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPIB(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPIX(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPRI(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPRR(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPRB(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPRX(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPBI(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPBR(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPBB(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPBX(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPXI(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPXR(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPXB(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXMAPXX(woort_IRFunction* f, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
 
-void woort_IRBlock_SDIDXDICTBI(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTBR(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTBB(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTBX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_SDIDXSTRUCT(woort_IRFunction* f, woort_IRValue* c, uint32_t idx, woort_IRValue* val);
 
-void woort_IRBlock_SDIDXDICTXI(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTXR(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTXB(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXDICTXX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+/* --- 解包 --- */
+WOORT_NODISCARD bool woort_IR_UNPACKSTRUCT(woort_IRFunction* f, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_UNPACKVEC(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
+WOORT_NODISCARD bool woort_IR_UNPACKVECX(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
 
-void woort_IRBlock_SDIDXMAPII(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPIR(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPIB(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPIX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+/* --- 结构体字段推栈 --- */
+WOORT_NODISCARD bool woort_IR_PUSHIDXSTRUCT(woort_IRFunction* f, woort_IRValue* src, uint32_t idx);
+WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXI(woort_IRFunction* f, woort_IRValue* src, uint32_t idx);
+WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXR(woort_IRFunction* f, woort_IRValue* src, uint32_t idx);
+WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXB(woort_IRFunction* f, woort_IRValue* src, uint32_t idx);
+WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXX(woort_IRFunction* f, woort_IRValue* src, uint32_t idx);
 
-void woort_IRBlock_SDIDXMAPRI(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPRR(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPRB(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPRX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+/* ============ 控制流 ============ */
 
-void woort_IRBlock_SDIDXMAPBI(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPBR(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPBB(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPBX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+/* 绑定 Label 到当前位置 */
+WOORT_NODISCARD bool woort_IR_bind(woort_IRFunction* f, woort_IRLabel* label);
 
-void woort_IRBlock_SDIDXMAPXI(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPXR(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPXB(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
-void woort_IRBlock_SDIDXMAPXX(
-    woort_IRBlock* b, woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val);
+/* 无条件跳转 */
+WOORT_NODISCARD bool woort_IR_jmp(woort_IRFunction* f, woort_IRLabel* target);
 
-void woort_IRBlock_SDIDXSTRUCT(
-    woort_IRBlock* b, woort_IRValue* c, uint32_t idx, woort_IRValue* val);
+/* 条件跳转: if (cond != 0) goto target */
+WOORT_NODISCARD bool woort_IR_jcc(woort_IRFunction* f, woort_IRValue* cond, woort_IRLabel* target);
 
-void woort_IRBlock_UNPACKSTRUCT(woort_IRBlock* b, woort_IRValue* c);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_UNPACKVEC(woort_IRBlock* b, woort_IRValue* c);
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRBlock_UNPACKVECX(woort_IRBlock* b, woort_IRValue* c);
+/* 条件跳转: if (cond == 0) goto target */
+WOORT_NODISCARD bool woort_IR_jccz(woort_IRFunction* f, woort_IRValue* cond, woort_IRLabel* target);
 
-void woort_IRBlock_PUSHIDXSTRUCT(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
+/* 比较跳转 */
+WOORT_NODISCARD bool woort_IR_jcc_lt(woort_IRFunction* f, woort_IRValue* a, woort_IRValue* b, woort_IRLabel* target);
+WOORT_NODISCARD bool woort_IR_jcc_le(woort_IRFunction* f, woort_IRValue* a, woort_IRValue* b, woort_IRLabel* target);
+WOORT_NODISCARD bool woort_IR_jcc_eq(woort_IRFunction* f, woort_IRValue* a, woort_IRValue* b, woort_IRLabel* target);
+WOORT_NODISCARD bool woort_IR_jcc_gt(woort_IRFunction* f, woort_IRValue* a, woort_IRValue* b, woort_IRLabel* target);
+WOORT_NODISCARD bool woort_IR_jcc_ge(woort_IRFunction* f, woort_IRValue* a, woort_IRValue* b, woort_IRLabel* target);
+WOORT_NODISCARD bool woort_IR_jcc_ne(woort_IRFunction* f, woort_IRValue* a, woort_IRValue* b, woort_IRLabel* target);
 
-void woort_IRBlock_PUSHIDXSTBOXI(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
-void woort_IRBlock_PUSHIDXSTBOXR(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
-void woort_IRBlock_PUSHIDXSTBOXB(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
-void woort_IRBlock_PUSHIDXSTBOXX(woort_IRBlock* b, woort_IRValue* c, uint32_t idx);
+/* ============ 返回 ============ */
+
+WOORT_NODISCARD bool woort_IR_ret(woort_IRFunction* f, woort_IRValue* val);
+WOORT_NODISCARD bool woort_IR_ret_void(woort_IRFunction* f);

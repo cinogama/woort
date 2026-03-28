@@ -84,7 +84,7 @@ static woort_api capture_int(woort_vm vm, woort_value* args)
 /* ========== 测试 1: 简单整数返回 ========== */
 /*
 func constant_42() => int {
-    return 42;      // 使用 RETVC（常量返回）
+    return 42;
 }
 */
 static void test_constant_return(void)
@@ -99,13 +99,11 @@ static void test_constant_return(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f);
-        TEST_ASSERT(entry != NULL);
-
-        woort_IRValue* v = woort_IRFuntion_load_constant(f, c42);
+        woort_IRValue* v = woort_IRFunction_new_vreg(f);
         TEST_ASSERT(v != NULL);
 
-        woort_IRBlock_ret(entry, v);
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v, c42));
+        TEST_ASSERT(woort_IR_ret(f, v));
     }
 
     woort_CodeEnv* cenv;
@@ -128,8 +126,9 @@ static void test_constant_return(void)
 
 /* ========== 测试 2: 整数算术 ========== */
 /*
-func arith(a: int, b: int) => int {
-    return (a + b) * (a - b);       // (10+3) * (10-3) = 13 * 7 = 91
+func arith() => int {
+    a = 10; b = 3;
+    return (a + b) * (a - b);       // 13 * 7 = 91
 }
 */
 static void test_integer_arithmetic(void)
@@ -145,21 +144,19 @@ static void test_integer_arithmetic(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f);
-        TEST_ASSERT(entry != NULL);
+        woort_IRValue* a = woort_IRFunction_new_vreg(f);
+        woort_IRValue* b = woort_IRFunction_new_vreg(f);
+        woort_IRValue* sum = woort_IRFunction_new_vreg(f);
+        woort_IRValue* diff = woort_IRFunction_new_vreg(f);
+        woort_IRValue* product = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(a && b && sum && diff && product);
 
-        woort_IRValue* a = woort_IRFuntion_load_constant(f, const_a);
-        woort_IRValue* b = woort_IRFuntion_load_constant(f, const_b);
-        TEST_ASSERT(a != NULL && b != NULL);
-
-        woort_IRValue* sum = woort_IRBlock_ADDI(entry, a, b);
-        woort_IRValue* diff = woort_IRBlock_SUBI(entry, a, b);
-        TEST_ASSERT(sum != NULL && diff != NULL);
-
-        woort_IRValue* product = woort_IRBlock_MULI(entry, sum, diff);
-        TEST_ASSERT(product != NULL);
-
-        woort_IRBlock_ret(entry, product);
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, a, const_a));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, b, const_b));
+        TEST_ASSERT(woort_IR_ADDI(f, sum, a, b));
+        TEST_ASSERT(woort_IR_SUBI(f, diff, a, b));
+        TEST_ASSERT(woort_IR_MULI(f, product, sum, diff));
+        TEST_ASSERT(woort_IR_ret(f, product));
     }
 
     woort_CodeEnv* cenv;
@@ -200,21 +197,19 @@ static void test_divmod(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f);
-        TEST_ASSERT(entry != NULL);
+        woort_IRValue* v17 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v5 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* div_result = woort_IRFunction_new_vreg(f);
+        woort_IRValue* mod_result = woort_IRFunction_new_vreg(f);
+        woort_IRValue* sum = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v17 && v5 && div_result && mod_result && sum);
 
-        woort_IRValue* v17 = woort_IRFuntion_load_constant(f, c17);
-        woort_IRValue* v5 = woort_IRFuntion_load_constant(f, c5);
-        TEST_ASSERT(v17 != NULL && v5 != NULL);
-
-        woort_IRValue* div_result = woort_IRBlock_DIVI(entry, v17, v5);
-        woort_IRValue* mod_result = woort_IRBlock_MODI(entry, v17, v5);
-        TEST_ASSERT(div_result != NULL && mod_result != NULL);
-
-        woort_IRValue* sum = woort_IRBlock_ADDI(entry, div_result, mod_result);
-        TEST_ASSERT(sum != NULL);
-
-        woort_IRBlock_ret(entry, sum);
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v17, c17));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v5, c5));
+        TEST_ASSERT(woort_IR_DIVI(f, div_result, v17, v5));
+        TEST_ASSERT(woort_IR_MODI(f, mod_result, v17, v5));
+        TEST_ASSERT(woort_IR_ADDI(f, sum, div_result, mod_result));
+        TEST_ASSERT(woort_IR_ret(f, sum));
     }
 
     woort_CodeEnv* cenv;
@@ -254,16 +249,13 @@ static void test_negate(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f);
-        TEST_ASSERT(entry != NULL);
+        woort_IRValue* v42 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* neg = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v42 && neg);
 
-        woort_IRValue* v42 = woort_IRFuntion_load_constant(f, c42);
-        TEST_ASSERT(v42 != NULL);
-
-        woort_IRValue* neg = woort_IRBlock_NEGI(entry, v42);
-        TEST_ASSERT(neg != NULL);
-
-        woort_IRBlock_ret(entry, neg);
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v42, c42));
+        TEST_ASSERT(woort_IR_NEGI(f, neg, v42));
+        TEST_ASSERT(woort_IR_ret(f, neg));
     }
 
     woort_CodeEnv* cenv;
@@ -291,8 +283,7 @@ func max(a, b: int) => int {
     else        return b;
 }
 
-用 a=7, b=3 测试 -> 期望 7
-用 a=2, b=9 测试 -> 期望 9
+用 jcc_ge 跳转到 L_true 返回 a，否则 fall-through 返回 b。
 */
 static void test_branch_helper(woort_Int a, woort_Int b, woort_Int expected)
 {
@@ -305,21 +296,23 @@ static void test_branch_helper(woort_Int a, woort_Int b, woort_Int expected)
     woort_IRFunction* f;
     (void)woort_IRCompiler_add_function(&irc, 0, &f);
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f);
-        woort_IRBlock* block_true = woort_IRFuntion_add_block(f);
-        woort_IRBlock* block_false = woort_IRFuntion_add_block(f);
+        woort_IRValue* va = woort_IRFunction_new_vreg(f);
+        woort_IRValue* vb = woort_IRFunction_new_vreg(f);
 
-        woort_IRValue* va = woort_IRFuntion_load_constant(f, ca);
-        woort_IRValue* vb = woort_IRFuntion_load_constant(f, cb);
+        woort_IRLabel* L_true = woort_IRFunction_new_label(f);
 
-        /* if (a >= b) goto block_true else goto block_false */
-        (void)woort_IRBlock_br_ge(entry, va, vb, block_true, block_false);
+        (void)woort_IR_LOAD_CONST(f, va, ca);
+        (void)woort_IR_LOAD_CONST(f, vb, cb);
 
-        /* block_true: return a */
-        woort_IRBlock_ret(block_true, va);
+        /* if (a >= b) goto L_true */
+        (void)woort_IR_jcc_ge(f, va, vb, L_true);
 
-        /* block_false: return b */
-        woort_IRBlock_ret(block_false, vb);
+        /* false path (fall-through): return b */
+        (void)woort_IR_ret(f, vb);
+
+        /* L_true: return a */
+        (void)woort_IR_bind(f, L_true);
+        (void)woort_IR_ret(f, va);
     }
 
     woort_CodeEnv* cenv;
@@ -350,23 +343,24 @@ static void test_branch_ge(void)
     TEST_END();
 }
 
-/* ========== 测试 6: 循环 + PHI 节点 (sum 1..N) ========== */
+/* ========== 测试 6: 循环 (sum 1..N, 使用 MOV 代替 PHI) ========== */
 /*
-func sum_1_to_n(n: int) => int {
-    i = 1;
-    acc = 0;
-    while (i <= n) {
-        acc = acc + i;
-        i = i + 1;
-    }
-    return acc;
+func sum_1_to_n() => int {
+    n = 10; i = 1; acc = 0;
+    L_header:
+      if (i > n) goto L_exit;
+      acc = acc + i;
+      i = i + 1;
+      goto L_header;
+    L_exit:
+      return acc;
 }
 
 sum(10) = 55
 */
-static void test_loop_phi(void)
+static void test_loop(void)
 {
-    TEST_BEGIN("loop_phi (sum 1..10 = 55)");
+    TEST_BEGIN("loop (sum 1..10 = 55)");
 
     woort_IRCompiler irc;
     woort_IRCompiler_init(&irc);
@@ -378,50 +372,46 @@ static void test_loop_phi(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f);
-        woort_IRBlock* loop_header = woort_IRFuntion_add_block(f);
-        woort_IRBlock* loop_body = woort_IRFuntion_add_block(f);
-        woort_IRBlock* exit_block = woort_IRFuntion_add_block(f);
-        TEST_ASSERT(entry && loop_header && loop_body && exit_block);
+        woort_IRValue* vn = woort_IRFunction_new_vreg(f);
+        woort_IRValue* val0 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* val1 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* i = woort_IRFunction_new_vreg(f);
+        woort_IRValue* acc = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(vn && val0 && val1 && i && acc);
 
-        woort_IRValue* vn = woort_IRFuntion_load_constant(f, cn);
-        woort_IRValue* v0 = woort_IRFuntion_load_constant(f, c0);
-        woort_IRValue* v1 = woort_IRFuntion_load_constant(f, c1);
-        TEST_ASSERT(vn && v0 && v1);
+        woort_IRLabel* L_header = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_exit = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_header && L_exit);
 
-        /* entry -> loop_header */
-        TEST_ASSERT(woort_IRBlock_br(entry, loop_header));
+        /* 加载常量 */
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, vn, cn));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, val0, c0));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, val1, c1));
 
-        /* loop_header: PHI(i, acc) */
-        woort_IRPhi* phi_i;
-        woort_IRValue* i_val = woort_IRBlock_PHI(loop_header, &phi_i);
-        TEST_ASSERT(i_val != NULL);
+        /* 初始化循环变量 */
+        TEST_ASSERT(woort_IR_MOV(f, i, val1));       /* i = 1 */
+        TEST_ASSERT(woort_IR_MOV(f, acc, val0));     /* acc = 0 */
 
-        woort_IRPhi* phi_acc;
-        woort_IRValue* acc_val = woort_IRBlock_PHI(loop_header, &phi_acc);
-        TEST_ASSERT(acc_val != NULL);
+        /* L_header: */
+        TEST_ASSERT(woort_IR_bind(f, L_header));
 
-        /* i 来自 entry 时为 1，来自 loop_body 时为 i+1 */
-        TEST_ASSERT(woort_IRPhi_from(phi_i, entry, v1));
-        /* acc 来自 entry 时为 0，来自 loop_body 时为 acc+i */
-        TEST_ASSERT(woort_IRPhi_from(phi_acc, entry, v0));
+        /* if (i > n) goto L_exit */
+        TEST_ASSERT(woort_IR_jcc_gt(f, i, vn, L_exit));
 
-        /* if (i <= n) goto loop_body else goto exit_block */
-        TEST_ASSERT(woort_IRBlock_br_le(
-            loop_header, i_val, vn, loop_body, exit_block));
+        /* acc = acc + i */
+        TEST_ASSERT(woort_IR_ADDI(f, acc, acc, i));
 
-        /* loop_body: acc' = acc + i; i' = i + 1; goto loop_header */
-        woort_IRValue* new_acc = woort_IRBlock_ADDI(loop_body, acc_val, i_val);
-        woort_IRValue* new_i = woort_IRBlock_ADDI(loop_body, i_val, v1);
-        TEST_ASSERT(new_acc && new_i);
+        /* i = i + 1 */
+        TEST_ASSERT(woort_IR_ADDI(f, i, i, val1));
 
-        TEST_ASSERT(woort_IRPhi_from(phi_i, loop_body, new_i));
-        TEST_ASSERT(woort_IRPhi_from(phi_acc, loop_body, new_acc));
+        /* goto L_header */
+        TEST_ASSERT(woort_IR_jmp(f, L_header));
 
-        TEST_ASSERT(woort_IRBlock_br(loop_body, loop_header));
+        /* L_exit: */
+        TEST_ASSERT(woort_IR_bind(f, L_exit));
 
-        /* exit_block: return acc */
-        woort_IRBlock_ret(exit_block, acc_val);
+        /* return acc */
+        TEST_ASSERT(woort_IR_ret(f, acc));
     }
 
     woort_CodeEnv* cenv;
@@ -429,8 +419,6 @@ static void test_loop_phi(void)
     cenv->m_data_begin[cn].m_integer = 10;
     cenv->m_data_begin[c0].m_integer = 0;
     cenv->m_data_begin[c1].m_integer = 1;
-
-    dump_Code(cenv);
 
     woort_VMRuntime* vm;
     TEST_ASSERT(woort_VMRuntime_create(&vm));
@@ -467,63 +455,59 @@ static void test_fibonacci(void)
     woort_IRConstantIndex cfib = woort_IRCompiler_add_constant(&irc);
     woort_IRConstantIndex cn = woort_IRCompiler_add_constant(&irc);
 
-    /* func fib(n): 参数通过压栈传递，arg0 在 [SB+3] */
+    /* func fib(n) */
     woort_IRFunction* f_fib;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 1, &f_fib));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f_fib);
-        woort_IRBlock* base_case = woort_IRFuntion_add_block(f_fib);
-        woort_IRBlock* recursive = woort_IRFuntion_add_block(f_fib);
-        TEST_ASSERT(entry && base_case && recursive);
-
         woort_IRValue* n_arg = woort_IRFunction_get_argument(f_fib, 0);
-        woort_IRValue* v2 = woort_IRFuntion_load_constant(f_fib, c2);
-        woort_IRValue* v1 = woort_IRFuntion_load_constant(f_fib, c1);
-        TEST_ASSERT(n_arg && v2 && v1);
+        woort_IRValue* v2 = woort_IRFunction_new_vreg(f_fib);
+        woort_IRValue* v1 = woort_IRFunction_new_vreg(f_fib);
+        woort_IRValue* tmp1 = woort_IRFunction_new_vreg(f_fib);
+        woort_IRValue* tmp2 = woort_IRFunction_new_vreg(f_fib);
+        woort_IRValue* r1 = woort_IRFunction_new_vreg(f_fib);
+        woort_IRValue* r2 = woort_IRFunction_new_vreg(f_fib);
+        woort_IRValue* sum = woort_IRFunction_new_vreg(f_fib);
+        TEST_ASSERT(n_arg && v2 && v1 && tmp1 && tmp2 && r1 && r2 && sum);
 
-        /* if (n < 2) goto base_case else goto recursive */
-        TEST_ASSERT(woort_IRBlock_br_lt(entry, n_arg, v2, base_case, recursive));
+        woort_IRLabel* L_base = woort_IRFunction_new_label(f_fib);
+        TEST_ASSERT(L_base != NULL);
 
-        /* base_case: return n */
-        woort_IRBlock_ret(base_case, n_arg);
+        TEST_ASSERT(woort_IR_LOAD_CONST(f_fib, v2, c2));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f_fib, v1, c1));
 
-        /* recursive: return fib(n-1) + fib(n-2) */
-        woort_IRValue* n_minus_1 = woort_IRBlock_SUBI(recursive, n_arg, v1);
-        woort_IRValue* n_minus_2 = woort_IRBlock_SUBI(recursive, n_arg, v2);
-        TEST_ASSERT(n_minus_1 && n_minus_2);
+        /* if (n < 2) goto L_base */
+        TEST_ASSERT(woort_IR_jcc_lt(f_fib, n_arg, v2, L_base));
 
-        /* call fib(n-1) */
-        woort_IRBlock_PUSHCHK(recursive, n_minus_1);
-        woort_IRValue* r1;
-        woort_IRBlock_CALLNWO(recursive, cfib, 1, &r1);
+        /* recursive case */
+        TEST_ASSERT(woort_IR_SUBI(f_fib, tmp1, n_arg, v1));    /* tmp1 = n - 1 */
+        TEST_ASSERT(woort_IR_SUBI(f_fib, tmp2, n_arg, v2));    /* tmp2 = n - 2 */
 
-        /* call fib(n-2) */
-        woort_IRBlock_PUSHCHK(recursive, n_minus_2);
-        woort_IRValue* r2;
-        woort_IRBlock_CALLNWO(recursive, cfib, 1, &r2);
+        TEST_ASSERT(woort_IR_PUSHCHK(f_fib, tmp1));
+        TEST_ASSERT(woort_IR_CALLNWO(f_fib, cfib, 1, r1));     /* r1 = fib(n-1) */
 
-        woort_IRValue* sum = woort_IRBlock_ADDI(recursive, r1, r2);
-        TEST_ASSERT(sum != NULL);
+        TEST_ASSERT(woort_IR_PUSHCHK(f_fib, tmp2));
+        TEST_ASSERT(woort_IR_CALLNWO(f_fib, cfib, 1, r2));     /* r2 = fib(n-2) */
 
-        woort_IRBlock_ret(recursive, sum);
+        TEST_ASSERT(woort_IR_ADDI(f_fib, sum, r1, r2));        /* sum = r1 + r2 */
+        TEST_ASSERT(woort_IR_ret(f_fib, sum));
+
+        /* L_base: return n */
+        TEST_ASSERT(woort_IR_bind(f_fib, L_base));
+        TEST_ASSERT(woort_IR_ret(f_fib, n_arg));
     }
 
-    /* func main(): 调用 fib(10)，不需要捕获返回值 —— 直接用 invoke */
+    /* func main(): 调用 fib(10) */
     woort_IRFunction* f_main;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f_main));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f_main);
-        TEST_ASSERT(entry != NULL);
+        woort_IRValue* vn = woort_IRFunction_new_vreg(f_main);
+        woort_IRValue* result = woort_IRFunction_new_vreg(f_main);
+        TEST_ASSERT(vn && result);
 
-        woort_IRValue* vn = woort_IRFuntion_load_constant(f_main, cn);
-        TEST_ASSERT(vn != NULL);
-
-        woort_IRBlock_PUSHCHK(entry, vn);
-
-        woort_IRValue* result;
-        woort_IRBlock_CALLNWO(entry, cfib, 1, &result);
-
-        woort_IRBlock_ret(entry, result);
+        TEST_ASSERT(woort_IR_LOAD_CONST(f_main, vn, cn));
+        TEST_ASSERT(woort_IR_PUSHCHK(f_main, vn));
+        TEST_ASSERT(woort_IR_CALLNWO(f_main, cfib, 1, result));
+        TEST_ASSERT(woort_IR_ret(f_main, result));
     }
 
     woort_CodeEnv* cenv;
@@ -536,27 +520,9 @@ static void test_fibonacci(void)
     woort_VMRuntime* vm;
     TEST_ASSERT(woort_VMRuntime_create(&vm));
 
-    /*
-    main 是第二个函数，其代码紧跟 fib 之后。
-    由于我们不知道 fib 的字节码长度，需要从 irc 获取。
-    但 finish 后 irc.m_commited_codes 已有全部代码。
-    fib 的字节码占据 [0, fib_len)，main 从 fib_len 开始。
-
-    通过遍历 fib 的所有块来统计总长度。
-    */
-    size_t fib_code_len = 0;
-    {
-        woort_IRBlock* b;
-        for (b = woort_linklist_iter(&f_fib->m_ir_blocks);
-             b != NULL;
-             b = woort_linklist_next(b))
-        {
-            fib_code_len += b->m_bytecodes_in_block.m_size;
-        }
-    }
-
+    /* main 是第二个函数，其代码从 fib 之后开始 */
     woort_VmCallStatus status = woort_VMRuntime_invoke(
-        vm, cenv->m_code_begin + fib_code_len);
+        vm, cenv->m_code_begin + f_fib->m_code_length);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
     TEST_ASSERT_EQ_INT(55, vm->m_sp[0].m_integer);
 
@@ -587,23 +553,26 @@ static void test_logic_ops(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f);
-        TEST_ASSERT(entry != NULL);
+        woort_IRValue* v1 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* v0 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* land = woort_IRFunction_new_vreg(f);
+        woort_IRValue* lnot = woort_IRFunction_new_vreg(f);
+        woort_IRValue* lor = woort_IRFunction_new_vreg(f);
+        woort_IRValue* s1 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* s2 = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v1 && v0 && land && lnot && lor && s1 && s2);
 
-        woort_IRValue* v1 = woort_IRFuntion_load_constant(f, c1);
-        woort_IRValue* v0 = woort_IRFuntion_load_constant(f, c0);
-        TEST_ASSERT(v1 && v0);
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v1, c1));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v0, c0));
 
-        woort_IRValue* land = woort_IRBlock_LAND(entry, v1, v0);   /* 1 && 0 = 0 */
-        woort_IRValue* lnot = woort_IRBlock_LNOT(entry, v0);      /* !0 = 1 */
-        woort_IRValue* lor = woort_IRBlock_LOR(entry, v1, v0);    /* 1 || 0 = 1 */
-        TEST_ASSERT(land && lnot && lor);
+        TEST_ASSERT(woort_IR_LAND(f, land, v1, v0));   /* 1 && 0 = 0 */
+        TEST_ASSERT(woort_IR_LNOT(f, lnot, v0));       /* !0 = 1 */
+        TEST_ASSERT(woort_IR_LOR(f, lor, v1, v0));     /* 1 || 0 = 1 */
 
-        woort_IRValue* s1 = woort_IRBlock_ADDI(entry, land, lnot);
-        woort_IRValue* s2 = woort_IRBlock_ADDI(entry, s1, lor);
-        TEST_ASSERT(s1 && s2);
+        TEST_ASSERT(woort_IR_ADDI(f, s1, land, lnot));  /* 0 + 1 = 1 */
+        TEST_ASSERT(woort_IR_ADDI(f, s2, s1, lor));     /* 1 + 1 = 2 */
 
-        woort_IRBlock_ret(entry, s2);
+        TEST_ASSERT(woort_IR_ret(f, s2));
     }
 
     woort_CodeEnv* cenv;
@@ -647,29 +616,39 @@ static void test_integer_comparisons(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f);
-        TEST_ASSERT(entry != NULL);
-
-        woort_IRValue* a = woort_IRFuntion_load_constant(f, ca);
-        woort_IRValue* b = woort_IRFuntion_load_constant(f, cb);
-        TEST_ASSERT(a && b);
-
-        woort_IRValue* lt = woort_IRBlock_LTI(entry, a, b);   /* 5 < 3 = 0 */
-        woort_IRValue* gt = woort_IRBlock_GTI(entry, a, b);   /* 5 > 3 = 1 */
-        woort_IRValue* le = woort_IRBlock_LEI(entry, a, b);   /* 5 <= 3 = 0 */
-        woort_IRValue* ge = woort_IRBlock_GEI(entry, a, b);   /* 5 >= 3 = 1 */
-        woort_IRValue* eq = woort_IRBlock_EQI(entry, a, b);   /* 5 == 3 = 0 */
-        woort_IRValue* ne = woort_IRBlock_NEI(entry, a, b);   /* 5 != 3 = 1 */
-        TEST_ASSERT(lt && gt && le && ge && eq && ne);
-
-        woort_IRValue* s1 = woort_IRBlock_ADDI(entry, lt, gt);
-        woort_IRValue* s2 = woort_IRBlock_ADDI(entry, s1, le);
-        woort_IRValue* s3 = woort_IRBlock_ADDI(entry, s2, ge);
-        woort_IRValue* s4 = woort_IRBlock_ADDI(entry, s3, eq);
-        woort_IRValue* s5 = woort_IRBlock_ADDI(entry, s4, ne);
+        woort_IRValue* a = woort_IRFunction_new_vreg(f);
+        woort_IRValue* b = woort_IRFunction_new_vreg(f);
+        woort_IRValue* lt = woort_IRFunction_new_vreg(f);
+        woort_IRValue* gt = woort_IRFunction_new_vreg(f);
+        woort_IRValue* le = woort_IRFunction_new_vreg(f);
+        woort_IRValue* ge = woort_IRFunction_new_vreg(f);
+        woort_IRValue* eq = woort_IRFunction_new_vreg(f);
+        woort_IRValue* ne = woort_IRFunction_new_vreg(f);
+        woort_IRValue* s1 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* s2 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* s3 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* s4 = woort_IRFunction_new_vreg(f);
+        woort_IRValue* s5 = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(a && b && lt && gt && le && ge && eq && ne);
         TEST_ASSERT(s1 && s2 && s3 && s4 && s5);
 
-        woort_IRBlock_ret(entry, s5);
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, a, ca));
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, b, cb));
+
+        TEST_ASSERT(woort_IR_LTI(f, lt, a, b));   /* 5 < 3 = 0 */
+        TEST_ASSERT(woort_IR_GTI(f, gt, a, b));   /* 5 > 3 = 1 */
+        TEST_ASSERT(woort_IR_LEI(f, le, a, b));   /* 5 <= 3 = 0 */
+        TEST_ASSERT(woort_IR_GEI(f, ge, a, b));   /* 5 >= 3 = 1 */
+        TEST_ASSERT(woort_IR_EQI(f, eq, a, b));   /* 5 == 3 = 0 */
+        TEST_ASSERT(woort_IR_NEI(f, ne, a, b));   /* 5 != 3 = 1 */
+
+        TEST_ASSERT(woort_IR_ADDI(f, s1, lt, gt));
+        TEST_ASSERT(woort_IR_ADDI(f, s2, s1, le));
+        TEST_ASSERT(woort_IR_ADDI(f, s3, s2, ge));
+        TEST_ASSERT(woort_IR_ADDI(f, s4, s3, eq));
+        TEST_ASSERT(woort_IR_ADDI(f, s5, s4, ne));
+
+        TEST_ASSERT(woort_IR_ret(f, s5));
     }
 
     woort_CodeEnv* cenv;
@@ -694,11 +673,11 @@ static void test_integer_comparisons(void)
 /* ========== 测试 10: 多块 fall-through 优化 ========== */
 /*
 测试 fall-through 优化是否正确：
-    entry: goto middle
-    middle: goto exit
-    exit: return 99
-
-所有分支都应该被优化为 fall-through（无跳转指令）。
+    jmp(L_mid)
+    L_mid:
+    jmp(L_exit)
+    L_exit:
+    return 99
 */
 static void test_fallthrough(void)
 {
@@ -712,17 +691,22 @@ static void test_fallthrough(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f);
-        woort_IRBlock* middle = woort_IRFuntion_add_block(f);
-        woort_IRBlock* exit_b = woort_IRFuntion_add_block(f);
-        TEST_ASSERT(entry && middle && exit_b);
-
-        woort_IRValue* v99 = woort_IRFuntion_load_constant(f, c99);
+        woort_IRValue* v99 = woort_IRFunction_new_vreg(f);
         TEST_ASSERT(v99 != NULL);
 
-        TEST_ASSERT(woort_IRBlock_br(entry, middle));
-        TEST_ASSERT(woort_IRBlock_br(middle, exit_b));
-        woort_IRBlock_ret(exit_b, v99);
+        woort_IRLabel* L_mid = woort_IRFunction_new_label(f);
+        woort_IRLabel* L_exit = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_mid && L_exit);
+
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v99, c99));
+
+        TEST_ASSERT(woort_IR_jmp(f, L_mid));
+
+        TEST_ASSERT(woort_IR_bind(f, L_mid));
+        TEST_ASSERT(woort_IR_jmp(f, L_exit));
+
+        TEST_ASSERT(woort_IR_bind(f, L_exit));
+        TEST_ASSERT(woort_IR_ret(f, v99));
     }
 
     woort_CodeEnv* cenv;
@@ -763,16 +747,13 @@ static void test_call_native(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
     {
-        woort_IRBlock* entry = woort_IRFunction_entry_block(f);
-        TEST_ASSERT(entry != NULL);
-
-        woort_IRValue* v = woort_IRFuntion_load_constant(f, c_val);
+        woort_IRValue* v = woort_IRFunction_new_vreg(f);
         TEST_ASSERT(v != NULL);
 
-        woort_IRBlock_PUSHCHK(entry, v);
-        woort_IRBlock_CALLNFP(entry, c_fn, 1, NULL);
-
-        woort_IRBlock_ret_void(entry);
+        TEST_ASSERT(woort_IR_LOAD_CONST(f, v, c_val));
+        TEST_ASSERT(woort_IR_PUSHCHK(f, v));
+        TEST_ASSERT(woort_IR_CALLNFP(f, c_fn, 1, NULL));
+        TEST_ASSERT(woort_IR_ret_void(f));
     }
 
     woort_CodeEnv* cenv;
@@ -811,13 +792,12 @@ int main(int argc, char** argv)
     test_divmod();
     test_negate();
     test_branch_ge();
-    test_loop_phi();
+    test_loop();
     test_fibonacci();
     test_logic_ops();
     test_integer_comparisons();
     test_fallthrough();
     test_call_native();
-    
 
     (void)printf("\n=== Results: %d/%d passed ===\n", g_tests_passed, g_tests_run);
 

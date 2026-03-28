@@ -1,8 +1,10 @@
 #pragma once
 
 /*
-woort_ir_compiler.h
-*/
+ * woort_ir_compiler.h
+ *
+ * 顶层 IR 编译器：管理函数、常量/静态存储，编排 finish 流程。
+ */
 
 #include "woort_ir_function.h"
 #include "woort_codeenv.h"
@@ -19,10 +21,10 @@ typedef struct woort_IRCompiler
 
     woort_Vector /* woort_Bytecode */ m_commited_codes;
 
-}woort_IRCompiler;
+} woort_IRCompiler;
 
-void woort_IRCompiler_init(woort_IRCompiler* ir_compiler);
-void woort_IRCompiler_deinit(woort_IRCompiler* ir_compiler);
+void woort_IRCompiler_init(woort_IRCompiler* c);
+void woort_IRCompiler_deinit(woort_IRCompiler* c);
 
 WOORT_NODISCARD bool woort_IRCompiler_add_function(
     woort_IRCompiler* c, uint32_t param_count, woort_IRFunction** out_f);

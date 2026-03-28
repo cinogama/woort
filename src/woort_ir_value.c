@@ -1,42 +1,16 @@
 #include "woort_ir_value.h"
-#include "woort_ir_op.h"
 
-#include <assert.h>
-
-void woort_IRValue_init_constant(woort_IRValue* ir_value, woort_IRConstantIndex idx)
+void woort_IRValue_init_vreg(woort_IRValue* v, uint32_t id)
 {
-    ir_value->m_source = WOORT_IRVALUE_SOURCE_CONSTANT;
-    ir_value->m_constant = idx;
-    ir_value->m_constant_need_stack_slot = false;
-    ir_value->m_assigned_stack_offset = WOORT_IRVALUE_STACK_NOT_ASSIGN;
+    v->m_source = WOORT_IRVALUE_SOURCE_VREG;
+    v->m_id = id;
+    v->m_assigned_stack_offset = WOORT_IRVALUE_STACK_NOT_ASSIGN;
 }
 
-void woort_IRValue_init_operate(woort_IRValue* ir_value, woort_IROp* modify_op)
+void woort_IRValue_init_argument(woort_IRValue* v, uint32_t id, uint32_t argument_idx)
 {
-    ir_value->m_source = WOORT_IRVALUE_SOURCE_RESULT;
-    ir_value->m_operate = modify_op;
-    ir_value->m_assigned_stack_offset = WOORT_IRVALUE_STACK_NOT_ASSIGN;
-
-    modify_op->m_w = ir_value;
-}
-
-void woort_IRValue_init_phi(woort_IRValue* ir_value)
-{
-    ir_value->m_source = WOORT_IRVALUE_SOURCE_PHI;
-    ir_value->m_assigned_stack_offset = WOORT_IRVALUE_STACK_NOT_ASSIGN;
-}
-
-void woort_IRValue_init_argument(woort_IRValue* ir_value, uint32_t argument_idx)
-{
-    ir_value->m_source = WOORT_IRVALUE_SOURCE_ARGUMENT;
-    ir_value->m_argument_idx = argument_idx;
-    ir_value->m_assigned_stack_offset = 3 + (int32_t)argument_idx;
-}
-
-woort_IRValue* woort_IRValue_ensure_constant_stack_slot(woort_IRValue* ir_value)
-{
-    if (ir_value->m_source == WOORT_IRVALUE_SOURCE_CONSTANT)
-        ir_value->m_constant_need_stack_slot = true;
-
-    return ir_value;
+    v->m_source = WOORT_IRVALUE_SOURCE_ARGUMENT;
+    v->m_id = id;
+    v->m_argument_idx = argument_idx;
+    v->m_assigned_stack_offset = 3 + (int32_t)argument_idx;
 }
