@@ -2095,6 +2095,16 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
     return true;
 }
 
+static size_t _block_ptr_hash(const void* key)
+{
+    return (size_t)(*(const void* const*)key);
+}
+
+static bool _block_ptr_equal(const void* key1, const void* key2)
+{
+    return *(const void* const*)key1 == *(const void* const*)key2;
+}
+
 /*
 在栈槽分配完成之后，根据块中的 m_operates，生成块内的字节码到 m_bytecodes_in_block 中
 */
@@ -2127,11 +2137,717 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
         }
     }
 
-    // Ok, 当前函数的所有块已经提交，我们开始准备块的跳转
+    /*
+    Ok, 当前函数的所有块已经提交，我们开始准备块的跳转。
 
+    步骤：
+    1. 为每个块根据 m_cond_type 发射跳转字节码（占位符，偏移量为0）
+       - 支持 fall-through 优化：如果跳转目标是布局中紧随其后的块，则省略跳转
+    2. 计算每个块在最终代码数组中的起始偏移
+    3. 修正跳转目标地址
+       - 无条件跳转使用绝对地址（JFWD/JBCK）
+       - 条件跳转使用相对地址（从当前指令算起）
+       - 如果条件跳转偏移溢出，使用反转条件+无条件跳转的方式处理
+    4. 将所有块的字节码拼接到 c->m_commited_codes 中
+    */
 
-    // todo
-    abort();
+    /*
+    STEP 1: 发射跳转指令占位符
+    记录需要修正的跳转信息
+    */
+    typedef struct _JumpPatch
+    {
+        woort_IRBlock* m_source_block;
+        size_t m_bytecode_index;       /* 在块的 m_bytecodes_in_block 中的索引 */
+        woort_IRBlock* m_target_block;
+        bool m_is_unconditional;       /* true = JFWD/JBCK, false = 条件跳转 */
+        bool m_is_nz_or_z;            /* true = NZ/Z 模式(U16), false = EQ/NEQ/CMP(U8) */
+    } _JumpPatch;
+
+    woort_Vector /* _JumpPatch */ jump_patches;
+    woort_vector_init(&jump_patches, sizeof(_JumpPatch));
+
+    for (woort_IRBlock* b = woort_linklist_iter(&f->m_ir_blocks);
+        b != NULL;
+        b = woort_linklist_next(b))
+    {
+        woort_IRBlock* next_block = (woort_IRBlock*)woort_linklist_next(b);
+
+        switch (b->m_cond_type)
+        {
+        case WOORT_IRBLOCK_ENDWAY_RET:
+            /* 已经在 _woort_IRBlock_commit_codes 中处理 */
+            break;
+
+        case WOORT_IRBLOCK_ENDWAY_NOT_FINISHED:
+            assert(false && "Block not finished");
+            woort_vector_deinit(&jump_patches);
+            return false;
+
+        case WOORT_IRBLOCK_ENDWAY_BR:
+        {
+            if (b->m_br_next_block == next_block)
+            {
+                /* Fall-through, 不需要跳转指令 */
+                break;
+            }
+
+            /* 发射无条件跳转占位符 JFWD(0) */
+            size_t jmp_idx = b->m_bytecodes_in_block.m_size;
+            if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_JFWD(0)))
+            {
+                woort_vector_deinit(&jump_patches);
+                return false;
+            }
+            _JumpPatch patch;
+            patch.m_source_block = b;
+            patch.m_bytecode_index = jmp_idx;
+            patch.m_target_block = b->m_br_next_block;
+            patch.m_is_unconditional = true;
+            patch.m_is_nz_or_z = false;
+            if (!woort_vector_push_back(&jump_patches, 1, &patch))
+            {
+                woort_vector_deinit(&jump_patches);
+                return false;
+            }
+            break;
+        }
+
+        case WOORT_IRBLOCK_ENDWAY_BR_COND:
+        {
+            int8_t cond_s8;
+            if (!_woort_IRBlock_load_value_storage8(
+                b, b->m_br_cond_value, -126, &cond_s8))
+            {
+                woort_vector_deinit(&jump_patches);
+                return false;
+            }
+
+            if (b->m_br_next_block_cond_false == next_block)
+            {
+                /*
+                false 分支 fall-through，只需条件跳转到 true 分支。
+                JFWDNZ(cond, offset_to_true) —— 条件非零时跳转
+                */
+                size_t jmp_idx = b->m_bytecodes_in_block.m_size;
+                if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_JFWDNZ(cond_s8, 0)))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+                _JumpPatch patch;
+                patch.m_source_block = b;
+                patch.m_bytecode_index = jmp_idx;
+                patch.m_target_block = b->m_br_next_block_cond_true;
+                patch.m_is_unconditional = false;
+                patch.m_is_nz_or_z = true;
+                if (!woort_vector_push_back(&jump_patches, 1, &patch))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+            }
+            else if (b->m_br_next_block_cond_true == next_block)
+            {
+                /*
+                true 分支 fall-through，只需条件跳转到 false 分支。
+                JFWDZ(cond, offset_to_false) —— 条件为零时跳转
+                */
+                size_t jmp_idx = b->m_bytecodes_in_block.m_size;
+                if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_JFWDZ(cond_s8, 0)))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+                _JumpPatch patch;
+                patch.m_source_block = b;
+                patch.m_bytecode_index = jmp_idx;
+                patch.m_target_block = b->m_br_next_block_cond_false;
+                patch.m_is_unconditional = false;
+                patch.m_is_nz_or_z = true;
+                if (!woort_vector_push_back(&jump_patches, 1, &patch))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+            }
+            else
+            {
+                /*
+                两个分支都不是 fall-through。
+                发射：
+                    JFWDNZ(cond, 2)   —— 如果条件非零，跳过下一条 JFWD
+                    JFWD(0)            —— 无条件跳转到 false 分支
+                    JFWD(0)            —— 无条件跳转到 true 分支
+
+                注意: JFWDNZ 的偏移 2 表示跳过1条指令（当前指令 +2 = 后面第二条指令）
+                */
+                if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_JFWDNZ(cond_s8, 2)))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+
+                /* JFWD(0) 到 false 分支 */
+                size_t false_jmp_idx = b->m_bytecodes_in_block.m_size;
+                if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_JFWD(0)))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+                _JumpPatch false_patch;
+                false_patch.m_source_block = b;
+                false_patch.m_bytecode_index = false_jmp_idx;
+                false_patch.m_target_block = b->m_br_next_block_cond_false;
+                false_patch.m_is_unconditional = true;
+                false_patch.m_is_nz_or_z = false;
+                if (!woort_vector_push_back(&jump_patches, 1, &false_patch))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+
+                /* JFWD(0) 到 true 分支 */
+                size_t true_jmp_idx = b->m_bytecodes_in_block.m_size;
+                if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_JFWD(0)))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+                _JumpPatch true_patch;
+                true_patch.m_source_block = b;
+                true_patch.m_bytecode_index = true_jmp_idx;
+                true_patch.m_target_block = b->m_br_next_block_cond_true;
+                true_patch.m_is_unconditional = true;
+                true_patch.m_is_nz_or_z = false;
+                if (!woort_vector_push_back(&jump_patches, 1, &true_patch))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+            }
+            break;
+        }
+
+        case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT:
+        case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE:
+        case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_EQ:
+        {
+            int8_t a_s8, b_s8;
+            if (!_woort_IRBlock_load_value_storage8(
+                b, b->m_br_compare_values[0], -126, &a_s8))
+            {
+                woort_vector_deinit(&jump_patches);
+                return false;
+            }
+            if (!_woort_IRBlock_load_value_storage8(
+                b, b->m_br_compare_values[1], -127, &b_s8))
+            {
+                woort_vector_deinit(&jump_patches);
+                return false;
+            }
+
+            if (b->m_br_next_block_compare_false == next_block)
+            {
+                /*
+                false 分支 fall-through，条件跳转到 true 分支。
+                根据比较类型选择相应的跳转指令：
+                    LT -> JFWDLT
+                    LE -> JFWDEL
+                    EQ -> JFWDEQ
+                */
+                woort_Bytecode jmp_code;
+                bool is_nz_or_z = false;
+                switch (b->m_cond_type)
+                {
+                case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT:
+                    jmp_code = woort_OpCode_JFWDLT(a_s8, b_s8, 0);
+                    break;
+                case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE:
+                    jmp_code = woort_OpCode_JFWDEL(a_s8, b_s8, 0);
+                    break;
+                case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_EQ:
+                    jmp_code = woort_OpCode_JFWDEQ(a_s8, b_s8, 0);
+                    is_nz_or_z = false;
+                    break;
+                default:
+                    assert(false);
+                    jmp_code = 0;
+                    break;
+                }
+
+                size_t jmp_idx = b->m_bytecodes_in_block.m_size;
+                if (!_woort_IRBlock_emit_bytecode(b, jmp_code))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+                _JumpPatch patch;
+                patch.m_source_block = b;
+                patch.m_bytecode_index = jmp_idx;
+                patch.m_target_block = b->m_br_next_block_compare_true;
+                patch.m_is_unconditional = false;
+                patch.m_is_nz_or_z = is_nz_or_z;
+                if (!woort_vector_push_back(&jump_patches, 1, &patch))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+            }
+            else if (b->m_br_next_block_compare_true == next_block)
+            {
+                /*
+                true 分支 fall-through，需要在条件不满足时跳转到 false 分支。
+                使用反转条件：
+                    LT -> GE (JFWDEG)
+                    LE -> GT (JFWDGT)
+                    EQ -> NEQ (JFWDNEQ)
+                */
+                woort_Bytecode jmp_code;
+                bool is_nz_or_z = false;
+                switch (b->m_cond_type)
+                {
+                case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT:
+                    jmp_code = woort_OpCode_JFWDEG(a_s8, b_s8, 0);
+                    break;
+                case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE:
+                    jmp_code = woort_OpCode_JFWDGT(a_s8, b_s8, 0);
+                    break;
+                case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_EQ:
+                    jmp_code = woort_OpCode_JFWDNEQ(a_s8, b_s8, 0);
+                    is_nz_or_z = false;
+                    break;
+                default:
+                    assert(false);
+                    jmp_code = 0;
+                    break;
+                }
+
+                size_t jmp_idx = b->m_bytecodes_in_block.m_size;
+                if (!_woort_IRBlock_emit_bytecode(b, jmp_code))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+                _JumpPatch patch;
+                patch.m_source_block = b;
+                patch.m_bytecode_index = jmp_idx;
+                patch.m_target_block = b->m_br_next_block_compare_false;
+                patch.m_is_unconditional = false;
+                patch.m_is_nz_or_z = is_nz_or_z;
+                if (!woort_vector_push_back(&jump_patches, 1, &patch))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+            }
+            else
+            {
+                /*
+                两个分支都不是 fall-through。
+                使用比较跳转 + 2条无条件跳转。
+                    JFWD<cmp>(a, b, 2)   —— 条件满足时跳过下面的 JFWD
+                    JFWD(0)              —— 无条件跳转到 false 分支
+                    JFWD(0)              —— 无条件跳转到 true 分支
+                */
+                woort_Bytecode cmp_code;
+                switch (b->m_cond_type)
+                {
+                case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LT:
+                    cmp_code = woort_OpCode_JFWDLT(a_s8, b_s8, 2);
+                    break;
+                case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_LE:
+                    cmp_code = woort_OpCode_JFWDEL(a_s8, b_s8, 2);
+                    break;
+                case WOORT_IRBLOCK_ENDWAY_BR_COMPARE_EQ:
+                    cmp_code = woort_OpCode_JFWDEQ(a_s8, b_s8, 2);
+                    break;
+                default:
+                    assert(false);
+                    cmp_code = 0;
+                    break;
+                }
+
+                if (!_woort_IRBlock_emit_bytecode(b, cmp_code))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+
+                /* JFWD(0) 到 false 分支 */
+                size_t false_jmp_idx = b->m_bytecodes_in_block.m_size;
+                if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_JFWD(0)))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+                _JumpPatch false_patch;
+                false_patch.m_source_block = b;
+                false_patch.m_bytecode_index = false_jmp_idx;
+                false_patch.m_target_block = b->m_br_next_block_compare_false;
+                false_patch.m_is_unconditional = true;
+                false_patch.m_is_nz_or_z = false;
+                if (!woort_vector_push_back(&jump_patches, 1, &false_patch))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+
+                /* JFWD(0) 到 true 分支 */
+                size_t true_jmp_idx = b->m_bytecodes_in_block.m_size;
+                if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_JFWD(0)))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+                _JumpPatch true_patch;
+                true_patch.m_source_block = b;
+                true_patch.m_bytecode_index = true_jmp_idx;
+                true_patch.m_target_block = b->m_br_next_block_compare_true;
+                true_patch.m_is_unconditional = true;
+                true_patch.m_is_nz_or_z = false;
+                if (!woort_vector_push_back(&jump_patches, 1, &true_patch))
+                {
+                    woort_vector_deinit(&jump_patches);
+                    return false;
+                }
+            }
+            break;
+        }
+
+        default:
+            assert(false && "Unknown block end way");
+            woort_vector_deinit(&jump_patches);
+            return false;
+        }
+    }
+
+    /*
+    STEP 2 & 3: 计算块偏移量并修正跳转目标地址。
+
+    使用迭代方法：如果条件跳转偏移溢出，则展开为反转条件跳转 + 无条件跳转，
+    展开会改变块大小，需要重新计算偏移。循环直到所有偏移稳定。
+    */
+
+    /* 建立 IRBlock* -> 偏移量 的映射 */
+    woort_HashMap block_offset_map;
+    woort_hashmap_init(
+        &block_offset_map,
+        sizeof(woort_IRBlock*),
+        sizeof(size_t),
+        _block_ptr_hash,
+        _block_ptr_equal);
+
+    bool need_recalc = true;
+    while (need_recalc)
+    {
+        need_recalc = false;
+
+        /* 计算每个块的起始偏移量 */
+        woort_hashmap_clear(&block_offset_map);
+        size_t offset = 0;
+        for (woort_IRBlock* b = woort_linklist_iter(&f->m_ir_blocks);
+            b != NULL;
+            b = woort_linklist_next(b))
+        {
+            woort_hashmap_Result r = woort_hashmap_insert(
+                &block_offset_map, &b, &offset);
+            if (r == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
+            {
+                /* 重新计算时块已存在，更新偏移 */
+                void* val_addr;
+                woort_hashmap_find(&block_offset_map, &b, &val_addr);
+                *(size_t*)val_addr = offset;
+            }
+            else if (r == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
+            {
+                woort_hashmap_deinit(&block_offset_map);
+                woort_vector_deinit(&jump_patches);
+                return false;
+            }
+            offset += b->m_bytecodes_in_block.m_size;
+        }
+
+        /* 修正每条跳转指令的目标地址 */
+        for (size_t i = 0; i < jump_patches.m_size; ++i)
+        {
+            _JumpPatch* patch = (_JumpPatch*)woort_vector_at(&jump_patches, i);
+
+            void* src_offset_addr;
+            void* tgt_offset_addr;
+            woort_hashmap_find(&block_offset_map, &patch->m_source_block, &src_offset_addr);
+            woort_hashmap_find(&block_offset_map, &patch->m_target_block, &tgt_offset_addr);
+
+            size_t src_block_offset = *(size_t*)src_offset_addr;
+            size_t tgt_block_offset = *(size_t*)tgt_offset_addr;
+
+            size_t jmp_abs_pos = src_block_offset + patch->m_bytecode_index;
+            size_t target_abs_pos = tgt_block_offset;
+
+            woort_Bytecode* bytecode_ptr =
+                (woort_Bytecode*)woort_vector_at(
+                    &patch->m_source_block->m_bytecodes_in_block,
+                    patch->m_bytecode_index);
+
+            if (patch->m_is_unconditional)
+            {
+                /* 无条件跳转：绝对地址，JFWD 或 JBCK */
+                assert(target_abs_pos <= WOORT_UINT26_MAX);
+
+                if (target_abs_pos <= jmp_abs_pos)
+                {
+                    /* 向后跳转 */
+                    *bytecode_ptr = woort_OpCode_JBCK((uint32_t)target_abs_pos);
+                }
+                else
+                {
+                    /* 向前跳转 */
+                    *bytecode_ptr = woort_OpCode_JFWD((uint32_t)target_abs_pos);
+                }
+            }
+            else
+            {
+                /* 条件跳转：相对地址 */
+                bool is_forward = (target_abs_pos >= jmp_abs_pos);
+                size_t rel_offset = is_forward
+                    ? (target_abs_pos - jmp_abs_pos)
+                    : (jmp_abs_pos - target_abs_pos);
+
+                /* 获取当前指令的操作数信息（寄存器等），保留操作码和模式 */
+                woort_Bytecode old_code = *bytecode_ptr;
+                uint32_t op6 = WOORT_BYTECODE(OP6, old_code);
+                uint32_t m2 = WOORT_BYTECODE(M2, old_code);
+                uint32_t a8 = WOORT_BYTECODE(A8, old_code);
+                uint32_t b8_val = WOORT_BYTECODE(B8, old_code);
+
+                if (patch->m_is_nz_or_z)
+                {
+                    /* NZ/Z 模式: 最大偏移 U16 (65535) */
+                    if (rel_offset > UINT16_MAX)
+                    {
+                        /*
+                        偏移溢出！展开为：
+                            反转条件(NZ<->Z) 跳过2条指令（offset=2）
+                            JFWD/JBCK(target_abs) —— 无条件跳转到原目标
+
+                        需要在当前位置后面插入一条 JFWD/JBCK 指令。
+                        */
+                        uint32_t inv_m2 = (m2 == 0) ? 1u : 0u; /* NZ <-> Z */
+
+                        /* 将当前条件跳转改为反转条件，跳过2条指令 */
+                        *bytecode_ptr = woort_OpcodeFormal_OP6_M2_A8_BC16_cons(
+                            WOORT_OPCODE_JFWDCND, inv_m2, a8, 2);
+
+                        /*
+                        在当前指令后面插入一条无条件跳转到原目标。
+                        注意：这里需要在 m_bytecodes_in_block 中插入一条指令，
+                        会导致后续所有偏移失效，需要重新计算。
+                        */
+                        woort_Bytecode uncond_jmp = woort_OpCode_JFWD(0);
+                        size_t insert_pos = patch->m_bytecode_index + 1;
+
+                        /* 先扩容 */
+                        woort_Bytecode placeholder = 0;
+                        if (!woort_vector_push_back(
+                            &patch->m_source_block->m_bytecodes_in_block, 1, &placeholder))
+                        {
+                            woort_hashmap_deinit(&block_offset_map);
+                            woort_vector_deinit(&jump_patches);
+                            return false;
+                        }
+
+                        /* 将 insert_pos 之后的数据后移一位 */
+                        woort_Bytecode* codes_data =
+                            (woort_Bytecode*)patch->m_source_block->m_bytecodes_in_block.m_data;
+                        size_t total_size = patch->m_source_block->m_bytecodes_in_block.m_size;
+                        for (size_t j = total_size - 1; j > insert_pos; --j)
+                        {
+                            codes_data[j] = codes_data[j - 1];
+                        }
+                        codes_data[insert_pos] = uncond_jmp;
+
+                        /*
+                        更新同一块中后续的 patch 记录的 m_bytecode_index，
+                        因为插入了一条指令，后面的索引都要 +1。
+                        */
+                        for (size_t j = 0; j < jump_patches.m_size; ++j)
+                        {
+                            _JumpPatch* other = (_JumpPatch*)woort_vector_at(&jump_patches, j);
+                            if (other->m_source_block == patch->m_source_block
+                                && other->m_bytecode_index > patch->m_bytecode_index
+                                && other != patch)
+                            {
+                                other->m_bytecode_index++;
+                            }
+                        }
+
+                        /* 将当前 patch 改为无条件跳转 */
+                        patch->m_bytecode_index = insert_pos;
+                        patch->m_is_unconditional = true;
+                        patch->m_is_nz_or_z = false;
+
+                        need_recalc = true;
+                        break; /* 跳出 patch 循环，重新计算偏移 */
+                    }
+                    else
+                    {
+                        /* 偏移在范围内，直接修正 */
+                        if (is_forward)
+                        {
+                            *bytecode_ptr = woort_OpcodeFormal_OP6_M2_A8_BC16_cons(
+                                WOORT_OPCODE_JFWDCND, m2, a8, (uint16_t)rel_offset);
+                        }
+                        else
+                        {
+                            *bytecode_ptr = woort_OpcodeFormal_OP6_M2_A8_BC16_cons(
+                                WOORT_OPCODE_JBCKCND, m2, a8, (uint16_t)rel_offset);
+                        }
+                    }
+                }
+                else
+                {
+                    /* EQ/NEQ/CMP 模式: 最大偏移 U8 (255) */
+                    if (rel_offset > UINT8_MAX)
+                    {
+                        /*
+                        偏移溢出！展开为反转条件 + 无条件跳转。
+
+                        反转方式：
+                        - JFWDCND mode=2 (EQ)  <-> mode=3 (NEQ)
+                        - JFDCMP  mode=0 (LT)  <-> mode=2 (LE, 取反为 GE -> JFWDEG mode=3)
+                                  mode=1 (GT)  <-> mode=3 (GE, 取反为 LE -> JFWDEL mode=2)
+                        
+                        实际上对 CMP:
+                            LT (mode=0) 反转 -> GE (mode=3)
+                            GT (mode=1) 反转 -> LE (mode=2)
+                            LE (mode=2) 反转 -> GT (mode=1)
+                            GE (mode=3) 反转 -> LT (mode=0)
+                        
+                        对 JFWDCND:
+                            EQ (mode=2) 反转 -> NEQ (mode=3)
+                            NEQ (mode=3) 反转 -> EQ (mode=2)
+                        */
+                        uint32_t inv_m2;
+                        uint32_t inv_op6 = op6;
+
+                        if (op6 == WOORT_OPCODE_JFWDCND || op6 == WOORT_OPCODE_JBCKCND)
+                        {
+                            /* EQ <-> NEQ */
+                            inv_m2 = (m2 == 2) ? 3u : 2u;
+                            inv_op6 = WOORT_OPCODE_JFWDCND;
+                        }
+                        else
+                        {
+                            /* CMP: LT<->GE, GT<->LE */
+                            inv_op6 = WOORT_OPCODE_JFDCMP;
+                            switch (m2)
+                            {
+                            case 0: inv_m2 = 3; break; /* LT -> GE */
+                            case 1: inv_m2 = 2; break; /* GT -> LE */
+                            case 2: inv_m2 = 1; break; /* LE -> GT */
+                            case 3: inv_m2 = 0; break; /* GE -> LT */
+                            default: inv_m2 = m2; assert(false); break;
+                            }
+                        }
+
+                        /* 反转条件跳过2条指令 */
+                        *bytecode_ptr = woort_OpcodeFormal_OP6_M2_A8_B8_C8_cons(
+                            inv_op6, inv_m2, a8, b8_val, 2);
+
+                        /* 插入无条件跳转 */
+                        woort_Bytecode uncond_jmp = woort_OpCode_JFWD(0);
+                        size_t insert_pos = patch->m_bytecode_index + 1;
+
+                        woort_Bytecode placeholder = 0;
+                        if (!woort_vector_push_back(
+                            &patch->m_source_block->m_bytecodes_in_block, 1, &placeholder))
+                        {
+                            woort_hashmap_deinit(&block_offset_map);
+                            woort_vector_deinit(&jump_patches);
+                            return false;
+                        }
+
+                        woort_Bytecode* codes_data =
+                            (woort_Bytecode*)patch->m_source_block->m_bytecodes_in_block.m_data;
+                        size_t total_size = patch->m_source_block->m_bytecodes_in_block.m_size;
+                        for (size_t j = total_size - 1; j > insert_pos; --j)
+                        {
+                            codes_data[j] = codes_data[j - 1];
+                        }
+                        codes_data[insert_pos] = uncond_jmp;
+
+                        /* 更新同一块中后续 patch 记录的索引 */
+                        for (size_t j = 0; j < jump_patches.m_size; ++j)
+                        {
+                            _JumpPatch* other = (_JumpPatch*)woort_vector_at(&jump_patches, j);
+                            if (other->m_source_block == patch->m_source_block
+                                && other->m_bytecode_index > patch->m_bytecode_index
+                                && other != patch)
+                            {
+                                other->m_bytecode_index++;
+                            }
+                        }
+
+                        /* 将当前 patch 改为无条件跳转 */
+                        patch->m_bytecode_index = insert_pos;
+                        patch->m_is_unconditional = true;
+                        patch->m_is_nz_or_z = false;
+
+                        need_recalc = true;
+                        break; /* 重新计算偏移 */
+                    }
+                    else
+                    {
+                        /* 偏移在范围内，直接修正 */
+                        if (is_forward)
+                        {
+                            *bytecode_ptr = woort_OpcodeFormal_OP6_M2_A8_B8_C8_cons(
+                                op6 == WOORT_OPCODE_JBCKCND ? WOORT_OPCODE_JFWDCND
+                                : op6 == WOORT_OPCODE_JBCKCMP ? WOORT_OPCODE_JFDCMP
+                                : op6,
+                                m2, a8, b8_val, (uint8_t)rel_offset);
+                        }
+                        else
+                        {
+                            uint32_t bck_op6;
+                            if (op6 == WOORT_OPCODE_JFWDCND || op6 == WOORT_OPCODE_JBCKCND)
+                                bck_op6 = WOORT_OPCODE_JBCKCND;
+                            else
+                                bck_op6 = WOORT_OPCODE_JBCKCMP;
+
+                            *bytecode_ptr = woort_OpcodeFormal_OP6_M2_A8_B8_C8_cons(
+                                bck_op6, m2, a8, b8_val, (uint8_t)rel_offset);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /*
+    STEP 4: 将所有块的字节码拼接到 c->m_commited_codes 中
+    */
+    for (woort_IRBlock* b = woort_linklist_iter(&f->m_ir_blocks);
+        b != NULL;
+        b = woort_linklist_next(b))
+    {
+        if (b->m_bytecodes_in_block.m_size > 0)
+        {
+            if (!woort_vector_push_back(
+                &c->m_commited_codes,
+                b->m_bytecodes_in_block.m_size,
+                b->m_bytecodes_in_block.m_data))
+            {
+                woort_hashmap_deinit(&block_offset_map);
+                woort_vector_deinit(&jump_patches);
+                return false;
+            }
+        }
+    }
+
+    woort_hashmap_deinit(&block_offset_map);
+    woort_vector_deinit(&jump_patches);
+    return true;
 }
 
 void woort_IRCompiler_init(woort_IRCompiler* c)
