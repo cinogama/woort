@@ -431,10 +431,10 @@
 
                                   /*
                                    * OPCIASMD - 整数复合算术运算
-                                   * CADDI (mode=0): [SB + a8] + [SB + bc16] -> [SB + bc16]
-                                   * CSUBI (mode=1): [SB + a8] - [SB + bc16] -> [SB + bc16]
-                                   * CMULI (mode=2): [SB + a8] * [SB + bc16] -> [SB + bc16]
-                                   * CDIVI (mode=3): [SB + a8] / [SB + bc16] -> [SB + bc16]
+                                   * CADDI (mode=0): [SB + bc16] + [SB + a8] -> [SB + bc16]
+                                   * CSUBI (mode=1): [SB + bc16] - [SB + a8] -> [SB + bc16]
+                                   * CMULI (mode=2): [SB + bc16] * [SB + a8] -> [SB + bc16]
+                                   * CDIVI (mode=3): [SB + bc16] / [SB + a8] -> [SB + bc16]
                                    */
 #define woort_OpCode_CADDI(a8, bc16)    \
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCIASMD, 0, a8, bc16)
@@ -447,10 +447,10 @@
 
                                    /*
                                     * OPCRASMD - 实数复合算术运算
-                                    * CADDR (mode=0): [SB + a8] + [SB + bc16] -> [SB + bc16]
-                                    * CSUBR (mode=1): [SB + a8] - [SB + bc16] -> [SB + bc16]
-                                    * CMULR (mode=2): [SB + a8] * [SB + bc16] -> [SB + bc16]
-                                    * CDIVR (mode=3): [SB + a8] / [SB + bc16] -> [SB + bc16]
+                                    * CADDR (mode=0): [SB + bc16] + [SB + a8] -> [SB + bc16]
+                                    * CSUBR (mode=1): [SB + bc16] - [SB + a8] -> [SB + bc16]
+                                    * CMULR (mode=2): [SB + bc16] * [SB + a8] -> [SB + bc16]
+                                    * CDIVR (mode=3): [SB + bc16] / [SB + a8] -> [SB + bc16]
                                     */
 #define woort_OpCode_CADDR(a8, bc16)    \
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCRASMD, 0, a8, bc16)
@@ -463,13 +463,15 @@
 
                                     /*
                                      * OPCSAIOO - 字符串和模运算复合操作
-                                     * CADDS  (mode=0): [SB + a8] + [SB + bc16] -> [SB + bc16] (concat)
-                                     * CVADDS (mode=1): vec concat (reserved)
-                                     * CMODI  (mode=2): [SB + a8] % [SB + bc16] -> [SB + bc16]
-                                     * CMODR  (mode=3): [SB + a8] % [SB + bc16] -> [SB + bc16]
+                                     * CADDS  (mode=0): [SB + bc16] + [SB + a8] -> [SB + bc16] (concat, bc16 为前缀)
+                                     * CVADDS (mode=1): [SB + a8] + [SB + bc16] -> [SB + bc16] (concat, a8 为前缀)
+                                     * CMODI  (mode=2): [SB + bc16] % [SB + a8] -> [SB + bc16]
+                                     * CMODR  (mode=3): [SB + bc16] % [SB + a8] -> [SB + bc16]
                                      */
 #define woort_OpCode_CADDS(a8, bc16)    \
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCSAIOO, 0, a8, bc16)
+#define woort_OpCode_CVADDS(a8, bc16)    \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCSAIOO, 1, a8, bc16)
 #define woort_OpCode_CMODI(a8, bc16)    \
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCSAIOO, 2, a8, bc16)
 #define woort_OpCode_CMODR(a8, bc16)    \
@@ -477,8 +479,8 @@
 
                                      /*
                                       * OPCLAON - 复合逻辑运算
-                                      * CLAND (mode=0): [SB + a8] && [SB + bc16] -> [SB + bc16]
-                                      * CLOR  (mode=1): [SB + a8] || [SB + bc16] -> [SB + bc16]
+                                      * CLAND (mode=0): [SB + bc16] && [SB + a8] -> [SB + bc16]
+                                      * CLOR  (mode=1): [SB + bc16] || [SB + a8] -> [SB + bc16]
                                       * CLNOT (mode=2): ![SB + bc16] -> [SB + bc16]
                                       */
 #define woort_OpCode_CLAND(a8, bc16)    \

@@ -44,12 +44,10 @@ WOORT_NODISCARD bool _woort_IRBlock_load_value_storage8(
     const int32_t fact_value_assigned_stack_offset =
         _woort_IR_get_fact_stack_storage(v->m_assigned_stack_offset);
 
-    if (fact_value_assigned_stack_offset < INT8_MIN
-        || fact_value_assigned_stack_offset > INT8_MAX)
+    if (fact_value_assigned_stack_offset < INT8_MIN || fact_value_assigned_stack_offset > INT8_MAX)
     {
         // Need use extra temp storage.
-        if (fact_value_assigned_stack_offset >= INT16_MIN
-            && fact_value_assigned_stack_offset <= INT16_MAX)
+        if (fact_value_assigned_stack_offset >= INT16_MIN && fact_value_assigned_stack_offset <= INT16_MAX)
         {
             // Use normal mov command.
             if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_MOVLD(temp_slot_idx, fact_value_assigned_stack_offset)))
@@ -85,8 +83,7 @@ WOORT_NODISCARD bool _woort_IRBlock_load_value_storage16(
     const int32_t fact_value_assigned_stack_offset =
         _woort_IR_get_fact_stack_storage(v->m_assigned_stack_offset);
 
-    if (fact_value_assigned_stack_offset < INT16_MIN
-        || fact_value_assigned_stack_offset > INT16_MAX)
+    if (fact_value_assigned_stack_offset < INT16_MIN || fact_value_assigned_stack_offset > INT16_MAX)
     {
         if (!_woort_IRBlock_emit_bytecode_ext(b,
             woort_OpCode_MOVLDEXT(temp_slot_idx),
@@ -112,8 +109,7 @@ WOORT_NODISCARD int8_t _woort_IRBlock_get_place_to_store_value_storage8(
     const int32_t fact_value_assigned_stack_offset =
         _woort_IR_get_fact_stack_storage(v->m_assigned_stack_offset);
 
-    if (fact_value_assigned_stack_offset < INT8_MIN
-        || fact_value_assigned_stack_offset > INT8_MAX)
+    if (fact_value_assigned_stack_offset < INT8_MIN || fact_value_assigned_stack_offset > INT8_MAX)
     {
         return temp_slot_idx;
     }
@@ -130,8 +126,7 @@ WOORT_NODISCARD int16_t _woort_IRBlock_get_place_to_store_value_storage16(
     const int32_t fact_value_assigned_stack_offset =
         _woort_IR_get_fact_stack_storage(v->m_assigned_stack_offset);
 
-    if (fact_value_assigned_stack_offset < INT16_MIN
-        || fact_value_assigned_stack_offset > INT16_MAX)
+    if (fact_value_assigned_stack_offset < INT16_MIN || fact_value_assigned_stack_offset > INT16_MAX)
     {
         return temp_slot_idx;
     }
@@ -161,8 +156,7 @@ WOORT_NODISCARD bool _woort_IRBlock_apply_store_value(
     */
     assert(storage == -126 || storage == -127 || storage == -128);
 
-    if (fact_value_assigned_stack_offset >= INT16_MIN
-        && fact_value_assigned_stack_offset <= INT16_MAX)
+    if (fact_value_assigned_stack_offset >= INT16_MIN && fact_value_assigned_stack_offset <= INT16_MAX)
     {
         /* 目标在 S16 范围内，使用 MOVST [SB + bc16] = [SB + a8] */
         return _woort_IRBlock_emit_bytecode(
@@ -191,8 +185,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_LOAD_op(
 {
     bool loading_result = false;
 
-    if ((fact_stack_slot >= INT8_MIN && fact_stack_slot <= INT8_MAX)
-        && constant_storage <= WOORT_UINT18_MAX)
+    if ((fact_stack_slot >= INT8_MIN && fact_stack_slot <= INT8_MAX) && constant_storage <= WOORT_UINT18_MAX)
     {
         /*
         Case 1: 栈槽在 S8 范围内，常量索引在 U18 范围内
@@ -244,8 +237,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STORE_op(
 {
     bool storing_result = false;
 
-    if ((fact_stack_slot >= INT8_MIN && fact_stack_slot <= INT8_MAX)
-        && constant_storage <= WOORT_UINT18_MAX)
+    if ((fact_stack_slot >= INT8_MIN && fact_stack_slot <= INT8_MAX) && constant_storage <= WOORT_UINT18_MAX)
     {
         /*
         Case 1: 栈槽在 S8 范围内，常量索引在 U18 范围内
@@ -327,8 +319,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_PUSHCHK(woort_IRBlock* b, woort_IROp*
     else
     {
         // Use PUSHCCHK
-        assert(op->m_r[0]->m_source == WOORT_IRVALUE_SOURCE_CONSTANT
-            && !op->m_r[0]->m_constant_need_stack_slot);
+        assert(op->m_r[0]->m_source == WOORT_IRVALUE_SOURCE_CONSTANT && !op->m_r[0]->m_constant_need_stack_slot);
 
         if (op->m_r[0]->m_constant <= WOORT_UINT24_MAX)
         {
@@ -387,16 +378,14 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOR(woort_IRBlock* b, woort_IROp* op
     const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
     const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
 
-    if (r >= INT8_MIN && r <= INT8_MAX
-        && w >= INT16_MIN && w <= INT16_MAX)
+    if (r >= INT8_MIN && r <= INT8_MAX && w >= INT16_MIN && w <= INT16_MAX)
     {
         /* Case 1: 源在 S8，目标在 S16，使用 ITORST，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
             b, woort_OpCode_ITORST((int8_t)r, (int16_t)w));
     }
 
-    if (w >= INT8_MIN && w <= INT8_MAX
-        && r >= INT16_MIN && r <= INT16_MAX)
+    if (w >= INT8_MIN && w <= INT8_MAX && r >= INT16_MIN && r <= INT16_MAX)
     {
         /* Case 2: 目标在 S8，源在 S16，使用 ITORLD，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
@@ -498,16 +487,14 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ITOS(woort_IRBlock* b, woort_IROp* op
     const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
     const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
 
-    if (r >= INT8_MIN && r <= INT8_MAX
-        && w >= INT16_MIN && w <= INT16_MAX)
+    if (r >= INT8_MIN && r <= INT8_MAX && w >= INT16_MIN && w <= INT16_MAX)
     {
         /* Case 1: 源在 S8，目标在 S16，使用 ITOSST，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
             b, woort_OpCode_ITOSST((int8_t)r, (int16_t)w));
     }
 
-    if (w >= INT8_MIN && w <= INT8_MAX
-        && r >= INT16_MIN && r <= INT16_MAX)
+    if (w >= INT8_MIN && w <= INT8_MAX && r >= INT16_MIN && r <= INT16_MAX)
     {
         /* Case 2: 目标在 S8，源在 S16，使用 ITOSLD，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
@@ -609,16 +596,14 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOI(woort_IRBlock* b, woort_IROp* op
     const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
     const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
 
-    if (r >= INT8_MIN && r <= INT8_MAX
-        && w >= INT16_MIN && w <= INT16_MAX)
+    if (r >= INT8_MIN && r <= INT8_MAX && w >= INT16_MIN && w <= INT16_MAX)
     {
         /* Case 1: 源在 S8，目标在 S16，使用 RTOIST，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
             b, woort_OpCode_RTOIST((int8_t)r, (int16_t)w));
     }
 
-    if (w >= INT8_MIN && w <= INT8_MAX
-        && r >= INT16_MIN && r <= INT16_MAX)
+    if (w >= INT8_MIN && w <= INT8_MAX && r >= INT16_MIN && r <= INT16_MAX)
     {
         /* Case 2: 目标在 S8，源在 S16，使用 RTOILD，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
@@ -720,16 +705,14 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_RTOS(woort_IRBlock* b, woort_IROp* op
     const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
     const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
 
-    if (r >= INT8_MIN && r <= INT8_MAX
-        && w >= INT16_MIN && w <= INT16_MAX)
+    if (r >= INT8_MIN && r <= INT8_MAX && w >= INT16_MIN && w <= INT16_MAX)
     {
         /* Case 1: 源在 S8，目标在 S16，使用 RTOSST，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
             b, woort_OpCode_RTOSST((int8_t)r, (int16_t)w));
     }
 
-    if (w >= INT8_MIN && w <= INT8_MAX
-        && r >= INT16_MIN && r <= INT16_MAX)
+    if (w >= INT8_MIN && w <= INT8_MAX && r >= INT16_MIN && r <= INT16_MAX)
     {
         /* Case 2: 目标在 S8，源在 S16，使用 RTOSLD，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
@@ -831,16 +814,14 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOI(woort_IRBlock* b, woort_IROp* op
     const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
     const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
 
-    if (r >= INT8_MIN && r <= INT8_MAX
-        && w >= INT16_MIN && w <= INT16_MAX)
+    if (r >= INT8_MIN && r <= INT8_MAX && w >= INT16_MIN && w <= INT16_MAX)
     {
         /* Case 1: 源在 S8，目标在 S16，使用 STOIST，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
             b, woort_OpCode_STOIST((int8_t)r, (int16_t)w));
     }
 
-    if (w >= INT8_MIN && w <= INT8_MAX
-        && r >= INT16_MIN && r <= INT16_MAX)
+    if (w >= INT8_MIN && w <= INT8_MAX && r >= INT16_MIN && r <= INT16_MAX)
     {
         /* Case 2: 目标在 S8，源在 S16，使用 STOILD，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
@@ -942,16 +923,14 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_STOR(woort_IRBlock* b, woort_IROp* op
     const int32_t r = _woort_IR_get_fact_stack_storage(op->m_r[0]->m_assigned_stack_offset);
     const int32_t w = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
 
-    if (r >= INT8_MIN && r <= INT8_MAX
-        && w >= INT16_MIN && w <= INT16_MAX)
+    if (r >= INT8_MIN && r <= INT8_MAX && w >= INT16_MIN && w <= INT16_MAX)
     {
         /* Case 1: 源在 S8，目标在 S16，使用 STORST，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
             b, woort_OpCode_STORST((int8_t)r, (int16_t)w));
     }
 
-    if (w >= INT8_MIN && w <= INT8_MAX
-        && r >= INT16_MIN && r <= INT16_MAX)
+    if (w >= INT8_MIN && w <= INT8_MAX && r >= INT16_MIN && r <= INT16_MAX)
     {
         /* Case 2: 目标在 S8，源在 S16，使用 STORLD，无需搬运 */
         return _woort_IRBlock_emit_bytecode(
@@ -1087,9 +1066,8 @@ WOORT_NODISCARD static bool _woort_IRBlock_commit_CALLN_common(
         */
         assert(op->m_argument_count <= WOORT_UINT24_MAX);
 
-        return op->m_argument_count == 0
-            || _woort_IRBlock_emit_bytecode(
-                b, woort_OpCode_POPR(op->m_argument_count));
+        return op->m_argument_count == 0 || _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_POPR(op->m_argument_count));
     }
 }
 
@@ -1182,8 +1160,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_CALL(woort_IRBlock* b, woort_IROp* op
     }
     else
     {
-        assert(op->m_r[0]->m_source == WOORT_IRVALUE_SOURCE_CONSTANT
-            && !op->m_r[0]->m_constant_need_stack_slot);
+        assert(op->m_r[0]->m_source == WOORT_IRVALUE_SOURCE_CONSTANT && !op->m_r[0]->m_constant_need_stack_slot);
 
         const uint32_t target = op->m_r[0]->m_constant;
         assert(target <= WOORT_UINT24_MAX);
@@ -1223,9 +1200,8 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_CALL(woort_IRBlock* b, woort_IROp* op
     {
         assert(op->m_argument_count <= WOORT_UINT24_MAX);
 
-        return op->m_argument_count == 0
-            || _woort_IRBlock_emit_bytecode(
-                b, woort_OpCode_POPR(op->m_argument_count));
+        return op->m_argument_count == 0 || _woort_IRBlock_emit_bytecode(
+            b, woort_OpCode_POPR(op->m_argument_count));
     }
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MKCLOSURE(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
@@ -1494,19 +1470,20 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_SUBI(woort_IRBlock* b, woort_IROp* op
     m_r[0] = 左操作数，m_r[1] = 右操作数，m_w = 目标
 
     SUBI a8, b8, c8: [SB + a8] - [SB + b8] -> [SB + c8]
-    CSUBI a8, bc16:  [SB + a8] - [SB + bc16] -> [SB + bc16] (复合减法)
+    CSUBI a8, bc16:  [SB + bc16] - [SB + a8] -> [SB + bc16] (复合减法)
 
-    注意：减法不满足交换律，CSUBI 只在目标与右操作数相同时可优化。
+    注意：减法不满足交换律，CSUBI 只在目标与左操作数相同时可优化。
+    即 w = r[0] - r[1]，当 w == r[0] 时: [w] -= [r[1]]
     */
     (void)c;
 
     const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
     if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
     {
-        if (op->m_w->m_assigned_stack_offset == op->m_r[1]->m_assigned_stack_offset)
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
         {
             int8_t r;
-            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
                 return false;
 
             return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CSUBI(r, write_aim));
@@ -1529,19 +1506,141 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_SUBI(woort_IRBlock* b, woort_IROp* op
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MULI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    MULI: 整数乘法
+    m_r[0] = 左操作数，m_r[1] = 右操作数，m_w = 目标
+    MULI a8, b8, c8: [SB + a8] * [SB + b8] -> [SB + c8]
+    CMULI a8, bc16:  [SB + a8] * [SB + bc16] -> [SB + bc16] (复合乘法)
+    */
+    (void)c;
+
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CMULI(r, write_aim));
+        }
+        else if (op->m_w->m_assigned_stack_offset == op->m_r[1]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CMULI(r, write_aim));
+        }
+    }
+
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_MULI(r1, r2, w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_DIVI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    DIVI: 整数除法
+    DIVI a8, b8, c8: [SB + a8] / [SB + b8] -> [SB + c8]
+    CDIVI a8, bc16:  [SB + bc16] / [SB + a8] -> [SB + bc16]
+    除法不满足交换律，CDIVI 只在目标与左操作数相同时可优化。
+    即 w = r[0] / r[1]，当 w == r[0] 时: [w] /= [r[1]]
+    */
+    (void)c;
+
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CDIVI(r, write_aim));
+        }
+    }
+
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_DIVI(r1, r2, w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MODI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    MODI: 整数取模
+    MODI a8, b8, c8: [SB + a8] % [SB + b8] -> [SB + c8]
+    CMODI a8, bc16:  [SB + bc16] % [SB + a8] -> [SB + bc16]
+    取模不满足交换律，CMODI 只在目标与左操作数相同时可优化。
+    即 w = r[0] % r[1]，当 w == r[0] 时: [w] %= [r[1]]
+    */
+    (void)c;
+
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CMODI(r, write_aim));
+        }
+    }
+
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_MODI(r1, r2, w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_NEGI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    NEGI: 整数取负
+    m_r[0] = 源操作数，m_w = 目标
+    NEGI a8, bc16: -[SB + a8] -> [SB + bc16]
+    */
+    (void)c;
+
+    int8_t r;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+        return false;
+
+    const int16_t w = _woort_IRBlock_get_place_to_store_value_storage16(
+        op->m_w, -127);
+
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_NEGI(r, w)))
+        return false;
+
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LTI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
@@ -1569,323 +1668,1170 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_LTI(woort_IRBlock* b, woort_IROp* op,
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_GTI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_GTI(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LEI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LEI(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_GEI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_GEI(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_EQI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_EQI(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_NEI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_NEI(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_ADDR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* ADDR: 满足交换律，可使用 CADDR 复合优化 */
+    (void)c;
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CADDR(r, write_aim));
+        }
+        else if (op->m_w->m_assigned_stack_offset == op->m_r[1]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CADDR(r, write_aim));
+        }
+    }
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ADDR(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SUBR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* SUBR: 不满足交换律，CSUBR 只在目标与左操作数相同时可优化 */
+    (void)c;
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CSUBR(r, write_aim));
+        }
+    }
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_SUBR(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MULR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* MULR: 满足交换律，可使用 CMULR 复合优化 */
+    (void)c;
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CMULR(r, write_aim));
+        }
+        else if (op->m_w->m_assigned_stack_offset == op->m_r[1]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CMULR(r, write_aim));
+        }
+    }
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_MULR(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_DIVR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* DIVR: 不满足交换律，CDIVR 只在目标与左操作数相同时可优化 */
+    (void)c;
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CDIVR(r, write_aim));
+        }
+    }
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_DIVR(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_MODR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* MODR: 不满足交换律，CMODR 只在目标与左操作数相同时可优化 */
+    (void)c;
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CMODR(r, write_aim));
+        }
+    }
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_MODR(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_NEGR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+        return false;
+    const int16_t w = _woort_IRBlock_get_place_to_store_value_storage16(
+        op->m_w, -127);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_NEGR(r, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LTR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LTR(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_GTR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_GTR(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LER(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LER(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_GER(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_GER(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_EQR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_EQR(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_NER(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_NER(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_ADDS(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    ADDS: 字符串连接  w = r[0] + r[1]  (r[0] 为前缀，r[1] 为后缀)
+
+    CADDS(a8, bc16):  [bc16] = concat([bc16], [a8])  —— bc16 为前缀，a8 为后缀
+        可用条件: w == r[0]（前缀留在原地，追加 r[1]）
+
+    CVADDS(a8, bc16): [bc16] = concat([a8], [bc16])  —— a8 为前缀，bc16 为后缀
+        可用条件: w == r[1]（后缀留在原地，在前面拼接 r[0]）
+    */
+    (void)c;
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            /* w == r[0]（前缀），使用 CADDS: [w] = concat([w], [r[1]]) */
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CADDS(r, write_aim));
+        }
+        else if (op->m_w->m_assigned_stack_offset == op->m_r[1]->m_assigned_stack_offset)
+        {
+            /* w == r[1]（后缀），使用 CVADDS: [w] = concat([r[0]], [w]) */
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CVADDS(r, write_aim));
+        }
+    }
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_ADDS(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LTS(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LTS(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_GTS(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_GTS(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LES(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LES(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_GES(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_GES(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_EQS(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_EQS(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_NES(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_NES(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LAND(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* LAND: 满足交换律，可使用 CLAND 复合优化 */
+    (void)c;
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CLAND(r, write_aim));
+        }
+        else if (op->m_w->m_assigned_stack_offset == op->m_r[1]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CLAND(r, write_aim));
+        }
+    }
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LAND(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LOR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* LOR: 满足交换律，可使用 CLOR 复合优化 */
+    (void)c;
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX)
+    {
+        if (op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CLOR(r, write_aim));
+        }
+        else if (op->m_w->m_assigned_stack_offset == op->m_r[1]->m_assigned_stack_offset)
+        {
+            int8_t r;
+            if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+                return false;
+            return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CLOR(r, write_aim));
+        }
+    }
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LOR(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LNOT(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /*
+    LNOT: 逻辑取反
+    LNOT a8, bc16: ![SB + a8] -> [SB + bc16]
+    CLNOT bc16:    ![SB + bc16] -> [SB + bc16] (原地取反)
+    */
+    (void)c;
+    const int32_t write_aim = _woort_IR_get_fact_stack_storage(op->m_w->m_assigned_stack_offset);
+    if (write_aim >= INT16_MIN && write_aim <= INT16_MAX && op->m_w->m_assigned_stack_offset == op->m_r[0]->m_assigned_stack_offset)
+    {
+        return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CLNOT(write_aim));
+    }
+    int8_t r;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+        return false;
+    const int16_t w = _woort_IRBlock_get_place_to_store_value_storage16(
+        op->m_w, -127);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LNOT(r, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LDIDXVEC(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* LDIDXVEC a8, b8, c8: vec=[SB+a8], idx=[SB+b8] -> [SB+c8] */
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LDIDXVEC(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LDIDXVECX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* LDIDXVECX a8, b8, c8: vec=[SB+a8], idx=[SB+b8] -> [SB+c8] (dynamic) */
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LDIDXVECX(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LDIDXSTRUCT(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* LDIDSTRUCT n8, b8, c8: struct=[SB+b8], field=n8 -> [SB+c8] */
+    (void)c;
+    int8_t r;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -127);
+    assert(op->m_index <= WOORT_UINT8_MAX);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LDIDSTRUCT((uint8_t)op->m_index, r, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LDIDXSTRING(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* LDIDSTRING a8, b8, c8: str=[SB+a8], idx=[SB+b8] -> [SB+c8] */
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LDIDSTRING(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LDIDXDICTI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LDIDXDICTI(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LDIDXDICTR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LDIDXDICTR(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LDIDXDICTB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LDIDXDICTB(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_LDIDXDICTX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    const int8_t w =
+        _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -126);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_LDIDXDICTX(r1, r2, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXVECI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* STIDXVEC_I a8, b8, c8: vec=[SB+a8], idx=[SB+b8], val=[SB+c8] */
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXVEC_I(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXVECR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXVEC_R(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXVECB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXVEC_B(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXVECX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXVEC_X(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTII(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTII(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTIR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTIR(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTIB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTIB(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTIX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTIX(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTRI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTRI(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTRR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTRR(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTRB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTRB(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTRX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTRX(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTBI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTBI(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTBR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTBR(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTBB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTBB(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTBX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTBX(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTXI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTXI(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTXR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTXR(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTXB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTXB(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXDICTXX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXDICTXX(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPII(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPII(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPIR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPIR(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPIB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPIB(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPIX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPIX(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPRI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPRI(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPRR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPRR(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPRB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPRB(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPRX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPRX(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPBI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPBI(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPBR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPBR(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPBB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPBB(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPBX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPBX(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPXI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPXI(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPXR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPXR(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPXB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPXB(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXMAPXX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int8_t r1, r2, r3;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[2], -126, &r3))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDXMAPXX(r1, r2, r3));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_SDIDXSTRUCT(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* STIDSTRUCT n10, a8, b8: struct=[SB+a8], val=[SB+b8], field=n10 */
+    (void)c;
+    int8_t r1, r2;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
+        return false;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[1], -127, &r2))
+        return false;
+    assert(op->m_index <= WOORT_UINT10_MAX);
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_STIDSTRUCT((uint16_t)op->m_index, r1, r2));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_UNPACKSTRUCT(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* UNPACKSTRUCT bc16: 解包结构体到 [SB + bc16] */
+    (void)c;
+    int16_t r;
+    if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r))
+        return false;
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_UNPACKSTRUCT(r));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_UNPACKVEC(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* UNPACKVEC a8, bc16: 解包向量到 [SB + bc16]，展开数量写入 [SB + a8] */
+    (void)c;
+    int8_t r;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+        return false;
+    const int16_t w = _woort_IRBlock_get_place_to_store_value_storage16(
+        op->m_w, -127);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_UNPACKVEC(r, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_UNPACKVECX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* UNPACKVECX a8, bc16: 解包向量（动态）到 [SB + bc16]，展开数量写入 [SB + a8] */
+    (void)c;
+    int8_t r;
+    if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
+        return false;
+    const int16_t w = _woort_IRBlock_get_place_to_store_value_storage16(
+        op->m_w, -127);
+    if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_UNPACKVECX(r, w)))
+        return false;
+    return _woort_IRBlock_apply_store_value(b, op->m_w, w);
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_PUSHIDXSTRUCT(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* PUSHIDXSTRUCT n8, bc16: struct=[SB+bc16], 压入 field n8 */
+    (void)c;
+    int16_t r;
+    if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r))
+        return false;
+    assert(op->m_index <= WOORT_UINT8_MAX);
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_PUSHIDXSTRUCT((uint8_t)op->m_index, r));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_PUSHIDXSTBOXI(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    /* PUSHIDXSTBOXI n8, bc16: struct=[SB+bc16], 压入 field n8 的 int box 引用 */
+    (void)c;
+    int16_t r;
+    if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r))
+        return false;
+    assert(op->m_index <= WOORT_UINT8_MAX);
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_PUSHIDXSTBOXI((uint8_t)op->m_index, r));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_PUSHIDXSTBOXR(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int16_t r;
+    if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r))
+        return false;
+    assert(op->m_index <= WOORT_UINT8_MAX);
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_PUSHIDXSTBOXR((uint8_t)op->m_index, r));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_PUSHIDXSTBOXB(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int16_t r;
+    if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r))
+        return false;
+    assert(op->m_index <= WOORT_UINT8_MAX);
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_PUSHIDXSTBOXB((uint8_t)op->m_index, r));
 }
 WOORT_NODISCARD bool _woort_IRBlock_commit_PUSHIDXSTBOXX(woort_IRBlock* b, woort_IROp* op, woort_IRCompiler* c)
 {
-    abort();
+    (void)c;
+    int16_t r;
+    if (!_woort_IRBlock_load_value_storage16(b, op->m_r[0], -128, &r))
+        return false;
+    assert(op->m_index <= WOORT_UINT8_MAX);
+    return _woort_IRBlock_emit_bytecode(b, woort_OpCode_PUSHIDXSTBOXX((uint8_t)op->m_index, r));
 }
 
 const _woort_IRBlock_CommitCallback _ir_op_commit_callbacks[] =
@@ -2004,8 +2950,7 @@ const _woort_IRBlock_CommitCallback _ir_op_commit_callbacks[] =
 };
 
 _Static_assert(
-    WOORT_IROP_KIND_count * sizeof(_woort_IRBlock_CommitCallback)
-    == sizeof(_ir_op_commit_callbacks),
+    WOORT_IROP_KIND_count * sizeof(_woort_IRBlock_CommitCallback) == sizeof(_ir_op_commit_callbacks),
     "All case must been covered.");
 
 WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompiler* c)
@@ -2023,8 +2968,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
             entry_record != NULL;
             entry_record = woort_linklist_next(&phi->m_records))
         {
-            assert(phi->m_phi_value->m_assigned_stack_offset
-                == entry_record->m_value->m_constant_need_stack_slot);
+            assert(phi->m_phi_value->m_assigned_stack_offset == entry_record->m_value->m_constant_need_stack_slot);
         }
     }
 #endif
@@ -2037,8 +2981,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
         woort_IRValue* const loading_constant =
             *(woort_IRValue**)woort_vector_at(&b->m_loading_constants, i);
 
-        assert(loading_constant->m_source == WOORT_IRVALUE_SOURCE_CONSTANT
-            && loading_constant->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN);
+        assert(loading_constant->m_source == WOORT_IRVALUE_SOURCE_CONSTANT && loading_constant->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN);
 
         const int32_t constant_fact_stack_slot =
             _woort_IR_get_fact_stack_storage(loading_constant->m_assigned_stack_offset);
@@ -2120,9 +3063,8 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
     woort_IRBlock* const entry_block = woort_IRFunction_entry_block(f);
 
     // TODO: 应该……用不到 U24 那么多栈空间罢
-    if (used_function_stack_slot_count != 0
-        && !_woort_IRBlock_emit_bytecode(
-            entry_block, woort_OpCode_PUSHRCHK(used_function_stack_slot_count)))
+    if (used_function_stack_slot_count != 0 && !_woort_IRBlock_emit_bytecode(
+        entry_block, woort_OpCode_PUSHRCHK(used_function_stack_slot_count)))
     {
         return false;
     }
@@ -2158,10 +3100,10 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
     typedef struct _JumpPatch
     {
         woort_IRBlock* m_source_block;
-        size_t m_bytecode_index;       /* 在块的 m_bytecodes_in_block 中的索引 */
+        size_t m_bytecode_index; /* 在块的 m_bytecodes_in_block 中的索引 */
         woort_IRBlock* m_target_block;
-        bool m_is_unconditional;       /* true = JFWD/JBCK, false = 条件跳转 */
-        bool m_is_nz_or_z;            /* true = NZ/Z 模式(U16), false = EQ/NEQ/CMP(U8) */
+        bool m_is_unconditional; /* true = JFWD/JBCK, false = 条件跳转 */
+        bool m_is_nz_or_z;       /* true = NZ/Z 模式(U16), false = EQ/NEQ/CMP(U8) */
     } _JumpPatch;
 
     woort_Vector /* _JumpPatch */ jump_patches;
@@ -2673,9 +3615,7 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
                         for (size_t j = 0; j < jump_patches.m_size; ++j)
                         {
                             _JumpPatch* other = (_JumpPatch*)woort_vector_at(&jump_patches, j);
-                            if (other->m_source_block == patch->m_source_block
-                                && other->m_bytecode_index > patch->m_bytecode_index
-                                && other != patch)
+                            if (other->m_source_block == patch->m_source_block && other->m_bytecode_index > patch->m_bytecode_index && other != patch)
                             {
                                 other->m_bytecode_index++;
                             }
@@ -2716,13 +3656,13 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
                         - JFWDCND mode=2 (EQ)  <-> mode=3 (NEQ)
                         - JFDCMP  mode=0 (LT)  <-> mode=2 (LE, 取反为 GE -> JFWDEG mode=3)
                                   mode=1 (GT)  <-> mode=3 (GE, 取反为 LE -> JFWDEL mode=2)
-                        
+
                         实际上对 CMP:
                             LT (mode=0) 反转 -> GE (mode=3)
                             GT (mode=1) 反转 -> LE (mode=2)
                             LE (mode=2) 反转 -> GT (mode=1)
                             GE (mode=3) 反转 -> LT (mode=0)
-                        
+
                         对 JFWDCND:
                             EQ (mode=2) 反转 -> NEQ (mode=3)
                             NEQ (mode=3) 反转 -> EQ (mode=2)
@@ -2742,11 +3682,22 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
                             inv_op6 = WOORT_OPCODE_JFDCMP;
                             switch (m2)
                             {
-                            case 0: inv_m2 = 3; break; /* LT -> GE */
-                            case 1: inv_m2 = 2; break; /* GT -> LE */
-                            case 2: inv_m2 = 1; break; /* LE -> GT */
-                            case 3: inv_m2 = 0; break; /* GE -> LT */
-                            default: inv_m2 = m2; assert(false); break;
+                            case 0:
+                                inv_m2 = 3;
+                                break; /* LT -> GE */
+                            case 1:
+                                inv_m2 = 2;
+                                break; /* GT -> LE */
+                            case 2:
+                                inv_m2 = 1;
+                                break; /* LE -> GT */
+                            case 3:
+                                inv_m2 = 0;
+                                break; /* GE -> LT */
+                            default:
+                                inv_m2 = m2;
+                                assert(false);
+                                break;
                             }
                         }
 
@@ -2780,9 +3731,7 @@ WOORT_NODISCARD bool _woort_IRFunction_commit_codes(woort_IRFunction* f, woort_I
                         for (size_t j = 0; j < jump_patches.m_size; ++j)
                         {
                             _JumpPatch* other = (_JumpPatch*)woort_vector_at(&jump_patches, j);
-                            if (other->m_source_block == patch->m_source_block
-                                && other->m_bytecode_index > patch->m_bytecode_index
-                                && other != patch)
+                            if (other->m_source_block == patch->m_source_block && other->m_bytecode_index > patch->m_bytecode_index && other != patch)
                             {
                                 other->m_bytecode_index++;
                             }
