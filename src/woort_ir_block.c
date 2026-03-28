@@ -42,6 +42,7 @@ void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func)
 
     woort_vector_init(&block->m_loading_constants, sizeof(woort_IRValue*));
     woort_vector_init(&block->m_bytecodes_in_block, sizeof(woort_Bytecode));
+    block->m_body_codes_len = 0;
 }
 
 void woort_IRBlock_deinit(woort_IRBlock* block)

@@ -94,6 +94,8 @@ struct woort_IRBlock {
      */
     woort_Vector /* woort_IRValue* */ m_loading_constants;
     woort_Vector /* woort_Bytecode */ m_bytecodes_in_block;
+
+    size_t m_body_codes_len;
 };
 
 void woort_IRBlock_init(woort_IRBlock* block, woort_IRFunction* ir_func);

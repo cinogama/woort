@@ -1369,7 +1369,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_BOXDYN(woort_IRBlock* b, woort_IROp* 
     if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r))
         return false;
 
-    const int8_t w = 
+    const int8_t w =
         _woort_IRBlock_get_place_to_store_value_storage8(op->m_w, -127);
 
     if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_BOXDYN(op->m_type, r, w)))
@@ -1472,7 +1472,7 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_ADDI(woort_IRBlock* b, woort_IROp* op
             return _woort_IRBlock_emit_bytecode(b, woort_OpCode_CADDI(r, write_aim));
         }
     }
-    
+
     int8_t r1, r2;
     if (!_woort_IRBlock_load_value_storage8(b, op->m_r[0], -128, &r1))
         return false;
@@ -2061,8 +2061,37 @@ WOORT_NODISCARD bool _woort_IRBlock_commit_codes(woort_IRBlock* b, woort_IRCompi
     }
 
     /*
+    STEP 3: 处理返回指令
+    */
+    if (b->m_cond_type == WOORT_IRBLOCK_ENDWAY_RET)
+    {
+        if (b->m_ret_value_may_null == NULL)
+        {
+            if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RET()))
+                return false;
+        }
+        else if (b->m_ret_value_may_null->m_assigned_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN)
+        {
+            int16_t r;
+            if (!_woort_IRBlock_load_value_storage16(b, b->m_ret_value_may_null, -128, &r))
+                return false;
+
+            if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RETVS(r)))
+                return false;
+        }
+        else
+        {
+            assert(b->m_ret_value_may_null->m_constant <= WOORT_UINT24_MAX);
+            if (!_woort_IRBlock_emit_bytecode(b, woort_OpCode_RETVC(b->m_ret_value_may_null->m_constant)))
+                return false;
+        }
+    }
+
+    /*
     完成，块的跳转将在所有块的 _woort_IRBlock_commit_codes 完成之后执行。
     */
+    b->m_body_codes_len = b->m_bytecodes_in_block.m_size;
+
     return true;
 }
 
