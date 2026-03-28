@@ -129,9 +129,9 @@ WOORT_NODISCARD bool woort_IRBlock_br_eq(
     woort_IRBlock* false_next);
 
 #define woort_IRBlock_br_gt(block, a, b, true_next, false_next)\
-    woort_IRBlock_br_lt(block, b, a, false_next, true_next)
+    woort_IRBlock_br_lt(block, b, a, true_next, false_next)
 #define woort_IRBlock_br_ge(block, a, b, true_next, false_next)\
-    woort_IRBlock_br_le(block, b, a, false_next, true_next)
+    woort_IRBlock_br_le(block, b, a, true_next, false_next)
 #define woort_IRBlock_br_ne(block, a, b, true_next, false_next)\
     woort_IRBlock_br_eq(block, b, a, false_next, true_next)
 
