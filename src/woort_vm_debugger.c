@@ -8,7 +8,7 @@ static woort_AtomicPtr g_debugger;
 
 void woort_VMRuntime_Debugger_bootup(void)
 {
-    woort_atomic_store_ptr(&g_debugger, NULL);
+    woort_atomic_init(&g_debugger, NULL);
 }
 
 void woort_VMRuntime_Debugger_shutdown(void)
@@ -26,10 +26,17 @@ void woort_VMRuntime_Debugger_relese_impl(woort_VMRuntime_Debugger* debugger)
 
 void woort_VMRuntime_Debugger_disattach(void)
 {
-    woort_VMRuntime_Debugger* debugger = (woort_VMRuntime_Debugger*)woort_atomic_exchange_ptr(&g_debugger, NULL);
+    woort_VMRuntime_Debugger* debugger = (woort_VMRuntime_Debugger*)woort_atomic_exchange_explicit(
+        &g_debugger, 
+        NULL, 
+        WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL);
+
     if (debugger != NULL)
     {
-        if (woort_atomic_fetch_sub_uint32(&debugger->m_ref_count, 1) > 1)
+        if (woort_atomic_fetch_sub_explicit(
+            &debugger->m_ref_count, 
+            1, 
+            WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL) > 1)
             return;
 
         woort_VMRuntime_Debugger_relese_impl(debugger);
@@ -53,7 +60,12 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
     woort_atomic_init(&new_debugger->m_ref_count, 1);
 
     void* expected = NULL;
-    if (!woort_atomic_compare_exchange_strong_ptr(&g_debugger, &expected, new_debugger))
+    if (!woort_atomic_compare_exchange_strong_explicit(
+        &g_debugger, 
+        &expected, 
+        new_debugger, 
+        WOORT_ATOMIC_MEMORY_ORDER_RELEASE, 
+        WOORT_ATOMIC_MEMORY_ORDER_RELAXED))
     {
         woort_VMRuntime_Debugger_relese_impl(new_debugger);
         return false;
