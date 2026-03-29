@@ -21,7 +21,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
     虚拟机状态发生错误而无法继续
         * JIT 运行时：
         * 解释执行运行时：
-            无法处理此状态，使用 WOORT_VM_CALL_STATUS_ABORTED 结束调用
+            以 WOORT_VM_CALL_STATUS_ABORTED 结束调用
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_ABORT = 1 << 0,
 
@@ -35,7 +35,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
             起虚拟机。
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING = 1 << 1,
-    
+
     /*
     GC_CHECK
     GC 工作线程将向所有正在运行中的 RootVM 发起此请求
@@ -73,6 +73,21 @@ typedef enum woort_VMRuntime_CheckRequestMask
             不应当出现此情况，PANIC 终止
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE = 1 << 4,
+
+    /*
+    DEBUG_CALLBACK
+    请求虚拟机执行调试回调，调试回调函数和上下文应当在之前被设定并尚未被清除
+
+    如果收到此请求时调试上下文未设定，无视此请求。
+
+        * JIT 运行时：
+            JIT 运行时无法处理此请求，执行正同步之后以 WOORT_VM_CALL_STATUS_RESYNC 
+            向上抛出到解释执行
+        * 解释执行运行时：
+            执行调试回调机制
+    
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK = 1 << 5,
 
 }woort_VMRuntime_CheckRequestMask;
 

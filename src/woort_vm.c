@@ -197,41 +197,6 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     return r;
 }
 
-void _woort_VMRuntime_request_checkpoint(woort_VMRuntime* vm)
-{
-    for (;;)
-    {
-        const uint32_t request_mask = woort_atomic_load_explicit(
-            &vm->m_check_request_mask,
-            WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
-
-        if (request_mask == 0)
-            break;
-
-        woort_atomic_thread_fence(WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
-        if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
-        {
-            woort_panic(
-                WOORT_PANIC_ABORTED,
-                "Aborted vm.",
-                request_mask);
-        }
-        else if (request_mask
-            & (WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK
-                | WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
-        {
-            woort_VMRuntime_handle_gc_check_request_and_mark(vm);
-        }
-        else
-        {
-            woort_panic(
-                WOORT_PANIC_BAD_VM_REQUEST,
-                "Bad vm request: %x",
-                request_mask);
-        }
-    }
-}
-
 void woort_VMRuntime_hangup(woort_VMRuntime* vm)
 {
     woort_mutex_lock(vm->m_hangup_mx);
@@ -3370,7 +3335,51 @@ _label_continue_execution:
 #define WOORT_VM_EXCEPTION_LABEL(NAME) _label_exception_handler_##NAME
     WOORT_VM_EXCEPTION_LABEL(checkpoint) :
     {
-        _woort_VMRuntime_request_checkpoint(vm);
+        for (;;)
+        {
+            const uint32_t request_mask = woort_atomic_load_explicit(
+                &vm->m_check_request_mask,
+                WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+
+            if (request_mask == 0)
+                break;
+
+            if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
+            {
+                woort_panic(
+                    WOORT_PANIC_ABORTED,
+                    "Aborted vm.",
+                    request_mask);
+
+                return WOORT_VM_CALL_STATUS_ABORTED;
+            }
+            else if (request_mask
+                & (WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK
+                    | WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+            {
+                woort_VMRuntime_handle_gc_check_request_and_mark(vm);
+            }
+            else if (request_mask
+                & WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING)
+            {
+                if (woort_VMRuntime_request_accept(vm, WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING))
+                    woort_VMRuntime_hangup(vm);
+            }
+            else if (request_mask
+                & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK)
+            {
+                WOORT_VM_SYNC_STATE_AND_PANIC(
+                    WOORT_PANIC_BAD_VM_REQUEST,
+                    "Not impl yet.");
+            }
+            else
+            {
+                WOORT_VM_SYNC_STATE_AND_PANIC(
+                    WOORT_PANIC_BAD_VM_REQUEST,
+                    "Bad vm request: %x",
+                    request_mask);
+            }
+        }
         WOORT_VM_HANDLED();
     }
     WOORT_VM_EXCEPTION_LABEL(index_out_of_range) :

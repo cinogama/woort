@@ -14,8 +14,8 @@
 #include <assert.h>
 #include <stdlib.h>
 
-woort_RWSpinlock g_root_vms_to_mark_mx;
-woort_HashMap /* struct woort_VMRuntime* */ g_root_vms_to_mark;
+static woort_RWSpinlock g_root_vms_to_mark_mx;
+static woort_HashMap /* struct woort_VMRuntime* */ g_root_vms_to_mark;
 
 void _woort_GC_marker_callback(
     woomem_UserContext /* useless */_useless, void* unit)

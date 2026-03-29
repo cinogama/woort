@@ -123,7 +123,10 @@ int main(int argc, char** argv) {
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
 
+    const clock_t b0 = clock();
     (void)woort_VMRuntime_invoke(vm, cenv->m_code_begin + f_main->m_code_offset);
+    const clock_t e0 = clock();
+
     printf("%lld\n", vm->m_sp[0].m_integer);
 
     woort_CodeEnv_drop(cenv);
@@ -180,9 +183,9 @@ int main(int argc, char** argv) {
         woort_OpCode_PUSHCCHK(3),
         woort_OpCode_CALLNWO(2),
         woort_OpCode_RESULT(1, 0),
-        woort_OpCode_PUSHSCHK(0),
-        woort_OpCode_CALLNFP(4),
-        woort_OpCode_POPR(1),
+        //woort_OpCode_PUSHSCHK(0),
+        //woort_OpCode_CALLNFP(4),
+        //woort_OpCode_POPR(1),
         woort_OpCode_RET(),
     };
 
@@ -201,7 +204,11 @@ int main(int argc, char** argv) {
 
     (void)woort_VMRuntime_create(&vm);
 
+    const clock_t b1 = clock();
     (void)woort_VMRuntime_invoke(vm, codeenv->m_code_begin + 15);
+    const clock_t e1 = clock();
+
+    printf("%d, %d", (int)(e0 - b0), (int)(e1 - b1));
 
     woort_CodeEnv_drop(codeenv);
     woort_VMRuntime_destroy(vm);
