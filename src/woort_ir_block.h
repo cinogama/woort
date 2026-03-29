@@ -91,7 +91,6 @@ void _woort_IRBlock_deinit(woort_IRBlock* block);
 
 /* --- 数据移动 --- */
 WOORT_NODISCARD bool woort_IR_MOV(woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src);
-WOORT_NODISCARD bool woort_IR_LOAD_CONST(woort_IRFunction* f, woort_IRValue* dst, woort_IRConstantIndex idx);
 WOORT_NODISCARD bool woort_IR_LOAD(woort_IRFunction* f, woort_IRValue* dst, woort_IRStaticIndex idx);
 WOORT_NODISCARD bool woort_IR_STORE(woort_IRFunction* f, woort_IRStaticIndex idx, woort_IRValue* src);
 

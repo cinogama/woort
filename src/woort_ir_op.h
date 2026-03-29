@@ -19,7 +19,6 @@ typedef enum woort_IROp_Kind
 {
     /* ============ 数据移动 ============ */
     WOORT_IROP_KIND_MOV,            /* dst = src */
-    WOORT_IROP_KIND_LOAD_CONST,     /* dst = G[const_idx] (常量加载) */
     WOORT_IROP_KIND_LOAD,           /* dst = G[static_idx] */
     WOORT_IROP_KIND_STORE,          /* G[static_idx] = src */
 
@@ -212,9 +211,6 @@ typedef struct woort_IROp
     {
         /* LOAD/STORE */
         woort_IRStaticIndex m_static_index;
-
-        /* LOAD_CONST */
-        woort_IRConstantIndex m_const_index;
 
         /* MKVEC/MKMAP/MKSTRUCT/MKCLOSURE */
         uint32_t m_count;

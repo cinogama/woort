@@ -1,0 +1,63 @@
+=== WooRT IR Compiler Tests ===
+
+  [TEST] constant_return (return 42)              PASS
+  [TEST] integer_arithmetic ((a+b)*(a-b))         PASS
+  [TEST] divmod (17/5 + 17%%5)                    PASS
+  [TEST] negate (-42)                             PASS
+  [TEST] branch_ge (max via ge)                   PASS
+  [TEST] loop (sum 1..10 = 55)                    
+PUSHRCHK    5
+LOAD        [SB +0] = G[0]
+LOAD        [SB -1] = G[1]
+LOAD        [SB -2] = G[2]
+MOVLD       [SB -3] = [SB -2]
+MOVLD       [SB -4] = [SB -1]
+JFWDLT      +4 IF [SB +0] < [SB -3]
+CADDI       [SB -4] += [SB -3]
+CADDI       [SB -3] += [SB -2]
+JBCK        6
+RETVS       [SB -4]
+
+PASS
+  [TEST] fibonacci (fib(10) = 55)                 
+PUSHRCHK    3
+LOAD        [SB +0] = G[0]
+LOAD        [SB -1] = G[1]
+JFWDLT      +11 IF [SB +3] < [SB +0]
+SUBI        [SB +3] - [SB -1] -> [SB -2]
+SUBI        [SB +3] - [SB +0] -> [SB -1]
+PUSHSCHK    [SB -2]
+CALLNWO     G[2]
+RESULT      [SB -2], POP 1
+PUSHSCHK    [SB -1]
+CALLNWO     G[2]
+RESULT      [SB -1], POP 1
+ADDI        [SB -2] + [SB -1] -> [SB +0]
+RETVS       [SB +0]
+RETVS       [SB +3]
+PUSHRCHK    1
+LOAD        [SB +0] = G[3]
+PUSHSCHK    [SB +0]
+CALLNWO     G[2]
+RESULT      [SB +0], POP 1
+RETVS       [SB +0]
+
+fib code_offset=0 code_length=15
+main code_offset=15 code_length=6
+  fib(0) = 0 (expected 0) OK
+  fib(1) = 1 (expected 1) OK
+  fib(2) = 1 (expected 1) OK
+  fib(3) = 2 (expected 2) OK
+  fib(4) = 3 (expected 3) OK
+  fib(5) = 5 (expected 5) OK
+  fib(6) = 8 (expected 8) OK
+  fib(7) = 13 (expected 13) OK
+  fib(10) = 55 (expected 55) OK
+fib result = 55
+PASS
+  [TEST] logic_ops (AND/OR/NOT)                   PASS
+  [TEST] integer_comparisons (LT/GT/LE/GE/EQ/NE)  PASS
+  [TEST] fallthrough (chained br)                 PASS
+  [TEST] call_native (capture_int)                PASS
+
+=== Results: 11/11 passed ===

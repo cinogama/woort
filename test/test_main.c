@@ -31,7 +31,7 @@ woort_api print_current_time(woort_vm vm, woort_value* args)
 {
     vm->m_sb[2].m_integer = clock();
     return WOORT_VM_CALL_STATUS_NORMAL;
-}
+} 
 
 woort_api bar(woort_vm vm, woort_value* args)
 {

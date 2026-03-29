@@ -235,6 +235,30 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRLabel* woort_IRFunction_new_label(
     return label;
 }
 
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_load_const(
+    woort_IRFunction* f, woort_IRConstantIndex idx)
+{
+    /*
+     * 查找已有的 CONST vreg（同一 const_index 返回同一 IRValue*）
+     */
+    for (woort_IRValue* v = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
+         v != NULL;
+         v = (woort_IRValue*)woort_linklist_next(v))
+    {
+        if (v->m_source == WOORT_IRVALUE_SOURCE_CONST && v->m_const_idx == idx)
+            return v;
+    }
+
+    /* 首次请求该 const_index，创建新的 CONST vreg */
+    woort_IRValue* v;
+    if (!woort_linklist_emplace_back(&f->m_ir_values, (void**)&v))
+        return NULL;
+
+    woort_IRValue_init_const(v, f->m_next_vreg_id, idx);
+    f->m_next_vreg_id++;
+    return v;
+}
+
 /* ===================================================================
  * Phase 1: Label → 基本块切分 + CFG 构建
  * =================================================================== */
@@ -434,10 +458,13 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
 
 static void _record_use(
     woort_Bitset* use_set,
-    woort_Bitset* def_set,
+    const woort_Bitset* def_set,
     /* OPTIONAL */ woort_IRValue* val)
 {
     if (val == NULL)
+        return;
+    /* CONST 源的 vreg 不参与 bitset 活跃性分析 */
+    if (val->m_source == WOORT_IRVALUE_SOURCE_CONST)
         return;
     /* 如果还没被 DEF 过，则加入 USE */
     if (!woort_bitset_test(def_set, val->m_id))
@@ -539,266 +566,69 @@ static bool _phase2_liveness_analysis(woort_IRFunction* f)
 }
 
 /* ===================================================================
- * Phase 2b: 常量优化分析
+ * Phase 2b: 常量直接使用标记
  *
- *   2b-i:  常量直接使用标记 (PUSHCCHK / RETVC)
- *          如果一个 vreg 仅由 LOAD_CONST 定义，且仅被一条 PUSHCHK 或 RET
- *          使用，则标记为常量直连，发射层直接发出 PUSHCCHK / RETVC。
+ * 扫描所有 SOURCE_CONST vreg，如果某个 CONST vreg 仅被一条
+ * PUSHCHK 或 RET 使用（use_count == 1），标记为 const_direct。
+ * 发射层将直接使用 PUSHCCHK / RETVC 而非 LOAD + PUSHSCHK / RETVS。
  *
- *   2b-ii: 跨块重复常量加载合并
- *          同一 const_index 被多个不同 vreg 加载时，如果"主 vreg"在后续
- *          加载点仍然持有常量值（即主 vreg 只有唯一一条 LOAD_CONST 定义，
- *          未被其他指令覆写），则将后续的 LOAD_CONST 替换为 MOV。
+ * 注意：CONST vreg 不参与指令流中的 DEF（没有 LOAD_CONST 指令），
+ * 它们只作为其他指令的 m_src[] 出现。
  * =================================================================== */
 
 static bool _phase2b_const_optimization(woort_IRFunction* f)
 {
     const size_t instr_count = f->m_instructions.m_size;
-    const uint32_t vreg_count = f->m_next_vreg_id;
-    const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
     woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
 
-    if (instr_count == 0 || vreg_count == 0)
-        return true;
-
     /*
-     * 建立 vreg_by_id 快速查找表
+     * 对每个 CONST vreg 统计 use_count 并查找唯一使用者
      */
-    woort_IRValue** vreg_by_id = (woort_IRValue**)calloc(
-        vreg_count, sizeof(woort_IRValue*));
-    if (vreg_by_id == NULL)
-        return false;
-
-    for (woort_IRValue* v = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
-         v != NULL;
-         v = (woort_IRValue*)woort_linklist_next(v))
+    for (woort_IRValue* cv = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
+         cv != NULL;
+         cv = (woort_IRValue*)woort_linklist_next(cv))
     {
-        assert(v->m_id < vreg_count);
-        vreg_by_id[v->m_id] = v;
-    }
+        if (cv->m_source != WOORT_IRVALUE_SOURCE_CONST)
+            continue;
 
-    /*
-     * 统计每个 vreg 作为 m_dst 被写入的次数（def_count）
-     * 和作为 m_src[] 被读取的次数（use_count）
-     */
-    uint32_t* def_count = (uint32_t*)calloc(vreg_count, sizeof(uint32_t));
-    uint32_t* use_count = (uint32_t*)calloc(vreg_count, sizeof(uint32_t));
-    if (def_count == NULL || use_count == NULL)
-    {
-        free(def_count);
-        free(use_count);
-        free(vreg_by_id);
-        return false;
-    }
+        /* 统计该 CONST vreg 在指令流中被作为 m_src[] 引用的次数 */
+        uint32_t use_count = 0;
+        woort_IROp* unique_user = NULL;
 
-    for (size_t i = 0; i < instr_count; ++i)
-    {
-        woort_IROp* op = &instrs[i];
-        if (op->m_dst != NULL)
-            def_count[op->m_dst->m_id]++;
-        for (int s = 0; s < 3; ++s)
+        for (size_t i = 0; i < instr_count; ++i)
         {
-            if (op->m_src[s] != NULL)
-                use_count[op->m_src[s]->m_id]++;
-        }
-    }
-
-    /*
-     * 2b-i: 常量直接使用标记
-     *
-     * 条件：
-     *  - vreg 有且仅有 1 条 LOAD_CONST 定义（def_count == 1）
-     *  - vreg 有且仅有 1 次读取（use_count == 1）
-     *  - 该唯一读取指令是 PUSHCHK 或 RET
-     */
-    for (size_t i = 0; i < instr_count; ++i)
-    {
-        woort_IROp* op = &instrs[i];
-        if (op->m_op != WOORT_IROP_KIND_LOAD_CONST)
-            continue;
-        if (op->m_dst == NULL)
-            continue;
-
-        woort_IRValue* vreg = op->m_dst;
-        uint32_t vid = vreg->m_id;
-
-        if (def_count[vid] != 1 || use_count[vid] != 1)
-            continue;
-
-        /* 找到唯一使用该 vreg 的指令 */
-        for (size_t j = i + 1; j < instr_count; ++j)
-        {
-            woort_IROp* user = &instrs[j];
-            bool found = false;
-
+            woort_IROp* op = &instrs[i];
             for (int s = 0; s < 3; ++s)
             {
-                if (user->m_src[s] == vreg)
+                if (op->m_src[s] == cv)
                 {
-                    found = true;
-                    break;
+                    use_count++;
+                    unique_user = op;
+                    break; /* 同一指令的多个 src 引用同一 vreg 只计一次 */
                 }
             }
-
-            if (!found)
-                continue;
-
-            /* 检查使用指令是否是 PUSHCHK 或 RET */
-            if (user->m_op == WOORT_IROP_KIND_PUSHCHK ||
-                user->m_op == WOORT_IROP_KIND_RET)
-            {
-                /*
-                 * RETVC 没有扩展编码，const_index 超出 U24 范围时无法使用。
-                 * PUSHCCHK 有 PUSHCCHKEXT 所以不受限。
-                 * 对于 RET，如果 const_index 超限则不标记直连。
-                 */
-                if (user->m_op == WOORT_IROP_KIND_RET &&
-                    op->m_const_index > ((1u << 24) - 1))
-                {
-                    /* 不标记，回退到正常 LOAD + RETVS 路径 */
-                }
-                else
-                {
-                    vreg->m_is_const_direct = true;
-                    vreg->m_direct_const_index = op->m_const_index;
-                }
-            }
-            break; /* 只有一次使用，找到就退出 */
         }
+
+        if (use_count != 1 || unique_user == NULL)
+            continue;
+
+        /* 检查唯一使用者是否是 PUSHCHK 或 RET */
+        if (unique_user->m_op != WOORT_IROP_KIND_PUSHCHK &&
+            unique_user->m_op != WOORT_IROP_KIND_RET)
+        {
+            continue;
+        }
+
+        /* RETVC 没有扩展编码，const_index 超 U24 范围时不可用 */
+        if (unique_user->m_op == WOORT_IROP_KIND_RET &&
+            cv->m_const_idx > ((1u << 24) - 1))
+        {
+            continue;
+        }
+
+        cv->m_is_const_direct = true;
     }
 
-    /*
-     * 2b-ii: 跨块重复常量加载合并
-     *
-     * 对于同一 const_index 被多个不同 vreg 加载的情况：
-     *  - 选择第一个 LOAD_CONST 的目标 vreg 作为"主 vreg"
-     *  - 对后续的 LOAD_CONST c -> other_vreg:
-     *    条件：主 vreg 只有唯一一条定义（def_count == 1），保证它始终持有常量值
-     *    安全性：主 vreg 在 other_vreg 的 LOAD_CONST 所在块的 LIVE_IN 中，
-     *            或者主 vreg 在同一块中且定义在前
-     *    满足条件则将 LOAD_CONST 替换为 MOV
-     */
-
-    /* 构建 instruction → block 映射 */
-    uint32_t* instr_to_block = NULL;
-    if (block_count > 0)
-    {
-        instr_to_block = (uint32_t*)malloc(instr_count * sizeof(uint32_t));
-        if (instr_to_block == NULL)
-        {
-            free(def_count);
-            free(use_count);
-            free(vreg_by_id);
-            return false;
-        }
-
-        for (uint32_t b = 0; b < block_count; ++b)
-        {
-            woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, b);
-            for (uint32_t ii = blk->m_begin; ii < blk->m_end; ++ii)
-                instr_to_block[ii] = b;
-        }
-    }
-
-    /*
-     * 收集 LOAD_CONST: 按 const_index 分组，记录 {指令索引, dst vreg}
-     * 使用简单的两层循环（常量数量通常很少）
-     */
-    for (size_t i = 0; i < instr_count; ++i)
-    {
-        woort_IROp* op_primary = &instrs[i];
-        if (op_primary->m_op != WOORT_IROP_KIND_LOAD_CONST)
-            continue;
-        if (op_primary->m_dst == NULL)
-            continue;
-
-        woort_IRValue* primary_vreg = op_primary->m_dst;
-        woort_IRConstantIndex cidx = op_primary->m_const_index;
-
-        /* 跳过已标记为常量直连的 vreg（它们不需要栈槽，不会参与合并） */
-        if (primary_vreg->m_is_const_direct)
-            continue;
-
-        /* 主 vreg 必须只有唯一一条定义，才能保证它始终持有常量值 */
-        if (def_count[primary_vreg->m_id] != 1)
-            continue;
-
-        /* 向后查找同一 const_index 的其他 LOAD_CONST */
-        for (size_t j = i + 1; j < instr_count; ++j)
-        {
-            woort_IROp* op_other = &instrs[j];
-            if (op_other->m_op != WOORT_IROP_KIND_LOAD_CONST)
-                continue;
-            if (op_other->m_const_index != cidx)
-                continue;
-            if (op_other->m_dst == NULL)
-                continue;
-
-            woort_IRValue* other_vreg = op_other->m_dst;
-
-            /* 跳过已标记为常量直连的 */
-            if (other_vreg->m_is_const_direct)
-                continue;
-
-            /* 跳过同一 vreg 的重复加载（Phase 4c 会处理） */
-            if (other_vreg == primary_vreg)
-                continue;
-
-            /*
-             * 安全性检查：主 vreg 在 other 的 LOAD_CONST 位置是否持有值？
-             *
-             * 由于主 vreg 只有唯一一条 LOAD_CONST 定义（def_count==1），
-             * 它从定义点到生命周期结束始终持有常量值。
-             *
-             * 需要确认主 vreg 在 other 的位置"活跃"（已定义且可访问）：
-             *  - 同块：主的定义在 other 之前（i < j，已由循环保证）
-             *  - 跨块：主 vreg 在 other 所在块的 LIVE_IN 中
-             */
-            bool safe = false;
-
-            if (instr_to_block != NULL)
-            {
-                uint32_t blk_primary = instr_to_block[i];
-                uint32_t blk_other = instr_to_block[j];
-
-                if (blk_primary == blk_other)
-                {
-                    /* 同块，i < j 已保证主定义在前 */
-                    safe = true;
-                }
-                else
-                {
-                    /* 跨块：检查主 vreg 在 other 块的 LIVE_IN */
-                    woort_IRBlock* other_blk = (woort_IRBlock*)woort_vector_at(
-                        &f->m_blocks, blk_other);
-                    if (other_blk->m_live_in.m_data != NULL &&
-                        primary_vreg->m_id < other_blk->m_live_in.m_bit_count)
-                    {
-                        safe = woort_bitset_test(
-                            &other_blk->m_live_in, primary_vreg->m_id);
-                    }
-                }
-            }
-
-            if (!safe)
-                continue;
-
-            /*
-             * 合并：将 LOAD_CONST c -> other_vreg 替换为 MOV other_vreg = primary_vreg
-             */
-            op_other->m_op = WOORT_IROP_KIND_MOV;
-            op_other->m_dst = other_vreg;
-            op_other->m_src[0] = primary_vreg;
-            op_other->m_src[1] = NULL;
-            op_other->m_src[2] = NULL;
-            /* union 字段不再需要 m_const_index */
-        }
-    }
-
-    free(instr_to_block);
-    free(def_count);
-    free(use_count);
-    free(vreg_by_id);
     return true;
 }
 
@@ -1419,27 +1249,26 @@ static int32_t _find_common_dominator(woort_IRFunction* f, int32_t a, int32_t b)
 }
 
 /*
- * 常量使用信息（临时结构，用于收集同一 const_index 的所有使用 block）
+ * 常量使用信息（临时结构，用于收集每个 CONST vreg 的所有使用 block）
  */
 typedef struct _woort_ConstUseInfo
 {
-    woort_IRConstantIndex m_const_index;
-    /* OPTIONAL */ woort_IRValue* m_dst_vreg;
+    woort_IRValue* m_const_vreg;
     woort_Vector /* uint32_t (block index) */ m_use_blocks;
 } _woort_ConstUseInfo;
 
 static void _cleanup_const_infos(woort_Vector* const_infos)
 {
-    for (size_t ci = 0; ci < const_infos->m_size; ++ci)
+    for (size_t i = 0; i < const_infos->m_size; ++i)
     {
         _woort_ConstUseInfo* info = (_woort_ConstUseInfo*)woort_vector_at(
-            const_infos, ci);
+            const_infos, i);
         woort_vector_deinit(&info->m_use_blocks);
     }
     woort_vector_deinit(const_infos);
 }
 
-static bool _phase4c_const_load_placement(woort_IRFunction* f)
+static bool _phase4c_const_load_placement(woort_IRFunction* f, size_t* out_stack_space)
 {
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
     const size_t instr_count = f->m_instructions.m_size;
@@ -1448,7 +1277,9 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
     if (block_count == 0 || instr_count == 0)
         return true;
 
-    /* 构建 instruction → block 映射 */
+    /*
+     * 构建 instruction → block 映射
+     */
     uint32_t* instr_to_block = (uint32_t*)malloc(instr_count * sizeof(uint32_t));
     if (instr_to_block == NULL)
         return false;
@@ -1461,66 +1292,54 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
     }
 
     /*
-     * 收集所有 LOAD_CONST 指令的常量使用信息
+     * 收集所有非 const_direct 的 CONST vreg，及其使用点所在的 block
      */
     woort_Vector /* _woort_ConstUseInfo */ const_infos;
     woort_vector_init(&const_infos, sizeof(_woort_ConstUseInfo));
 
-    for (size_t i = 0; i < instr_count; ++i)
+    for (woort_IRValue* cv = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
+         cv != NULL;
+         cv = (woort_IRValue*)woort_linklist_next(cv))
     {
-        woort_IROp* op = &instrs[i];
-        if (op->m_op != WOORT_IROP_KIND_LOAD_CONST)
+        if (cv->m_source != WOORT_IRVALUE_SOURCE_CONST)
+            continue;
+        if (cv->m_is_const_direct)
             continue;
 
-        /* 常量直连的 LOAD_CONST 不需要放置 LOAD（发射层直接用 PUSHCCHK/RETVC） */
-        if (op->m_dst != NULL && op->m_dst->m_is_const_direct)
-            continue;
-
-        woort_IRConstantIndex cidx = op->m_const_index;
-        uint32_t blk_idx = instr_to_block[i];
-
-        /* 查找已有记录: 按 (const_index, dst_vreg) 联合键去重 */
-        _woort_ConstUseInfo* found = NULL;
-        for (size_t ci = 0; ci < const_infos.m_size; ++ci)
+        /* 创建使用信息 */
+        _woort_ConstUseInfo* info;
+        if (!woort_vector_emplace_back(&const_infos, 1, (void**)&info))
         {
-            _woort_ConstUseInfo* info = (_woort_ConstUseInfo*)woort_vector_at(
-                &const_infos, ci);
-            if (info->m_const_index == cidx && info->m_dst_vreg == op->m_dst)
-            {
-                found = info;
-                break;
-            }
+            _cleanup_const_infos(&const_infos);
+            free(instr_to_block);
+            return false;
         }
+        info->m_const_vreg = cv;
+        woort_vector_init(&info->m_use_blocks, sizeof(uint32_t));
 
-        if (found == NULL)
+        /* 扫描指令流，找到所有使用该 CONST vreg 的 block */
+        for (size_t i = 0; i < instr_count; ++i)
         {
-            /* 新建记录 */
-            _woort_ConstUseInfo* new_info;
-            if (!woort_vector_emplace_back(&const_infos, 1, (void**)&new_info))
+            woort_IROp* op = &instrs[i];
+            bool used = false;
+            for (int s = 0; s < 3; ++s)
             {
-                _cleanup_const_infos(&const_infos);
-                free(instr_to_block);
-                return false;
+                if (op->m_src[s] == cv)
+                {
+                    used = true;
+                    break;
+                }
             }
-            new_info->m_const_index = cidx;
-            new_info->m_dst_vreg = op->m_dst;
-            woort_vector_init(&new_info->m_use_blocks, sizeof(uint32_t));
-            if (!woort_vector_push_back(&new_info->m_use_blocks, 1, &blk_idx))
-            {
-                _cleanup_const_infos(&const_infos);
-                free(instr_to_block);
-                return false;
-            }
-        }
-        else
-        {
-            /* 检查是否已记录此 block（去重） */
+            if (!used)
+                continue;
+
+            uint32_t blk_idx = instr_to_block[i];
+
+            /* 去重 */
             bool already_in = false;
-            for (size_t ubi = 0; ubi < found->m_use_blocks.m_size; ++ubi)
+            for (size_t ubi = 0; ubi < info->m_use_blocks.m_size; ++ubi)
             {
-                uint32_t existing = *(uint32_t*)woort_vector_at(
-                    &found->m_use_blocks, ubi);
-                if (existing == blk_idx)
+                if (*(uint32_t*)woort_vector_at(&info->m_use_blocks, ubi) == blk_idx)
                 {
                     already_in = true;
                     break;
@@ -1528,7 +1347,7 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
             }
             if (!already_in)
             {
-                if (!woort_vector_push_back(&found->m_use_blocks, 1, &blk_idx))
+                if (!woort_vector_push_back(&info->m_use_blocks, 1, &blk_idx))
                 {
                     _cleanup_const_infos(&const_infos);
                     free(instr_to_block);
@@ -1540,7 +1359,12 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
 
     free(instr_to_block);
 
-    /* 对每个常量找公共支配者并生成加载放置 */
+    /*
+     * 为每个 CONST vreg 分配栈槽，并决定 LOAD 放置位置
+     */
+    size_t const_slot_base = *out_stack_space; /* 从 Phase 3 已分配的栈槽之后继续 */
+    size_t next_const_slot = const_slot_base;
+
     for (size_t ci = 0; ci < const_infos.m_size; ++ci)
     {
         _woort_ConstUseInfo* info = (_woort_ConstUseInfo*)woort_vector_at(
@@ -1548,8 +1372,11 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
 
         if (info->m_use_blocks.m_size == 0)
             continue;
-        if (info->m_dst_vreg == NULL)
-            continue;
+
+        /* 为该 CONST vreg 分配栈槽 */
+        int32_t slot_offset = -(int32_t)next_const_slot;
+        next_const_slot++;
+        info->m_const_vreg->m_assigned_stack_offset = slot_offset;
 
         /* 所有使用 block 的公共支配者 */
         int32_t common_dom = (int32_t)(
@@ -1576,41 +1403,6 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
             }
         }
 
-        /*
-         * 安全性检查：如果放置块不是原始定义块，需要检查目标 vreg 在放置块
-         * 入口处是否活跃。如果不活跃，说明该栈槽可能被其他 vreg 占用，
-         * 此时不能外提，退回到第一个使用块。
-         */
-        {
-            uint32_t first_use_blk = *(uint32_t*)woort_vector_at(
-                &info->m_use_blocks, 0);
-            uint32_t vreg_id = info->m_dst_vreg->m_id;
-
-            if (common_dom >= 0 && (uint32_t)common_dom != first_use_blk)
-            {
-                woort_IRBlock* place_blk = (woort_IRBlock*)woort_vector_at(
-                    &f->m_blocks, (uint32_t)common_dom);
-
-                /*
-                 * 检查 vreg 在放置块入口是否活跃。
-                 * 如果不活跃，退回到第一个使用块。
-                 */
-                if (place_blk->m_live_in.m_data != NULL &&
-                    vreg_id < place_blk->m_live_in.m_bit_count)
-                {
-                    if (!woort_bitset_test(&place_blk->m_live_in, vreg_id))
-                    {
-                        common_dom = (int32_t)first_use_blk;
-                    }
-                }
-                else
-                {
-                    /* bitset 未初始化或 vreg 不在范围内，保守回退 */
-                    common_dom = (int32_t)first_use_blk;
-                }
-            }
-        }
-
         /* 在公共支配者 block 中记录常量加载 */
         if (common_dom >= 0 && (uint32_t)common_dom < block_count)
         {
@@ -1618,8 +1410,8 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
                 &f->m_blocks, (uint32_t)common_dom);
 
             _woort_ConstLoadInfo load_info;
-            load_info.m_const_index = info->m_const_index;
-            load_info.m_stack_offset = info->m_dst_vreg->m_assigned_stack_offset;
+            load_info.m_const_index = info->m_const_vreg->m_const_idx;
+            load_info.m_stack_offset = slot_offset;
 
             if (!woort_vector_push_back(&place_blk->m_const_loads, 1, &load_info))
             {
@@ -1629,11 +1421,7 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f)
         }
     }
 
-    /*
-     * 注意：不修改原始 LOAD_CONST 指令。
-     * 字节码发射阶段将根据 block 的 m_const_loads 发出实际加载，
-     * 并跳过原始的 LOAD_CONST 操作。
-     */
+    *out_stack_space = next_const_slot;
 
     _cleanup_const_infos(&const_infos);
     return true;
@@ -1660,67 +1448,11 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     if (!_phase2_liveness_analysis(f))
         return false;
 
-    /* Phase 2b: 常量优化（直接使用标记 + 重复加载合并） */
+    /* Phase 2b: 常量直接使用标记（PUSHCCHK / RETVC） */
     if (!_phase2b_const_optimization(f))
         return false;
 
-    /*
-     * Phase 2b 可能将 LOAD_CONST 替换为 MOV，导致 Phase 2 的活跃性数据过时。
-     * 重新计算活跃性：清零已分配的 bitset 并重新分析。
-     */
-    {
-        const uint32_t block_count_2 = (uint32_t)f->m_blocks.m_size;
-        woort_IROp* instrs_2 = (woort_IROp*)f->m_instructions.m_data;
-
-        for (uint32_t b = 0; b < block_count_2; ++b)
-        {
-            woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, b);
-            woort_bitset_clear(&blk->m_use);
-            woort_bitset_clear(&blk->m_def);
-            woort_bitset_clear(&blk->m_live_in);
-            woort_bitset_clear(&blk->m_live_out);
-
-            for (uint32_t i = blk->m_begin; i < blk->m_end; ++i)
-            {
-                woort_IROp* op = &instrs_2[i];
-                if (op->m_op == WOORT_IROP_KIND_LABEL)
-                    continue;
-                _record_use(&blk->m_use, &blk->m_def, op->m_src[0]);
-                _record_use(&blk->m_use, &blk->m_def, op->m_src[1]);
-                _record_use(&blk->m_use, &blk->m_def, op->m_src[2]);
-                _record_def(&blk->m_def, op->m_dst);
-            }
-        }
-
-        {
-            bool changed = true;
-            while (changed)
-            {
-                changed = false;
-                for (uint32_t bi = block_count_2; bi > 0; --bi)
-                {
-                    uint32_t b = bi - 1;
-                    woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(
-                        &f->m_blocks, b);
-                    for (size_t si = 0; si < blk->m_successors.m_size; ++si)
-                    {
-                        uint32_t succ_idx = *(uint32_t*)woort_vector_at(
-                            &blk->m_successors, si);
-                        woort_IRBlock* succ = (woort_IRBlock*)woort_vector_at(
-                            &f->m_blocks, succ_idx);
-                        if (_bitset_union_into(&blk->m_live_out, &succ->m_live_in))
-                            changed = true;
-                    }
-                    if (_bitset_assign_live_in(
-                            &blk->m_live_in, &blk->m_use,
-                            &blk->m_live_out, &blk->m_def))
-                        changed = true;
-                }
-            }
-        }
-    }
-
-    /* Phase 3: 栈槽分配（线性扫描） */
+    /* Phase 3: 栈槽分配（线性扫描，跳过 CONST 源 vreg） */
     if (!_phase3_stack_allocation(f, out_stack_space))
         return false;
 
@@ -1732,8 +1464,8 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     if (!_phase4b_detect_loops(f))
         return false;
 
-    /* Phase 4c: 常量加载放置 */
-    if (!_phase4c_const_load_placement(f))
+    /* Phase 4c: 常量加载放置（为非 const_direct 的 CONST vreg 分配栈槽并放置 LOAD） */
+    if (!_phase4c_const_load_placement(f, out_stack_space))
         return false;
 
     return true;

@@ -200,15 +200,6 @@ WOORT_NODISCARD bool woort_IR_MOV(
     _EMIT_END();
 }
 
-WOORT_NODISCARD bool woort_IR_LOAD_CONST(
-    woort_IRFunction* f, woort_IRValue* dst, woort_IRConstantIndex idx)
-{
-    _EMIT_BEGIN(f, WOORT_IROP_KIND_LOAD_CONST);
-    op_->m_dst = dst;
-    op_->m_const_index = idx;
-    _EMIT_END();
-}
-
 WOORT_NODISCARD bool woort_IR_LOAD(
     woort_IRFunction* f, woort_IRValue* dst, woort_IRStaticIndex idx)
 {

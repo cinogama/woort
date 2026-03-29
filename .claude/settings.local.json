@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /d/SELF/woort/src/*.c /d/SELF/woort/src/*.h)",
+      "Bash(grep -l \"WOORT_NODISCARD\" /d/SELF/woort/src/*.h)"
+    ]
+  }
+}

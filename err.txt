@@ -1,0 +1,2 @@
+FAIL: a=2, b=9, expected=9, actual=2
+Assertion failed: vm->m_sp[0].m_integer == expected, file D:\SELF\woort\test\test_ir.c, line 332

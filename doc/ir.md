@@ -37,11 +37,13 @@ woort_IRCompiler_add_function(&irc, param_count, &f);
 woort_IRValue* v = woort_IRFunction_new_vreg(f);
 woort_IRValue* arg = woort_IRFunction_get_argument(f, 0);
 
+/* 常量值（返回绑定到 G[idx] 的 IRValue*，同一 idx 返回同一指针） */
+woort_IRValue* c = woort_IRFunction_load_const(f, ci);
+
 /* Label */
 woort_IRLabel* L = woort_IRFunction_new_label(f);
 
 /* 指令发射（全部返回 bool，false 表示 OOM） */
-woort_IR_LOAD_CONST(f, v, const_idx);     /* v = G[const_idx] */
 woort_IR_MOV(f, dst, src);                 /* dst = src */
 woort_IR_ADDI(f, dst, a, b);              /* dst = a + b */
 woort_IR_SUBI(f, dst, a, b);              /* dst = a - b */
@@ -84,8 +86,8 @@ woort_IRFunction* f_fib;
 woort_IRCompiler_add_function(&irc, 1, &f_fib);
 {
     woort_IRValue* n_arg = woort_IRFunction_get_argument(f_fib, 0);
-    woort_IRValue* v2    = woort_IRFunction_new_vreg(f_fib);
-    woort_IRValue* v1    = woort_IRFunction_new_vreg(f_fib);
+    woort_IRValue* v2    = woort_IRFunction_load_const(f_fib, c2);
+    woort_IRValue* v1    = woort_IRFunction_load_const(f_fib, c1);
     woort_IRValue* tmp1  = woort_IRFunction_new_vreg(f_fib);
     woort_IRValue* tmp2  = woort_IRFunction_new_vreg(f_fib);
     woort_IRValue* r1    = woort_IRFunction_new_vreg(f_fib);
@@ -93,9 +95,6 @@ woort_IRCompiler_add_function(&irc, 1, &f_fib);
     woort_IRValue* sum   = woort_IRFunction_new_vreg(f_fib);
 
     woort_IRLabel* L_base = woort_IRFunction_new_label(f_fib);
-
-    woort_IR_LOAD_CONST(f_fib, v2, c2);   /* v2 = 2 */
-    woort_IR_LOAD_CONST(f_fib, v1, c1);   /* v1 = 1 */
 
     woort_IR_jcc_lt(f_fib, n_arg, v2, L_base);  /* if (n < 2) goto base */
 
@@ -121,10 +120,9 @@ woort_IRCompiler_add_function(&irc, 1, &f_fib);
 woort_IRFunction* f_main;
 woort_IRCompiler_add_function(&irc, 0, &f_main);
 {
-    woort_IRValue* vn     = woort_IRFunction_new_vreg(f_main);
+    woort_IRValue* vn     = woort_IRFunction_load_const(f_main, cn);
     woort_IRValue* result = woort_IRFunction_new_vreg(f_main);
 
-    woort_IR_LOAD_CONST(f_main, vn, cn);
     woort_IR_PUSHCHK(f_main, vn);
     woort_IR_CALLNWO(f_main, cfib, 1, result);
     woort_IR_ret(f_main, result);
@@ -158,20 +156,16 @@ woort_VMRuntime_invoke(vm, cenv->m_code_begin + f_fib->m_code_length);
 woort_IRFunction* f;
 woort_IRCompiler_add_function(&irc, 0, &f);
 {
-    woort_IRValue* vn   = woort_IRFunction_new_vreg(f);
-    woort_IRValue* v0   = woort_IRFunction_new_vreg(f);
-    woort_IRValue* v1   = woort_IRFunction_new_vreg(f);
-    woort_IRValue* i    = woort_IRFunction_new_vreg(f);
-    woort_IRValue* acc  = woort_IRFunction_new_vreg(f);
+    woort_IRValue* vn   = woort_IRFunction_load_const(f, cn);  /* 常量 n=10 */
+    woort_IRValue* v0   = woort_IRFunction_load_const(f, c0);  /* 常量 0 */
+    woort_IRValue* v1   = woort_IRFunction_load_const(f, c1);  /* 常量 1 */
+    woort_IRValue* i    = woort_IRFunction_new_vreg(f);        /* 可变：循环计数器 */
+    woort_IRValue* acc  = woort_IRFunction_new_vreg(f);        /* 可变：累加器 */
 
     woort_IRLabel* L_header = woort_IRFunction_new_label(f);
     woort_IRLabel* L_exit   = woort_IRFunction_new_label(f);
 
-    woort_IR_LOAD_CONST(f, vn, cn);   /* n = 10 */
-    woort_IR_LOAD_CONST(f, v0, c0);   /* 0 */
-    woort_IR_LOAD_CONST(f, v1, c1);   /* 1 */
-
-    /* 初始化循环变量（显式 MOV，不使用 PHI） */
+    /* 初始化循环变量 */
     woort_IR_MOV(f, i, v1);           /* i = 1 */
     woort_IR_MOV(f, acc, v0);         /* acc = 0 */
 
@@ -195,15 +189,19 @@ woort_IRCompiler_add_function(&irc, 0, &f);
 `woort_IRCompiler_finish()` 对每个函数执行以下分析和代码生成：
 
 1. **Label → Block 切分**：根据 Label 绑定点和跳转指令自动切分基本块，构建 CFG
-2. **活跃性分析**：标准的迭代数据流分析（USE/DEF → LIVE_IN/LIVE_OUT）
-3. **栈槽分配**：线性扫描算法，活跃区间不重叠的虚拟寄存器共享栈槽
-4. **Dominator 分析 + 循环检测**：Cooper-Harvey-Kennedy 算法构建支配树，检测自然循环
-5. **常量加载放置**：将常量加载提升到所有使用点的公共支配者处，循环内的常量加载提升到循环外
-6. **字节码发射**：逐指令翻译 IR → 字节码，自动选择 compound 指令和最优编码宽度
-7. **跳转修补**：解析 Label 地址，选择 JFWD/JBCK 编码，处理 offset overflow 扩展
+2. **活跃性分析**：标准的迭代数据流分析（USE/DEF → LIVE_IN/LIVE_OUT）。CONST 源的 vreg 不参与 bitset 活跃性。
+3. **常量直连标记**：检查 CONST vreg 是否仅被一条 PUSHCHK/RET 使用，标记为 const_direct（发射 PUSHCCHK/RETVC）
+4. **栈槽分配**：线性扫描算法，活跃区间不重叠的普通 vreg 共享栈槽。CONST vreg 跳过。
+5. **Dominator 分析 + 循环检测**：Cooper-Harvey-Kennedy 算法构建支配树，检测自然循环
+6. **常量加载放置**：为非 const_direct 的 CONST vreg 分配独立栈槽，将 LOAD 放置到使用点的公共支配者处，循环内的常量加载提升到循环外
+7. **字节码发射**：逐指令翻译 IR → 字节码，自动选择 compound 指令和最优编码宽度。CONST vreg 自动产生 PUSHCCHK/RETVC/LOAD。
+8. **跳转修补**：解析 Label 地址，选择 JFWD/JBCK 编码，处理 offset overflow 扩展
 
 ## 注意
 
+* `woort_IRFunction_load_const` 返回的 IRValue* 代表不可变的常量值，不应作为指令的 `dst` 参数。可变变量应使用 `woort_IRFunction_new_vreg` 创建，通过 `woort_IR_MOV` 从常量值初始化。
+* 同一 `const_index` 多次调用 `load_const` 返回相同的 IRValue*（天然去重）
+* 常量值的加载时机和方式由框架自动决定：单次使用于 PUSHCHK/RET 时直接使用特化指令（PUSHCCHK/RETVC）；多次使用时在最优位置放置 LOAD 指令
 * 指令发射函数名保持大写（如 `woort_IR_ADDI`），控制流函数使用小写（如 `woort_IR_jmp`）
 * `woort_IR_CALLNWO/CALLNFP/CALLNJIT/CALL` 的 `argc` 参数用于生成 `RESULT`/`POPR` 指令时指示所需弹出清理栈上空间的数量
 * 如果调用结果的 `dst` 参数为 `NULL`，则不使用 `RESULT` 指令，直接 `POPR`

@@ -53,6 +53,13 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_argument(woor
 /* 创建新的 Label */
 WOORT_NODISCARD /* OPTIONAL */ woort_IRLabel* woort_IRFunction_new_label(woort_IRFunction* f);
 
+/* 获取一个代表常量 G[idx] 的值。
+ * 同一 const_index 多次调用返回相同的 IRValue*（天然去重）。
+ * 返回的 IRValue* 的 m_source 为 WOORT_IRVALUE_SOURCE_CONST。
+ * 返回 NULL 表示 OOM。 */
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_load_const(
+    woort_IRFunction* f, woort_IRConstantIndex idx);
+
 /* finish 阶段内部函数 */
 WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     woort_IRFunction* f, size_t* out_stack_space);

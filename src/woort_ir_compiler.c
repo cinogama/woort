@@ -505,9 +505,8 @@ static bool _emit_op(
 {
     switch (op->m_op)
     {
-    /* ============ LABEL / LOAD_CONST: 跳过 ============ */
+    /* ============ LABEL: 跳过 ============ */
     case WOORT_IROP_KIND_LABEL:
-    case WOORT_IROP_KIND_LOAD_CONST:
         return true;
 
     /* ============ MOV ============ */
@@ -573,7 +572,7 @@ static bool _emit_op(
         /* 常量直连优化：直接发 PUSHCCHK，跳过 LOAD + PUSHSCHK */
         if (op->m_src[0]->m_is_const_direct)
         {
-            uint32_t cidx = op->m_src[0]->m_direct_const_index;
+            uint32_t cidx = op->m_src[0]->m_const_idx;
             if (cidx <= WOORT_UINT24_MAX_VAL)
                 return _emit_bc(blk, woort_OpCode_PUSHCCHK(cidx));
             return _emit_bc_ex32(blk, woort_OpCode_PUSHCCHKEXT(), cidx);
@@ -1238,7 +1237,7 @@ static bool _emit_op(
         /* 常量直连优化：直接发 RETVC，跳过 LOAD + RETVS */
         if (op->m_src[0]->m_is_const_direct)
         {
-            uint32_t cidx = op->m_src[0]->m_direct_const_index;
+            uint32_t cidx = op->m_src[0]->m_const_idx;
             if (cidx <= WOORT_UINT24_MAX_VAL)
                 return _emit_bc(blk, woort_OpCode_RETVC(cidx));
             /* 超出 24-bit 范围，回退到 RETVS（需要栈槽，不应该到这里） */
@@ -1442,9 +1441,8 @@ static bool _emit_function(
         {
             woort_IROp* op = &instructions[ii];
 
-            /* 跳过 LABEL 和 LOAD_CONST 指令 */
-            if (op->m_op == WOORT_IROP_KIND_LABEL ||
-                op->m_op == WOORT_IROP_KIND_LOAD_CONST)
+            /* 跳过 LABEL 伪指令 */
+            if (op->m_op == WOORT_IROP_KIND_LABEL)
             {
                 continue;
             }
