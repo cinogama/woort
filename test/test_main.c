@@ -6,6 +6,8 @@
 #include "woort_opcode_formal.h"
 #include "woort_gc_string.h"
 #include "woort_opcode_builder.h"
+#include "woort_ir_compiler.h"
+#include "woort_disassembly.h"
 
 #include <stdio.h>
 #include <time.h>
@@ -38,8 +40,94 @@ woort_api bar(woort_vm vm, woort_value* args)
     return WOORT_VM_CALL_STATUS_NORMAL;
 }
 
+void dump_Code(woort_CodeEnv* cenv)
+{
+    const woort_Bytecode* pc = cenv->m_code_begin;
+
+    printf("\n");
+
+    while (pc < cenv->m_code_end)
+        pc = woort_Disassembly(pc);
+
+    printf("\n");
+
+    fflush(stdout);
+}
+
 int main(int argc, char** argv) {
     woort_init();
+
+    woort_IRCompiler irc;
+    woort_IRCompiler_init(&irc);
+
+    woort_IRFunction* f_fib;
+    woort_IRFunction* f_main;
+
+    woort_IRConstantIndex c_f_fib = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c_1 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c_2 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c_40 = woort_IRCompiler_add_constant(&irc);
+    {
+        (void)woort_IRCompiler_add_function(&irc, 1, &f_fib);
+        {
+            woort_IRValue* n = woort_IRFunction_get_argument(f_fib, 0);
+            woort_IRValue* cv_1 = woort_IRFunction_load_const(f_fib, c_1);
+            woort_IRValue* cv_2 = woort_IRFunction_load_const(f_fib, c_2);
+
+            woort_IRLabel* lb = woort_IRFunction_new_label(f_fib);
+
+            (void)woort_IR_jcc_ge(f_fib, n, cv_2, lb);
+            {
+                (void)woort_IR_ret(f_fib, cv_1);
+            }
+
+            (void)woort_IR_bind(f_fib, lb);
+            woort_IRValue* n0 = woort_IRFunction_new_vreg(f_fib);
+            woort_IR_SUBI(f_fib, n0, n, cv_1);
+            woort_IR_PUSHCHK(f_fib, n0);
+            woort_IRValue* r0 = woort_IRFunction_new_vreg(f_fib);
+            woort_IR_CALLNWO(f_fib, c_f_fib, 1, r0);
+
+            woort_IRValue* n1 = woort_IRFunction_new_vreg(f_fib);
+            woort_IR_SUBI(f_fib, n1, n, cv_2);
+            woort_IR_PUSHCHK(f_fib, n1);
+            woort_IRValue* r1 = woort_IRFunction_new_vreg(f_fib);
+            woort_IR_CALLNWO(f_fib, c_f_fib, 1, r1);
+
+            woort_IRValue* r = woort_IRFunction_new_vreg(f_fib);
+            woort_IR_ADDI(f_fib, r, r0, r1);
+
+            (void)woort_IR_ret(f_fib, r);
+        }
+
+        (void)woort_IRCompiler_add_function(&irc, 0, &f_main);
+        {
+            (void)woort_IR_PUSHCHK(f_main, woort_IRFunction_load_const(f_main, c_40));
+
+            woort_IRValue* v = woort_IRFunction_new_vreg(f_main);
+            (void)woort_IR_CALLNWO(f_main, c_f_fib, 1, v);
+            (void)woort_IR_ret(f_main, v);
+        }
+    }
+
+    woort_CodeEnv* cenv;
+    (void)woort_IRCompiler_finish(&irc, &cenv);
+
+    cenv->m_data_begin[c_f_fib].m_script_function = cenv->m_code_begin + f_fib->m_code_offset;
+    cenv->m_data_begin[c_1].m_integer = 1;
+    cenv->m_data_begin[c_2].m_integer = 2;
+    cenv->m_data_begin[c_40].m_integer = 40;
+
+    dump_Code(cenv);
+
+    woort_VMRuntime* vm;
+    (void)woort_VMRuntime_create(&vm);
+
+    (void)woort_VMRuntime_invoke(vm, cenv->m_code_begin + f_main->m_code_offset);
+    printf("%lld\n", vm->m_sp[0].m_integer);
+
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
 
     const woort_Bytecode bcs[] =
     {
@@ -111,7 +199,6 @@ int main(int argc, char** argv) {
     codeenv->m_data_begin[3].m_integer = 40;
     codeenv->m_data_begin[4].m_native_or_jit_function = &print_int;
 
-    woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
 
     (void)woort_VMRuntime_invoke(vm, codeenv->m_code_begin + 15);

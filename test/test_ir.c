@@ -2693,7 +2693,7 @@ static void test_const_merge_rejected_not_live(void)
 
     /* 传 x=0 → 走 L_then 分支 → b=10, result2 = 10+10 = 20 */
     woort_VmCallStatus status = woort_VMRuntime_invoke(
-        vm, cenv->m_code_begin + f_inner->m_code_length);
+        vm, cenv->m_code_begin + f_main->m_code_offset);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
     TEST_ASSERT_EQ_INT(20, vm->m_sp[0].m_integer);
 
