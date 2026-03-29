@@ -636,6 +636,8 @@ _label_continue_execution:
                 rt_sb = rt_sp;
 
                 rt_ip = rt_env_data[WOORT_BYTECODE(MABC26, c)].m_script_function;
+
+                WOORT_VM_CHECKPOINT();
                 continue;
             }
 
@@ -806,6 +808,8 @@ _label_continue_execution:
                     }
 
                     rt_sb[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
+
+                    WOORT_VM_CHECKPOINT();
                     continue;
                 }
 
