@@ -266,6 +266,124 @@ static inline void woort_atomic_store_ptr(woort_AtomicPtr* obj, void* value)
     } while(0)
 
 /* ============================================================================
+ * woort_atomic_exchange / woort_atomic_exchange_explicit
+ * ============================================================================ */
+
+#if defined(WOORT_ATOMIC_MSVC)
+
+static inline int8_t woort_atomic_exchange_int8(woort_AtomicInt8* obj, int8_t value)
+{
+    return (int8_t)_InterlockedExchange8((volatile char*)obj, (char)value);
+}
+
+static inline uint8_t woort_atomic_exchange_uint8(woort_AtomicUInt8* obj, uint8_t value)
+{
+    return (uint8_t)_InterlockedExchange8((volatile char*)obj, (char)value);
+}
+
+static inline int16_t woort_atomic_exchange_int16(woort_AtomicInt16* obj, int16_t value)
+{
+    return (int16_t)_InterlockedExchange16((volatile short*)obj, (short)value);
+}
+
+static inline uint16_t woort_atomic_exchange_uint16(woort_AtomicUInt16* obj, uint16_t value)
+{
+    return (uint16_t)_InterlockedExchange16((volatile short*)obj, (short)value);
+}
+
+static inline int32_t woort_atomic_exchange_int32(woort_AtomicInt32* obj, int32_t value)
+{
+    return (int32_t)_InterlockedExchange((volatile long*)obj, (long)value);
+}
+
+static inline uint32_t woort_atomic_exchange_uint32(woort_AtomicUInt32* obj, uint32_t value)
+{
+    return (uint32_t)_InterlockedExchange((volatile long*)obj, (long)value);
+}
+
+static inline int64_t woort_atomic_exchange_int64(woort_AtomicInt64* obj, int64_t value)
+{
+    return (int64_t)_InterlockedExchange64((volatile __int64*)obj, (__int64)value);
+}
+
+static inline uint64_t woort_atomic_exchange_uint64(woort_AtomicUInt64* obj, uint64_t value)
+{
+    return (uint64_t)_InterlockedExchange64((volatile __int64*)obj, (__int64)value);
+}
+
+static inline void* woort_atomic_exchange_ptr(woort_AtomicPtr* obj, void* value)
+{
+    return _InterlockedExchangePointer(obj, value);
+}
+
+#elif defined(WOORT_ATOMIC_GCC)
+
+static inline int8_t woort_atomic_exchange_int8(woort_AtomicInt8* obj, int8_t value)
+{
+    return __atomic_exchange_n(obj, value, __ATOMIC_SEQ_CST);
+}
+
+static inline uint8_t woort_atomic_exchange_uint8(woort_AtomicUInt8* obj, uint8_t value)
+{
+    return __atomic_exchange_n(obj, value, __ATOMIC_SEQ_CST);
+}
+
+static inline int16_t woort_atomic_exchange_int16(woort_AtomicInt16* obj, int16_t value)
+{
+    return __atomic_exchange_n(obj, value, __ATOMIC_SEQ_CST);
+}
+
+static inline uint16_t woort_atomic_exchange_uint16(woort_AtomicUInt16* obj, uint16_t value)
+{
+    return __atomic_exchange_n(obj, value, __ATOMIC_SEQ_CST);
+}
+
+static inline int32_t woort_atomic_exchange_int32(woort_AtomicInt32* obj, int32_t value)
+{
+    return __atomic_exchange_n(obj, value, __ATOMIC_SEQ_CST);
+}
+
+static inline uint32_t woort_atomic_exchange_uint32(woort_AtomicUInt32* obj, uint32_t value)
+{
+    return __atomic_exchange_n(obj, value, __ATOMIC_SEQ_CST);
+}
+
+static inline int64_t woort_atomic_exchange_int64(woort_AtomicInt64* obj, int64_t value)
+{
+    return __atomic_exchange_n(obj, value, __ATOMIC_SEQ_CST);
+}
+
+static inline uint64_t woort_atomic_exchange_uint64(woort_AtomicUInt64* obj, uint64_t value)
+{
+    return __atomic_exchange_n(obj, value, __ATOMIC_SEQ_CST);
+}
+
+static inline void* woort_atomic_exchange_ptr(woort_AtomicPtr* obj, void* value)
+{
+    return __atomic_exchange_n(obj, value, __ATOMIC_SEQ_CST);
+}
+
+#endif /* WOORT_ATOMIC_MSVC / WOORT_ATOMIC_GCC */
+
+/* Generic macro for woort_atomic_exchange (without explicit memory order) */
+#define woort_atomic_exchange(obj, value) \
+    _Generic((obj), \
+        woort_AtomicInt8*:    woort_atomic_exchange_int8, \
+        woort_AtomicUInt8*:   woort_atomic_exchange_uint8, \
+        woort_AtomicInt16*:   woort_atomic_exchange_int16, \
+        woort_AtomicUInt16*:  woort_atomic_exchange_uint16, \
+        woort_AtomicInt32*:   woort_atomic_exchange_int32, \
+        woort_AtomicUInt32*:  woort_atomic_exchange_uint32, \
+        woort_AtomicInt64*:   woort_atomic_exchange_int64, \
+        woort_AtomicUInt64*:  woort_atomic_exchange_uint64, \
+        woort_AtomicPtr*:     woort_atomic_exchange_ptr \
+    )(obj, value)
+
+/* woort_atomic_exchange_explicit with memory order */
+#define woort_atomic_exchange_explicit(obj, value, order) \
+    (woort_atomic_exchange(obj, value))
+
+/* ============================================================================
  * woort_atomic_load / woort_atomic_load_explicit
  * ============================================================================ */
 
@@ -1272,6 +1390,8 @@ typedef memory_order woort_atomic_MemoryOrder;
 #   define woort_atomic_init atomic_init
 #   define woort_atomic_store atomic_store
 #   define woort_atomic_store_explicit atomic_store_explicit
+#   define woort_atomic_exchange atomic_exchange
+#   define woort_atomic_exchange_explicit atomic_exchange_explicit
 #   define woort_atomic_load atomic_load
 #   define woort_atomic_load_explicit atomic_load_explicit
 #   define woort_atomic_fetch_add atomic_fetch_add

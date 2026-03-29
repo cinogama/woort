@@ -23,8 +23,8 @@ typedef struct woort_VMRuntime_Debugger
 
 } woort_VMRuntime_Debugger;
 
-void woort_VMRuntime_bootup(void);
-void woort_VMRuntime_shutdown(void);
+void woort_VMRuntime_Debugger_bootup(void);
+void woort_VMRuntime_Debugger_shutdown(void);
 
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
     woort_VMRuntime_DebuggerCallback callback, 
