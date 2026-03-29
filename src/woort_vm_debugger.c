@@ -74,3 +74,11 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
     return true;
 }
 
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_invoke(woort_VMRuntime* vm)
+{
+    // TODO;
+
+    abort();
+    return true;
+}
+
