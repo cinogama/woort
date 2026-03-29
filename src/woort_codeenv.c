@@ -46,7 +46,6 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
         &_codeenv_global_ctx->m_codeenvs_lock);
 }
 
-
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
 {
     assert(_codeenv_global_ctx == NULL);

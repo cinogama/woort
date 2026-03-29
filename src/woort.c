@@ -7,17 +7,17 @@
 
 void woort_init(void)
 {
-    woort_GC_bootup();
-
     if (!woort_CodeEnv_bootup())
     {
         WOORT_DEBUG("Failed to bootup code env.");
         abort();
     }
+
+    woort_GC_bootup();
 }
 void woort_shutdown(void)
 {
-    woort_CodeEnv_shutdown();
-
     woort_GC_shutdown();
+
+    woort_CodeEnv_shutdown();
 }
