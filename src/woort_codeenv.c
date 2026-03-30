@@ -8,6 +8,7 @@
 #include "woort_vector.h"
 #include "woort_atomic.h"
 #include "woort_log.h"
+#include "woort_util.h"
 
 #include "woomem.h"
 
@@ -19,6 +20,20 @@ static struct _woort_CodeEnv_GlobalCtx
     woort_GCUnitProxy   m_proxy;
 
 } *_codeenv_global_ctx = NULL;
+
+void _woort_CodeEnv_Traps_init(woort_CodeEnv_Traps* traps)
+{
+    woort_hashmap_init(
+        &traps->m_trap_records,
+        sizeof(woort_Bytecode*),
+        sizeof(woort_Bytecode),
+        &woort_util_ptr_hash,
+        &woort_util_ptr_equal);
+}
+void _woort_CodeEnv_Traps_deinit(woort_CodeEnv_Traps* traps)
+{
+    woort_hashmap_deinit(&traps->m_trap_records);
+}
 
 void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 {
@@ -44,6 +59,8 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     }
     woort_rwspinlock_write_unlock(
         &_codeenv_global_ctx->m_codeenvs_lock);
+
+    _woort_CodeEnv_Traps_deinit(&code_env->m_trap);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
@@ -154,6 +171,9 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         // Out of memory.
         return false;
     }
+
+    _woort_CodeEnv_Traps_init(
+        &code_env_instance->m_trap);
 
     *out_code_env = code_env_instance;
     return true;

@@ -10,11 +10,19 @@ woort_codeenv.h
 #include "woort_vector.h"
 #include "woort_atomic.h"
 #include "woort_gc_units.h"
+#include "woort_hashmap.h"
 
 #include <stdbool.h>
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void);
 void woort_CodeEnv_shutdown(void);
+
+typedef struct woort_CodeEnv_Traps
+{
+    woort_HashMap /* woort_Bytecode*, woort_Bytecode */
+        m_trap_records;
+
+} woort_CodeEnv_Traps;
 
 typedef struct woort_CodeEnv {
     woort_GCUnit m_gc_unit;
@@ -24,7 +32,10 @@ typedef struct woort_CodeEnv {
     const woort_Bytecode* m_code_begin;
     const woort_Bytecode* m_code_end;
 
+    woort_CodeEnv_Traps m_trap;
+
     woort_Value m_data_begin[];
+
 } woort_CodeEnv;
 _Static_assert(offsetof(woort_CodeEnv, m_gc_unit) == 0, 
     "woort_GCUnit must be head of woort_CodeEnv.");

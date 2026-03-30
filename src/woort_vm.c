@@ -73,7 +73,7 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
         || vm->m_hangup_cv == NULL)
     {
         WOORT_DEBUG("Out of memory");
-        goto _label_failed_to_init;     
+        goto _label_failed_to_init;
     }
 
     vm->m_stack_end = vm->m_stack + WOORT_VM_DEFAULT_STACK_BEGIN_SIZE;
@@ -327,6 +327,8 @@ _label_continue_execution:
     case WOORT_VM_CASE_OP6_M2(CODE, 3)
 
         register const woort_Bytecode c = *rt_ip;
+
+    _label_vm_dispatch_reentry_for_debug_trap:
         switch ((uint8_t)(c >> 24))
         {
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_NOP):
@@ -995,7 +997,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 3):
         {
             // NOTE: Cannot be negative.
-            rt_sp += 
+            rt_sp +=
                 (size_t)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
 
             assert(rt_sp <= rt_sb);
@@ -3303,7 +3305,7 @@ _label_continue_execution:
         // PACKARG
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_PACKARG):
         {
-             const woort_Value* const argument_to_pack = &rt_sb[
+            const woort_Value* const argument_to_pack = &rt_sb[
                 3 /* First argument place */
                     + 1 /* Argument count for variadic function */
                     + WOORT_BYTECODE(MA10, c) /* Skip count */];
@@ -3322,6 +3324,16 @@ _label_continue_execution:
             memcpy(gcvec->m_datas, argument_to_pack, pack_argc * sizeof(woort_DynBox));
 
             break;
+        }
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_TRAP):
+        {
+            if (!woort_VMRuntime_Debugger_try_invoke())
+            {
+                /* TODO: 如果没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
+            }
+            // 通过 CodeEnv 查询 Trap，获取原本的指令，然后重新执行
+
+            goto _label_vm_dispatch_reentry_for_debug_trap;
         }
         default:
             // Unknown bytecode command.
