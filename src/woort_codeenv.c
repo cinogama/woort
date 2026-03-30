@@ -21,20 +21,6 @@ static struct _woort_CodeEnv_GlobalCtx
 
 } *_codeenv_global_ctx = NULL;
 
-void _woort_CodeEnv_Traps_init(woort_CodeEnv_Traps* traps)
-{
-    woort_hashmap_init(
-        &traps->m_trap_records,
-        sizeof(woort_Bytecode*),
-        sizeof(woort_Bytecode),
-        &woort_util_ptr_hash,
-        &woort_util_ptr_equal);
-}
-void _woort_CodeEnv_Traps_deinit(woort_CodeEnv_Traps* traps)
-{
-    woort_hashmap_deinit(&traps->m_trap_records);
-}
-
 void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 {
     woort_CodeEnv* const code_env = (woort_CodeEnv*)unit;
@@ -60,7 +46,7 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     woort_rwspinlock_write_unlock(
         &_codeenv_global_ctx->m_codeenvs_lock);
 
-    _woort_CodeEnv_Traps_deinit(&code_env->m_trap);
+    woort_hashmap_deinit(&code_env->m_trap_records);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
@@ -172,8 +158,12 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         return false;
     }
 
-    _woort_CodeEnv_Traps_init(
-        &code_env_instance->m_trap);
+    woort_hashmap_init(
+        &code_env_instance->m_trap_records,
+        sizeof(woort_Bytecode*),
+        sizeof(woort_Bytecode),
+        &woort_util_ptr_hash,
+        &woort_util_ptr_equal);
 
     *out_code_env = code_env_instance;
     return true;
@@ -236,4 +226,9 @@ void woort_CodeEnv_GC_mark_all_envs(void)
 
     woort_rwspinlock_read_unlock(
         &_codeenv_global_ctx->m_codeenvs_lock);
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_set_trap(woort_Bytecode* code)
+{
+
 }
