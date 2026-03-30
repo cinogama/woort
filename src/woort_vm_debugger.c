@@ -1,22 +1,26 @@
 #include "woort_vm_debugger.h"
 #include "woort_atomic.h"
+#include "woort_spin.h"
 
 #include <stdlib.h>
 #include <assert.h>
 
-static woort_AtomicPtr g_debugger;
+static woort_VMRuntime_Debugger* g_debugger;
+static woort_RWSpinlock g_debugger_rwspin;
 
 void woort_VMRuntime_Debugger_bootup(void)
 {
     woort_atomic_init(&g_debugger, NULL);
+    woort_rwspinlock_init(&g_debugger_rwspin);
 }
 
 void woort_VMRuntime_Debugger_shutdown(void)
 {
     woort_VMRuntime_Debugger_disattach();
+    woort_rwspinlock_deinit(&g_debugger_rwspin);
 }
 
-void woort_VMRuntime_Debugger_relese_impl(woort_VMRuntime_Debugger* debugger)
+void _woort_VMRuntime_Debugger_release_impl(woort_VMRuntime_Debugger* debugger)
 {
     if (debugger->m_context_destroy_callback != NULL)
         debugger->m_context_destroy_callback(debugger->m_debugger_context);
@@ -24,22 +28,30 @@ void woort_VMRuntime_Debugger_relese_impl(woort_VMRuntime_Debugger* debugger)
     free(debugger);
 }
 
+void _woort_VMRuntime_Debugger_disref(woort_VMRuntime_Debugger* debugger)
+{
+    if (woort_atomic_fetch_sub_explicit(
+        &debugger->m_ref_count,
+        1,
+        WOORT_ATOMIC_MEMORY_ORDER_RELEASE) == 1)
+    {
+        _woort_VMRuntime_Debugger_release_impl(debugger);
+    }
+}
+
 void woort_VMRuntime_Debugger_disattach(void)
 {
-    woort_VMRuntime_Debugger* debugger = (woort_VMRuntime_Debugger*)woort_atomic_exchange_explicit(
-        &g_debugger, 
-        NULL, 
-        WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL);
-
-    if (debugger != NULL)
+    woort_VMRuntime_Debugger* origin_debugger;
+    woort_spinlock_lock(&g_debugger_rwspin);
     {
-        if (woort_atomic_fetch_sub_explicit(
-            &debugger->m_ref_count, 
-            1, 
-            WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL) > 1)
-            return;
+        origin_debugger = g_debugger;
+        g_debugger = NULL;
+    }
+    woort_spinlock_unlock(&g_debugger_rwspin);
 
-        woort_VMRuntime_Debugger_relese_impl(debugger);
+    if (origin_debugger != NULL)
+    {
+        _woort_VMRuntime_Debugger_disref(origin_debugger);
     }
 }
 
@@ -52,33 +64,55 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
 
     woort_VMRuntime_Debugger* new_debugger = malloc(sizeof(woort_VMRuntime_Debugger));
     if (new_debugger == NULL)
+    {
+        if (destroy_callback != NULL)
+            destroy_callback(context);
+
         return false;
+    }
 
     new_debugger->m_break_callback = callback;
     new_debugger->m_debugger_context = context;
     new_debugger->m_context_destroy_callback = destroy_callback;
     woort_atomic_init(&new_debugger->m_ref_count, 1);
 
-    void* expected = NULL;
-    if (!woort_atomic_compare_exchange_strong_explicit(
-        &g_debugger, 
-        &expected, 
-        new_debugger, 
-        WOORT_ATOMIC_MEMORY_ORDER_RELEASE, 
-        WOORT_ATOMIC_MEMORY_ORDER_RELAXED))
+    woort_spinlock_lock(&g_debugger_rwspin);
     {
-        woort_VMRuntime_Debugger_relese_impl(new_debugger);
-        return false;
-    }
+        if (g_debugger != NULL)
+            _woort_VMRuntime_Debugger_relese_impl(new_debugger);
+        else
+            g_debugger = new_debugger;
 
-    return true;
+    }
+    woort_spinlock_unlock(&g_debugger_rwspin);
+
+    return g_debugger == new_debugger;
 }
 
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_invoke(woort_VMRuntime* vm)
 {
-    // TODO;
+    woort_VMRuntime_Debugger* current_debugger;
+    woort_rwspinlock_read_lock(&g_debugger_rwspin);
+    {
+        current_debugger = g_debugger;
 
-    abort();
-    return true;
+        if (current_debugger != NULL)
+        {
+            (void)woort_atomic_fetch_add_explicit(
+                &current_debugger->m_ref_count, 
+                1,
+                WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
+        }
+    }
+    woort_rwspinlock_read_unlock(&g_debugger_rwspin);
+
+    if (current_debugger != NULL)
+    {
+        current_debugger->m_break_callback(vm, current_debugger->m_debugger_context);
+        _woort_VMRuntime_Debugger_disref(current_debugger);
+
+        return true;
+    }
+    return false;
 }
 
