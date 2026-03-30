@@ -17,7 +17,7 @@
 #include "woort_gc_struct.h"
 #include "woort_gc_closure.h"
 #include "woort_utf8.h"
-
+#include "woort_vm_debugger.h"
 #include "woort_disassembly.h"
 
 #include <assert.h>
@@ -3366,15 +3366,23 @@ _label_continue_execution:
             else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING)
             {
-                if (woort_VMRuntime_request_accept(vm, WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING))
+                // TODO: 栈占用的等待机制需要重做，用 hangup 不大合适
+                if (woort_VMRuntime_request_accept(
+                    vm,
+                    WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING))
+                {
                     woort_VMRuntime_hangup(vm);
+                }
             }
             else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK)
             {
-                WOORT_VM_SYNC_STATE_AND_PANIC(
-                    WOORT_PANIC_BAD_VM_REQUEST,
-                    "Not impl yet.");
+                if (woort_VMRuntime_Debugger_try_invoke())
+                {
+                    (void)woort_VMRuntime_request_accept(
+                        vm,
+                        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+                }
             }
             else
             {
