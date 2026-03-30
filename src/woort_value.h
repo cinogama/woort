@@ -38,14 +38,11 @@ typedef union woort_DynBox
 
 typedef enum woort_RuntimeFunction_Kind
 {
-    WOORT_RUNTIME_FUNCTION_KIND_CLOSURE = 0,
     WOORT_RUNTIME_FUNCTION_KIND_SCRIPT,
     WOORT_RUNTIME_FUNCTION_KIND_NATIVE,
     WOORT_RUNTIME_FUNCTION_KIND_JIT,
 
 }woort_RuntimeFunction_Kind;
-
-typedef uint64_t woort_RuntimeFunction;
 
 typedef enum woort_CallWay
 {
@@ -59,6 +56,7 @@ typedef enum woort_CallWay
     WOORT_CALL_WAY_FROM_NATIVE,
 
 } woort_CallWay;
+
 typedef struct woort_RetBP
 {
     woort_CallWay   m_way;
@@ -75,11 +73,10 @@ typedef union woort_Value
     woort_GCVec*            m_vec;
     woort_GCMap*            m_map;
     woort_GCStruct*         m_struct;
-    woort_GCClosure*        m_closure;
+    const woort_GCClosure*  m_closure;
 
     const woort_Bytecode*   m_script_function;
     woort_NativeFunction    m_native_or_jit_function;
-    woort_RuntimeFunction   m_runtime_function;
 
     woort_DynBox            m_dynamic;
 
@@ -100,20 +97,6 @@ typedef enum woort_BoxValueType
 
     ////
 } woort_BoxValueType;
-
-#define woort_RuntimeFunction_kind(function) (      \
-    (woort_RuntimeFunction_Kind)(                   \
-        ((woort_RuntimeFunction)(function)) >> 62))
-
-#define woort_RuntimeFunction_target(function) (    \
-    (void*)(                                        \
-        ((woort_RuntimeFunction)(function))         \
-            & 0x3fffffffffffffffull))    
-
-#define woort_RuntimeFunction_pack(kind, target)    \
-    (woort_RuntimeFunction)(                        \
-        ((uint64_t)kind << 62)                      \
-            | (uint64_t)(target))
 
 woort_DynBox woort_DynBox_box_real(woort_Real val);
 woort_DynBox woort_DynBox_box_int(woort_Int val);

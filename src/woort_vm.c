@@ -312,10 +312,10 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
     woort_Value* rt_sp = vm->m_sp;
     woort_Value* rt_sb = vm->m_sb;
 
-    WOORT_VM_CHECKPOINT();
-
     // Ok
 _label_continue_execution:
+    WOORT_VM_CHECKPOINT();
+
     for (;;)
     {
 #define WOORT_VM_CASE_OP6_M2(CODE, MODE)    \
@@ -734,73 +734,38 @@ _label_continue_execution:
         // CALLC
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CALL, 1):
         {
-            woort_RuntimeFunction target;
+            const woort_GCClosure* target;
             if (1)
-                target = rt_env_data[WOORT_BYTECODE(ABC24, c)].m_runtime_function;
+                target = rt_env_data[WOORT_BYTECODE(ABC24, c)].m_closure;
             else
             {
             _label_vm_call_impl_calls:
-                target = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_runtime_function;
+                target = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_closure;
             }
 
-            void* function_target = woort_RuntimeFunction_target(target);
-            switch (woort_RuntimeFunction_kind(target))
+            woort_Value* const new_sb = rt_sp - 2;
+            woort_Value* const new_sp = new_sb - target->m_size;
+            if (new_sp >= rt_stack)
             {
-            case WOORT_RUNTIME_FUNCTION_KIND_CLOSURE:
-            {
-                const woort_GCClosure* const gcclosure = function_target;
+                if (target->m_size != 0)
+                    memcpy(
+                        new_sp + 1,
+                        target->m_datas,
+                        sizeof(woort_Value) * target->m_size);
 
-                woort_Value* const new_sb = rt_sp - 2;
-                woort_Value* const new_sp = new_sb - gcclosure->m_size;
-
-                if (new_sp >= rt_stack)
+                switch (target->m_kind)
                 {
-                    // Unpack captured arguments.
-                    memcpy(new_sp + 1, gcclosure->m_datas, sizeof(woort_Value) * gcclosure->m_size);
-
+                case WOORT_RUNTIME_FUNCTION_KIND_SCRIPT:
+                {
+                    /* CALL 可能发生 FAR_CALL，需要在跳转完成之后检查是否是 FAR CALL */
                     new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
                     new_sb[2].m_ret_addr = rt_ip + 1;
 
-                    function_target = woort_RuntimeFunction_target(gcclosure->m_func);
-                    switch (woort_RuntimeFunction_kind(gcclosure->m_func))
-                    {
-                    case WOORT_RUNTIME_FUNCTION_KIND_SCRIPT:
-                    {
-                        rt_sp = new_sp;
-                        rt_sb = new_sb;
+                    rt_sp = new_sp;
+                    rt_sb = new_sb;
 
-                        goto _label_vm_callwo_impl;
-                    }
-                    case WOORT_RUNTIME_FUNCTION_KIND_JIT:
-                    {
-                        new_sb[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
-                        ++rt_ip;
+                    rt_ip = target->m_func.m_script_function;
 
-                        goto _label_vm_calljit_impl;
-                    }
-                    case WOORT_RUNTIME_FUNCTION_KIND_NATIVE:
-                        // Cannot be native in closure.
-                    default:
-                        WOORT_VM_THROW(bad_type);
-                    }
-                }
-                WOORT_VM_THROW(stack_overflow);
-            }
-            case WOORT_RUNTIME_FUNCTION_KIND_SCRIPT:
-            {
-                rt_sp -= 2;
-                if (rt_sp >= rt_stack)
-                {
-                    /*
-                    CALL 可能发生 FAR_CALL，需要在跳转完成之后检查是否是 FAR CALL
-                    */
-                    rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
-                    rt_sp[2].m_ret_addr = rt_ip + 1;
-
-                    rt_sb = rt_sp;
-
-                _label_vm_callwo_impl:
-                    rt_ip = function_target;
                     if (rt_ip >= rt_env_code_end || rt_ip < rt_env_code)
                     {
                         // 已经跳出当前 env 的代码段，触发一个 env_updated.
@@ -810,27 +775,17 @@ _label_continue_execution:
                     }
 
                     rt_sb[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
-
                     WOORT_VM_CHECKPOINT();
                     continue;
                 }
-
-                rt_sp += 2;
-                WOORT_VM_THROW(stack_overflow);
-            }
-            case WOORT_RUNTIME_FUNCTION_KIND_JIT:
-            {
-                woort_Value* const new_sp = rt_sp - 2;
-                if (new_sp >= rt_stack)
+                case WOORT_RUNTIME_FUNCTION_KIND_JIT:
                 {
-                    new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
-                    new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
-                    new_sp[2].m_ret_addr = ++rt_ip;
+                    new_sb[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
+                    new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                    new_sb[2].m_ret_addr = ++rt_ip;
 
-                _label_vm_calljit_impl:
                     const woort_VmCallStatus status =
-                        (*(woort_NativeFunction)function_target)(
-                            vm, (woort_value*)(rt_sp + 1));
+                        target->m_func.m_native_or_jit_function(vm, (woort_value*)(rt_sp + 1));
 
                     if (status == WOORT_VM_CALL_STATUS_RESYNC)
                     {
@@ -842,30 +797,26 @@ _label_continue_execution:
                     // Ok, continue execute.
                     continue;
                 }
-                WOORT_VM_THROW(stack_overflow);
-            }
-            case WOORT_RUNTIME_FUNCTION_KIND_NATIVE:
-            {
-                woort_Value* const new_sp = rt_sp - 2;
-                if (new_sp >= rt_stack)
+                case WOORT_RUNTIME_FUNCTION_KIND_NATIVE:
                 {
                     /*
                     此处保存到状态仅供调试等目的使用，这些状态实际上不被运行时使用
                     */
-                    new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
-                    new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
-                    new_sp[2].m_ret_addr = /* Update rt_ip to return place. */ ++rt_ip;
+                    new_sb[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
+                    new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                    new_sb[2].m_ret_addr = /* Update rt_ip to return place. */ ++rt_ip;
 
                     // No need to WOORT_VM_SYNC_STATE(), we will do it manually.
-                    vm->m_sb = vm->m_sp = new_sp;
-                    vm->m_ip = function_target;
+                    rt_sp = new_sp;
+                    rt_sb = new_sb;
+                    vm->m_ip = (const woort_Bytecode*)target->m_func.m_native_or_jit_function;
 
                     const uint32_t stack_version_before_native_call =
                         vm->m_stack_realloc_version;
 
                     const woort_VmCallStatus status =
-                        (*(woort_NativeFunction)function_target)(
-                            vm, (woort_value*)(rt_sp + 1));
+                        target->m_func.m_native_or_jit_function(
+                            vm, (woort_value*)(new_sb + 3));
 
                     /*
                     ATTENTION:
@@ -881,7 +832,6 @@ _label_continue_execution:
                         stack_version_before_native_call);
 
                     // Donot need to restore any status.
-
                     if (status == WOORT_VM_CALL_STATUS_RESYNC)
                     {
                         WOORT_VM_RESYNC_STATE();
@@ -891,12 +841,14 @@ _label_continue_execution:
                     // Ok, continue execute.
                     continue;
                 }
-                WOORT_VM_THROW(stack_overflow);
+                default:
+                    WOORT_VM_THROW(bad_type);
+                    break;
+                }
             }
-            default:
-                WOORT_VM_THROW(bad_type);
-            }
-            break;
+
+            // Stack overflow.
+            WOORT_VM_THROW(stack_overflow);
         }
         // RET
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 0):
@@ -1325,10 +1277,9 @@ _label_continue_execution:
             const size_t size = WOORT_BYTECODE(MA10, c);
             const uint32_t const_idx = rt_ip[1];
 
-            woort_RuntimeFunction func =
-                rt_env_data[const_idx].m_runtime_function;
+            woort_GCClosure* const gcclosure = 
+                woort_GCClosure_new(rt_env_data[const_idx].m_closure, size);
 
-            woort_GCClosure* const gcclosure = woort_GCClosure_new(func, size);
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_closure = gcclosure;
 
             for (size_t i = 1; i <= size; ++i)
@@ -3327,7 +3278,7 @@ _label_continue_execution:
         }
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_TRAP):
         {
-            if (!woort_VMRuntime_Debugger_try_invoke())
+            if (!woort_VMRuntime_Debugger_try_trap())
             {
                 /* TODO: 如果没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
             }
@@ -3351,15 +3302,12 @@ _label_continue_execution:
 #define WOORT_VM_EXCEPTION_LABEL(NAME) _label_exception_handler_##NAME
     WOORT_VM_EXCEPTION_LABEL(checkpoint) :
     {
-        for (;;)
+        const uint32_t request_mask = woort_atomic_load_explicit(
+            &vm->m_check_request_mask,
+            WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+
+        if (request_mask != 0)
         {
-            const uint32_t request_mask = woort_atomic_load_explicit(
-                &vm->m_check_request_mask,
-                WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
-
-            if (request_mask == 0)
-                break;
-
             if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
             {
                 woort_panic(
@@ -3389,7 +3337,7 @@ _label_continue_execution:
             else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK)
             {
-                if (woort_VMRuntime_Debugger_try_invoke())
+                if (woort_VMRuntime_Debugger_try_trap())
                 {
                     (void)woort_VMRuntime_request_accept(
                         vm,

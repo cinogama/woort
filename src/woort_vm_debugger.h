@@ -23,4 +23,4 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
 
 void woort_VMRuntime_Debugger_detach(void);
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_invoke(void);
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(void);

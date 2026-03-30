@@ -20,7 +20,7 @@ static woort_RWSpinlock g_debugger_rwspin;
 
 void woort_VMRuntime_Debugger_bootup(void)
 {
-    woort_atomic_init(&g_debugger, NULL);
+    g_debugger = NULL;
     woort_rwspinlock_init(&g_debugger_rwspin);
 }
 
@@ -99,7 +99,7 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
     return g_debugger == new_debugger;
 }
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_invoke(void)
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(void)
 {
     woort_VMRuntime_Debugger* current_debugger;
     woort_rwspinlock_read_lock(&g_debugger_rwspin);
