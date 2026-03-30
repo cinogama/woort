@@ -30,8 +30,8 @@ WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_script_func(
 {
     woort_GCClosure* const gcclosure = _woort_GCClosure_new(captured_count);
 
-    gcclosure->m_kind = WOORT_RUNTIME_FUNCTION_KIND_SCRIPT;
-    gcclosure->m_func.m_script_function = func;
+    gcclosure->m_script_function = func;
+    gcclosure->m_native_or_jit_function = NULL;
 
     return gcclosure;
 }
@@ -40,18 +40,8 @@ WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_native_func(
 {
     woort_GCClosure* const gcclosure = _woort_GCClosure_new(captured_count);
 
-    gcclosure->m_kind = WOORT_RUNTIME_FUNCTION_KIND_NATIVE;
-    gcclosure->m_func.m_native_or_jit_function = func;
-
-    return gcclosure;
-}
-WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_jit_func(
-    woort_NativeFunction func, size_t captured_count)
-{
-    woort_GCClosure* const gcclosure = _woort_GCClosure_new(captured_count);
-
-    gcclosure->m_kind = WOORT_RUNTIME_FUNCTION_KIND_JIT;
-    gcclosure->m_func.m_native_or_jit_function = func;
+    gcclosure->m_script_function = NULL;
+    gcclosure->m_native_or_jit_function = func;
 
     return gcclosure;
 }
@@ -61,8 +51,8 @@ WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new(
 {
     woort_GCClosure* const gcclosure = _woort_GCClosure_new(captured_count);
 
-    gcclosure->m_kind = func->m_kind;
-    gcclosure->m_func = func->m_func;
+    gcclosure->m_script_function = func->m_script_function;
+    gcclosure->m_native_or_jit_function = func->m_native_or_jit_function;
 
     return gcclosure;
 }

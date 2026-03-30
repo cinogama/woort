@@ -148,6 +148,12 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
 WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     woort_VMRuntime* vm, const woort_Bytecode* func)
 {
+    /*
+    注意，此处 woort_CodeEnv_find 在以下情况是安全的：
+        1）CodeEnv 尚未被 Drop
+        2）func 出自一个其他虚拟机依然持有的地址，这意味着 func 对
+            应的 CodeEnv 能够被标记
+    */
     if (!woort_CodeEnv_find(func, &vm->m_env))
         return WOORT_VM_CALL_STATUS_ABORTED;
 
@@ -160,7 +166,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
                                 }
     */
 
-    woort_VMRuntime* last_running_vm =
+    woort_VMRuntime* const last_running_vm =
         woort_VMRuntime_swap_running_vm(vm);
 
     // Reserve sp
@@ -755,10 +761,9 @@ _label_continue_execution:
                         target->m_datas,
                         sizeof(woort_Value) * target->m_size);
 
-                switch (target->m_kind)
+                if (target->m_native_or_jit_function == NULL)
                 {
-                case WOORT_RUNTIME_FUNCTION_KIND_SCRIPT:
-                {
+                    // Is script function.
                     /* CALL 可能发生 FAR_CALL，需要在跳转完成之后检查是否是 FAR CALL */
                     new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
                     new_sb[2].m_ret_addr = rt_ip + 1;
@@ -766,7 +771,7 @@ _label_continue_execution:
                     rt_sp = new_sp;
                     rt_sb = new_sb;
 
-                    rt_ip = target->m_func.m_script_function;
+                    rt_ip = target->m_script_function;
 
                     if (rt_ip >= rt_env_code_end || rt_ip < rt_env_code)
                     {
@@ -780,14 +785,15 @@ _label_continue_execution:
                     WOORT_VM_CHECKPOINT();
                     continue;
                 }
-                case WOORT_RUNTIME_FUNCTION_KIND_JIT:
+                else if (target->m_script_function != NULL)
                 {
+                    // Is JIT function.
                     new_sb[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
                     new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
                     new_sb[2].m_ret_addr = ++rt_ip;
 
                     const woort_VmCallStatus status =
-                        target->m_func.m_native_or_jit_function(vm, (woort_value*)(rt_sp + 1));
+                        target->m_native_or_jit_function(vm, (woort_value*)(rt_sp + 1));
 
                     if (status == WOORT_VM_CALL_STATUS_RESYNC)
                     {
@@ -800,8 +806,9 @@ _label_continue_execution:
                     // Ok, continue execute.
                     continue;
                 }
-                case WOORT_RUNTIME_FUNCTION_KIND_NATIVE:
+                else
                 {
+                    // Is native function.
                     /*
                     此处保存到状态仅供调试等目的使用，这些状态实际上不被运行时使用
                     */
@@ -812,13 +819,13 @@ _label_continue_execution:
                     // No need to WOORT_VM_SYNC_STATE(), we will do it manually.
                     rt_sp = new_sp;
                     rt_sb = new_sb;
-                    vm->m_ip = (const woort_Bytecode*)target->m_func.m_native_or_jit_function;
+                    vm->m_ip = (const woort_Bytecode*)target->m_native_or_jit_function;
 
                     const uint32_t stack_version_before_native_call =
                         vm->m_stack_realloc_version;
 
                     const woort_VmCallStatus status =
-                        target->m_func.m_native_or_jit_function(
+                        target->m_native_or_jit_function(
                             vm, (woort_value*)(new_sb + 3));
 
                     /*
@@ -845,10 +852,6 @@ _label_continue_execution:
 
                     // Ok, continue execute.
                     continue;
-                }
-                default:
-                    WOORT_VM_THROW(bad_type);
-                    break;
                 }
             }
 

@@ -36,14 +36,6 @@ typedef union woort_DynBox
 
 }woort_DynBox;
 
-typedef enum woort_RuntimeFunction_Kind
-{
-    WOORT_RUNTIME_FUNCTION_KIND_SCRIPT,
-    WOORT_RUNTIME_FUNCTION_KIND_NATIVE,
-    WOORT_RUNTIME_FUNCTION_KIND_JIT,
-
-}woort_RuntimeFunction_Kind;
-
 typedef enum woort_CallWay
 {
     // 一个脚本中的函数调用了另一个（本地的）脚本函数
