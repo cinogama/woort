@@ -686,13 +686,14 @@ _label_continue_execution:
                     stack_version_before_native_call);
 
                 // Donot need to restore any status.
-
                 if (status == WOORT_VM_CALL_STATUS_RESYNC)
                 {
                     WOORT_VM_RESYNC_STATE();
                     WOORT_VM_CHECKPOINT();
                 }
-                assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+                else
+                    assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+
                 // Ok, continue execute.
                 continue;
             }
@@ -719,7 +720,8 @@ _label_continue_execution:
                     WOORT_VM_RESYNC_STATE();
                     WOORT_VM_CHECKPOINT();
                 }
-                assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+                else
+                    assert(status == WOORT_VM_CALL_STATUS_NORMAL);
 
                 // Ok, continue execute.
                 continue;
@@ -792,7 +794,8 @@ _label_continue_execution:
                         WOORT_VM_RESYNC_STATE();
                         WOORT_VM_CHECKPOINT();
                     }
-                    assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+                    else
+                        assert(status == WOORT_VM_CALL_STATUS_NORMAL);
 
                     // Ok, continue execute.
                     continue;
@@ -837,7 +840,9 @@ _label_continue_execution:
                         WOORT_VM_RESYNC_STATE();
                         WOORT_VM_CHECKPOINT();
                     }
-                    assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+                    else
+                        assert(status == WOORT_VM_CALL_STATUS_NORMAL);
+
                     // Ok, continue execute.
                     continue;
                 }
@@ -1277,7 +1282,7 @@ _label_continue_execution:
             const size_t size = WOORT_BYTECODE(MA10, c);
             const uint32_t const_idx = rt_ip[1];
 
-            woort_GCClosure* const gcclosure = 
+            woort_GCClosure* const gcclosure =
                 woort_GCClosure_new(rt_env_data[const_idx].m_closure, size);
 
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_closure = gcclosure;
