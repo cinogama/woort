@@ -30,6 +30,20 @@ target_link_libraries(woort
     PRIVATE woort_options
     PUBLIC woomem)
 
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set_target_properties(woort PROPERTIES RELEASE_POSTFIX "")
+    set_target_properties(woort PROPERTIES RELWITHDEBINFO_POSTFIX "")
+    set_target_properties(woort PROPERTIES MINSIZEREL_POSTFIX "")
+    set_target_properties(woort PROPERTIES DEBUG_POSTFIX "_debug")
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+    set_target_properties(woort PROPERTIES RELEASE_POSTFIX "32")
+    set_target_properties(woort PROPERTIES RELWITHDEBINFO_POSTFIX "32")
+    set_target_properties(woort PROPERTIES MINSIZEREL_POSTFIX "32")
+    set_target_properties(woort PROPERTIES DEBUG_POSTFIX "32_debug")
+else()
+    message(FATAL_ERROR "Unknown platform.")
+endif()
+
 if (MSVC)
     # Atomic support for C11 is available after VS 2022 17.5 preview 2
     # We need to enable C11Atomic support in VS 2022
