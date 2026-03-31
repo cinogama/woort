@@ -16,6 +16,7 @@
 #include "woort_ir_block.h"
 #include "woort_ir_value.h"
 #include "woort_ir_op.h"
+#include "woort_ir_srcloc.h"
 #include "woort_opcode.h"
 #include "woort_opcode_builder.h"
 #include "woort_opcode_formal.h"
@@ -1398,10 +1399,14 @@ static bool _emit_function(
     woort_IRFunction* f,
     woort_IRCompiler* c,
     size_t stack_space,
-    woort_Vector* jump_patches)
+    woort_Vector* jump_patches,
+    woort_Vector* source_map_entries)
 {
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
     woort_IROp* instructions = (woort_IROp*)f->m_instructions.m_data;
+
+    /* 上一条 IR 指令的 srcloc_index，用于检测边界变化 */
+    uint32_t last_srcloc_index = WOORT_SRCLOC_INVALID_INDEX;
 
     for (uint32_t bi = 0; bi < block_count; ++bi)
     {
@@ -1446,6 +1451,38 @@ static bool _emit_function(
             {
                 continue;
             }
+
+            /*
+             * 源码映射边界检测：当 srcloc_index 发生变化时，
+             * 记录当前字节码偏移作为新源码位置的起始点。
+             */
+            if (source_map_entries != NULL &&
+                op->m_srcloc_index != last_srcloc_index &&
+                op->m_srcloc_index != WOORT_SRCLOC_INVALID_INDEX)
+            {
+                /* 计算当前全局字节码偏移：
+                 * = 之前所有 block 的字节码数 + 当前 block 已发射的字节码数 */
+                uint32_t current_offset = 0;
+                for (uint32_t prev_bi = 0; prev_bi < bi; ++prev_bi)
+                {
+                    woort_IRBlock* prev_blk =
+                        (woort_IRBlock*)woort_vector_at(&f->m_blocks, prev_bi);
+                    current_offset += (uint32_t)prev_blk->m_bytecodes.m_size;
+                }
+                current_offset += (uint32_t)blk->m_bytecodes.m_size;
+
+                const woort_SourceLocation* loc =
+                    (const woort_SourceLocation*)woort_vector_at(
+                        &f->m_source_locations, op->m_srcloc_index);
+
+                woort_SourceMap_Entry entry;
+                entry.m_bytecode_offset = current_offset;
+                entry.m_location = *loc;
+
+                /* 忽略 push_back 失败 —— 映射表丢失不影响正确性 */
+                (void)woort_vector_push_back(source_map_entries, 1, &entry);
+            }
+            last_srcloc_index = op->m_srcloc_index;
 
             if (!_emit_op(blk, op, c, jump_patches, bi))
                 return false;
@@ -1720,7 +1757,8 @@ static bool _patch_jumps(
 
 static bool _compile_function(
     woort_IRFunction* f,
-    woort_IRCompiler* c)
+    woort_IRCompiler* c,
+    woort_Vector* source_map_entries)
 {
     /* 第 1 步：分析 + 栈槽分配 */
     size_t stack_space;
@@ -1731,7 +1769,7 @@ static bool _compile_function(
     woort_Vector jump_patches;
     woort_vector_init(&jump_patches, sizeof(_JumpPatch));
 
-    if (!_emit_function(f, c, stack_space, &jump_patches))
+    if (!_emit_function(f, c, stack_space, &jump_patches, source_map_entries))
     {
         woort_vector_deinit(&jump_patches);
         return false;
@@ -1777,6 +1815,7 @@ void woort_IRCompiler_init(woort_IRCompiler* c)
     c->m_constant_alloc_count = 0;
     c->m_static_storage_alloc_count = 0;
     woort_vector_init(&c->m_commited_codes, sizeof(woort_Bytecode));
+    woort_StringPool_init(&c->m_string_pool);
 }
 
 void woort_IRCompiler_deinit(woort_IRCompiler* c)
@@ -1789,6 +1828,7 @@ void woort_IRCompiler_deinit(woort_IRCompiler* c)
     }
     woort_linklist_deinit(&c->m_ir_functions);
     woort_vector_deinit(&c->m_commited_codes);
+    woort_StringPool_deinit(&c->m_string_pool);
 }
 
 WOORT_NODISCARD bool woort_IRCompiler_add_function(
@@ -1816,13 +1856,62 @@ WOORT_NODISCARD woort_IRStaticIndex woort_IRCompiler_add_static(woort_IRCompiler
 
 WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv** out_cenv)
 {
-    /* 对每个函数执行完整的编译流程 */
+    /*
+     * 收集所有函数的源码映射条目。
+     * 使用一个临时 vector 收集每个函数的映射条目，
+     * 编译完成后统一转移到 CodeEnv。
+     */
+
+    /* 计算函数数量 */
+    uint32_t func_count = 0;
     for (woort_IRFunction* f = woort_linklist_iter(&c->m_ir_functions);
         f != NULL;
         f = woort_linklist_next(f))
     {
-        if (!_compile_function(f, c))
+        func_count++;
+    }
+
+    /* 为每个函数分配临时的映射条目收集器 */
+    woort_Vector* per_func_entries = NULL;
+    if (func_count > 0)
+    {
+        per_func_entries = (woort_Vector*)malloc(
+            sizeof(woort_Vector) * func_count);
+        if (per_func_entries == NULL)
             return false;
+
+        for (uint32_t i = 0; i < func_count; ++i)
+            woort_vector_init(&per_func_entries[i], sizeof(woort_SourceMap_Entry));
+    }
+
+    /* 对每个函数执行完整的编译流程 */
+    {
+        uint32_t fi = 0;
+        for (woort_IRFunction* f = woort_linklist_iter(&c->m_ir_functions);
+            f != NULL;
+            f = woort_linklist_next(f), ++fi)
+        {
+            if (!_compile_function(f, c, &per_func_entries[fi]))
+            {
+                /* 清理临时数据 */
+                for (uint32_t j = 0; j < func_count; ++j)
+                    woort_vector_deinit(&per_func_entries[j]);
+                free(per_func_entries);
+                return false;
+            }
+
+            /*
+             * _compile_function 完成后，该函数的 m_code_offset 已确定。
+             * 映射条目中的偏移量是函数内相对偏移，需要加上全局偏移。
+             */
+            for (size_t ei = 0; ei < per_func_entries[fi].m_size; ++ei)
+            {
+                woort_SourceMap_Entry* entry =
+                    (woort_SourceMap_Entry*)woort_vector_at(
+                        &per_func_entries[fi], ei);
+                entry->m_bytecode_offset += (uint32_t)f->m_code_offset;
+            }
+        }
     }
 
     /* 创建 CodeEnv */
@@ -1830,9 +1919,37 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
         (size_t)c->m_constant_alloc_count +
         (size_t)c->m_static_storage_alloc_count;
 
-    return woort_CodeEnv_create(
+    bool result = woort_CodeEnv_create(
         (const woort_Bytecode*)c->m_commited_codes.m_data,
         c->m_commited_codes.m_size,
         data_count,
         out_cenv);
+
+    if (result)
+    {
+        /*
+         * 将源码映射数据转移到 CodeEnv。
+         * CodeEnv 拥有映射数据的所有权，路径字符串会被复制。
+         */
+        woort_CodeEnv_set_source_maps(
+            *out_cenv,
+            per_func_entries,
+            func_count);
+    }
+
+    /* 清理临时数据 */
+    if (per_func_entries != NULL)
+    {
+        for (uint32_t i = 0; i < func_count; ++i)
+            woort_vector_deinit(&per_func_entries[i]);
+        free(per_func_entries);
+    }
+
+    return result;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ const char* woort_IRCompiler_intern_string(
+    woort_IRCompiler* c, const char* str)
+{
+    return woort_StringPool_intern(&c->m_string_pool, str);
 }

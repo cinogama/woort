@@ -4,6 +4,7 @@
 #include <memory.h>
 
 #include "woort_codeenv.h"
+#include "woort_ir_srcloc.h"
 #include "woort_spin.h"
 #include "woort_vector.h"
 #include "woort_atomic.h"
@@ -47,6 +48,12 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
         &_codeenv_global_ctx->m_codeenvs_lock);
 
     woort_hashmap_deinit(&code_env->m_trap_records);
+
+    /* 释放源码映射数据 */
+    free(code_env->m_source_map.m_entries);
+    code_env->m_source_map.m_entries = NULL;
+    code_env->m_source_map.m_entry_count = 0;
+    woort_StringPool_deinit(&code_env->m_srcloc_string_pool);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
@@ -130,6 +137,11 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
             codes,
             bytecodes,
             bytecodes_count * sizeof(woort_Bytecode));
+
+        /* 初始化源码映射为空 */
+        code_env_instance->m_source_map.m_entries = NULL;
+        code_env_instance->m_source_map.m_entry_count = 0;
+        woort_StringPool_init(&code_env_instance->m_srcloc_string_pool);
 
         // Fill 0 for static storage:
         memset(
@@ -231,4 +243,105 @@ void woort_CodeEnv_GC_mark_all_envs(void)
 WOORT_NODISCARD bool woort_CodeEnv_set_trap(woort_Bytecode* code)
 {
 
+}
+
+/* ========================================================================
+ * 源码映射 API
+ * ======================================================================== */
+
+void woort_CodeEnv_set_source_maps(
+    woort_CodeEnv* env,
+    const woort_Vector* per_func_entries,
+    uint32_t func_count)
+{
+    /* 计算总条目数 */
+    uint32_t total_entries = 0;
+    for (uint32_t i = 0; i < func_count; ++i)
+        total_entries += (uint32_t)per_func_entries[i].m_size;
+
+    if (total_entries == 0)
+        return;
+
+    /* 分配合并的条目数组 */
+    woort_SourceMap_Entry* entries = (woort_SourceMap_Entry*)malloc(
+        sizeof(woort_SourceMap_Entry) * total_entries);
+
+    if (entries == NULL)
+        return; /* OOM: 映射丢失不影响正确性 */
+
+    /* 合并所有函数的条目 */
+    uint32_t offset = 0;
+    for (uint32_t i = 0; i < func_count; ++i)
+    {
+        const woort_Vector* vec = &per_func_entries[i];
+        for (size_t j = 0; j < vec->m_size; ++j)
+        {
+            const woort_SourceMap_Entry* src =
+                (const woort_SourceMap_Entry*)woort_vector_at(
+                    (woort_Vector*)vec, j);
+
+            entries[offset] = *src;
+
+            /*
+             * 将路径字符串复制到 CodeEnv 自己的字符串池中，
+             * 确保 IRCompiler deinit 后路径仍然有效。
+             */
+            if (src->m_location.m_filepath != NULL)
+            {
+                const char* interned = woort_StringPool_intern(
+                    &env->m_srcloc_string_pool,
+                    src->m_location.m_filepath);
+                entries[offset].m_location.m_filepath = interned;
+            }
+
+            offset++;
+        }
+    }
+
+    assert(offset == total_entries);
+
+    env->m_source_map.m_entries = entries;
+    env->m_source_map.m_entry_count = total_entries;
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_find_srcloc_by_offset(
+    const woort_CodeEnv* env,
+    uint32_t bytecode_offset,
+    woort_SourceLocation* out_location)
+{
+    return woort_SourceMap_find_by_offset(
+        &env->m_source_map, bytecode_offset, out_location);
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
+    const woort_CodeEnv* env,
+    const char* filepath,
+    uint32_t line,
+    uint32_t* out_bytecode_offset)
+{
+    /*
+     * 先将外部 filepath 转换为 CodeEnv 字符串池中的 intern 指针。
+     * 如果池中没有该路径，说明没有匹配的映射。
+     *
+     * 注意：这里不能用 woort_StringPool_intern 因为它会修改池（插入新字符串）。
+     * 改用 hashmap_find 做只读查找。
+     */
+    const char* interned_path = NULL;
+    if (filepath != NULL)
+    {
+        void* value_addr;
+        if (woort_hashmap_find(
+            &((woort_CodeEnv*)env)->m_srcloc_string_pool.m_map,
+            &filepath, &value_addr))
+        {
+            interned_path = *(const char**)value_addr;
+        }
+        else
+        {
+            return false; /* 池中无此路径，不可能有匹配 */
+        }
+    }
+
+    return woort_SourceMap_find_by_line(
+        &env->m_source_map, interned_path, line, out_bytecode_offset);
 }

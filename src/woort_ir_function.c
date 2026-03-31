@@ -10,6 +10,7 @@
 #include "woort_ir_block.h"
 #include "woort_ir_value.h"
 #include "woort_ir_op.h"
+#include "woort_ir_srcloc.h"
 #include "woort_vector.h"
 #include "woort_linklist.h"
 #include "woort_bitset.h"
@@ -177,6 +178,10 @@ void woort_IRFunction_init(woort_IRFunction* f, uint32_t param_count)
 
     f->m_code_offset = 0;
     f->m_code_length = 0;
+
+    /* 源码位置支持 */
+    woort_SourceLocationStack_init(&f->m_srcloc_stack);
+    woort_vector_init(&f->m_source_locations, sizeof(woort_SourceLocation));
 }
 
 void woort_IRFunction_deinit(woort_IRFunction* f)
@@ -192,6 +197,67 @@ void woort_IRFunction_deinit(woort_IRFunction* f)
     woort_linklist_deinit(&f->m_ir_labels);
     woort_vector_deinit(&f->m_instructions);
     woort_vector_deinit(&f->m_blocks);
+
+    /* 源码位置支持 */
+    woort_SourceLocationStack_deinit(&f->m_srcloc_stack);
+    woort_vector_deinit(&f->m_source_locations);
+}
+
+/* ========================================================================
+ * 源码位置 API
+ * ======================================================================== */
+
+WOORT_NODISCARD bool woort_IRFunction_push_srcloc(
+    woort_IRFunction* f,
+    /* OPTIONAL */ const char* filepath,
+    uint32_t begin_line,
+    uint32_t begin_column,
+    uint32_t end_line,
+    uint32_t end_column)
+{
+    woort_SourceLocation loc;
+    loc.m_filepath = filepath;
+    loc.m_begin_line = begin_line;
+    loc.m_begin_column = begin_column;
+    loc.m_end_line = end_line;
+    loc.m_end_column = end_column;
+
+    return woort_SourceLocationStack_push(&f->m_srcloc_stack, &loc);
+}
+
+void woort_IRFunction_pop_srcloc(woort_IRFunction* f)
+{
+    woort_SourceLocationStack_pop(&f->m_srcloc_stack);
+}
+
+WOORT_NODISCARD uint32_t _woort_IRFunction_current_srcloc_index(
+    woort_IRFunction* f)
+{
+    const woort_SourceLocation* top =
+        woort_SourceLocationStack_top(&f->m_srcloc_stack);
+
+    if (top == NULL)
+        return WOORT_SRCLOC_INVALID_INDEX;
+
+    /*
+     * 在 m_source_locations 中去重查找。
+     * 通常源码位置数量不多，线性扫描即可。
+     */
+    for (size_t i = 0; i < f->m_source_locations.m_size; ++i)
+    {
+        const woort_SourceLocation* existing =
+            (const woort_SourceLocation*)woort_vector_at(
+                &f->m_source_locations, i);
+
+        if (woort_SourceLocation_equal(top, existing))
+            return (uint32_t)i;
+    }
+
+    /* 未找到，追加新条目 */
+    if (!woort_vector_push_back(&f->m_source_locations, 1, top))
+        return WOORT_SRCLOC_INVALID_INDEX; /* OOM: 降级为无源码信息 */
+
+    return (uint32_t)(f->m_source_locations.m_size - 1);
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_new_vreg(

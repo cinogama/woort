@@ -8,6 +8,7 @@
 
 #include "woort_ir_block.h"
 #include "woort_ir_function.h"
+#include "woort_ir_srcloc.h"
 
 #include <string.h>
 
@@ -61,7 +62,8 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 
 /*
  * _EMIT_BEGIN: 在 f->m_instructions 末尾分配一条 woort_IROp 并清零，
- *              设置 m_op。成功时局部变量 op_ 指向新指令，失败时返回 false。
+ *              设置 m_op 和 m_srcloc_index（从栈顶获取当前源码位置索引）。
+ *              成功时局部变量 op_ 指向新指令，失败时返回 false。
  */
 #define _EMIT_BEGIN(f, kind)                                                    \
     woort_IROp* op_;                                                            \
@@ -72,6 +74,7 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
         op_ = (woort_IROp*)_storage_;                                           \
         memset(op_, 0, sizeof(woort_IROp));                                     \
         op_->m_op = (kind);                                                     \
+        op_->m_srcloc_index = _woort_IRFunction_current_srcloc_index(f);        \
     }
 
 #define _EMIT_END() return true

@@ -201,6 +201,10 @@ typedef struct woort_IROp
 {
     woort_IROp_Kind m_op;
 
+    /* 源码位置索引（指向 IRFunction 的 m_source_locations 中的条目）。
+     * UINT32_MAX (WOORT_SRCLOC_INVALID_INDEX) 表示无源码信息。 */
+    uint32_t m_srcloc_index;
+
     /* 写目标虚拟寄存器 */
     /* OPTIONAL */ woort_IRValue* m_dst;
 

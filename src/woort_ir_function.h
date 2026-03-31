@@ -10,6 +10,7 @@
 #include "woort_ir_block.h"
 #include "woort_ir_value.h"
 #include "woort_ir_op.h"
+#include "woort_ir_srcloc.h"
 #include "woort_linklist.h"
 #include "woort_vector.h"
 #include "woort_diagnosis.h"
@@ -39,6 +40,14 @@ struct woort_IRFunction
     /* finish 阶段：函数字节码的起始偏移 (在 compiler 的总代码中) */
     size_t m_code_offset;
     size_t m_code_length;
+
+    /* === 源码位置支持 === */
+
+    /* 源码位置栈（编译期 push/pop 控制当前 IR 的源码信息） */
+    woort_SourceLocationStack m_srcloc_stack;
+
+    /* 去重的源码位置池，IR 指令的 m_srcloc_index 索引此数组 */
+    woort_Vector /* woort_SourceLocation */ m_source_locations;
 };
 
 void woort_IRFunction_init(woort_IRFunction* f, uint32_t param_count);
@@ -63,3 +72,32 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_load_const(
 /* finish 阶段内部函数 */
 WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     woort_IRFunction* f, size_t* out_stack_space);
+
+/* === 源码位置 API === */
+
+/*
+ * 将一个源码位置推入栈。后续发射的 IR 指令将关联栈顶的源码位置。
+ * filepath 必须是通过 woort_IRCompiler_intern_string() 获得的 intern 指针。
+ * 返回 false 表示 OOM。
+ */
+WOORT_NODISCARD bool woort_IRFunction_push_srcloc(
+    woort_IRFunction* f,
+    /* OPTIONAL */ const char* filepath,
+    uint32_t begin_line,
+    uint32_t begin_column,
+    uint32_t end_line,
+    uint32_t end_column);
+
+/*
+ * 弹出栈顶的源码位置。
+ * 栈必须非空，否则触发 assert。
+ */
+void woort_IRFunction_pop_srcloc(woort_IRFunction* f);
+
+/*
+ * 获取当前栈顶源码位置对应的 m_source_locations 索引。
+ * 如果栈为空，返回 WOORT_SRCLOC_INVALID_INDEX。
+ * 内部使用：会在 m_source_locations 中去重查找或新增。
+ */
+WOORT_NODISCARD uint32_t _woort_IRFunction_current_srcloc_index(
+    woort_IRFunction* f);

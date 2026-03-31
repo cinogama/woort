@@ -7,6 +7,7 @@
  */
 
 #include "woort_ir_function.h"
+#include "woort_ir_srcloc.h"
 #include "woort_codeenv.h"
 #include "woort_diagnosis.h"
 
@@ -21,6 +22,9 @@ typedef struct woort_IRCompiler
 
     woort_Vector /* woort_Bytecode */ m_commited_codes;
 
+    /* 源码路径字符串池（intern 去重） */
+    woort_StringPool m_string_pool;
+
 } woort_IRCompiler;
 
 void woort_IRCompiler_init(woort_IRCompiler* c);
@@ -33,3 +37,11 @@ WOORT_NODISCARD woort_IRConstantIndex woort_IRCompiler_add_constant(woort_IRComp
 WOORT_NODISCARD woort_IRStaticIndex woort_IRCompiler_add_static(woort_IRCompiler* c);
 
 WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv** out_cenv);
+
+/*
+ * intern 一个路径字符串到编译器的字符串池。
+ * 返回池中的稳定指针（相同内容返回相同指针）。
+ * 返回 NULL 表示 OOM。
+ */
+WOORT_NODISCARD /* OPTIONAL */ const char* woort_IRCompiler_intern_string(
+    woort_IRCompiler* c, const char* str);
