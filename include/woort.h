@@ -84,6 +84,20 @@ extern "C" {
 
     typedef woort_api(*woort_NativeFunction)(woort_vm vm, woort_value* args);
 
+    typedef struct woort_CodeEnv* woort_codeenv;
+    typedef struct woort_IRCompiler* woort_ircompiler;
+
+    // VM api
+
+    WOORT_API /* OPTIONAL */ woort_vm woort_vm_create(void);
+    WOORT_API void woort_vm_close(woort_vm vm);
+
+    WOORT_API woort_vm woort_vm_swap_running(/* OPTIONAL */ woort_vm vm);
+
+    // IR api
+    WOORT_API /* OPTIONAL */ woort_ircompiler woort_ircompiler_create(void);
+    WOORT_API void woort_ircompiler_close(woort_ircompiler c);
+
 #undef WOORT_API
 
 #ifdef __cplusplus
