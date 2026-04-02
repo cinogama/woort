@@ -1,4 +1,5 @@
 #include "woort.h"
+
 #include "woort_codeenv.h"
 #include "woort_log.h"
 #include "woort_gc.h"
@@ -44,7 +45,7 @@ woort_vm woort_vm_swap_running(/* OPTIONAL */ woort_vm vm)
     return woort_VMRuntime_swap_running_vm(vm);
 }
 
-/* OPTIONAL */ woort_ircompiler woort_ircompiler_create(void)
+/* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void)
 {
     woort_IRCompiler* c = malloc(sizeof(woort_IRCompiler));
     if (!c)
@@ -53,7 +54,7 @@ woort_vm woort_vm_swap_running(/* OPTIONAL */ woort_vm vm)
     return c;
 }
 
-void woort_ircompiler_close(woort_ircompiler c)
+void woort_IRCompiler_close(woort_IRCompiler* c)
 {
     assert(c != NULL);
 

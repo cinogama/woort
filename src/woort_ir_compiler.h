@@ -6,6 +6,8 @@
  * 顶层 IR 编译器：管理函数、常量/静态存储，编排 finish 流程。
  */
 
+#include "woort.h"
+
 #include "woort_ir_function.h"
 #include "woort_ir_srcloc.h"
 #include "woort_codeenv.h"
@@ -13,7 +15,7 @@
 
 #include <stdbool.h>
 
-typedef struct woort_IRCompiler
+struct woort_IRCompiler
 {
     woort_LinkList /* woort_IRFunction */ m_ir_functions;
 
@@ -25,18 +27,10 @@ typedef struct woort_IRCompiler
     /* 源码路径字符串池（intern 去重） */
     woort_StringPool m_string_pool;
 
-} woort_IRCompiler;
+};
 
 void woort_IRCompiler_init(woort_IRCompiler* c);
 void woort_IRCompiler_deinit(woort_IRCompiler* c);
-
-WOORT_NODISCARD bool woort_IRCompiler_add_function(
-    woort_IRCompiler* c, uint32_t param_count, woort_IRFunction** out_f);
-
-WOORT_NODISCARD woort_IRConstantIndex woort_IRCompiler_add_constant(woort_IRCompiler* c);
-WOORT_NODISCARD woort_IRStaticIndex woort_IRCompiler_add_static(woort_IRCompiler* c);
-
-WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv** out_cenv);
 
 /*
  * intern 一个路径字符串到编译器的字符串池。

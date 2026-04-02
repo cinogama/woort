@@ -53,46 +53,9 @@ struct woort_IRFunction
 void woort_IRFunction_init(woort_IRFunction* f, uint32_t param_count);
 void woort_IRFunction_deinit(woort_IRFunction* f);
 
-/* 创建新的虚拟寄存器 */
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_new_vreg(woort_IRFunction* f);
-
-/* 获取函数参数的虚拟寄存器（预分配到 SB+3+idx） */
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_argument(woort_IRFunction* f, uint32_t param_idx);
-
-/* 创建新的 Label */
-WOORT_NODISCARD /* OPTIONAL */ woort_IRLabel* woort_IRFunction_new_label(woort_IRFunction* f);
-
-/* 获取一个代表常量 G[idx] 的值。
- * 同一 const_index 多次调用返回相同的 IRValue*（天然去重）。
- * 返回的 IRValue* 的 m_source 为 WOORT_IRVALUE_SOURCE_CONST。
- * 返回 NULL 表示 OOM。 */
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_load_const(
-    woort_IRFunction* f, woort_IRConstantIndex idx);
-
 /* finish 阶段内部函数 */
 WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     woort_IRFunction* f, size_t* out_stack_space);
-
-/* === 源码位置 API === */
-
-/*
- * 将一个源码位置推入栈。后续发射的 IR 指令将关联栈顶的源码位置。
- * filepath 必须是通过 woort_IRCompiler_intern_string() 获得的 intern 指针。
- * 返回 false 表示 OOM。
- */
-WOORT_NODISCARD bool woort_IRFunction_push_srcloc(
-    woort_IRFunction* f,
-    /* OPTIONAL */ const char* filepath,
-    uint32_t begin_line,
-    uint32_t begin_column,
-    uint32_t end_line,
-    uint32_t end_column);
-
-/*
- * 弹出栈顶的源码位置。
- * 栈必须非空，否则触发 assert。
- */
-void woort_IRFunction_pop_srcloc(woort_IRFunction* f);
 
 /*
  * 获取当前栈顶源码位置对应的 m_source_locations 索引。

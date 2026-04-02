@@ -6,6 +6,8 @@
  * 追加一条指令，返回 false 表示 OOM。
  */
 
+#include "woort.h"
+
 #include "woort_ir_block.h"
 #include "woort_ir_function.h"
 #include "woort_ir_srcloc.h"

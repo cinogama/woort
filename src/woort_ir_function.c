@@ -6,6 +6,8 @@
  *       活跃性分析、栈槽分配（线性扫描）、支配树 + 常量加载放置。
  */
 
+#include "woort.h"
+
 #include "woort_ir_function.h"
 #include "woort_ir_block.h"
 #include "woort_ir_value.h"

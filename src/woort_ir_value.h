@@ -7,11 +7,10 @@
  * 三种来源：普通 vreg（可变）、函数参数（预分配栈偏移）、常量（绑定 G[idx]）。
  */
 
+#include "woort.h"
+
 #include <stdint.h>
 #include <stdbool.h>
-
-typedef uint32_t woort_IRConstantIndex;
-typedef uint32_t woort_IRStaticIndex;
 
 /*
  * 虚拟寄存器来源类型
@@ -34,7 +33,7 @@ typedef enum woort_IRValue_Source
 /*
  * 虚拟寄存器
  */
-typedef struct woort_IRValue
+struct woort_IRValue
 {
     woort_IRValue_Source m_source;
 
@@ -61,7 +60,7 @@ typedef struct woort_IRValue
      */
     bool m_is_const_direct;
 
-} woort_IRValue;
+};
 
 void woort_IRValue_init_vreg(woort_IRValue* v, uint32_t id);
 void woort_IRValue_init_argument(woort_IRValue* v, uint32_t id, uint32_t argument_idx);

@@ -8,12 +8,12 @@
  * Label 作为跳转目标，框架在 finish() 时自动切分基本块。
  */
 
+#include "woort.h"
+
 #include "woort_ir_value.h"
 
 #include <stdint.h>
 #include <stddef.h>
-
-typedef struct woort_IRLabel woort_IRLabel;
 
 typedef enum woort_IROp_Kind
 {
