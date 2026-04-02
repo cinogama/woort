@@ -91,7 +91,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
 
 }woort_VMRuntime_CheckRequestMask;
 
-typedef struct woort_VMRuntime
+struct woort_VMRuntime
 {
     // VM Runtime status.
     uint32_t                m_stack_realloc_version;
@@ -110,10 +110,7 @@ typedef struct woort_VMRuntime
     woort_Mutex*                m_hangup_mx;
     woort_ConditionVariable*    m_hangup_cv;
 
-} woort_VMRuntime;
-
-WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm);
-void woort_VMRuntime_destroy(woort_VMRuntime* vm);
+};
 
 WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     woort_VMRuntime* vm, const woort_Bytecode* func);

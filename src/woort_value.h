@@ -13,10 +13,6 @@ woort_value.h
 #include <stddef.h>
 #include <stdbool.h>
 
-typedef int64_t woort_Int;
-typedef double woort_Real;
-typedef uint32_t woort_Bytecode;
-
 typedef uint64_t woort_BoxedValue;
 typedef uint64_t woort_BoxedFloat63;
 typedef uint64_t woort_BoxedInt62;

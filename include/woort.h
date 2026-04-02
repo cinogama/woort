@@ -97,10 +97,10 @@ typedef enum woort_VmCallStatus
     */
 } woort_VmCallStatus, woort_api;
 
-typedef struct woort_VMRuntime* woort_vm;
+typedef struct woort_VMRuntime woort_VMRuntime;
 typedef struct woort_value { char _[8]; } woort_value;
 
-typedef woort_api(*woort_NativeFunction)(woort_vm vm, woort_value* args);
+typedef woort_api(*woort_NativeFunction)(woort_VMRuntime* vm, woort_value* args);
 
 typedef struct woort_CodeEnv woort_CodeEnv;
 typedef struct woort_IRCompiler woort_IRCompiler;
@@ -111,13 +111,23 @@ typedef struct woort_IRLabel woort_IRLabel;
 typedef uint32_t woort_IRConstantIndex;
 typedef uint32_t woort_IRStaticIndex;
 
-// VM api
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_vm woort_vm_create(void);
-WOORT_API void woort_vm_close(woort_vm vm);
+typedef int64_t woort_Int;
+typedef double woort_Real;
+typedef uint32_t woort_Bytecode;
 
-WOORT_API WOORT_NODISCARD woort_vm woort_vm_swap_running(/* OPTIONAL */ woort_vm vm);
+// VM api
+WOORT_API WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm);
+WOORT_API void woort_VMRuntime_destroy(woort_VMRuntime* vm);
+
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
+    /* OPTIONAL */ woort_VMRuntime* vm);
 
 // IR api
+WOORT_API void woort_CodeEnv_drop(woort_CodeEnv* code_env);
+
+WOORT_API WOORT_NODISCARD bool woort_CodeEnv_query_function(
+    woort_CodeEnv* code_env, woort_IRFunction* f, const woort_CodeEnv** out_f_addr);
+
 // IR Compiler
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void);
 WOORT_API void woort_IRCompiler_close(woort_IRCompiler* c);

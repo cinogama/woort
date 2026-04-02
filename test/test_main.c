@@ -12,13 +12,13 @@
 #include <stdio.h>
 #include <time.h>
 
-woort_api print_int(woort_vm vm, woort_value* args)
+woort_api print_int(woort_VMRuntime* vm, woort_value* args)
 {
     (void)printf("%lld\n", ((woort_Value*)args)->m_integer);
     return WOORT_VM_CALL_STATUS_NORMAL;
 }
 
-woort_api print_string(woort_vm vm, woort_value* args)
+woort_api print_string(woort_VMRuntime* vm, woort_value* args)
 {
     const woort_GCString* const gcstr = ((woort_Value*)args)->m_string;
 
@@ -29,13 +29,13 @@ woort_api print_string(woort_vm vm, woort_value* args)
     return WOORT_VM_CALL_STATUS_NORMAL;
 }
 
-woort_api print_current_time(woort_vm vm, woort_value* args)
+woort_api print_current_time(woort_VMRuntime* vm, woort_value* args)
 {
     vm->m_sb[2].m_integer = clock();
     return WOORT_VM_CALL_STATUS_NORMAL;
 } 
 
-woort_api bar(woort_vm vm, woort_value* args)
+woort_api bar(woort_VMRuntime* vm, woort_value* args)
 {
     return WOORT_VM_CALL_STATUS_NORMAL;
 }

@@ -26,25 +26,6 @@ void woort_shutdown(void)
     woort_CodeEnv_shutdown();
 }
 
-WOORT_NODISCARD /* OPTIONAL */ woort_vm woort_vm_create(void)
-{
-    woort_VMRuntime* vm;
-    if (!woort_VMRuntime_create(&vm))
-        return NULL;
-    return vm;
-}
-
-void woort_vm_close(woort_vm vm)
-{
-    assert(vm != NULL);
-    woort_VMRuntime_destroy(vm);
-}
-
-WOORT_NODISCARD woort_vm woort_vm_swap_running(/* OPTIONAL */ woort_vm vm)
-{
-    return woort_VMRuntime_swap_running_vm(vm);
-}
-
 WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void)
 {
     woort_IRCompiler* c = malloc(sizeof(woort_IRCompiler));
