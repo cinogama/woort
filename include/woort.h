@@ -132,6 +132,8 @@ WOORT_API void woort_VMRuntime_destroy(woort_VMRuntime* vm);
 
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     /* OPTIONAL */ woort_VMRuntime* vm);
+WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
+    woort_VMRuntime* vm, const woort_Bytecode* func);
 
 // IR api
 WOORT_API void woort_CodeEnv_drop(woort_CodeEnv* code_env);

@@ -112,9 +112,6 @@ struct woort_VMRuntime
 
 };
 
-WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
-    woort_VMRuntime* vm, const woort_Bytecode* func);
-
 /////////////////////////////////////////////////////////
 
 void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm);
