@@ -3433,7 +3433,7 @@ WOORT_NODISCARD bool woort_VMRuntime_request_accept(
 
 void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
 {
-    woomem_try_mark_unit((intptr_t)vm->m_env);
+    woomem_mark_unit_head(vm->m_env);
 
     // TODO: Optimize for fast marking.
     for (const void** p = (void**)vm->m_sp; p != (void**)vm->m_stack_end; ++p)
