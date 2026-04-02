@@ -115,6 +115,17 @@ typedef int64_t woort_Int;
 typedef double woort_Real;
 typedef uint32_t woort_Bytecode;
 
+typedef struct woort_SourceLocation
+{
+    /* OPTIONAL */ const char* m_filepath;
+
+    uint32_t m_begin_line;
+    uint32_t m_begin_column;
+    uint32_t m_end_line;
+    uint32_t m_end_column;
+
+} woort_SourceLocation;
+
 // VM api
 WOORT_API WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm);
 WOORT_API void woort_VMRuntime_destroy(woort_VMRuntime* vm);
@@ -129,6 +140,29 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_query_function(
     woort_CodeEnv* code_env, woort_IRFunction* f, const woort_Bytecode** out_f_addr);
 WOORT_API WOORT_NODISCARD bool woort_CodeEnv_query_constant(
     woort_CodeEnv* code_env, woort_IRConstantIndex cidx, woort_value** out_constant_value);
+
+/*
+ * Given a bytecode offset, find the closest matching source location.
+ * bytecode_offset is relative to m_code_begin.
+ * Returns true if a matching source location was found.
+ */
+WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_srcloc_by_offset(
+    const woort_CodeEnv* env,
+    uint32_t bytecode_offset,
+    woort_SourceLocation* out_location);
+
+/*
+ * Given a source location (filepath + line number), find the closest matching bytecode offset.
+ * filepath can be any string pointer (internally compared using strcmp).
+ * Returns true if a matching entry was found.
+ */
+WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
+    const woort_CodeEnv* env,
+    const char* filepath,
+    uint32_t line,
+    uint32_t* out_bytecode_offset);
+
+WOORT_API WOORT_NODISCARD bool woort_CodeEnv_set_trap(woort_Bytecode* code);
 
 // IR Compiler
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void);

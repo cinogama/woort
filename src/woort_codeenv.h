@@ -64,8 +64,6 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
 
 void woort_CodeEnv_GC_mark_all_envs(void);
 
-WOORT_NODISCARD bool woort_CodeEnv_set_trap(woort_Bytecode* code);
-
 /*
  * 将编译器收集的源码映射数据转移到 CodeEnv。
  * CodeEnv 会复制所有映射条目和路径字符串，拥有完全的所有权。
@@ -77,24 +75,3 @@ void woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
     const woort_Vector* per_func_entries,
     uint32_t func_count);
-
-/*
- * 根据字节码偏移查找最匹配的源码位置。
- * bytecode_offset 是相对于 m_code_begin 的偏移。
- * 返回 true 表示找到了匹配的源码位置。
- */
-WOORT_NODISCARD bool woort_CodeEnv_find_srcloc_by_offset(
-    const woort_CodeEnv* env,
-    uint32_t bytecode_offset,
-    woort_SourceLocation* out_location);
-
-/*
- * 根据源码位置（文件路径 + 行号）查找最匹配的字节码偏移。
- * filepath 可以是任意字符串指针（内部使用 strcmp 比较）。
- * 返回 true 表示找到了匹配条目。
- */
-WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
-    const woort_CodeEnv* env,
-    const char* filepath,
-    uint32_t line,
-    uint32_t* out_bytecode_offset);

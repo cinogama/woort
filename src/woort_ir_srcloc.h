@@ -12,6 +12,8 @@
  *   - woort_SourceMap: 字节码偏移 <-> 源码位置 映射表（边界记录 + 二分查找）
  */
 
+#include "woort.h"
+
 #include "woort_diagnosis.h"
 #include "woort_vector.h"
 #include "woort_hashmap.h"
@@ -22,23 +24,6 @@
 
 /* 无源码位置的哨兵值 */
 #define WOORT_SRCLOC_INVALID_INDEX UINT32_MAX
-
-/* ========== 源码位置 ========== */
-
-/*
- * 描述一段源代码的位置信息。
- * m_filepath 指向字符串池中的路径（intern 语义，可用指针比较）。
- */
-typedef struct woort_SourceLocation
-{
-    /* OPTIONAL */ const char* m_filepath;
-
-    uint32_t m_begin_line;
-    uint32_t m_begin_column;
-    uint32_t m_end_line;
-    uint32_t m_end_column;
-
-} woort_SourceLocation;
 
 /* 比较两个 SourceLocation 是否相同（m_filepath 使用指针比较） */
 WOORT_NODISCARD bool woort_SourceLocation_equal(
