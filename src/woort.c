@@ -26,7 +26,7 @@ void woort_shutdown(void)
     woort_CodeEnv_shutdown();
 }
 
-/* OPTIONAL */ woort_vm woort_vm_create(void)
+WOORT_NODISCARD /* OPTIONAL */ woort_vm woort_vm_create(void)
 {
     woort_VMRuntime* vm;
     if (!woort_VMRuntime_create(&vm))
@@ -40,12 +40,12 @@ void woort_vm_close(woort_vm vm)
     woort_VMRuntime_destroy(vm);
 }
 
-woort_vm woort_vm_swap_running(/* OPTIONAL */ woort_vm vm)
+WOORT_NODISCARD woort_vm woort_vm_swap_running(/* OPTIONAL */ woort_vm vm)
 {
     return woort_VMRuntime_swap_running_vm(vm);
 }
 
-/* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void)
+WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void)
 {
     woort_IRCompiler* c = malloc(sizeof(woort_IRCompiler));
     if (!c)
