@@ -4,6 +4,7 @@
 #include <memory.h>
 
 #include "woort_codeenv.h"
+#include "woort_ir_function.h"
 #include "woort_ir_srcloc.h"
 #include "woort_spin.h"
 #include "woort_vector.h"
@@ -143,6 +144,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         code_env_instance->m_source_map.m_entry_count = 0;
         woort_StringPool_init(&code_env_instance->m_srcloc_string_pool);
 
+        code_env_instance->m_data_count = constant_and_static_storage_count;
+
         // Fill 0 for static storage:
         memset(
             code_env_instance->m_data_begin,
@@ -186,6 +189,40 @@ void woort_CodeEnv_drop(
 {
     assert(code_env->m_hold);
     code_env->m_hold = false;
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_query_function(
+    woort_CodeEnv* code_env,
+    woort_IRFunction* f,
+    const woort_Bytecode** out_f_addr)
+{
+    assert(code_env != NULL);
+    assert(f != NULL);
+    assert(out_f_addr != NULL);
+
+    const woort_Bytecode* func_addr =
+        code_env->m_code_begin + f->m_code_offset;
+
+    if (func_addr < code_env->m_code_begin || func_addr >= code_env->m_code_end)
+        return false;
+
+    *out_f_addr = func_addr;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_query_constant(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    woort_value** out_constant_value)
+{
+    assert(code_env != NULL);
+    assert(out_constant_value != NULL);
+
+    if ((size_t)cidx >= code_env->m_data_count)
+        return false;
+
+    *out_constant_value = (woort_value*)&code_env->m_data_begin[cidx];
+    return true;
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_find(

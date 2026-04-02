@@ -47,8 +47,8 @@ struct woort_CodeEnv {
      */
     woort_StringPool m_srcloc_string_pool;
 
+    size_t m_data_count;
     woort_Value m_data_begin[];
-
 };
 _Static_assert(offsetof(woort_CodeEnv, m_gc_unit) == 0, 
     "woort_GCUnit must be head of woort_CodeEnv.");

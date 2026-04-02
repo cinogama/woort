@@ -126,7 +126,9 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
 WOORT_API void woort_CodeEnv_drop(woort_CodeEnv* code_env);
 
 WOORT_API WOORT_NODISCARD bool woort_CodeEnv_query_function(
-    woort_CodeEnv* code_env, woort_IRFunction* f, const woort_CodeEnv** out_f_addr);
+    woort_CodeEnv* code_env, woort_IRFunction* f, const woort_Bytecode** out_f_addr);
+WOORT_API WOORT_NODISCARD bool woort_CodeEnv_query_constant(
+    woort_CodeEnv* code_env, woort_IRConstantIndex cidx, woort_value** out_constant_value);
 
 // IR Compiler
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void);

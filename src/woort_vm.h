@@ -117,9 +117,6 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
 
 /////////////////////////////////////////////////////////
 
-WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap_running_vm(
-    /* OPTIONAL */ woort_VMRuntime* vm);
-
 void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm);
 
 void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm);

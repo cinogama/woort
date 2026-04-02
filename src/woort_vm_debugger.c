@@ -118,14 +118,14 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(void)
 
     if (current_debugger != NULL)
     {
-        woort_VMRuntime* const running_vm = woort_VMRuntime_swap_running_vm(NULL);
+        woort_VMRuntime* const running_vm = woort_VMRuntime_swap(NULL);
         assert(running_vm != NULL);
         {
             current_debugger->m_break_callback(
                 running_vm,
                 current_debugger->m_debugger_context);
         }
-        (void)woort_VMRuntime_swap_running_vm(running_vm);
+        (void)woort_VMRuntime_swap(running_vm);
 
         _woort_VMRuntime_Debugger_disref(current_debugger);
 

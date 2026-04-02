@@ -167,7 +167,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     */
 
     woort_VMRuntime* const last_running_vm =
-        woort_VMRuntime_swap_running_vm(vm);
+        woort_VMRuntime_swap(vm);
 
     // Reserve sp
     if (vm->m_sp - 2 < vm->m_stack)
@@ -198,7 +198,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     vm->m_ip = func;
 
     woort_VmCallStatus r = _woort_VMRuntime_dispatch(vm);
-    (void)woort_VMRuntime_swap_running_vm(last_running_vm);
+    (void)woort_VMRuntime_swap(last_running_vm);
 
     return r;
 }
@@ -3493,7 +3493,7 @@ void woort_VMRuntime_gc_checkpoint(woort_VMRuntime* vm)
     }
 }
 
-WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap_running_vm(
+WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     /* OPTIONAL */ woort_VMRuntime* vm)
 {
     if (t_this_thread_vm == vm)
