@@ -1,7 +1,7 @@
 #pragma once
 
 /*
-woort_gc_map.h
+woort_gc_closure.h
 */
 
 #include <stddef.h>
