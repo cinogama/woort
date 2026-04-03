@@ -101,7 +101,8 @@ typedef enum woort_VmCallStatus
 typedef struct woort_VMRuntime woort_VMRuntime;
 typedef struct woort_value { char _[8]; } woort_value;
 
-typedef woort_api(*woort_NativeFunction)(woort_VMRuntime* vm, woort_value* args);
+typedef woort_api(*woort_NativeFunction)(
+    woort_VMRuntime* vm, const woort_value* args);
 
 typedef struct woort_CodeEnv woort_CodeEnv;
 typedef struct woort_IRCompiler woort_IRCompiler;
@@ -115,6 +116,9 @@ typedef uint32_t woort_IRStaticIndex;
 typedef int64_t woort_Int;
 typedef double woort_Real;
 typedef uint32_t woort_Bytecode;
+
+typedef void (*woort_GCHandle_UserMarkFunction)(void*);
+typedef void (*woort_GCHandle_UserDestructFunction)(void*);
 
 typedef struct woort_SourceLocation
 {
@@ -1000,7 +1004,31 @@ WOORT_API WOORT_NODISCARD bool woort_IR_jcc_ne(
 WOORT_API WOORT_NODISCARD bool woort_IR_ret(woort_IRFunction* f, const woort_IRValue* val);
 WOORT_API WOORT_NODISCARD bool woort_IR_ret_void(woort_IRFunction* f);
 
-////////////////////////////// Runtime API //////////////////////////////
+/* ============ Runtime API ============ */
+/*
+NOTE: For the following write operations, woort_value* should always point
+    to a value on the stack, and the woort_VMRuntime that owns the stack 
+    must be in a "currently running" state to ensure GC safety.
+*/
+WOORT_API void woort_set_int(woort_value* dst, woort_Int val);
+WOORT_API void woort_set_real(woort_value* dst, woort_Real val);
+WOORT_API void woort_set_float(woort_value* dst, woort_Real val);
+WOORT_API void woort_set_buffer(woort_value* dst, const void* val, size_t len);
+WOORT_API void woort_set_string(woort_value* dst, const char* val);
+WOORT_API void woort_set_vec(woort_value* dst, size_t reserved_size);
+WOORT_API void woort_set_map(woort_value* dst, size_t reserved_size);
+WOORT_API void woort_set_struct(woort_value* dst, size_t size);
+WOORT_API void woort_set_gchandle(
+    woort_value* dst, 
+    void* ptr, 
+    /* OPTIONAL */ const woort_value* holding,
+    woort_GCHandle_UserDestructFunction destructor);
+WOORT_API void woort_set_gcstruct(
+    woort_value* dst,
+    void* ptr,
+    woort_GCHandle_UserMarkFunction marker,
+    woort_GCHandle_UserDestructFunction destructor);
+
 
 #undef WOORT_API
 

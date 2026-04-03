@@ -4,11 +4,10 @@
 woort_gc_gchandle.h
 */
 
+#include "woort.h"
+
 #include "woort_gc_units.h"
 #include "woort_value.h"
-
-typedef void (*woort_GCHandle_UserMarkFunction)(void*);
-typedef void (*woort_GCHandle_UserDestructFunction)(void*);
 
 typedef struct woort_GCHandle
 {
