@@ -145,6 +145,9 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_query_function(
 WOORT_API WOORT_NODISCARD bool woort_CodeEnv_query_constant(
     woort_CodeEnv* code_env, woort_IRConstantIndex cidx, woort_value** out_constant_value);
 
+WOORT_API void woort_CodeEnv_lock(woort_CodeEnv* code_env);
+WOORT_API void woort_CodeEnv_unlock(woort_CodeEnv* code_env);
+
 /*
  * Given a bytecode offset, find the closest matching source location.
  * bytecode_offset is relative to m_code_begin.

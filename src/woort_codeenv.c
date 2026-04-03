@@ -50,6 +50,9 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 
     woort_hashmap_deinit(&code_env->m_trap_records);
 
+    if (code_env->m_mutex != NULL)
+        woort_mutex_destroy(code_env->m_mutex);
+
     /* 释放源码映射数据 */
     free(code_env->m_source_map.m_entries);
     code_env->m_source_map.m_entries = NULL;
@@ -130,6 +133,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
         code_env_instance->m_hold = true;
 
+        code_env_instance->m_mutex = NULL;
+
         code_env_instance->m_code_begin = codes;
         code_env_instance->m_code_end =
             code_env_instance->m_code_begin + bytecodes_count;
@@ -180,8 +185,25 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         &woort_util_ptr_hash,
         &woort_util_ptr_equal);
 
+    if (!woort_mutex_create(&code_env_instance->m_mutex))
+        return false;
+
     *out_code_env = code_env_instance;
     return true;
+}
+
+void woort_CodeEnv_lock(woort_CodeEnv* code_env)
+{
+    assert(code_env != NULL);
+    assert(code_env->m_mutex != NULL);
+    woort_mutex_lock(code_env->m_mutex);
+}
+
+void woort_CodeEnv_unlock(woort_CodeEnv* code_env)
+{
+    assert(code_env != NULL);
+    assert(code_env->m_mutex != NULL);
+    woort_mutex_unlock(code_env->m_mutex);
 }
 
 void woort_CodeEnv_drop(
@@ -266,11 +288,15 @@ void woort_CodeEnv_GC_mark_all_envs(void)
             *(woort_CodeEnv**)woort_vector_at(
                 &_codeenv_global_ctx->m_codeenvs, i);
 
-        if (code_env->m_hold)
+        woort_CodeEnv_lock(code_env);
         {
-            // Mark this code.
-            woomem_mark_unit_head(code_env);
+            if (code_env->m_hold)
+            {
+                // Mark this code.
+                woomem_mark_unit_head(code_env);
+            }
         }
+        woort_CodeEnv_unlock(code_env);
     }
 
     woort_rwspinlock_read_unlock(

@@ -14,6 +14,7 @@ woort_codeenv.h
 #include "woort_gc_units.h"
 #include "woort_hashmap.h"
 #include "woort_ir_srcloc.h"
+#include "woort_threads.h"
 
 #include <stdbool.h>
 
@@ -25,6 +26,8 @@ struct woort_CodeEnv {
 
     bool m_hold;
 
+    woort_Mutex* m_mutex;
+
     const woort_Bytecode* m_code_begin;
     const woort_Bytecode* m_code_end;
 
@@ -32,7 +35,6 @@ struct woort_CodeEnv {
         m_trap_records;
 
     /* === 源码映射 === */
-
     /*
      * 合并的源码映射表，覆盖所有函数。
      * 由 woort_CodeEnv_set_source_maps() 设置。
