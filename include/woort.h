@@ -193,7 +193,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRLabel* woort_IRFunction_new_lab
  * Multiple calls with the same const_index return the same IRValue* (naturally deduplicated).
  * The returned IRValue* has m_source set to WOORT_IRVALUE_SOURCE_CONST.
  * Returns NULL on OOM. */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_load_const(
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_load_const(
     woort_IRFunction* f, woort_IRConstantIndex idx);
 
 /*
@@ -327,46 +327,46 @@ WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTB(woort_IRFunction* f, woort_IR
 WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTX(woort_IRFunction* f, woort_IRValue* dst, const woort_IRValue* container, const woort_IRValue* idx);
 
 /* --- Index Store (no return value) --- */
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXVECI(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXVECR(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXVECB(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXVECX(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXVECI(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXVECR(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXVECB(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXVECX(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
 
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTII(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTIR(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTIB(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTIX(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTRI(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTRR(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTRB(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTRX(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTBI(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTBR(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTBB(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTBX(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTXI(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTXR(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTXB(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTXX(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTII(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTIR(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTIB(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTIX(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTRI(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTRR(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTRB(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTRX(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTBI(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTBR(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTBB(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTBX(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTXI(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTXR(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTXB(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXDICTXX(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
 
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPII(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPIR(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPIB(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPIX(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPRI(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPRR(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPRB(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPRX(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPBI(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPBR(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPBB(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPBX(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPXI(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPXR(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPXB(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPXX(woort_IRFunction* f, const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPII(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPIR(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPIB(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPIX(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPRI(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPRR(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPRB(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPRX(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPBI(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPBR(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPBB(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPBX(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPXI(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPXR(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPXB(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXMAPXX(woort_IRFunction* f, woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val);
 
-WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXSTRUCT(woort_IRFunction* f, const woort_IRValue* c, uint32_t idx, const woort_IRValue* val);
+WOORT_API WOORT_NODISCARD bool woort_IR_SDIDXSTRUCT(woort_IRFunction* f, woort_IRValue* c, uint32_t idx, const woort_IRValue* val);
 
 /* --- Unpacking --- */
 WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKSTRUCT(woort_IRFunction* f, const woort_IRValue* src);

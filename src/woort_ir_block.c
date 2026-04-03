@@ -159,7 +159,7 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 #define _DEFINE_SDIDX_VREG(name, kind)                                          \
     WOORT_NODISCARD bool name(                                                  \
         woort_IRFunction* f,                                                    \
-        const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val) \
+        woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val)   \
     {                                                                           \
         _EMIT_BEGIN(f, kind);                                                   \
         op_->m_dst = NULL;                                                      \
@@ -447,7 +447,7 @@ _DEFINE_SDIDX_VREG(woort_IR_SDIDXMAPXX, WOORT_IROP_KIND_SDIDXMAPXX)
 /* SDIDXSTRUCT: container.field[idx] = val (立即数索引) */
 WOORT_NODISCARD bool woort_IR_SDIDXSTRUCT(
     woort_IRFunction* f,
-    const woort_IRValue* c, uint32_t idx, const woort_IRValue* val)
+    woort_IRValue* c, uint32_t idx, const woort_IRValue* val)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_SDIDXSTRUCT);
     op_->m_dst = NULL;

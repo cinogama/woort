@@ -303,7 +303,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRLabel* woort_IRFunction_new_label(
     return label;
 }
 
-WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_load_const(
+WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_load_const(
     woort_IRFunction* f, woort_IRConstantIndex idx)
 {
     /*
