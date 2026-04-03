@@ -209,7 +209,7 @@ typedef struct woort_IROp
     /* OPTIONAL */ woort_IRValue* m_dst;
 
     /* 读操作数虚拟寄存器 */
-    /* OPTIONAL */ woort_IRValue* m_src[3];
+    /* OPTIONAL */ const woort_IRValue* m_src[3];
 
     union
     {

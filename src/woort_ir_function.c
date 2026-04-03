@@ -527,7 +527,7 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
 static void _record_use(
     woort_Bitset* use_set,
     const woort_Bitset* def_set,
-    /* OPTIONAL */ woort_IRValue* val)
+    /* OPTIONAL */ const woort_IRValue* val)
 {
     if (val == NULL)
         return;
@@ -536,7 +536,7 @@ static void _record_use(
         return;
     /* 如果还没被 DEF 过，则加入 USE */
     if (!woort_bitset_test(def_set, val->m_id))
-        woort_bitset_set(use_set, val->m_id);
+        (void)woort_bitset_set(use_set, val->m_id);
 }
 
 static void _record_def(
@@ -545,7 +545,7 @@ static void _record_def(
 {
     if (val == NULL)
         return;
-    woort_bitset_set(def_set, val->m_id);
+    (void)woort_bitset_set(def_set, val->m_id);
 }
 
 static bool _phase2_liveness_analysis(woort_IRFunction* f)

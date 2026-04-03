@@ -84,7 +84,7 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 /* 一元运算：dst = op(src) */
 #define _DEFINE_UNARY_OP(name, kind)                                            \
     WOORT_NODISCARD bool name(                                                  \
-        woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src)            \
+        woort_IRFunction* f, woort_IRValue* dst, const woort_IRValue* src)      \
     {                                                                           \
         _EMIT_BEGIN(f, kind);                                                   \
         op_->m_dst = dst;                                                       \
@@ -96,7 +96,7 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 #define _DEFINE_BINARY_OP(name, kind)                                           \
     WOORT_NODISCARD bool name(                                                  \
         woort_IRFunction* f, woort_IRValue* dst,                                \
-        woort_IRValue* a, woort_IRValue* b)                                     \
+        const woort_IRValue* a, const woort_IRValue* b)                         \
     {                                                                           \
         _EMIT_BEGIN(f, kind);                                                   \
         op_->m_dst = dst;                                                       \
@@ -133,7 +133,7 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 #define _DEFINE_DYNBOX(name, kind)                                              \
     WOORT_NODISCARD bool name(                                                  \
         woort_IRFunction* f, woort_IRValue* dst,                                \
-        uint8_t typ, woort_IRValue* src)                                        \
+        uint8_t typ, const woort_IRValue* src)                                  \
     {                                                                           \
         _EMIT_BEGIN(f, kind);                                                   \
         op_->m_dst = dst;                                                       \
@@ -146,7 +146,7 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 #define _DEFINE_LDIDX_VREG(name, kind)                                          \
     WOORT_NODISCARD bool name(                                                  \
         woort_IRFunction* f, woort_IRValue* dst,                                \
-        woort_IRValue* container, woort_IRValue* idx)                           \
+        const woort_IRValue* container, const woort_IRValue* idx)               \
     {                                                                           \
         _EMIT_BEGIN(f, kind);                                                   \
         op_->m_dst = dst;                                                       \
@@ -159,7 +159,7 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 #define _DEFINE_SDIDX_VREG(name, kind)                                          \
     WOORT_NODISCARD bool name(                                                  \
         woort_IRFunction* f,                                                    \
-        woort_IRValue* c, woort_IRValue* idx, woort_IRValue* val)               \
+        const woort_IRValue* c, const woort_IRValue* idx, const woort_IRValue* val) \
     {                                                                           \
         _EMIT_BEGIN(f, kind);                                                   \
         op_->m_dst = NULL;                                                      \
@@ -172,7 +172,7 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 /* 结构体字段推栈：dst=NULL, src[0]=src, m_index=idx */
 #define _DEFINE_PUSHIDX(name, kind)                                             \
     WOORT_NODISCARD bool name(                                                  \
-        woort_IRFunction* f, woort_IRValue* src, uint32_t idx)                  \
+        woort_IRFunction* f, const woort_IRValue* src, uint32_t idx)            \
     {                                                                           \
         _EMIT_BEGIN(f, kind);                                                   \
         op_->m_dst = NULL;                                                      \
@@ -185,7 +185,7 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 #define _DEFINE_JCC_CMP(name, kind)                                             \
     WOORT_NODISCARD bool name(                                                  \
         woort_IRFunction* f,                                                    \
-        woort_IRValue* a, woort_IRValue* b, woort_IRLabel* target)              \
+        const woort_IRValue* a, const woort_IRValue* b, woort_IRLabel* target)  \
     {                                                                           \
         _EMIT_BEGIN(f, kind);                                                   \
         op_->m_src[0] = a;                                                      \
@@ -197,7 +197,7 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 /* ========== 数据移动 ========== */
 
 WOORT_NODISCARD bool woort_IR_MOV(
-    woort_IRFunction* f, woort_IRValue* dst, woort_IRValue* src)
+    woort_IRFunction* f, woort_IRValue* dst, const woort_IRValue* src)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_MOV);
     op_->m_dst = dst;
@@ -215,7 +215,7 @@ WOORT_NODISCARD bool woort_IR_LOAD(
 }
 
 WOORT_NODISCARD bool woort_IR_STORE(
-    woort_IRFunction* f, woort_IRStaticIndex idx, woort_IRValue* src)
+    woort_IRFunction* f, woort_IRStaticIndex idx, const woort_IRValue* src)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_STORE);
     op_->m_dst = NULL;
@@ -227,7 +227,7 @@ WOORT_NODISCARD bool woort_IR_STORE(
 /* ========== 栈操作 ========== */
 
 WOORT_NODISCARD bool woort_IR_PUSHCHK(
-    woort_IRFunction* f, woort_IRValue* src)
+    woort_IRFunction* f, const woort_IRValue* src)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_PUSHCHK);
     op_->m_dst = NULL;
@@ -253,7 +253,7 @@ WOORT_NODISCARD bool woort_IR_POPR(
 }
 
 WOORT_NODISCARD bool woort_IR_POPRS(
-    woort_IRFunction* f, woort_IRValue* count_src)
+    woort_IRFunction* f, const woort_IRValue* count_src)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_POPRS);
     op_->m_dst = NULL;
@@ -277,7 +277,7 @@ _DEFINE_CALLN(woort_IR_CALLNFP,  WOORT_IROP_KIND_CALLNFP)
 _DEFINE_CALLN(woort_IR_CALLNJIT, WOORT_IROP_KIND_CALLNJIT)
 
 WOORT_NODISCARD bool woort_IR_CALL(
-    woort_IRFunction* f, woort_IRValue* func_val,
+    woort_IRFunction* f, const woort_IRValue* func_val,
     uint32_t argc, /* OPTIONAL */ woort_IRValue* dst)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_CALL);
@@ -316,7 +316,7 @@ _DEFINE_DYNBOX(woort_IR_UNBOXDYN, WOORT_IROP_KIND_UNBOXDYN)
 _DEFINE_DYNBOX(woort_IR_CHECKDYN, WOORT_IROP_KIND_CHECKDYN)
 
 WOORT_NODISCARD bool woort_IR_PUSHBOXDYN(
-    woort_IRFunction* f, uint8_t typ, woort_IRValue* src)
+    woort_IRFunction* f, uint8_t typ, const woort_IRValue* src)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_PUSHBOXDYN);
     op_->m_dst = NULL;
@@ -391,7 +391,7 @@ _DEFINE_LDIDX_VREG(woort_IR_LDIDXDICTX, WOORT_IROP_KIND_LDIDXDICTX)
 /* LDIDXSTRUCT: dst = container.field[idx] (立即数索引) */
 WOORT_NODISCARD bool woort_IR_LDIDXSTRUCT(
     woort_IRFunction* f, woort_IRValue* dst,
-    woort_IRValue* container, uint32_t idx)
+    const woort_IRValue* container, uint32_t idx)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_LDIDXSTRUCT);
     op_->m_dst = dst;
@@ -447,7 +447,7 @@ _DEFINE_SDIDX_VREG(woort_IR_SDIDXMAPXX, WOORT_IROP_KIND_SDIDXMAPXX)
 /* SDIDXSTRUCT: container.field[idx] = val (立即数索引) */
 WOORT_NODISCARD bool woort_IR_SDIDXSTRUCT(
     woort_IRFunction* f,
-    woort_IRValue* c, uint32_t idx, woort_IRValue* val)
+    const woort_IRValue* c, uint32_t idx, const woort_IRValue* val)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_SDIDXSTRUCT);
     op_->m_dst = NULL;
@@ -460,7 +460,7 @@ WOORT_NODISCARD bool woort_IR_SDIDXSTRUCT(
 /* ========== 解包 ========== */
 
 WOORT_NODISCARD bool woort_IR_UNPACKSTRUCT(
-    woort_IRFunction* f, woort_IRValue* src)
+    woort_IRFunction* f, const woort_IRValue* src)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_UNPACKSTRUCT);
     op_->m_dst = NULL;
@@ -502,7 +502,7 @@ WOORT_NODISCARD bool woort_IR_jmp(
 }
 
 WOORT_NODISCARD bool woort_IR_jcc(
-    woort_IRFunction* f, woort_IRValue* cond, woort_IRLabel* target)
+    woort_IRFunction* f, const woort_IRValue* cond, woort_IRLabel* target)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_JCC);
     op_->m_src[0] = cond;
@@ -511,7 +511,7 @@ WOORT_NODISCARD bool woort_IR_jcc(
 }
 
 WOORT_NODISCARD bool woort_IR_jccz(
-    woort_IRFunction* f, woort_IRValue* cond, woort_IRLabel* target)
+    woort_IRFunction* f, const woort_IRValue* cond, woort_IRLabel* target)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_JCCZ);
     op_->m_src[0] = cond;
@@ -533,7 +533,7 @@ _DEFINE_JCC_CMP(woort_IR_jcc_ne, WOORT_IROP_KIND_JCC_NE)
 /* ========== 返回 ========== */
 
 WOORT_NODISCARD bool woort_IR_ret(
-    woort_IRFunction* f, woort_IRValue* val)
+    woort_IRFunction* f, const woort_IRValue* val)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_RET);
     op_->m_src[0] = val;
