@@ -33,7 +33,7 @@ woort_GCHandle* woort_GCHandle_new(
 
     gchandle->m_gc_unit.m_proxy = &g_gchandle_unit_proxy;
 
-    if (holding != nullptr)
+    if (holding != NULL)
         gchandle->m_hold_value = *holding;
     else
         gchandle->m_hold_value.m_integer = 0;
@@ -59,7 +59,7 @@ woort_GCHandle* woort_GCStruct_new(
     gcstruct->m_user_destruct_callback = destructor;
     gcstruct->m_user_handle = addr;
 
-    return gchandle;
+    return gcstruct;
 }
 
 
