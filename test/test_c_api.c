@@ -28,7 +28,7 @@ int main(void)
     (void)woort_IRCompiler_add_function(irc, 0, &f_main);
 
     woort_IRConstantIndex c_233 = woort_IRCompiler_add_constant(irc);
-    woort_IRValue* c_v_233 = woort_IRFunction_load_const(f_main, c_233);
+    const woort_IRValue* c_v_233 = woort_IRFunction_load_const(f_main, c_233);
     (void)woort_IR_ret(f_main, c_v_233);
 
     woort_CodeEnv* cenv;

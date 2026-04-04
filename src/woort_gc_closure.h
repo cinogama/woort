@@ -26,9 +26,9 @@ struct woort_GCClosure
 extern const woort_GCUnitProxy g_gcclosure_unit_proxy;
 
 WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_script_func(
-    const woort_Bytecode* func, size_t captured_count);
+    const woort_Bytecode* func);
 WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_native_func(
-    woort_NativeFunction func, size_t captured_count);
+    woort_NativeFunction func);
 
 WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new(
     const woort_GCClosure* func, size_t captured_count);

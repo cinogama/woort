@@ -99,11 +99,11 @@ typedef enum woort_VmCallStatus
 } woort_VmCallStatus, woort_api;
 
 typedef struct woort_VMRuntime woort_VMRuntime;
-typedef 
+typedef
 #ifdef WOORT_IMPL
-    union woort_Value
+union woort_Value
 #else
-    struct woort_value { char _[8]; } 
+struct woort_value { char _[8]; }
 #endif
 woort_value;
 
@@ -163,11 +163,6 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_query_function(
     woort_CodeEnv* code_env,
     woort_IRFunction* f,
     const woort_Bytecode** out_f_addr);
-
-WOORT_API WOORT_NODISCARD bool woort_CodeEnv_query_constant(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    woort_value** out_constant_value);
 
 WOORT_API void woort_CodeEnv_lock(
     woort_CodeEnv* code_env);
@@ -279,7 +274,7 @@ WOORT_API void woort_IRFunction_pop_srcloc(woort_IRFunction* f);
  * Returns false on OOM.
  */
 
-/* --- Data Movement --- */
+ /* --- Data Movement --- */
 
 WOORT_API WOORT_NODISCARD bool woort_IR_MOV(
     woort_IRFunction* f,
@@ -1014,56 +1009,44 @@ WOORT_API WOORT_NODISCARD bool woort_IR_ret_void(woort_IRFunction* f);
 
 /* ============ Runtime API ============ */
 /*
-NOTE: For the following write operations, woort_value* should always point
-    to a value on the stack, and the woort_VMRuntime that owns the stack 
-    must be in a "currently running" state to ensure GC safety.
+NOTE: woort_CodeEnv_constant_set_* must be called after woort_CodeEnv_lock
 */
-WOORT_API void woort_set_value(woort_value* dst, const woort_value* val);
-WOORT_API void woort_set_int(woort_value* dst, woort_Int val);
-WOORT_API void woort_set_real(woort_value* dst, woort_Real val);
-WOORT_API void woort_set_float(woort_value* dst, float val);
-WOORT_API void woort_set_buffer(woort_value* dst, const void* val, size_t len);
-WOORT_API void woort_set_string(woort_value* dst, woort_U8CString val);
-WOORT_API void woort_set_vec(woort_value* dst, size_t reserved_size);
-WOORT_API void woort_set_map(woort_value* dst, size_t reserved_size);
-WOORT_API void woort_set_struct(woort_value* dst, size_t size);
-WOORT_API void woort_set_gchandle(
-    woort_value* dst, 
-    void* ptr, 
-    /* OPTIONAL */ const woort_value* holding,
-    woort_GCHandle_UserDestructFunction destructor);
-WOORT_API void woort_set_gcstruct(
-    woort_value* dst,
-    void* ptr,
-    woort_GCHandle_UserMarkFunction marker,
-    woort_GCHandle_UserDestructFunction destructor);
-
-#if defined(WOORT_IMPL) || defined(WOORT_INTERNAL)
-WOORT_API void woort_set_script_function(
-    woort_value* dst, 
+WOORT_API void woort_CodeEnv_set_const_int(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    woort_Int val);
+WOORT_API void woort_CodeEnv_set_const_real(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    woort_Real val);
+WOORT_API void woort_CodeEnv_set_const_string(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    woort_U8CString val);
+WOORT_API void woort_CodeEnv_set_const_script_function(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
     const woort_Bytecode* val);
-WOORT_API void woort_set_native_function(
-    woort_value* dst,
-    woort_NativeFunction val);
-WOORT_API void woort_set_script_closure(
-    woort_value* dst,
+WOORT_API void woort_CodeEnv_set_const_extern_function(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
     const woort_Bytecode* val);
-WOORT_API void woort_set_native_closure(
-    woort_value* dst,
-    woort_NativeFunction val);
-#endif
-
-WOORT_API void woort_box_value(woort_value* dst, const woort_value* val);
-WOORT_API void woort_box_int(woort_value* dst, woort_Int val);
-WOORT_API void woort_box_real(woort_value* dst, woort_Real val);
-WOORT_API void woort_box_float(woort_value* dst, woort_Real val);
-#define woort_box_buffer woort_set_buffer
-#define woort_box_string woort_set_string
-#define woort_box_vec woort_set_vec
-#define woort_box_map woort_set_map
-#define woort_box_struct woort_set_struct
-#define woort_box_gchandle woort_set_gchandle
-#define woort_box_gcstruct woort_set_gcstruct
+WOORT_API void woort_CodeEnv_set_const_script_closure(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    const woort_Bytecode* val);
+WOORT_API void woort_CodeEnv_set_const_extern_closure(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    const woort_Bytecode* val);
+WOORT_API void woort_CodeEnv_set_const_box_int(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    woort_Int val);
+WOORT_API void woort_CodeEnv_set_const_box_real(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    woort_Real val);
 
 #undef WOORT_API
 

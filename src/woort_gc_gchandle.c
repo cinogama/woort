@@ -44,7 +44,7 @@ woort_GCHandle* woort_GCHandle_new(
     return gchandle;
 }
 
-woort_GCHandle* woort_GCStruct_new(
+woort_GCHandle* woort_GCHandle_new_with_marker(
     void* addr,
     woort_GCHandle_UserMarkFunction marker,
     woort_GCHandle_UserDestructFunction destructor)

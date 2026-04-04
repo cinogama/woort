@@ -6,6 +6,12 @@
 #include "woort_vm.h"
 #include "woort_ir_compiler.h"
 #include "woort_value.h"
+#include "woort_gc_string.h"
+#include "woort_gc_vec.h"
+#include "woort_gc_map.h"
+#include "woort_gc_struct.h"
+#include "woort_gc_gchandle.h"
+#include "woort_gc_closure.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -44,36 +50,4 @@ void woort_IRCompiler_close(woort_IRCompiler* c)
     free(c);
 }
 
-// Runtime API
-
-void woort_set_value(woort_value* dst, const woort_value* val)
-{
-    *dst = *val;
-}
-void woort_set_int(woort_value* dst, woort_Int val)
-{
-    dst->m_integer = val;
-}
-void woort_set_real(woort_value* dst, woort_Real val)
-{
-    dst->m_real = val;
-}
-void woort_set_float(woort_value* dst, float val)
-{
-    dst->m_real = (woort_Real)val;
-}
-void woort_set_buffer(woort_value* dst, const void* val, size_t len);
-void woort_set_string(woort_value* dst, woort_U8CString val);
-void woort_set_vec(woort_value* dst, size_t reserved_size);
-void woort_set_map(woort_value* dst, size_t reserved_size);
-void woort_set_struct(woort_value* dst, size_t size);
-void woort_set_gchandle(
-    woort_value* dst,
-    void* ptr,
-    /* OPTIONAL */ const woort_value* holding,
-    woort_GCHandle_UserDestructFunction destructor);
-void woort_set_gcstruct(
-    woort_value* dst,
-    void* ptr,
-    woort_GCHandle_UserMarkFunction marker,
-    woort_GCHandle_UserDestructFunction destructor);
+/* Runtime API */

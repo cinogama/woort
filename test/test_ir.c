@@ -100,7 +100,7 @@ static void test_constant_return(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
     {
-        woort_IRValue* v = woort_IRFunction_load_const(f, c42); TEST_ASSERT(v != NULL);
+        const woort_IRValue* v = woort_IRFunction_load_const(f, c42); TEST_ASSERT(v != NULL);
         TEST_ASSERT(woort_IR_ret(f, v));
     }
 
