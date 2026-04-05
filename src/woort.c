@@ -188,20 +188,116 @@ void woort_CodeEnv_set_const_box_real(
 }
 
 void _woort_set_int(
-    woort_Value* dst, woort_Int src);
+    woort_Value* dst, woort_Int src)
+{
+    assert(dst != NULL);
+
+    woort_Value v;
+    v.m_integer = src;
+
+    woort_GC_mixed_write_barrier_value(dst, v);
+}
+
 void _woort_set_real(
-    woort_Value* dst, woort_Real src);
+    woort_Value* dst, woort_Real src)
+{
+    assert(dst != NULL);
+
+    woort_Value v;
+    v.m_real = src;
+
+    woort_GC_mixed_write_barrier_value(dst, v);
+}
+
 void _woort_set_float(
-    woort_Value* dst, float src);
+    woort_Value* dst, float src)
+{
+    assert(dst != NULL);
+
+    woort_Value v;
+    v.m_real = (woort_Real)src;
+
+    woort_GC_mixed_write_barrier_value(dst, v);
+}
+
 void _woort_set_string(
-    woort_Value* dst, woort_U8CString src);
+    woort_Value* dst, woort_U8CString src)
+{
+    assert(dst != NULL);
+    assert(src != NULL);
+
+    size_t len = strlen(src);
+    const woort_GCString* str = woort_GCString_make_string(src, len);
+    assert(str != NULL);
+
+    woort_Value v;
+    v.m_string = str;
+
+    woort_GC_mixed_write_barrier_value(dst, v);
+}
+
 void _woort_set_vec(
-    woort_Value* dst, size_t cap);
+    woort_Value* dst, size_t cap)
+{
+    assert(dst != NULL);
+
+    woort_GCVec* vec = woort_GCVec_new();
+    assert(vec != NULL);
+
+    if (cap > 0)
+        woort_GCVec_resize(vec, cap);
+
+    woort_Value v;
+    v.m_vec = vec;
+
+    woort_GC_mixed_write_barrier_value(dst, v);
+}
+
 void _woort_set_map(
-    woort_Value* dst, size_t reserve);
+    woort_Value* dst, size_t reserve)
+{
+    assert(dst != NULL);
+
+    woort_GCMap* map = woort_GCMap_new();
+    assert(map != NULL);
+
+    if (reserve > 0)
+        woort_GCMap_reserve(map, reserve);
+
+    woort_Value v;
+    v.m_map = map;
+
+    woort_GC_mixed_write_barrier_value(dst, v);
+}
+
 void _woort_set_struct(
-    woort_Value* dst, size_t reserve);
+    woort_Value* dst, size_t reserve)
+{
+    assert(dst != NULL);
+
+    woort_GCStruct* s = woort_GCStruct_new(reserve);
+    assert(s != NULL);
+
+    woort_Value v;
+    v.m_struct = s;
+
+    woort_GC_mixed_write_barrier_value(dst, v);
+}
+
 void _woort_set_box_int(
-    woort_Value* dst, woort_Int src);
+    woort_Value* dst, woort_Int src)
+{
+    assert(dst != NULL);
+
+    woort_DynBox boxed = woort_DynBox_box_int(src);
+    woort_GC_mixed_write_barrier_dynbox(&dst->m_dynamic, boxed);
+}
+
 void _woort_set_box_real(
-    woort_Value* dst, woort_Real src);
+    woort_Value* dst, woort_Real src)
+{
+    assert(dst != NULL);
+
+    woort_DynBox boxed = woort_DynBox_box_real(src);
+    woort_GC_mixed_write_barrier_dynbox(&dst->m_dynamic, boxed);
+}
