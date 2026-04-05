@@ -79,24 +79,6 @@ union woort_Value
 
 };
 
-typedef enum woort_BoxValueType
-{
-    WOORT_BOX_VALUE_TYPE_GCUNIT = 0b000,
-    WOORT_BOX_VALUE_TYPE_REAL = 0b001,
-    WOORT_BOX_VALUE_TYPE_INT = 0b010,
-    WOORT_BOX_VALUE_TYPE_BOOL = 0b100,
-
-    ////
-    WOORT_BOX_VALUE_TYPE_NIL = 0b1000,
-    WOORT_BOX_VALUE_TYPE_STRING,
-    WOORT_BOX_VALUE_TYPE_VEC,
-    WOORT_BOX_VALUE_TYPE_MAP,
-    WOORT_BOX_VALUE_TYPE_STRUCT,
-    WOORT_BOX_VALUE_TYPE_GCHANDLE,
-    WOORT_BOX_VALUE_TYPE_CLOSURE,
-
-} woort_BoxValueType;
-
 woort_DynBox woort_DynBox_box_real(woort_Real val);
 woort_DynBox woort_DynBox_box_int(woort_Int val);
 woort_DynBox woort_DynBox_box_bool(bool val);

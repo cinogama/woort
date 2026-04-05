@@ -98,6 +98,24 @@ typedef enum woort_VmCallStatus
     WOORT_VM_CALL_STATUS_RESYNC,
 } woort_VmCallStatus, woort_api;
 
+typedef enum woort_BoxValueType
+{
+    WOORT_BOX_VALUE_TYPE_GCUNIT = 0b000,
+    WOORT_BOX_VALUE_TYPE_REAL = 0b001,
+    WOORT_BOX_VALUE_TYPE_INT = 0b010,
+    WOORT_BOX_VALUE_TYPE_BOOL = 0b100,
+
+    ////
+    WOORT_BOX_VALUE_TYPE_NIL = 0b1000,
+    WOORT_BOX_VALUE_TYPE_STRING,
+    WOORT_BOX_VALUE_TYPE_VEC,
+    WOORT_BOX_VALUE_TYPE_MAP,
+    WOORT_BOX_VALUE_TYPE_STRUCT,
+    WOORT_BOX_VALUE_TYPE_GCHANDLE,
+    WOORT_BOX_VALUE_TYPE_CLOSURE,
+
+} woort_BoxValueType;
+
 typedef struct woort_VMRuntime woort_VMRuntime;
 typedef int32_t woort_StackValue;
 
@@ -1090,6 +1108,12 @@ WOORT_API WOORT_NODISCARD woort_U8CString woort_string(woort_StackValue src);
 WOORT_API WOORT_NODISCARD const void* woort_buffer(
     woort_StackValue src, size_t* out_len);
 WOORT_API WOORT_NODISCARD void* woort_gcpointer(woort_StackValue src);
+WOORT_API WOORT_NODISCARD woort_Int woort_unbox_int(woort_StackValue src);
+WOORT_API WOORT_NODISCARD woort_Real woort_unbox_real(woort_StackValue src);
+WOORT_API WOORT_NODISCARD bool woort_unbox_bool(woort_StackValue src);
+
+WOORT_API WOORT_NODISCARD woort_BoxValueType woort_unbox_type(
+    woort_StackValue src);
 
 #undef WOORT_API
 

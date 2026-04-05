@@ -615,3 +615,106 @@ WOORT_NODISCARD bool woort_reserve_stack(
     *out_stack = (woort_StackValue)((vm->m_sp - vm->m_sb) - 2);
     return true;
 }
+
+WOORT_NODISCARD woort_Int woort_unbox_int(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_Value out_val;
+    if (!woort_DynBox_unbox(
+        _WOORT_API_STACK(src).m_dynamic,
+        WOORT_BOX_VALUE_TYPE_INT,
+        &out_val))
+    {
+        woort_panic(WOORT_PANIC_BAD_TYPE, "Expected boxed int.");
+    }
+
+    return out_val.m_integer;
+}
+
+WOORT_NODISCARD woort_Real woort_unbox_real(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_Value out_val;
+    if (!woort_DynBox_unbox(
+        _WOORT_API_STACK(src).m_dynamic,
+        WOORT_BOX_VALUE_TYPE_REAL,
+        &out_val))
+    {
+        woort_panic(WOORT_PANIC_BAD_TYPE, "Expected boxed real.");
+    }
+
+    return out_val.m_real;
+}
+
+WOORT_NODISCARD bool woort_unbox_bool(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_Value out_val;
+    if (!woort_DynBox_unbox(
+        _WOORT_API_STACK(src).m_dynamic,
+        WOORT_BOX_VALUE_TYPE_BOOL,
+        &out_val))
+    {
+        woort_panic(WOORT_PANIC_BAD_TYPE, "Expected boxed bool.");
+    }
+
+    return out_val.m_integer != 0;
+}
+
+WOORT_NODISCARD woort_BoxValueType woort_unbox_type(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    const woort_DynBox val = _WOORT_API_STACK(src).m_dynamic;
+
+    if (val.m_boxed & 0b0111)
+    {
+        if (0b01 & val.m_boxed)
+            return WOORT_BOX_VALUE_TYPE_REAL;
+
+        if (0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
+            return WOORT_BOX_VALUE_TYPE_INT;
+
+        return WOORT_BOX_VALUE_TYPE_BOOL;
+    }
+
+    if (val.m_boxed_gc_unit == NULL)
+        return WOORT_BOX_VALUE_TYPE_NIL;
+
+    const woort_GCUnitProxy* const proxy = val.m_boxed_gc_unit->m_proxy;
+
+    if (proxy == &WOORT_EX_BOX_PROXY)
+    {
+        return val.m_boxed_ex->m_is_int
+            ? WOORT_BOX_VALUE_TYPE_INT
+            : WOORT_BOX_VALUE_TYPE_REAL;
+    }
+
+    if (proxy == &WOORT_GCSTRING_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_STRING;
+
+    if (proxy == &WOORT_GCVEC_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_VEC;
+
+    if (proxy == &WOORT_GCMAP_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_MAP;
+
+    if (proxy == &WOORT_GCSTRUCT_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_STRUCT;
+
+    if (proxy == &WOORT_GCHANDLE_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_GCHANDLE;
+
+    if (proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_CLOSURE;
+
+    woort_panic(WOORT_PANIC_BAD_TYPE, "Unknown boxed type.");
+    return WOORT_BOX_VALUE_TYPE_NIL;
+}
