@@ -162,4 +162,4 @@ typedef struct woort_BoxedExValue
 WOORT_NODISCARD bool woort_DynBox_equal_int(woort_DynBox boxed_key, woort_Int int_key);
 WOORT_NODISCARD bool woort_DynBox_equal_real(woort_DynBox boxed_key, woort_Real real_key);
 WOORT_NODISCARD bool woort_DynBox_equal_bool(woort_DynBox boxed_key, bool bool_key);
-WOORT_NODISCARD bool woort_DynBox_equal_gcunit(woort_DynBox boxed_key, woort_GCUnit* gcunit_key);
+WOORT_NODISCARD bool woort_DynBox_equal_gcunit(woort_DynBox boxed_key, /* OPTIONAL */ woort_GCUnit* gcunit_key);
