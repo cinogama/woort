@@ -8,6 +8,11 @@
 #include "woort_value.h"
 #include "woort_gc_units.h"
 #include "woort_gc_string.h"
+#include "woort_gc_vec.h"
+#include "woort_gc_map.h"
+#include "woort_gc_struct.h"
+#include "woort_gc_gchandle.h"
+#include "woort_gc_closure.h"
 #include "woort_diagnosis.h"
 #include "woort_gc.h"
 
@@ -271,13 +276,30 @@ WOORT_NODISCARD bool woort_DynBox_check(
         return 0 == (0b0111 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_BOOL));
         break;
     case WOORT_BOX_VALUE_TYPE_STRING:
+        if (val.m_boxed & 0b0111)
+            return false;
+        return val.m_boxed_gc_unit->m_proxy == &WOORT_GCSTRING_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_VEC:
+        if (val.m_boxed & 0b0111)
+            return false;
+        return val.m_boxed_gc_unit->m_proxy == &WOORT_GCVEC_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_MAP:
+        if (val.m_boxed & 0b0111)
+            return false;
+        return val.m_boxed_gc_unit->m_proxy == &WOORT_GCMAP_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_STRUCT:
+        if (val.m_boxed & 0b0111)
+            return false;
+        return val.m_boxed_gc_unit->m_proxy == &WOORT_GCSTRUCT_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+        if (val.m_boxed & 0b0111)
+            return false;
+        return val.m_boxed_gc_unit->m_proxy == &WOORT_GCHANDLE_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_CLOSURE:
+        if (val.m_boxed & 0b0111)
+            return false;
+        return val.m_boxed_gc_unit->m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY;
     default:
-        // TODO;
         woort_panic(WOORT_PANIC_BAD_TYPE, "Unexpceted box type.");
         return false;
     }
@@ -329,6 +351,54 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
     case WOORT_BOX_VALUE_TYPE_BOOL:
         if (0 == (0b0111 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_BOOL))) {
             out_val->m_integer = _woort_unbox_bool(val.m_boxed) ? 1 : 0;
+            return true;
+        }
+        break;
+    case WOORT_BOX_VALUE_TYPE_STRING:
+        if (!(val.m_boxed & 0b0111)
+            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCSTRING_UNIT_PROXY)
+        {
+            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            return true;
+        }
+        break;
+    case WOORT_BOX_VALUE_TYPE_VEC:
+        if (!(val.m_boxed & 0b0111)
+            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCVEC_UNIT_PROXY)
+        {
+            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            return true;
+        }
+        break;
+    case WOORT_BOX_VALUE_TYPE_MAP:
+        if (!(val.m_boxed & 0b0111)
+            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCMAP_UNIT_PROXY)
+        {
+            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            return true;
+        }
+        break;
+    case WOORT_BOX_VALUE_TYPE_STRUCT:
+        if (!(val.m_boxed & 0b0111)
+            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCSTRUCT_UNIT_PROXY)
+        {
+            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            return true;
+        }
+        break;
+    case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+        if (!(val.m_boxed & 0b0111)
+            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCHANDLE_UNIT_PROXY)
+        {
+            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            return true;
+        }
+        break;
+    case WOORT_BOX_VALUE_TYPE_CLOSURE:
+        if (!(val.m_boxed & 0b0111)
+            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
+        {
+            out_val->m_gcinstance = val.m_boxed_gc_unit;
             return true;
         }
         break;
