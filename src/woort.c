@@ -232,6 +232,18 @@ void _woort_set_string(
     dst->m_string = str;
 }
 
+void _woort_set_buffer(
+    woort_Value* dst, const void* src, size_t len)
+{
+    assert(dst != NULL);
+    assert(src != NULL);
+
+    const woort_GCString* buf = woort_GCString_make_string((const char*)src, len);
+    assert(buf != NULL);
+
+    dst->m_string = buf;
+}
+
 void _woort_set_vec(
     woort_Value* dst, size_t cap)
 {
@@ -287,6 +299,34 @@ void _woort_set_box_real(
 
     woort_DynBox boxed = woort_DynBox_box_real(src);
     dst->m_dynamic = boxed;
+}
+
+void _woort_set_gchandle(
+    woort_Value* dst,
+    void* addr,
+    /* OPTIONAL */ woort_Value* holding,
+    woort_GCHandle_UserDestructFunction close)
+{
+    assert(dst != NULL);
+
+    woort_GCHandle* handle = woort_GCHandle_new(addr, holding, close);
+    assert(handle != NULL);
+
+    dst->m_gcinstance = (woort_GCUnit*)handle;
+}
+
+void _woort_set_gcstruct(
+    woort_Value* dst,
+    void* addr,
+    woort_GCHandle_UserMarkFunction mark,
+    woort_GCHandle_UserDestructFunction close)
+{
+    assert(dst != NULL);
+
+    woort_GCHandle* handle = woort_GCHandle_new_with_marker(addr, mark, close);
+    assert(handle != NULL);
+
+    dst->m_gcinstance = (woort_GCUnit*)handle;
 }
 
 /* Public Runtime API */
@@ -345,6 +385,15 @@ void woort_set_string(
     _woort_set_string(&_WOORT_API_STACK(dst), src);
 }
 
+void woort_set_buffer(
+    woort_StackValue dst, const void* src, size_t len)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    _woort_set_buffer(&_WOORT_API_STACK(dst), src, len);
+}
+
 void woort_set_vec(
     woort_StackValue dst, size_t cap)
 {
@@ -364,12 +413,12 @@ void woort_set_map(
 }
 
 void woort_set_struct(
-    woort_StackValue dst, size_t reserve)
+    woort_StackValue dst, size_t cap)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_struct(&_WOORT_API_STACK(dst), reserve);
+    _woort_set_struct(&_WOORT_API_STACK(dst), cap);
 }
 
 void woort_set_box_int(
@@ -388,6 +437,30 @@ void woort_set_box_real(
     assert(vm != NULL);
 
     _woort_set_box_real(&_WOORT_API_STACK(dst), src);
+}
+
+void woort_set_gchandle(
+    woort_StackValue dst,
+    void* addr,
+    woort_StackValue hold,
+    woort_GCHandle_UserDestructFunction close)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    _woort_set_gchandle(&_WOORT_API_STACK(dst), addr, &_WOORT_API_STACK(hold), close);
+}
+
+void woort_set_gcstruct(
+    woort_StackValue dst,
+    void* addr,
+    woort_GCHandle_UserMarkFunction mark,
+    woort_GCHandle_UserDestructFunction close)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    _woort_set_gcstruct(&_WOORT_API_STACK(dst), addr, mark, close);
 }
 
 WOORT_NODISCARD bool woort_reserve_stack(

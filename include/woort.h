@@ -1052,16 +1052,36 @@ WOORT_API void woort_set_float(
     woort_StackValue dst, float src);
 WOORT_API void woort_set_string(
     woort_StackValue dst, woort_U8CString src);
+WOORT_API void woort_set_buffer(
+    woort_StackValue dst, const void* src, size_t len);
 WOORT_API void woort_set_vec(
     woort_StackValue dst, size_t cap);
 WOORT_API void woort_set_map(
     woort_StackValue dst, size_t reserve);
 WOORT_API void woort_set_struct(
-    woort_StackValue dst, size_t reserve);
+    woort_StackValue dst, size_t cap);
+WOORT_API void woort_set_gchandle(
+    woort_StackValue dst, 
+    void* addr,
+    woort_StackValue hold, 
+    woort_GCHandle_UserDestructFunction close);
+WOORT_API void woort_set_gcstruct(
+    woort_StackValue dst,
+    void* addr,
+    woort_GCHandle_UserMarkFunction mark,
+    woort_GCHandle_UserDestructFunction close);
 WOORT_API void woort_set_box_int(
     woort_StackValue dst, woort_Int src);
 WOORT_API void woort_set_box_real(
     woort_StackValue dst, woort_Real src);
+
+WOORT_API WOORT_NODISCARD woort_Int woort_int(woort_StackValue src);
+WOORT_API WOORT_NODISCARD woort_Real woort_real(woort_StackValue src);
+WOORT_API WOORT_NODISCARD float woort_float(woort_StackValue src);
+WOORT_API WOORT_NODISCARD woort_U8CString woort_string(woort_StackValue src);
+WOORT_API WOORT_NODISCARD const void* woort_buffer(
+    woort_StackValue src, size_t* out_len);
+WOORT_API WOORT_NODISCARD void* woort_gcpointer(woort_StackValue src);
 
 #undef WOORT_API
 
