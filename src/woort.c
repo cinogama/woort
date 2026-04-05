@@ -291,93 +291,133 @@ void _woort_set_box_real(
 
 /* Public Runtime API */
 
+/*
+NOTE: _WOORT_API_STACKS 用于根据 woort_StackValue 获取栈上的时机位置
+考虑到用户的接口设计，我们采用 SB+3 作为操作数原点，正数表示参数（因为
+SB+3 恰好是首个参数位置。-1，-2 实际上不使用（这两个位置对应 SB+1 和 
+SB+2，储存函数的返回状态）。当前栈帧自 -3 开始，向负数方向延申到栈顶
+方向。
+*/
+#define _WOORT_API_STACK(N) vm->m_sb[3 + N]
+
 void woort_set_value(
     woort_StackValue dst, woort_StackValue src)
 {
-    woort_VMRuntime* vm = woort_VMRuntime_current();
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_value(&vm->m_sb[dst], vm->m_sb[src]);
+    _woort_set_value(&_WOORT_API_STACK(dst), _WOORT_API_STACK(src));
 }
 
 void woort_set_int(
     woort_StackValue dst, woort_Int src)
 {
-    woort_VMRuntime* vm = woort_VMRuntime_current();
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_int(&vm->m_sb[dst], src);
+    _woort_set_int(&_WOORT_API_STACK(dst), src);
 }
 
 void woort_set_real(
     woort_StackValue dst, woort_Real src)
 {
-    woort_VMRuntime* vm = woort_VMRuntime_current();
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_real(&vm->m_sb[dst], src);
+    _woort_set_real(&_WOORT_API_STACK(dst), src);
 }
 
 void woort_set_float(
     woort_StackValue dst, float src)
 {
-    woort_VMRuntime* vm = woort_VMRuntime_current();
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_float(&vm->m_sb[dst], src);
+    _woort_set_float(&_WOORT_API_STACK(dst), src);
 }
 
 void woort_set_string(
     woort_StackValue dst, woort_U8CString src)
 {
-    woort_VMRuntime* vm = woort_VMRuntime_current();
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_string(&vm->m_sb[dst], src);
+    _woort_set_string(&_WOORT_API_STACK(dst), src);
 }
 
 void woort_set_vec(
     woort_StackValue dst, size_t cap)
 {
-    woort_VMRuntime* vm = woort_VMRuntime_current();
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_vec(&vm->m_sb[dst], cap);
+    _woort_set_vec(&_WOORT_API_STACK(dst), cap);
 }
 
 void woort_set_map(
     woort_StackValue dst, size_t reserve)
 {
-    woort_VMRuntime* vm = woort_VMRuntime_current();
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_map(&vm->m_sb[dst], reserve);
+    _woort_set_map(&_WOORT_API_STACK(dst), reserve);
 }
 
 void woort_set_struct(
     woort_StackValue dst, size_t reserve)
 {
-    woort_VMRuntime* vm = woort_VMRuntime_current();
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_struct(&vm->m_sb[dst], reserve);
+    _woort_set_struct(&_WOORT_API_STACK(dst), reserve);
 }
 
 void woort_set_box_int(
     woort_StackValue dst, woort_Int src)
 {
-    woort_VMRuntime* vm = woort_VMRuntime_current();
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_box_int(&vm->m_sb[dst], src);
+    _woort_set_box_int(&_WOORT_API_STACK(dst), src);
 }
 
 void woort_set_box_real(
     woort_StackValue dst, woort_Real src)
 {
-    woort_VMRuntime* vm = woort_VMRuntime_current();
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_box_real(&vm->m_sb[dst], src);
+    _woort_set_box_real(&_WOORT_API_STACK(dst), src);
 }
 
+WOORT_NODISCARD bool woort_reserve_stack(
+    size_t count, woort_StackValue* out_stack)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    vm->m_sp -= count;
+    if (vm->m_sp < vm->m_stack)
+    {
+        do
+        {
+            vm->m_sp += count;
+
+            if (!_woort_VMRuntime_extern_stack(vm))
+            {
+                woort_panic(
+                    WOORT_PANIC_STACK_OVERFLOW,
+                    "Stack overflow.");
+
+                return false;
+            }
+
+            vm->m_sp -= count;
+
+        } while (vm->m_sp < vm->m_stack);
+    }
+
+    /* NOTE: 此处实际上是 SP - [SB+3] + 1 */
+    *out_stack = (vm->m_sp - vm->m_sb) -2;
+    return true;
+}

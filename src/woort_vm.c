@@ -29,8 +29,6 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-WOORT_THREAD_LOCAL woort_VMRuntime* t_this_thread_vm = NULL;
-
 const size_t WOORT_VM_DEFAULT_STACK_BEGIN_SIZE = 32;
 const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
 
@@ -105,7 +103,7 @@ void woort_VMRuntime_destroy(woort_VMRuntime* vm)
 }
 
 
-bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
+WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
 {
     const size_t current_stack_size = vm->m_stack_end - vm->m_stack;
     if (current_stack_size >= WOORT_VM_MAX_STACK_SIZE)
@@ -3493,10 +3491,10 @@ void woort_VMRuntime_gc_checkpoint(woort_VMRuntime* vm)
 WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     /* OPTIONAL */ woort_VMRuntime* vm)
 {
-    if (t_this_thread_vm == vm)
+    if (WOORT_t_this_thread_vm == vm)
         return vm;
 
-    woort_VMRuntime* const last_vm = t_this_thread_vm;
+    woort_VMRuntime* const last_vm = WOORT_t_this_thread_vm;
 
     if (last_vm != NULL)
     {
@@ -3507,7 +3505,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
         (void)r;
         assert(r);
     }
-    t_this_thread_vm = vm;
+    WOORT_t_this_thread_vm = vm;
     if (vm != NULL)
     {
         woort_VMRuntime_gc_checkpoint(vm);
@@ -3522,9 +3520,4 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
         }
     }
     return last_vm;
-}
-
-WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_current(void)
-{
-    return t_this_thread_vm;
 }
