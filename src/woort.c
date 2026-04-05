@@ -186,3 +186,22 @@ void woort_CodeEnv_set_const_box_real(
     woort_DynBox boxed = woort_DynBox_box_real(val);
     woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
 }
+
+void _woort_set_int(
+    woort_Value* dst, woort_Int src);
+void _woort_set_real(
+    woort_Value* dst, woort_Real src);
+void _woort_set_float(
+    woort_Value* dst, float src);
+void _woort_set_string(
+    woort_Value* dst, woort_U8CString src);
+void _woort_set_vec(
+    woort_Value* dst, size_t cap);
+void _woort_set_map(
+    woort_Value* dst, size_t reserve);
+void _woort_set_struct(
+    woort_Value* dst, size_t reserve);
+void _woort_set_box_int(
+    woort_Value* dst, woort_Int src);
+void _woort_set_box_real(
+    woort_Value* dst, woort_Real src);

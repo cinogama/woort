@@ -99,16 +99,9 @@ typedef enum woort_VmCallStatus
 } woort_VmCallStatus, woort_api;
 
 typedef struct woort_VMRuntime woort_VMRuntime;
-typedef
-#ifdef WOORT_IMPL
-union woort_Value
-#else
-struct woort_value { char _[8]; }
-#endif
-woort_value;
+typedef int32_t woort_StackValue;
 
-typedef woort_api(*woort_NativeFunction)(
-    woort_VMRuntime* vm, const woort_value* args);
+typedef woort_api(*woort_NativeFunction)(woort_VMRuntime* vm);
 
 typedef struct woort_CodeEnv woort_CodeEnv;
 typedef struct woort_IRCompiler woort_IRCompiler;
@@ -1047,6 +1040,27 @@ WOORT_API void woort_CodeEnv_set_const_box_real(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
     woort_Real val);
+
+WOORT_API void woort_set_value(
+    woort_StackValue dst, woort_StackValue src);
+WOORT_API void woort_set_int(
+    woort_StackValue dst, woort_Int src);
+WOORT_API void woort_set_real(
+    woort_StackValue dst, woort_Real src);
+WOORT_API void woort_set_float(
+    woort_StackValue dst, float src);
+WOORT_API void woort_set_string(
+    woort_StackValue dst, woort_U8CString src);
+WOORT_API void woort_set_vec(
+    woort_StackValue dst, size_t cap);
+WOORT_API void woort_set_map(
+    woort_StackValue dst, size_t reserve);
+WOORT_API void woort_set_struct(
+    woort_StackValue dst, size_t reserve);
+WOORT_API void woort_set_box_int(
+    woort_StackValue dst, woort_Int src);
+WOORT_API void woort_set_box_real(
+    woort_StackValue dst, woort_Real src);
 
 #undef WOORT_API
 

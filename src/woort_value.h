@@ -24,6 +24,11 @@ typedef struct woort_GCVec woort_GCVec;
 typedef struct woort_GCStruct woort_GCStruct;
 typedef struct woort_GCClosure woort_GCClosure;
 
+typedef union woort_Value woort_Value;
+
+typedef woort_api(*woort_JitFunction)(
+    woort_VMRuntime* vm, const woort_Value* bp);
+
 typedef union woort_DynBox
 {
     woort_BoxedValue m_boxed;
@@ -52,29 +57,27 @@ typedef struct woort_RetBP
 
 } woort_RetBP;
 
-typedef union woort_Value
+union woort_Value
 {
-    woort_GCUnit*           m_gcinstance;
+    woort_GCUnit* m_gcinstance;
     woort_Int               m_integer;
     woort_Real              m_real;
-    const woort_GCString*   m_string;
-    woort_GCVec*            m_vec;
-    woort_GCMap*            m_map;
-    woort_GCStruct*         m_struct;
-    const woort_GCClosure*  m_closure;
+    const woort_GCString* m_string;
+    woort_GCVec* m_vec;
+    woort_GCMap* m_map;
+    woort_GCStruct* m_struct;
+    const woort_GCClosure* m_closure;
 
-    const woort_Bytecode*   m_script_function;
-    woort_NativeFunction    m_native_or_jit_function;
+    const woort_Bytecode* m_script_function;
+    woort_NativeFunction    m_native_function;
+    woort_JitFunction       m_jit_function;
 
     woort_DynBox            m_dynamic;
 
     woort_RetBP             m_ret_bp;
-    const void*             m_ret_addr;
+    const void* m_ret_addr;
 
-}woort_Value;
-
-_Static_assert(sizeof(woort_Value) == sizeof(woort_value),
-    "woort_Value and woort_value must have the same size");
+};
 
 typedef enum woort_BoxValueType
 {
@@ -110,7 +113,7 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
     woort_Value* out_val);
 
 void woort_DynBox_unbox_no_check(
-    woort_DynBox val, 
+    woort_DynBox val,
     woort_Value* out_val);
 
 WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val);

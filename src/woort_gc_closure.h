@@ -16,7 +16,12 @@ struct woort_GCClosure
     /* =========================== */
 
     const woort_Bytecode* m_script_function;
-    woort_NativeFunction m_native_or_jit_function;
+
+    union
+    {
+        woort_NativeFunction m_native_function;
+        woort_JitFunction m_jit_function;
+    };
 
     size_t      m_size;
     woort_Value m_datas[];
