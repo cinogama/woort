@@ -152,6 +152,7 @@ woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
         return woort_DynBox_box_int(val.m_integer);
     case WOORT_BOX_VALUE_TYPE_BOOL:
         return woort_DynBox_box_bool(val.m_integer);
+    case WOORT_BOX_VALUE_TYPE_NIL:
     case WOORT_BOX_VALUE_TYPE_GCUNIT:
     case WOORT_BOX_VALUE_TYPE_STRING:
     case WOORT_BOX_VALUE_TYPE_VEC:
@@ -234,6 +235,7 @@ void woort_DynBox_box_with_barrier(woort_DynBox* dst, woort_Value val, woort_Box
     case WOORT_BOX_VALUE_TYPE_BOOL:
         woort_DynBox_box_bool_with_barrier(dst, val.m_integer);
         break;
+    case WOORT_BOX_VALUE_TYPE_NIL:
     case WOORT_BOX_VALUE_TYPE_GCUNIT:
     case WOORT_BOX_VALUE_TYPE_STRING:
     case WOORT_BOX_VALUE_TYPE_VEC:

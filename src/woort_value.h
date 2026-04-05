@@ -33,7 +33,7 @@ typedef union woort_DynBox
 {
     woort_BoxedValue m_boxed;
     struct woort_BoxedExValue* m_boxed_ex;
-    woort_GCUnit* m_boxed_gc_unit;
+    /* OPTIONAL, NULL if NIL */ woort_GCUnit* m_boxed_gc_unit;
 
 }woort_DynBox;
 
@@ -59,16 +59,16 @@ typedef struct woort_RetBP
 
 union woort_Value
 {
-    woort_GCUnit* m_gcinstance;
+    woort_GCUnit*           m_gcinstance;
     woort_Int               m_integer;
     woort_Real              m_real;
-    const woort_GCString* m_string;
-    woort_GCVec* m_vec;
-    woort_GCMap* m_map;
-    woort_GCStruct* m_struct;
-    const woort_GCClosure* m_closure;
+    const woort_GCString*   m_string;
+    woort_GCVec*            m_vec;
+    woort_GCMap*            m_map;
+    woort_GCStruct*         m_struct;
+    const woort_GCClosure*  m_closure;
 
-    const woort_Bytecode* m_script_function;
+    const woort_Bytecode*   m_script_function;
     woort_NativeFunction    m_native_function;
     woort_JitFunction       m_jit_function;
 
@@ -87,7 +87,8 @@ typedef enum woort_BoxValueType
     WOORT_BOX_VALUE_TYPE_BOOL = 0b100,
 
     ////
-    WOORT_BOX_VALUE_TYPE_STRING = 0b1000,
+    WOORT_BOX_VALUE_TYPE_NIL = 0b1000,
+    WOORT_BOX_VALUE_TYPE_STRING,
     WOORT_BOX_VALUE_TYPE_VEC,
     WOORT_BOX_VALUE_TYPE_MAP,
     WOORT_BOX_VALUE_TYPE_STRUCT,

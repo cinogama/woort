@@ -160,23 +160,22 @@ static void test_ir_srcloc_basic(void)
 {
     TEST_BEGIN("ir_srcloc_basic_compile_and_query");
 
-    woort_IRCompiler irc;
-    woort_IRCompiler_init(&irc);
+    woort_IRCompiler* irc = woort_IRCompiler_create();
 
     /* intern 路径 */
-    const char* path = woort_IRCompiler_intern_string(&irc, "test.woo");
+    const char* path = woort_IRCompiler_intern_string(irc, "test.woo");
     TEST_ASSERT(path != NULL);
 
     /* 相同路径 intern 返回相同指针 */
-    const char* path2 = woort_IRCompiler_intern_string(&irc, "test.woo");
+    const char* path2 = woort_IRCompiler_intern_string(irc, "test.woo");
     TEST_ASSERT(path2 == path);
 
     /* 添加常量 1 */
-    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
 
     /* 添加函数 */
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 1, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f));
 
     /* 获取参数 */
     woort_IRValue* arg_x = woort_IRFunction_get_argument(f, 0);
@@ -184,7 +183,7 @@ static void test_ir_srcloc_basic(void)
 
     /* line 2: let result = x + 1 */
     TEST_ASSERT(woort_IRFunction_push_srcloc(f, path, 2, 1, 2, 22));
-    woort_IRValue* v_one = woort_IRFunction_load_const(f, c1);
+    const woort_IRValue* v_one = woort_IRFunction_load_const(f, c1);
     TEST_ASSERT(v_one != NULL);
     woort_IRValue* v_result = woort_IRFunction_new_vreg(f);
     TEST_ASSERT(v_result != NULL);
@@ -198,10 +197,12 @@ static void test_ir_srcloc_basic(void)
 
     /* 编译 */
     woort_CodeEnv* cenv;
-    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     /* 设置常量值 */
-    cenv->m_data_begin[c1].m_integer = 1;
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c1, 1);
+    woort_CodeEnv_unlock(cenv);
 
     /* 验证：CodeEnv 中应该有源码映射 */
     TEST_ASSERT(cenv->m_source_map.m_entry_count > 0);
@@ -243,7 +244,7 @@ static void test_ir_srcloc_basic(void)
         cenv, "nonexistent.woo", 1, &found_offset));
 
     woort_CodeEnv_drop(cenv);
-    woort_IRCompiler_deinit(&irc);
+    woort_IRCompiler_close(irc);
 
     TEST_END();
 }
@@ -253,23 +254,24 @@ static void test_ir_no_srcloc(void)
 {
     TEST_BEGIN("ir_no_srcloc_fallback");
 
-    woort_IRCompiler irc;
-    woort_IRCompiler_init(&irc);
+    woort_IRCompiler* irc = woort_IRCompiler_create();
 
-    woort_IRConstantIndex c42 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c42 = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
     /* 不推入任何源码位置，直接发射 IR */
-    woort_IRValue* v = woort_IRFunction_load_const(f, c42);
+    const woort_IRValue* v = woort_IRFunction_load_const(f, c42);
     TEST_ASSERT(v != NULL);
     TEST_ASSERT(woort_IR_ret(f, v));
 
     woort_CodeEnv* cenv;
-    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
-    cenv->m_data_begin[c42].m_integer = 42;
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c42, 42);
+    woort_CodeEnv_unlock(cenv);
 
     /* 无源码映射 */
     TEST_ASSERT(cenv->m_source_map.m_entry_count == 0);
@@ -282,7 +284,7 @@ static void test_ir_no_srcloc(void)
     TEST_ASSERT(!woort_CodeEnv_find_offset_by_srcloc(cenv, "test.woo", 1, &offset));
 
     woort_CodeEnv_drop(cenv);
-    woort_IRCompiler_deinit(&irc);
+    woort_IRCompiler_close(irc);
 
     TEST_END();
 }
@@ -303,16 +305,15 @@ static void test_ir_srcloc_nested_push_pop(void)
 {
     TEST_BEGIN("ir_srcloc_nested_push_pop");
 
-    woort_IRCompiler irc;
-    woort_IRCompiler_init(&irc);
+    woort_IRCompiler* irc = woort_IRCompiler_create();
 
-    const char* path = woort_IRCompiler_intern_string(&irc, "nested.woo");
+    const char* path = woort_IRCompiler_intern_string(irc, "nested.woo");
     TEST_ASSERT(path != NULL);
 
-    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 2, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 2, &f));
 
     woort_IRValue* a = woort_IRFunction_get_argument(f, 0);
     woort_IRValue* b = woort_IRFunction_get_argument(f, 1);
@@ -337,9 +338,11 @@ static void test_ir_srcloc_nested_push_pop(void)
     TEST_ASSERT(woort_IR_ret(f, r3));
 
     woort_CodeEnv* cenv;
-    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
-    cenv->m_data_begin[c0].m_integer = 0;
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c0, 0);
+    woort_CodeEnv_unlock(cenv);
 
     /* 应该有映射条目 */
     TEST_ASSERT(cenv->m_source_map.m_entry_count >= 2);
@@ -357,7 +360,7 @@ static void test_ir_srcloc_nested_push_pop(void)
     TEST_ASSERT(loc.m_begin_line == 20);
 
     woort_CodeEnv_drop(cenv);
-    woort_IRCompiler_deinit(&irc);
+    woort_IRCompiler_close(irc);
 
     TEST_END();
 }
@@ -367,22 +370,21 @@ static void test_ir_srcloc_multi_function(void)
 {
     TEST_BEGIN("ir_srcloc_multi_function");
 
-    woort_IRCompiler irc;
-    woort_IRCompiler_init(&irc);
+    woort_IRCompiler* irc = woort_IRCompiler_create();
 
-    const char* path_a = woort_IRCompiler_intern_string(&irc, "file_a.woo");
-    const char* path_b = woort_IRCompiler_intern_string(&irc, "file_b.woo");
+    const char* path_a = woort_IRCompiler_intern_string(irc, "file_a.woo");
+    const char* path_b = woort_IRCompiler_intern_string(irc, "file_b.woo");
     TEST_ASSERT(path_a != NULL && path_b != NULL);
     TEST_ASSERT(path_a != path_b);
 
-    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(&irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
 
     /* 函数 1: 在 file_a.woo */
     woort_IRFunction* f1;
-    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 1, &f1));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f1));
 
     woort_IRValue* arg1 = woort_IRFunction_get_argument(f1, 0);
-    woort_IRValue* one1 = woort_IRFunction_load_const(f1, c1);
+    const woort_IRValue* one1 = woort_IRFunction_load_const(f1, c1);
     woort_IRValue* res1 = woort_IRFunction_new_vreg(f1);
     TEST_ASSERT(arg1 && one1 && res1);
 
@@ -393,10 +395,10 @@ static void test_ir_srcloc_multi_function(void)
 
     /* 函数 2: 在 file_b.woo */
     woort_IRFunction* f2;
-    TEST_ASSERT(woort_IRCompiler_add_function(&irc, 1, &f2));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f2));
 
     woort_IRValue* arg2 = woort_IRFunction_get_argument(f2, 0);
-    woort_IRValue* one2 = woort_IRFunction_load_const(f2, c1);
+    const woort_IRValue* one2 = woort_IRFunction_load_const(f2, c1);
     woort_IRValue* res2 = woort_IRFunction_new_vreg(f2);
     TEST_ASSERT(arg2 && one2 && res2);
 
@@ -406,9 +408,11 @@ static void test_ir_srcloc_multi_function(void)
     woort_IRFunction_pop_srcloc(f2);
 
     woort_CodeEnv* cenv;
-    TEST_ASSERT(woort_IRCompiler_finish(&irc, &cenv));
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
-    cenv->m_data_begin[c1].m_integer = 1;
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c1, 1);
+    woort_CodeEnv_unlock(cenv);
 
     /* 两个函数都应该有映射 */
     TEST_ASSERT(cenv->m_source_map.m_entry_count >= 2);
@@ -432,7 +436,7 @@ static void test_ir_srcloc_multi_function(void)
     TEST_ASSERT(off_a != off_b);
 
     woort_CodeEnv_drop(cenv);
-    woort_IRCompiler_deinit(&irc);
+    woort_IRCompiler_close(irc);
 
     TEST_END();
 }
