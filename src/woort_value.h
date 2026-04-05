@@ -133,7 +133,7 @@ WOORT_NODISCARD woort_Int _woort_unbox_int64(woort_BoxedInt62 val);
 WOORT_NODISCARD bool _woort_unbox_bool(uint64_t val);
 
 // 扩展装箱类型的 proxy
-extern const woort_GCUnitProxy _ex_box_proxy;
+extern const woort_GCUnitProxy WOORT_EX_BOX_PROXY;
 
 // 扩展装箱类型：用于存储超出内联范围的整数或浮点数
 typedef struct woort_BoxedExValue

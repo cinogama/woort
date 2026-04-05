@@ -18,7 +18,7 @@ struct woort_GCString
     char            m_content[];
 };
 
-extern const woort_GCUnitProxy g_gcstring_unit_proxy;
+extern const woort_GCUnitProxy WOORT_GCSTRING_UNIT_PROXY;
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str, size_t len);
 WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b);

@@ -8,7 +8,7 @@
 #include "woomem.h"
 #include "woort_gc_string.h"
 
-const woort_GCUnitProxy g_gcstring_unit_proxy = {
+const woort_GCUnitProxy WOORT_GCSTRING_UNIT_PROXY = {
     .m_destructor = NULL,
     .m_marker = NULL,
 };
@@ -18,7 +18,7 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str
     woort_GCString* const gcstr = 
         woort_GCUnit_alloc_attrib(O, sizeof(woort_GCString) + len + 1);
 
-    gcstr->m_gc_unit.m_proxy = &g_gcstring_unit_proxy;
+    gcstr->m_gc_unit.m_proxy = &WOORT_GCSTRING_UNIT_PROXY;
     gcstr->m_length = len;
 
     memcpy(gcstr->m_content, str, len);
@@ -32,7 +32,7 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCSt
     woort_GCString* const gcstr = 
         woort_GCUnit_alloc_attrib(O, sizeof(woort_GCString) + a->m_length + b->m_length + 1);
 
-    gcstr->m_gc_unit.m_proxy = &g_gcstring_unit_proxy;
+    gcstr->m_gc_unit.m_proxy = &WOORT_GCSTRING_UNIT_PROXY;
     gcstr->m_length = a->m_length + b->m_length;
 
     memcpy(gcstr->m_content, a->m_content, a->m_length);

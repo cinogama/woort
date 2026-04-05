@@ -6,7 +6,7 @@
 #include "woort_gc.h"
 #include "woort_gc_vec.h"
 
-const woort_GCUnitProxy g_gcvec_unit_proxy = {
+const woort_GCUnitProxy WOORT_GCVEC_UNIT_PROXY = {
     .m_destructor = NULL,
     .m_marker = NULL,
 };
@@ -14,7 +14,7 @@ const woort_GCUnitProxy g_gcvec_unit_proxy = {
 woort_GCVec* woort_GCVec_new(void)
 {
     woort_GCVec* const gcvec = woort_GCUnit_alloc_attrib(A, sizeof(woort_GCVec));
-    gcvec->m_gc_unit.m_proxy = &g_gcvec_unit_proxy;
+    gcvec->m_gc_unit.m_proxy = &WOORT_GCVEC_UNIT_PROXY;
     gcvec->m_space = 0;
     gcvec->m_length = 0;
     gcvec->m_datas = NULL;

@@ -31,7 +31,7 @@ struct woort_GCMap
     /* OPTIONAL */ woort_GCMap_Bucket* m_buckets;
 };
 
-extern const woort_GCUnitProxy g_gcmap_unit_proxy;
+extern const woort_GCUnitProxy WOORT_GCMAP_UNIT_PROXY;
 
 WOORT_NODISCARD woort_GCMap* woort_GCMap_new(void);
 

@@ -14,7 +14,7 @@ woort_vm.h
 
 #include <stdbool.h>
 
-WOORT_THREAD_LOCAL woort_VMRuntime* WOORT_t_this_thread_vm = NULL;
+extern WOORT_THREAD_LOCAL woort_VMRuntime* WOORT_t_this_thread_vm;
 
 typedef enum woort_VMRuntime_CheckRequestMask
 {

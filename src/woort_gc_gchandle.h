@@ -23,7 +23,7 @@ typedef struct woort_GCHandle
 
 } woort_GCHandle;
 
-extern const woort_GCUnitProxy g_gchandle_unit_proxy;
+extern const woort_GCUnitProxy WOORT_GCHANDLE_UNIT_PROXY;
 
 woort_GCHandle* woort_GCHandle_new(
     void* addr, 

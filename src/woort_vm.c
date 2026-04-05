@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+WOORT_THREAD_LOCAL woort_VMRuntime* WOORT_t_this_thread_vm;
+
 const size_t WOORT_VM_DEFAULT_STACK_BEGIN_SIZE = 32;
 const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
 

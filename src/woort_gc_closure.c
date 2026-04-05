@@ -6,7 +6,7 @@
 #include "woort_gc_closure.h"
 #include "woort_diagnosis.h"
 
-const woort_GCUnitProxy g_gcclosure_unit_proxy = {
+const woort_GCUnitProxy WOORT_GCCLOSURE_UNIT_PROXY = {
     .m_destructor = NULL,
     .m_marker = NULL,
 };
@@ -18,7 +18,7 @@ WOORT_NODISCARD woort_GCClosure* _woort_GCClosure_new(size_t captured_count)
         sizeof(woort_GCClosure)
         + captured_count * sizeof(woort_Value));
 
-    gcclosure->m_gc_unit.m_proxy = &g_gcclosure_unit_proxy;
+    gcclosure->m_gc_unit.m_proxy = &WOORT_GCCLOSURE_UNIT_PROXY;
 
     gcclosure->m_size = captured_count;
 

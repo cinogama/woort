@@ -20,6 +20,6 @@ struct woort_GCStruct
 
 };
 
-extern const woort_GCUnitProxy g_gcstruct_unit_proxy;
+extern const woort_GCUnitProxy WOORT_GCSTRUCT_UNIT_PROXY;
 
 woort_GCStruct* woort_GCStruct_new(size_t struct_size);

@@ -28,7 +28,7 @@ struct woort_GCClosure
 
 };
 
-extern const woort_GCUnitProxy g_gcclosure_unit_proxy;
+extern const woort_GCUnitProxy WOORT_GCCLOSURE_UNIT_PROXY;
 
 WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_script_func(
     const woort_Bytecode* func);

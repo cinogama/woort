@@ -17,7 +17,7 @@ void _woort_GCHandle_destructor(woort_GCUnit* unit)
     gcstruct->m_user_destruct_callback(gcstruct->m_user_handle);
 }
 
-const woort_GCUnitProxy g_gchandle_unit_proxy = {
+const woort_GCUnitProxy WOORT_GCHANDLE_UNIT_PROXY = {
     .m_destructor = _woort_GCHandle_destructor,
     .m_marker = _woort_GCStruct_marker,
 };
@@ -31,7 +31,7 @@ woort_GCHandle* woort_GCHandle_new(
         AF,
         sizeof(woort_GCHandle));
 
-    gchandle->m_gc_unit.m_proxy = &g_gchandle_unit_proxy;
+    gchandle->m_gc_unit.m_proxy = &WOORT_GCHANDLE_UNIT_PROXY;
 
     if (holding != NULL)
         gchandle->m_hold_value = *holding;
@@ -53,7 +53,7 @@ woort_GCHandle* woort_GCHandle_new_with_marker(
         MF,
         sizeof(woort_GCHandle));
 
-    gcstruct->m_gc_unit.m_proxy = &g_gchandle_unit_proxy;
+    gcstruct->m_gc_unit.m_proxy = &WOORT_GCHANDLE_UNIT_PROXY;
 
     gcstruct->m_user_mark_callback = marker;
     gcstruct->m_user_destruct_callback = destructor;

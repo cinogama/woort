@@ -21,7 +21,7 @@ typedef struct woort_GCVec
 
 }woort_GCVec;
 
-extern const woort_GCUnitProxy g_gcvec_unit_proxy;
+extern const woort_GCUnitProxy WOORT_GCVEC_UNIT_PROXY;
 
 woort_GCVec* woort_GCVec_new(void);
 

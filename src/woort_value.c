@@ -19,13 +19,13 @@ Boxed Int62:    | ................ Int62 .............. | 1 | 0 |
 Boxed Bool:     | ................ Bool61 ..........| 1 | 0 | 0 |
 */
 
-const woort_GCUnitProxy _ex_box_proxy = {
+const woort_GCUnitProxy WOORT_EX_BOX_PROXY = {
     .m_destructor = NULL,
     .m_marker = NULL,
 };
 
-const int64_t BOXED_INT62_MAX = (1LL << 61) - 1;
-const int64_t BOXED_INT62_MIN = 1LL << 61;
+static const int64_t WOORT_BOXED_INT62_MAX = (1LL << 61) - 1;
+static const int64_t WOORT_BOXED_INT62_MIN = 1LL << 61;
 
 WOORT_NODISCARD bool _woort_try_box_float63(double val, woort_BoxedFloat63* out_val)
 {
@@ -50,7 +50,7 @@ WOORT_NODISCARD bool _woort_try_box_float63(double val, woort_BoxedFloat63* out_
 }
 WOORT_NODISCARD bool _woort_try_box_int62(woort_Int val, woort_BoxedInt62* out_val)
 {
-    if (val >= BOXED_INT62_MIN && val <= BOXED_INT62_MAX)
+    if (val >= WOORT_BOXED_INT62_MIN && val <= WOORT_BOXED_INT62_MAX)
     {
         *out_val = (woort_BoxedInt62)(
             (val << 2) | WOORT_BOX_VALUE_TYPE_INT);
@@ -104,7 +104,7 @@ woort_DynBox woort_DynBox_box_real(woort_Real val)
         woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
             O, sizeof(woort_BoxedExValue));
 
-        ex_box->m_unit.m_proxy = &_ex_box_proxy;
+        ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
 
         ex_box->m_is_int = false;
         ex_box->m_real = val;
@@ -121,7 +121,7 @@ woort_DynBox woort_DynBox_box_int(woort_Int val)
         woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
             O, sizeof(woort_BoxedExValue));
 
-        ex_box->m_unit.m_proxy = &_ex_box_proxy;
+        ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
 
         ex_box->m_is_int = true;
         ex_box->m_int = val;
@@ -169,7 +169,7 @@ void woort_DynBox_box_real_with_barrier(woort_DynBox* dst, woort_Real val)
         woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
             O, sizeof(woort_BoxedExValue));
 
-        ex_box->m_unit.m_proxy = &_ex_box_proxy;
+        ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
 
         ex_box->m_is_int = false;
         ex_box->m_real = val;
@@ -187,7 +187,7 @@ void woort_DynBox_box_int_with_barrier(woort_DynBox* dst, woort_Int val)
         woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
             O, sizeof(woort_BoxedExValue));
 
-        ex_box->m_unit.m_proxy = &_ex_box_proxy;
+        ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
 
         ex_box->m_is_int = true;
         ex_box->m_int = val;
@@ -244,14 +244,14 @@ WOORT_NODISCARD bool woort_DynBox_check(
         _Static_assert(WOORT_BOX_VALUE_TYPE_REAL == 1,
             "WOORT_BOX_VALUE_TYPE_REAL should be 1");
 
-        return val.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
+        return val.m_boxed_gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
             && !val.m_boxed_ex->m_is_int;
     case WOORT_BOX_VALUE_TYPE_INT:
         if (val.m_boxed & 0b0111)
             return 0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT));
 
         // May be ex value.
-        return val.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
+        return val.m_boxed_gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
             && val.m_boxed_ex->m_is_int;
     case WOORT_BOX_VALUE_TYPE_BOOL:
         return 0 == (0b0111 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_BOOL));
@@ -282,7 +282,7 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
             }
         }
         // 可能是 ex value
-        else if (val.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
+        else if (val.m_boxed_gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
             && !val.m_boxed_ex->m_is_int)
         {
             out_val->m_real = val.m_boxed_ex->m_real;
@@ -299,7 +299,7 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
             }
         }
         // 可能是 ex value
-        else if (val.m_boxed_gc_unit->m_proxy == &_ex_box_proxy
+        else if (val.m_boxed_gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
             && val.m_boxed_ex->m_is_int)
         {
             out_val->m_integer = val.m_boxed_ex->m_int;
@@ -335,7 +335,7 @@ void woort_DynBox_unbox_no_check(
     else
     {
         // Ex value (GC allocated)
-        if (val.m_boxed_gc_unit->m_proxy != &_ex_box_proxy)
+        if (val.m_boxed_gc_unit->m_proxy != &WOORT_EX_BOX_PROXY)
             out_val->m_gcinstance = val.m_boxed_gc_unit;
         else
         {
@@ -390,10 +390,10 @@ WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val)
         // GC allocated value
         woort_GCUnit* const gc_unit = val.m_boxed_gc_unit;
 
-        if (gc_unit->m_proxy == &g_gcstring_unit_proxy)
+        if (gc_unit->m_proxy == &WOORT_GCSTRING_UNIT_PROXY)
             // String: use string-specific hash
             return woort_GCString_hash((const woort_GCString*)gc_unit);
-        else if (gc_unit->m_proxy == &_ex_box_proxy)
+        else if (gc_unit->m_proxy == &WOORT_EX_BOX_PROXY)
         {
             // Ex value: hash the internal int or real
             woort_BoxedExValue* const ex_box = val.m_boxed_ex;
@@ -429,14 +429,14 @@ WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b)
         return false;
 
     // Same proxy type
-    if (gc_unit_a->m_proxy == &g_gcstring_unit_proxy)
+    if (gc_unit_a->m_proxy == &WOORT_GCSTRING_UNIT_PROXY)
     {
         // Extra check for string.
         return woort_GCString_compare(
             (const woort_GCString*)gc_unit_a,
             (const woort_GCString*)gc_unit_b) == 0;
     }
-    else if (gc_unit_a->m_proxy == &_ex_box_proxy)
+    else if (gc_unit_a->m_proxy == &WOORT_EX_BOX_PROXY)
     {
         woort_BoxedExValue* const ex_a = a.m_boxed_ex;
         woort_BoxedExValue* const ex_b = b.m_boxed_ex;
@@ -469,7 +469,7 @@ WOORT_NODISCARD bool woort_DynBox_equal_int(woort_DynBox boxed_key, woort_Int in
 
     // 检查 ex value
     woort_GCUnit* const gc_unit = boxed_key.m_boxed_gc_unit;
-    if (gc_unit->m_proxy == &_ex_box_proxy
+    if (gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
         && boxed_key.m_boxed_ex->m_is_int)
     {
         return boxed_key.m_boxed_ex->m_int == int_key;
@@ -490,7 +490,7 @@ WOORT_NODISCARD bool woort_DynBox_equal_real(woort_DynBox boxed_key, woort_Real 
 
     // 检查 ex value
     woort_GCUnit* const gc_unit = boxed_key.m_boxed_gc_unit;
-    if (gc_unit->m_proxy == &_ex_box_proxy
+    if (gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
         && !boxed_key.m_boxed_ex->m_is_int)
     {
         return boxed_key.m_boxed_ex->m_real == real_key;
