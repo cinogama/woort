@@ -195,6 +195,22 @@ void _woort_set_value(
     *dst = src;
 }
 
+void _woort_set_nil(
+    woort_Value* dst)
+{
+    assert(dst != NULL);
+
+    memset(dst, 0, sizeof(woort_Value));
+}
+
+void _woort_set_bool(
+    woort_Value* dst, bool src)
+{
+    assert(dst != NULL);
+
+    dst->m_integer = src ? 1 : 0;
+}
+
 void _woort_set_int(
     woort_Value* dst, woort_Int src)
 {
@@ -301,6 +317,15 @@ void _woort_set_box_real(
     dst->m_dynamic = boxed;
 }
 
+void _woort_set_box_bool(
+    woort_Value* dst, bool src)
+{
+    assert(dst != NULL);
+
+    woort_DynBox boxed = woort_DynBox_box_bool(src);
+    dst->m_dynamic = boxed;
+}
+
 void _woort_set_gchandle(
     woort_Value* dst,
     void* addr,
@@ -349,6 +374,15 @@ void woort_set_value(
     _woort_set_value(&_WOORT_API_STACK(dst), _WOORT_API_STACK(src));
 }
 
+void woort_set_nil(
+    woort_StackValue dst)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    _woort_set_nil(&_WOORT_API_STACK(dst));
+}
+
 void woort_set_int(
     woort_StackValue dst, woort_Int src)
 {
@@ -374,6 +408,15 @@ void woort_set_float(
     assert(vm != NULL);
 
     _woort_set_float(&_WOORT_API_STACK(dst), src);
+}
+
+void woort_set_bool(
+    woort_StackValue dst, bool src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    _woort_set_bool(&_WOORT_API_STACK(dst), src);
 }
 
 void woort_set_string(
@@ -439,6 +482,24 @@ void woort_set_box_real(
     _woort_set_box_real(&_WOORT_API_STACK(dst), src);
 }
 
+void woort_set_box_bool(
+    woort_StackValue dst, bool src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    _woort_set_box_bool(&_WOORT_API_STACK(dst), src);
+}
+
+void woort_set_box_nil(
+    woort_StackValue dst)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    _woort_set_box_nil(&_WOORT_API_STACK(dst));
+}
+
 void woort_set_gchandle(
     woort_StackValue dst,
     void* addr,
@@ -469,6 +530,14 @@ WOORT_NODISCARD woort_Int woort_int(woort_StackValue src)
     assert(vm != NULL);
 
     return _WOORT_API_STACK(src).m_integer;
+}
+
+WOORT_NODISCARD bool woort_bool(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    return _WOORT_API_STACK(src).m_integer != 0;
 }
 
 WOORT_NODISCARD woort_Real woort_real(woort_StackValue src)

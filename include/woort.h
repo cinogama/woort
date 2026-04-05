@@ -1044,12 +1044,17 @@ WOORT_API void woort_CodeEnv_set_const_box_real(
 // 
 WOORT_API void woort_set_value(
     woort_StackValue dst, woort_StackValue src);
+WOORT_API void woort_set_nil(
+    woort_StackValue dst);
+#define woort_set_void woort_set_nil
 WOORT_API void woort_set_int(
     woort_StackValue dst, woort_Int src);
 WOORT_API void woort_set_real(
     woort_StackValue dst, woort_Real src);
 WOORT_API void woort_set_float(
     woort_StackValue dst, float src);
+WOORT_API void woort_set_bool(
+    woort_StackValue dst, bool src);
 WOORT_API void woort_set_string(
     woort_StackValue dst, woort_U8CString src);
 WOORT_API void woort_set_buffer(
@@ -1074,10 +1079,13 @@ WOORT_API void woort_set_box_int(
     woort_StackValue dst, woort_Int src);
 WOORT_API void woort_set_box_real(
     woort_StackValue dst, woort_Real src);
+WOORT_API void woort_set_box_bool(
+    woort_StackValue dst, bool src);
 
 WOORT_API WOORT_NODISCARD woort_Int woort_int(woort_StackValue src);
 WOORT_API WOORT_NODISCARD woort_Real woort_real(woort_StackValue src);
 WOORT_API WOORT_NODISCARD float woort_float(woort_StackValue src);
+WOORT_API WOORT_NODISCARD bool woort_bool(woort_StackValue src);
 WOORT_API WOORT_NODISCARD woort_U8CString woort_string(woort_StackValue src);
 WOORT_API WOORT_NODISCARD const void* woort_buffer(
     woort_StackValue src, size_t* out_len);
