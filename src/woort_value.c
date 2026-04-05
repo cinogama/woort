@@ -166,6 +166,11 @@ woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
     }
     default:
         woort_panic(WOORT_PANIC_BAD_TYPE, "Unexpceted box type.");
+
+        // Return NIL.
+        woort_DynBox result;
+        result.m_boxed_gc_unit = NULL;
+        return result;
     }
 }
 
