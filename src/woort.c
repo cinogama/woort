@@ -463,6 +463,58 @@ void woort_set_gcstruct(
     _woort_set_gcstruct(&_WOORT_API_STACK(dst), addr, mark, close);
 }
 
+WOORT_NODISCARD woort_Int woort_int(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    return _WOORT_API_STACK(src).m_integer;
+}
+
+WOORT_NODISCARD woort_Real woort_real(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    return _WOORT_API_STACK(src).m_real;
+}
+
+WOORT_NODISCARD float woort_float(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    return (float)_WOORT_API_STACK(src).m_real;
+}
+
+WOORT_NODISCARD woort_U8CString woort_string(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    return _WOORT_API_STACK(src).m_string->m_content;
+}
+
+WOORT_NODISCARD const void* woort_buffer(
+    woort_StackValue src, size_t* out_len)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+    assert(out_len != NULL);
+
+    const woort_GCString* const str = _WOORT_API_STACK(src).m_string;
+    *out_len = str->m_length;
+    return str->m_content;
+}
+
+WOORT_NODISCARD void* woort_gcpointer(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    return ((woort_GCHandle*)_WOORT_API_STACK(src).m_gcinstance)->m_user_handle;
+}
+
 WOORT_NODISCARD bool woort_reserve_stack(
     size_t count, woort_StackValue* out_stack)
 {

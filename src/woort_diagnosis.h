@@ -20,6 +20,4 @@ typedef enum woort_PanicReason
 } woort_PanicReason;
 
 void woort_panic(
-    woort_PanicReason reason,
-    const char* msgfmt, 
-    ...);
+    woort_PanicReason reason, const char* msgfmt, ...);

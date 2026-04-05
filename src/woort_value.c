@@ -148,12 +148,19 @@ woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
     case WOORT_BOX_VALUE_TYPE_BOOL:
         return woort_DynBox_box_bool(val.m_integer);
     case WOORT_BOX_VALUE_TYPE_GCUNIT:
-    default:
+    case WOORT_BOX_VALUE_TYPE_STRING:
+    case WOORT_BOX_VALUE_TYPE_VEC:
+    case WOORT_BOX_VALUE_TYPE_MAP:
+    case WOORT_BOX_VALUE_TYPE_STRUCT:
+    case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+    case WOORT_BOX_VALUE_TYPE_CLOSURE:
     {
         woort_DynBox result;
         result.m_boxed_gc_unit = val.m_gcinstance;
         return result;
     }
+    default:
+        woort_panic(WOORT_PANIC_BAD_TYPE, "Unexpceted box type.");
     }
 }
 
@@ -218,13 +225,20 @@ void woort_DynBox_box_with_barrier(woort_DynBox* dst, woort_Value val, woort_Box
         woort_DynBox_box_bool_with_barrier(dst, val.m_integer);
         break;
     case WOORT_BOX_VALUE_TYPE_GCUNIT:
-    default:
+    case WOORT_BOX_VALUE_TYPE_STRING:
+    case WOORT_BOX_VALUE_TYPE_VEC:
+    case WOORT_BOX_VALUE_TYPE_MAP:
+    case WOORT_BOX_VALUE_TYPE_STRUCT:
+    case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+    case WOORT_BOX_VALUE_TYPE_CLOSURE:
     {
         woort_DynBox result;
         result.m_boxed_gc_unit = val.m_gcinstance;
         woort_GC_mixed_write_barrier_dynbox(dst, result);
         break;
     }
+    default:
+        woort_panic(WOORT_PANIC_BAD_TYPE, "Unexpceted box type.");
     }
 }
 
@@ -256,9 +270,15 @@ WOORT_NODISCARD bool woort_DynBox_check(
     case WOORT_BOX_VALUE_TYPE_BOOL:
         return 0 == (0b0111 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_BOOL));
         break;
+    case WOORT_BOX_VALUE_TYPE_STRING:
+    case WOORT_BOX_VALUE_TYPE_VEC:
+    case WOORT_BOX_VALUE_TYPE_MAP:
+    case WOORT_BOX_VALUE_TYPE_STRUCT:
+    case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+    case WOORT_BOX_VALUE_TYPE_CLOSURE:
     default:
         // TODO;
-        woort_panic(0, "todo");
+        woort_panic(WOORT_PANIC_BAD_TYPE, "Unexpceted box type.");
         return false;
     }
 }

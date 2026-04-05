@@ -87,6 +87,13 @@ typedef enum woort_BoxValueType
     WOORT_BOX_VALUE_TYPE_BOOL = 0b100,
 
     ////
+    WOORT_BOX_VALUE_TYPE_STRING = 0b1000,
+    WOORT_BOX_VALUE_TYPE_VEC,
+    WOORT_BOX_VALUE_TYPE_MAP,
+    WOORT_BOX_VALUE_TYPE_STRUCT,
+    WOORT_BOX_VALUE_TYPE_GCHANDLE,
+    WOORT_BOX_VALUE_TYPE_CLOSURE,
+
 } woort_BoxValueType;
 
 woort_DynBox woort_DynBox_box_real(woort_Real val);
