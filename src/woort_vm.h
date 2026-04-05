@@ -134,3 +134,5 @@ WOORT_NODISCARD bool woort_VMRuntime_request_accept(
 void woort_VMRuntime_hangup(woort_VMRuntime* vm);
 
 void woort_VMRuntime_wakeup(woort_VMRuntime* vm);
+
+WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_current(void);

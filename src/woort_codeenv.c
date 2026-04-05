@@ -232,21 +232,6 @@ WOORT_NODISCARD bool woort_CodeEnv_query_function(
     return true;
 }
 
-WOORT_NODISCARD bool woort_CodeEnv_query_constant(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    woort_value** out_constant_value)
-{
-    assert(code_env != NULL);
-    assert(out_constant_value != NULL);
-
-    if ((size_t)cidx >= code_env->m_data_count)
-        return false;
-
-    *out_constant_value = (woort_value*)&code_env->m_data_begin[cidx];
-    return true;
-}
-
 WOORT_NODISCARD bool woort_CodeEnv_find(
     const woort_Bytecode* addr, woort_CodeEnv** out_code_env)
 {

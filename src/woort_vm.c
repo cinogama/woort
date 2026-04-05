@@ -3523,3 +3523,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     }
     return last_vm;
 }
+
+WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_current(void)
+{
+    return t_this_thread_vm;
+}
