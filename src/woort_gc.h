@@ -65,7 +65,7 @@ static inline void woort_GC_mixed_write_barrier_dynbox(
         }
         if (modified_box->m_boxed_gc_unit != NULL
             && 0 == (modified_box->m_boxed & 0b0111))
-            woomem_try_mark_unit_head(modified_box->m_boxed_gc_unit);
+            woomem_try_mark_unit_head((intptr_t)modified_box->m_boxed_gc_unit);
     }
     *modified_box = src_box;
 }
