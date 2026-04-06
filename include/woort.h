@@ -1224,10 +1224,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_union_box_int(id, src) (woort_set_union_box_int(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_union_box_real(id, src) (woort_set_union_box_real(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_union_box_bool(id, src) (woort_set_union_box_bool(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
-
 #define woort_ret_union_gchandle(id, addr, hold, close) \
     (woort_set_union_gchandle(-1, id, addr, hold, close), WOORT_VM_CALL_STATUS_NORMAL)
-
 #define woort_ret_union_gcstruct(id, addr, mark, close) \
     (woort_set_union_gcstruct(-1, id, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
 
@@ -1246,15 +1244,12 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_option_box_int(src) (woort_set_option_box_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_option_box_real(src) (woort_set_option_box_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_option_box_bool(src) (woort_set_option_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-
 #define woort_ret_option_gchandle(addr, hold, close) \
     (woort_set_option_gchandle(-1, addr, hold, close), WOORT_VM_CALL_STATUS_NORMAL)
-
 #define woort_ret_option_gcstruct(addr, mark, close) \
     (woort_set_option_gcstruct(-1, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
 
 /* --- Return Result Ok --- */
-
 #define woort_ret_result_ok_value(src) (woort_set_result_ok_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_result_ok_nil() (woort_set_result_ok_nil(-1), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_result_ok_void() (woort_set_result_ok_void(-1), WOORT_VM_CALL_STATUS_NORMAL)
@@ -1267,16 +1262,12 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_result_ok_box_int(src) (woort_set_result_ok_box_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_result_ok_box_real(src) (woort_set_result_ok_box_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_result_ok_box_bool(src) (woort_set_result_ok_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-
 #define woort_ret_result_ok_gchandle(addr, hold, close) \
     (woort_set_result_ok_gchandle(-1, addr, hold, close), WOORT_VM_CALL_STATUS_NORMAL)
-
 #define woort_ret_result_ok_gcstruct(addr, mark, close) \
     (woort_set_result_ok_gcstruct(-1, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
 
 /* --- Return Result Err --- */
-
-#define woort_ret_result_err() (woort_set_result_err(-1), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_result_err_value(src) (woort_set_result_err_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_result_err_nil() (woort_set_result_err_nil(-1), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_result_err_void() (woort_set_result_err_void(-1), WOORT_VM_CALL_STATUS_NORMAL)
@@ -1289,12 +1280,12 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_result_err_box_int(src) (woort_set_result_err_box_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_result_err_box_real(src) (woort_set_result_err_box_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 #define woort_ret_result_err_box_bool(src) (woort_set_result_err_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-
 #define woort_ret_result_err_gchandle(addr, hold, close) \
     (woort_set_result_err_gchandle(-1, addr, hold, close), WOORT_VM_CALL_STATUS_NORMAL)
-
 #define woort_ret_result_err_gcstruct(addr, mark, close) \
     (woort_set_result_err_gcstruct(-1, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
+
+/* Read. */
 
 WOORT_API WOORT_NODISCARD woort_Int woort_int(woort_StackValue src);
 WOORT_API WOORT_NODISCARD woort_Real woort_real(woort_StackValue src);

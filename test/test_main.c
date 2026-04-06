@@ -13,27 +13,26 @@ woort_api print_int(woort_VMRuntime* vm)
 {
     (void)vm;
     printf("%lld\n", (long long)woort_int(0));
-    return WOORT_VM_CALL_STATUS_NORMAL;
+    return woort_ret_void();
 }
 
 woort_api print_string(woort_VMRuntime* vm)
 {
     (void)vm;
     printf("%s\n", woort_string(0));
-    return WOORT_VM_CALL_STATUS_NORMAL;
+    return woort_ret_void();
 }
 
 woort_api print_current_time(woort_VMRuntime* vm)
 {
     (void)vm;
-    woort_set_int(-1, (woort_Int)clock());
-    return WOORT_VM_CALL_STATUS_NORMAL;
+    return woort_ret_int((woort_Int)clock());
 }
 
 woort_api bar(woort_VMRuntime* vm)
 {
     (void)vm;
-    return WOORT_VM_CALL_STATUS_NORMAL;
+    return woort_ret_void();
 }
 
 void dump_Code(woort_CodeEnv* cenv)
