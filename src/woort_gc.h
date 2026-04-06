@@ -20,6 +20,28 @@ WOORT_NODISCARD bool woort_GC_register_root_vm(
 void woort_GC_unregister_root_vm(
     struct woort_VMRuntime* vmruntime);
 
+static inline void woort_GC_mixed_write_barrier_gcaddr(
+    void** modified_unit_addr, void* src_unit)
+{
+    if (g_gc_in_marking)
+    {
+        woomem_try_mark_unit((intptr_t)src_unit);
+        woomem_try_mark_unit((intptr_t)*modified_unit_addr);
+    }
+    *modified_unit_addr = src_unit;
+}
+
+static inline void woort_GC_mixed_write_barrier_gcunit(
+    woort_GCUnit** modified_unit_addr, woort_GCUnit* src_unit)
+{
+    if (g_gc_in_marking)
+    {
+        woomem_mark_unit_head(src_unit);
+        woomem_try_mark_unit_head((intptr_t)*modified_unit_addr);
+    }
+    *modified_unit_addr = src_unit;
+}
+
 static inline void woort_GC_mixed_write_barrier_value(
     woort_Value* modified_value, woort_Value src_value)
 {
@@ -43,7 +65,7 @@ static inline void woort_GC_mixed_write_barrier_dynbox(
         }
         if (modified_box->m_boxed_gc_unit != NULL
             && 0 == (modified_box->m_boxed & 0b0111))
-            woomem_mark_unit_head(modified_box->m_boxed_gc_unit);
+            woomem_try_mark_unit_head(modified_box->m_boxed_gc_unit);
     }
     *modified_box = src_box;
 }
@@ -63,9 +85,4 @@ static inline void woort_GC_delete_barrier_dynbox(
     {
         woomem_mark_unit_head(box.m_boxed_gc_unit);
     }
-}
-
-static inline void woort_GC_mixed_write_barrier_gcunit(
-    woort_GCUnit** modified_gcunit, woort_GCUnit* src_gcunit)
-{
 }
