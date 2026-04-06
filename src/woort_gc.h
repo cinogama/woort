@@ -64,3 +64,8 @@ static inline void woort_GC_delete_barrier_dynbox(
         woomem_mark_unit_head(box.m_boxed_gc_unit);
     }
 }
+
+static inline void woort_GC_mixed_write_barrier_gcunit(
+    woort_GCUnit** modified_gcunit, woort_GCUnit* src_gcunit)
+{
+}

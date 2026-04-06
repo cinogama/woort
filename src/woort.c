@@ -539,6 +539,186 @@ void woort_set_union_value(
     s->m_datas[1] = _WOORT_API_STACK(val);
 }
 
+void woort_set_union_nil(
+    woort_StackValue dst, woort_Int id)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    memset(&s->m_datas[1], 0, sizeof(woort_Value));
+}
+
+void woort_set_union_int(
+    woort_StackValue dst, woort_Int id, woort_Int src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    s->m_datas[1].m_integer = src;
+}
+
+void woort_set_union_real(
+    woort_StackValue dst, woort_Int id, woort_Real src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    s->m_datas[1].m_real = src;
+}
+
+void woort_set_union_float(
+    woort_StackValue dst, woort_Int id, float src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    s->m_datas[1].m_real = (woort_Real)src;
+}
+
+void woort_set_union_bool(
+    woort_StackValue dst, woort_Int id, bool src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    s->m_datas[1].m_integer = src ? 1 : 0;
+}
+
+void woort_set_union_string(
+    woort_StackValue dst, woort_Int id, woort_U8CString src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    const size_t len = strlen(src);
+    const woort_GCString* const str = woort_GCString_make_string(src, len);
+    assert(str != NULL);
+    s->m_datas[1].m_string = str;
+}
+
+void woort_set_union_buffer(
+    woort_StackValue dst, woort_Int id, const void* src, size_t len)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    const woort_GCString* const buf = woort_GCString_make_string((const char*)src, len);
+    assert(buf != NULL);
+    s->m_datas[1].m_string = buf;
+}
+
+void woort_set_union_vec(
+    woort_StackValue dst, woort_Int id, size_t cap)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    woort_GCVec* const vec = woort_GCVec_new();
+    assert(vec != NULL);
+    if (cap > 0)
+        woort_GCVec_resize(vec, cap);
+    s->m_datas[1].m_vec = vec;
+}
+
+void woort_set_union_map(
+    woort_StackValue dst, woort_Int id, size_t reserve)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    woort_GCMap* const map = woort_GCMap_new();
+    assert(map != NULL);
+    if (reserve > 0)
+        woort_GCMap_reserve(map, reserve);
+    s->m_datas[1].m_map = map;
+}
+
+void woort_set_union_struct(
+    woort_StackValue dst, woort_Int id, size_t cap)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    woort_GCStruct* const inner = woort_GCStruct_new(cap);
+    assert(inner != NULL);
+    s->m_datas[1].m_struct = inner;
+}
+
+void woort_set_union_gchandle(
+    woort_StackValue dst,
+    woort_Int id,
+    void* addr,
+    woort_StackValue hold,
+    woort_GCHandle_UserDestructFunction close)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    const woort_GCHandle* const handle = woort_GCHandle_new(addr, &_WOORT_API_STACK(hold), close);
+    assert(handle != NULL);
+    s->m_datas[1].m_gchandle = handle;
+}
+
+void woort_set_union_gcstruct(
+    woort_StackValue dst,
+    woort_Int id,
+    void* addr,
+    woort_GCHandle_UserMarkFunction mark,
+    woort_GCHandle_UserDestructFunction close)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    const woort_GCHandle* const handle = woort_GCHandle_new_with_marker(addr, mark, close);
+    assert(handle != NULL);
+    s->m_datas[1].m_gchandle = handle;
+}
+
+void woort_set_union_box_int(
+    woort_StackValue dst, woort_Int id, woort_Int src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    woort_DynBox const boxed = woort_DynBox_box_int(src);
+    s->m_datas[1].m_dynamic = boxed;
+}
+
+void woort_set_union_box_real(
+    woort_StackValue dst, woort_Int id, woort_Real src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    woort_DynBox const boxed = woort_DynBox_box_real(src);
+    s->m_datas[1].m_dynamic = boxed;
+}
+
+void woort_set_union_box_bool(
+    woort_StackValue dst, woort_Int id, bool src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    woort_DynBox const boxed = woort_DynBox_box_bool(src);
+    s->m_datas[1].m_dynamic = boxed;
+}
+
 /* Read */
 
 WOORT_NODISCARD woort_Int woort_int(woort_StackValue src)
