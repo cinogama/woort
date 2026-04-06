@@ -363,7 +363,7 @@ WOORT_NODISCARD woort_GCStruct* _woort_set_union(
     s->m_datas[0].m_integer = id;
     /* s->m_datas[1] = ... */
 
-    return dst->m_gcinstance = s;
+    return dst->m_struct = s;
 }
 
 /* Public Runtime API */
@@ -529,6 +529,15 @@ void woort_set_gcstruct(
     _woort_set_gcstruct(&_WOORT_API_STACK(dst), addr, mark, close);
 }
 
+void woort_set_union_without_value(
+    woort_StackValue dst, woort_Int id)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    _woort_set_nil(&s->m_datas[1]);
+}
 void woort_set_union_value(
     woort_StackValue dst, woort_Int id, woort_StackValue val)
 {

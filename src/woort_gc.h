@@ -21,7 +21,7 @@ void woort_GC_unregister_root_vm(
     struct woort_VMRuntime* vmruntime);
 
 static inline void woort_GC_mixed_write_barrier_gcaddr(
-    void** modified_unit_addr, void* src_unit)
+    const void** modified_unit_addr, const void* src_unit)
 {
     if (g_gc_in_marking)
     {
@@ -32,7 +32,7 @@ static inline void woort_GC_mixed_write_barrier_gcaddr(
 }
 
 static inline void woort_GC_mixed_write_barrier_gcunit(
-    woort_GCUnit** modified_unit_addr, woort_GCUnit* src_unit)
+    const void** modified_unit_addr, const void* src_unit)
 {
     if (g_gc_in_marking)
     {

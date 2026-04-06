@@ -1084,9 +1084,9 @@ WOORT_API void woort_set_map(
 WOORT_API void woort_set_struct(
     woort_StackValue dst, size_t cap);
 WOORT_API void woort_set_gchandle(
-    woort_StackValue dst, 
+    woort_StackValue dst,
     void* addr,
-    woort_StackValue hold, 
+    woort_StackValue hold,
     woort_GCHandle_UserDestructFunction close);
 WOORT_API void woort_set_gcstruct(
     woort_StackValue dst,
@@ -1100,6 +1100,8 @@ WOORT_API void woort_set_box_real(
 WOORT_API void woort_set_box_bool(
     woort_StackValue dst, bool src);
 
+WOORT_API void woort_set_union_without_value(
+    woort_StackValue dst, woort_Int id);
 WOORT_API void woort_set_union_value(
     woort_StackValue dst, woort_Int id, woort_StackValue val);
 WOORT_API void woort_set_union_nil(
@@ -1141,6 +1143,74 @@ WOORT_API void woort_set_union_box_real(
     woort_StackValue dst, woort_Int id, woort_Real src);
 WOORT_API void woort_set_union_box_bool(
     woort_StackValue dst, woort_Int id, bool src);
+
+#define woort_set_option_none(dst) woort_set_union_without_value(dst, 1)
+
+#define woort_set_option_value(dst, src) woort_set_union_value(dst, 0, src)
+#define woort_set_option_nil(dst) woort_set_union_nil(dst, 0)
+#define woort_set_option_void(dst) woort_set_union_void(dst, 0)
+#define woort_set_option_int(dst, src) woort_set_union_int(dst, 0, src)
+#define woort_set_option_real(dst, src) woort_set_union_real(dst, 0, src)
+#define woort_set_option_float(dst, src) woort_set_union_float(dst, 0, src)
+#define woort_set_option_bool(dst, src) woort_set_union_bool(dst, 0, src)
+#define woort_set_option_string(dst, src) woort_set_union_string(dst, 0, src)
+#define woort_set_option_buffer(dst, src, len) woort_set_union_buffer(dst, 0, src, len)
+#define woort_set_option_vec(dst, cap) woort_set_union_vec(dst, 0, cap)
+#define woort_set_option_map(dst, reserve) woort_set_union_map(dst, 0, reserve)
+#define woort_set_option_struct(dst, cap) woort_set_union_struct(dst, 0, cap)
+#define woort_set_option_box_int(dst, src) woort_set_union_box_int(dst, 0, src)
+#define woort_set_option_box_real(dst, src) woort_set_union_box_real(dst, 0, src)
+#define woort_set_option_box_bool(dst, src) woort_set_union_box_bool(dst, 0, src)
+#define woort_set_option_gchandle(dst, addr, hold, close) \
+    woort_set_union_gchandle(dst, 0, addr, hold, close)
+#define woort_set_option_gcstruct(dst, addr, mark, close) \
+    woort_set_union_gcstruct(dst, 0, addr, mark, close)
+
+/* ========== Result Ok/Err ========== */
+#define woort_set_result_ok_value woort_set_option_value
+#define woort_set_result_ok_nil woort_set_option_nil
+#define woort_set_result_ok_void woort_set_option_void
+#define woort_set_result_ok_int woort_set_option_int
+#define woort_set_result_ok_real woort_set_option_real
+#define woort_set_result_ok_float woort_set_option_float
+#define woort_set_result_ok_bool woort_set_option_bool
+#define woort_set_result_ok_string woort_set_option_string
+#define woort_set_result_ok_buffer woort_set_option_buffer
+#define woort_set_result_ok_vec woort_set_option_vec
+#define woort_set_result_ok_map woort_set_option_map
+#define woort_set_result_ok_struct woort_set_option_struct
+#define woort_set_result_ok_box_int woort_set_option_box_int
+#define woort_set_result_ok_box_real woort_set_option_box_real
+#define woort_set_result_ok_box_bool woort_set_option_box_bool
+#define woort_set_result_ok_gchandle woort_set_option_gchandle
+#define woort_set_result_ok_gcstruct woort_set_option_gcstruct
+
+#define woort_set_result_err_value(dst, src) woort_set_union_value(dst, 1, src)
+#define woort_set_result_err_nil(dst) woort_set_union_nil(dst, 1)
+#define woort_set_result_err_void(dst) woort_set_union_void(dst, 1)
+#define woort_set_result_err_int(dst, src) woort_set_union_int(dst, 1, src)
+#define woort_set_result_err_real(dst, src) woort_set_union_real(dst, 1, src)
+#define woort_set_result_err_float(dst, src) woort_set_union_float(dst, 1, src)
+#define woort_set_result_err_bool(dst, src) woort_set_union_bool(dst, 1, src)
+#define woort_set_result_err_string(dst, src) woort_set_union_string(dst, 1, src)
+#define woort_set_result_err_buffer(dst, src, len) woort_set_union_buffer(dst, 1, src, len)
+#define woort_set_result_err_vec(dst, cap) woort_set_union_vec(dst, 1, cap)
+#define woort_set_result_err_map(dst, reserve) woort_set_union_map(dst, 1, reserve)
+#define woort_set_result_err_struct(dst, cap) woort_set_union_struct(dst, 1, cap)
+#define woort_set_result_err_box_int(dst, src) woort_set_union_box_int(dst, 1, src)
+#define woort_set_result_err_box_real(dst, src) woort_set_union_box_real(dst, 1, src)
+#define woort_set_result_err_box_bool(dst, src) woort_set_union_box_bool(dst, 1, src)
+#define woort_set_result_err_gchandle(dst, addr, hold, close) \
+    woort_set_union_gchandle(dst, 1, addr, hold, close)
+#define woort_set_result_err_gcstruct(dst, addr, mark, close) \
+    woort_set_union_gcstruct(dst, 1, addr, mark, close)
+
+// Return
+#define woort_ret_value(val) (woort_set_value(-1, val), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_void( ) WOORT_VM_CALL_STATUS_NORMAL
+
+
+// Read
 
 WOORT_API WOORT_NODISCARD woort_Int woort_int(woort_StackValue src);
 WOORT_API WOORT_NODISCARD woort_Real woort_real(woort_StackValue src);
