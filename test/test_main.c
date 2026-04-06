@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
     woort_IRConstantIndex c_f_fib = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_1 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_2 = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex c_40 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_35 = woort_IRCompiler_add_constant(irc);
     {
         (void)woort_IRCompiler_add_function(irc, 1, &f_fib);
         {
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
 
         (void)woort_IRCompiler_add_function(irc, 0, &f_main);
         {
-            (void)woort_IR_PUSHCHK(f_main, woort_IRFunction_load_const(f_main, c_40));
+            (void)woort_IR_PUSHCHK(f_main, woort_IRFunction_load_const(f_main, c_35));
 
             woort_IRValue* v = woort_IRFunction_new_vreg(f_main);
             (void)woort_IR_CALLNWO(f_main, c_f_fib, 1, v);
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
     woort_CodeEnv_set_const_script_function(cenv, c_f_fib, fib_addr);
     woort_CodeEnv_set_const_int(cenv, c_1, 1);
     woort_CodeEnv_set_const_int(cenv, c_2, 2);
-    woort_CodeEnv_set_const_int(cenv, c_40, 40);
+    woort_CodeEnv_set_const_int(cenv, c_35, 35);
     woort_CodeEnv_unlock(cenv);
 
     dump_Code(cenv);
@@ -158,8 +158,8 @@ int main(int argc, char** argv) {
      *
      * Function: main()=> void
      * PUSHRCHK    1                           ; Reserving stack.
-     * PUSHCCHK    G[3]                        ; Push 40
-     * CALLNWO     G[2]                        ; Call fib(40)
+     * PUSHCCHK    G[3]                        ; Push 35
+     * CALLNWO     G[2]                        ; Call fib(35)
      * RESULT      [SB - 0], POP 1
      * RET
      */
@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
     woort_CodeEnv_set_const_int(codeenv, 0, 2);
     woort_CodeEnv_set_const_int(codeenv, 1, 1);
     woort_CodeEnv_set_const_script_function(codeenv, 2, codeenv->m_code_begin);
-    woort_CodeEnv_set_const_int(codeenv, 3, 40);
+    woort_CodeEnv_set_const_int(codeenv, 3, 35);
     woort_CodeEnv_unlock(codeenv);
 
     (void)woort_VMRuntime_create(&vm);
