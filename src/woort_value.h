@@ -23,6 +23,7 @@ typedef struct woort_GCMap woort_GCMap;
 typedef struct woort_GCVec woort_GCVec;
 typedef struct woort_GCStruct woort_GCStruct;
 typedef struct woort_GCClosure woort_GCClosure;
+typedef struct woort_GCHandle woort_GCHandle;
 
 typedef union woort_Value woort_Value;
 
@@ -67,6 +68,7 @@ union woort_Value
     woort_GCMap*            m_map;
     woort_GCStruct*         m_struct;
     const woort_GCClosure*  m_closure;
+    const woort_GCHandle*   m_gchandle;
 
     const woort_Bytecode*   m_script_function;
     woort_NativeFunction    m_native_function;

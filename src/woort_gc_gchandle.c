@@ -22,7 +22,7 @@ const woort_GCUnitProxy WOORT_GCHANDLE_UNIT_PROXY = {
     .m_marker = _woort_GCStruct_marker,
 };
 
-woort_GCHandle* woort_GCHandle_new(
+const woort_GCHandle* woort_GCHandle_new(
     void* addr,
     /* OPTIONAL */woort_Value* holding,
     woort_GCHandle_UserDestructFunction destructor)
@@ -44,7 +44,7 @@ woort_GCHandle* woort_GCHandle_new(
     return gchandle;
 }
 
-woort_GCHandle* woort_GCHandle_new_with_marker(
+const woort_GCHandle* woort_GCHandle_new_with_marker(
     void* addr,
     woort_GCHandle_UserMarkFunction marker,
     woort_GCHandle_UserDestructFunction destructor)

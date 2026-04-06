@@ -1100,6 +1100,48 @@ WOORT_API void woort_set_box_real(
 WOORT_API void woort_set_box_bool(
     woort_StackValue dst, bool src);
 
+WOORT_API void woort_set_union_value(
+    woort_StackValue dst, woort_Int id, woort_StackValue val);
+WOORT_API void woort_set_union_nil(
+    woort_StackValue dst, woort_Int id);
+#define woort_set_union_void woort_set_union_nil
+WOORT_API void woort_set_union_int(
+    woort_StackValue dst, woort_Int id, woort_Int src);
+WOORT_API void woort_set_union_real(
+    woort_StackValue dst, woort_Int id, woort_Real src);
+WOORT_API void woort_set_union_float(
+    woort_StackValue dst, woort_Int id, float src);
+WOORT_API void woort_set_union_bool(
+    woort_StackValue dst, woort_Int id, bool src);
+WOORT_API void woort_set_union_string(
+    woort_StackValue dst, woort_Int id, woort_U8CString src);
+WOORT_API void woort_set_union_buffer(
+    woort_StackValue dst, woort_Int id, const void* src, size_t len);
+WOORT_API void woort_set_union_vec(
+    woort_StackValue dst, woort_Int id, size_t cap);
+WOORT_API void woort_set_union_map(
+    woort_StackValue dst, woort_Int id, size_t reserve);
+WOORT_API void woort_set_union_struct(
+    woort_StackValue dst, woort_Int id, size_t cap);
+WOORT_API void woort_set_union_gchandle(
+    woort_StackValue dst,
+    woort_Int id,
+    void* addr,
+    woort_StackValue hold,
+    woort_GCHandle_UserDestructFunction close);
+WOORT_API void woort_set_union_gcstruct(
+    woort_StackValue dst,
+    woort_Int id,
+    void* addr,
+    woort_GCHandle_UserMarkFunction mark,
+    woort_GCHandle_UserDestructFunction close);
+WOORT_API void woort_set_union_box_int(
+    woort_StackValue dst, woort_Int id, woort_Int src);
+WOORT_API void woort_set_union_box_real(
+    woort_StackValue dst, woort_Int id, woort_Real src);
+WOORT_API void woort_set_union_box_bool(
+    woort_StackValue dst, woort_Int id, bool src);
+
 WOORT_API WOORT_NODISCARD woort_Int woort_int(woort_StackValue src);
 WOORT_API WOORT_NODISCARD woort_Real woort_real(woort_StackValue src);
 WOORT_API WOORT_NODISCARD float woort_float(woort_StackValue src);

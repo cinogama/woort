@@ -9,7 +9,7 @@ woort_gc_gchandle.h
 #include "woort_gc_units.h"
 #include "woort_value.h"
 
-typedef struct woort_GCHandle
+struct woort_GCHandle
 {
     woort_GCUnit    m_gc_unit;
     /* =========================== */
@@ -21,16 +21,16 @@ typedef struct woort_GCHandle
     void* m_user_handle;
     woort_GCHandle_UserDestructFunction m_user_destruct_callback;
 
-} woort_GCHandle;
+};
 
 extern const woort_GCUnitProxy WOORT_GCHANDLE_UNIT_PROXY;
 
-woort_GCHandle* woort_GCHandle_new(
+const woort_GCHandle* woort_GCHandle_new(
     void* addr, 
     /* OPTIONAL */woort_Value* holding,  
     woort_GCHandle_UserDestructFunction destructor);
 
-woort_GCHandle* woort_GCHandle_new_with_marker(
+const woort_GCHandle* woort_GCHandle_new_with_marker(
     void* addr,
     woort_GCHandle_UserMarkFunction marker,
     woort_GCHandle_UserDestructFunction destructor);

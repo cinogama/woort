@@ -242,7 +242,7 @@ void _woort_set_string(
     assert(src != NULL);
 
     size_t len = strlen(src);
-    const woort_GCString* str = woort_GCString_make_string(src, len);
+    const woort_GCString* const str = woort_GCString_make_string(src, len);
     assert(str != NULL);
 
     dst->m_string = str;
@@ -254,7 +254,7 @@ void _woort_set_buffer(
     assert(dst != NULL);
     assert(src != NULL);
 
-    const woort_GCString* buf = woort_GCString_make_string((const char*)src, len);
+    const woort_GCString* const buf = woort_GCString_make_string((const char*)src, len);
     assert(buf != NULL);
 
     dst->m_string = buf;
@@ -265,7 +265,7 @@ void _woort_set_vec(
 {
     assert(dst != NULL);
 
-    woort_GCVec* vec = woort_GCVec_new();
+    woort_GCVec* const vec = woort_GCVec_new();
     assert(vec != NULL);
 
     if (cap > 0)
@@ -279,7 +279,7 @@ void _woort_set_map(
 {
     assert(dst != NULL);
 
-    woort_GCMap* map = woort_GCMap_new();
+    woort_GCMap* const map = woort_GCMap_new();
     assert(map != NULL);
 
     if (reserve > 0)
@@ -293,7 +293,7 @@ void _woort_set_struct(
 {
     assert(dst != NULL);
 
-    woort_GCStruct* s = woort_GCStruct_new(reserve);
+    woort_GCStruct* const s = woort_GCStruct_new(reserve);
     assert(s != NULL);
 
     dst->m_struct = s;
@@ -304,7 +304,7 @@ void _woort_set_box_int(
 {
     assert(dst != NULL);
 
-    woort_DynBox boxed = woort_DynBox_box_int(src);
+    woort_DynBox const boxed = woort_DynBox_box_int(src);
     dst->m_dynamic = boxed;
 }
 
@@ -313,7 +313,7 @@ void _woort_set_box_real(
 {
     assert(dst != NULL);
 
-    woort_DynBox boxed = woort_DynBox_box_real(src);
+    woort_DynBox const boxed = woort_DynBox_box_real(src);
     dst->m_dynamic = boxed;
 }
 
@@ -322,7 +322,7 @@ void _woort_set_box_bool(
 {
     assert(dst != NULL);
 
-    woort_DynBox boxed = woort_DynBox_box_bool(src);
+    woort_DynBox const boxed = woort_DynBox_box_bool(src);
     dst->m_dynamic = boxed;
 }
 
@@ -334,10 +334,10 @@ void _woort_set_gchandle(
 {
     assert(dst != NULL);
 
-    woort_GCHandle* handle = woort_GCHandle_new(addr, holding, close);
+    const woort_GCHandle* const handle = woort_GCHandle_new(addr, holding, close);
     assert(handle != NULL);
 
-    dst->m_gcinstance = (woort_GCUnit*)handle;
+    dst->m_gchandle = handle;
 }
 
 void _woort_set_gcstruct(
@@ -348,10 +348,22 @@ void _woort_set_gcstruct(
 {
     assert(dst != NULL);
 
-    woort_GCHandle* handle = woort_GCHandle_new_with_marker(addr, mark, close);
+    const woort_GCHandle* const handle = woort_GCHandle_new_with_marker(addr, mark, close);
     assert(handle != NULL);
 
-    dst->m_gcinstance = (woort_GCUnit*)handle;
+    dst->m_gchandle = handle;
+}
+
+WOORT_NODISCARD woort_GCStruct* _woort_set_union(
+    woort_Value* dst, woort_Int id)
+{
+    assert(dst != NULL);
+    woort_GCStruct* const s = woort_GCStruct_new(2);
+
+    s->m_datas[0].m_integer = id;
+    /* s->m_datas[1] = ... */
+
+    return dst->m_gcinstance = s;
 }
 
 /* Public Runtime API */
@@ -364,6 +376,8 @@ SB+2，储存函数的返回状态）。当前栈帧自 -3 开始，向负数方
 方向。
 */
 #define _WOORT_API_STACK(N) vm->m_sb[3 + N]
+
+/* Write */
 
 void woort_set_value(
     woort_StackValue dst, woort_StackValue src)
@@ -491,15 +505,6 @@ void woort_set_box_bool(
     _woort_set_box_bool(&_WOORT_API_STACK(dst), src);
 }
 
-void woort_set_box_nil(
-    woort_StackValue dst)
-{
-    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
-    assert(vm != NULL);
-
-    _woort_set_box_nil(&_WOORT_API_STACK(dst));
-}
-
 void woort_set_gchandle(
     woort_StackValue dst,
     void* addr,
@@ -523,6 +528,18 @@ void woort_set_gcstruct(
 
     _woort_set_gcstruct(&_WOORT_API_STACK(dst), addr, mark, close);
 }
+
+void woort_set_union_value(
+    woort_StackValue dst, woort_Int id, woort_StackValue val)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    s->m_datas[1] = _WOORT_API_STACK(val);
+}
+
+/* Read */
 
 WOORT_NODISCARD woort_Int woort_int(woort_StackValue src)
 {
