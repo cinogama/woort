@@ -802,3 +802,17 @@ WOORT_NODISCARD woort_BoxValueType woort_unbox_type(woort_StackValue src)
     woort_panic(WOORT_PANIC_BAD_TYPE, "Unknown boxed type.");
     return WOORT_BOX_VALUE_TYPE_NIL;
 }
+
+WOORT_NODISCARD woort_Int woort_union_get(
+    woort_StackValue dst, woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+
+    _WOORT_API_STACK(dst) = s->m_datas[1];
+
+    return s->m_datas[0].m_integer;
+}

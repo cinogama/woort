@@ -1286,7 +1286,6 @@ WOORT_API void woort_set_union_box_bool(
     (woort_set_result_err_gcstruct(-1, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
 
 /* Read. */
-
 WOORT_API WOORT_NODISCARD woort_Int woort_int(woort_StackValue src);
 WOORT_API WOORT_NODISCARD woort_Real woort_real(woort_StackValue src);
 WOORT_API WOORT_NODISCARD float woort_float(woort_StackValue src);
@@ -1302,7 +1301,21 @@ WOORT_API WOORT_NODISCARD bool woort_unbox_bool(woort_StackValue src);
 WOORT_API WOORT_NODISCARD woort_BoxValueType woort_unbox_type(
     woort_StackValue src);
 
+WOORT_API WOORT_NODISCARD woort_Int woort_union_get(
+    woort_StackValue dst, woort_StackValue src);
 
+#define woort_option_get(dst, src) \
+    (0 == woort_union_get(dst, src))
+#define woort_result_get(dst, src) \
+    (0 == woort_union_get(dst, src))
+
+/* Vector */
+WOORT_API WOORT_NODISCARD size_t woort_vec_len(woort_StackValue src);
+WOORT_API WOORT_NODISCARD size_t woort_vec_get(
+    woort_StackValue dst, woort_StackValue src, size_t index);
+
+WOORT_API WOORT_NODISCARD size_t woort_vec_set(
+    woort_StackValue src, size_t index, woort_StackValue elem);
 
 #undef WOORT_API
 
