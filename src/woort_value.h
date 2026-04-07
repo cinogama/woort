@@ -122,7 +122,6 @@ WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b);
 
 WOORT_NODISCARD size_t _woort_hash_int(woort_Int val);
 WOORT_NODISCARD size_t _woort_hash_real(woort_Real val);
-WOORT_NODISCARD size_t _woort_hash_string(const char* str, size_t len);
 
 // 解装箱函数
 WOORT_NODISCARD double _woort_unbox_float64(woort_BoxedFloat63 val);

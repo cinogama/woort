@@ -7,6 +7,7 @@
 
 #include "woomem.h"
 #include "woort_gc_string.h"
+#include "woort_util.h"
 
 const woort_GCUnitProxy WOORT_GCSTRING_UNIT_PROXY = {
     .m_destructor = NULL,
@@ -60,18 +61,7 @@ WOORT_NODISCARD int woort_GCString_compare(const woort_GCString* a, const woort_
 
 WOORT_NODISCARD size_t woort_GCString_hash(const woort_GCString* str)
 {
-    // FNV-1a hash algorithm
-    size_t hash = 14695981039346656037ULL; // FNV offset basis
-    const unsigned char* ptr = (const unsigned char*)str->m_content;
-    const unsigned char* end = ptr + str->m_length;
-
-    while (ptr < end)
-    {
-        hash ^= (size_t)*ptr++;
-        hash *= 1099511628211ULL; // FNV prime
-    }
-
-    return hash;
+    return woort_hash_string(str->m_content, str->m_length);
 }
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int value)

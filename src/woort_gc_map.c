@@ -4,6 +4,7 @@
 #include "woort_gc.h"
 #include "woort_gc_map.h"
 #include "woort_gc_string.h"
+#include "woort_util.h"
 
 const woort_GCUnitProxy WOORT_GCMAP_UNIT_PROXY = {
     .m_destructor = NULL,
@@ -499,7 +500,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_strin
     if (gcmap->m_size == 0)
         return NULL;
 
-    const size_t hash = _woort_hash_string(key, len);
+    const size_t hash = woort_hash_string(key, len);
     const size_t entry_idx = hash & gcmap->m_mask;
 
     uint32_t idx = gcmap->m_entries[entry_idx];
@@ -524,7 +525,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
     if (gcmap->m_size >= gcmap->m_mask)
         woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
 
-    const size_t hash = _woort_hash_string(key, len);
+    const size_t hash = woort_hash_string(key, len);
     const size_t entry_idx = hash & gcmap->m_mask;
 
     const woort_GCString* const str = woort_GCString_make_string(key, len);

@@ -556,21 +556,6 @@ WOORT_NODISCARD size_t _woort_hash_real(woort_Real val)
     return hash;
 }
 
-WOORT_NODISCARD size_t _woort_hash_string(const char* str, size_t len)
-{
-    size_t hash = 14695981039346656037ULL;
-    const unsigned char* ptr = (const unsigned char*)str;
-    const unsigned char* const end = ptr + len;
-
-    while (ptr < end)
-    {
-        hash ^= (size_t)*ptr++;
-        hash *= 1099511628211ULL;
-    }
-
-    return hash;
-}
-
 WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val)
 {
     if (val.m_boxed & 0b0111)

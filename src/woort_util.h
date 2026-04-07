@@ -17,6 +17,10 @@ WOORT_NODISCARD size_t woort_util_abs_diff(
 WOORT_NODISCARD size_t woort_util_ptr_hash(
     const void* ptr_addr);
 
+WOORT_NODISCARD size_t woort_hash_string(
+    const char* str,
+    size_t len);
+
 WOORT_NODISCARD bool woort_util_ptr_equal(
-    const void* ptr_a_addr, 
+    const void* ptr_a_addr,
     const void* ptr_b_addr);
