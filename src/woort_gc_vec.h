@@ -27,3 +27,10 @@ woort_GCVec* woort_GCVec_new(void);
 
 void woort_GCVec_resize(woort_GCVec* vec, size_t size);
 void woort_GCVec_push_back(woort_GCVec* vec, woort_DynBox boxed_value);
+
+woort_DynBox woort_GCVec_get(const woort_GCVec* vec, size_t index);
+void woort_GCVec_set(woort_GCVec* vec, size_t index, woort_DynBox boxed_value);
+void woort_GCVec_pop_back(woort_GCVec* vec);
+void woort_GCVec_insert(woort_GCVec* vec, size_t index, woort_DynBox boxed_value);
+void woort_GCVec_erase(woort_GCVec* vec, size_t index);
+void woort_GCVec_clear(woort_GCVec* vec);

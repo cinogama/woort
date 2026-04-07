@@ -1,10 +1,12 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <assert.h>
 
 #include "woomem.h"
 #include "woort_gc.h"
 #include "woort_gc_vec.h"
+#include "woort_diagnosis.h"
 
 const woort_GCUnitProxy WOORT_GCVEC_UNIT_PROXY = {
     .m_destructor = NULL,
@@ -52,6 +54,76 @@ void woort_GCVec_push_back(woort_GCVec* vec, woort_DynBox boxed_value)
 
     woort_GC_mixed_write_barrier_dynbox(
         &vec->m_datas[vec->m_length++], boxed_value);
+}
+
+woort_DynBox woort_GCVec_get(const woort_GCVec* vec, size_t index)
+{
+    if (index >= vec->m_length)
+        woort_panic(WOORT_PANIC_INDEX_OUT_OF_RANGE, "vec index out of range");
+
+    return vec->m_datas[index];
+}
+
+void woort_GCVec_set(woort_GCVec* vec, size_t index, woort_DynBox boxed_value)
+{
+    if (index >= vec->m_length)
+        woort_panic(WOORT_PANIC_INDEX_OUT_OF_RANGE, "vec index out of range");
+
+    woort_GC_mixed_write_barrier_dynbox(
+        &vec->m_datas[index], boxed_value);
+}
+
+void woort_GCVec_pop_back(woort_GCVec* vec)
+{
+    assert(vec->m_length > 0);
+
+    woort_GC_delete_barrier_dynbox(
+        vec->m_datas[vec->m_length - 1]);
+    vec->m_length--;
+}
+
+void woort_GCVec_insert(woort_GCVec* vec, size_t index, woort_DynBox boxed_value)
+{
+    if (index > vec->m_length)
+        woort_panic(WOORT_PANIC_INDEX_OUT_OF_RANGE, "vec insert index out of range");
+
+    _woort_GCVec_assure_vec_space(vec, vec->m_length + 1);
+
+    if (index < vec->m_length)
+    {
+        memmove(
+            &vec->m_datas[index + 1],
+            &vec->m_datas[index],
+            (vec->m_length - index) * sizeof(woort_DynBox));
+    }
+
+    woort_GC_mixed_write_barrier_dynbox(
+        &vec->m_datas[index], boxed_value);
+    vec->m_length++;
+}
+
+void woort_GCVec_erase(woort_GCVec* vec, size_t index)
+{
+    if (index >= vec->m_length)
+        woort_panic(WOORT_PANIC_INDEX_OUT_OF_RANGE, "vec erase index out of range");
+
+    woort_GC_delete_barrier_dynbox(
+        vec->m_datas[index]);
+
+    if (index < vec->m_length - 1)
+    {
+        memmove(
+            &vec->m_datas[index],
+            &vec->m_datas[index + 1],
+            (vec->m_length - index - 1) * sizeof(woort_DynBox));
+    }
+
+    vec->m_length--;
+}
+
+void woort_GCVec_clear(woort_GCVec* vec)
+{
+    vec->m_length = 0;
 }
 
 

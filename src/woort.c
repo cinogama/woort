@@ -822,3 +822,117 @@ WOORT_NODISCARD woort_Int woort_union_get(
 
     return s->m_datas[0].m_integer;
 }
+
+/* ========== Vector ========== */
+
+WOORT_NODISCARD size_t woort_vec_len(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    return vec->m_length;
+}
+
+void woort_vec_resize(woort_StackValue src, size_t new_size)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    woort_GCVec_resize(vec, new_size);
+}
+
+void woort_vec_get(
+    woort_StackValue dst_boxed,
+    woort_StackValue src,
+    size_t index)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    _WOORT_API_STACK(dst_boxed).m_dynamic = woort_GCVec_get(vec, index);
+}
+
+void woort_vec_set(
+    woort_StackValue src,
+    size_t index,
+    woort_StackValue elem_boxed)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    woort_GCVec_set(vec, index, _WOORT_API_STACK(elem_boxed).m_dynamic);
+}
+
+void woort_vec_push(
+    woort_StackValue src,
+    woort_StackValue elem_boxed)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    woort_GCVec_push_back(vec, _WOORT_API_STACK(elem_boxed).m_dynamic);
+}
+
+void woort_vec_pop(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    woort_GCVec_pop_back(vec);
+}
+
+void woort_vec_insert(
+    woort_StackValue src,
+    size_t index,
+    woort_StackValue elem_boxed)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    woort_GCVec_insert(vec, index, _WOORT_API_STACK(elem_boxed).m_dynamic);
+}
+
+void woort_vec_erase(
+    woort_StackValue src,
+    size_t index)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    woort_GCVec_erase(vec, index);
+}
+
+void woort_vec_clear(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    woort_GCVec_clear(vec);
+}
