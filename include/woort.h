@@ -1026,7 +1026,7 @@ WOORT_API void woort_pop(size_t count);
 
 WOORT_API void woort_import_value(
     woort_StackValue dst, 
-    woort_VMRuntime* vm, 
+    woort_VMRuntime* src_vm, 
     woort_StackValue src_in_vm);
 
 WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_invoke(

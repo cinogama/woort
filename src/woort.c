@@ -727,6 +727,20 @@ void woort_pop(size_t count)
     vm->m_sp += count;
 }
 
+void woort_import_value(
+    woort_StackValue dst,
+    woort_VMRuntime* src_vm,
+    woort_StackValue src_in_vm)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+    assert(src_vm != NULL);
+
+    woort_GC_mixed_write_barrier_value(
+        &_WOORT_API_STACK(dst),
+        src_vm->m_sb[3 + src_in_vm]);
+}
+
 WOORT_NODISCARD woort_Int woort_unbox_int(woort_StackValue src)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
