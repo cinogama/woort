@@ -665,7 +665,7 @@ WOORT_NODISCARD void* woort_gcpointer(woort_StackValue src)
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    return ((woort_GCHandle*)_WOORT_API_STACK(src).m_gcinstance)->m_user_handle;
+    return _WOORT_API_STACK(src).m_gchandle->m_user_handle;
 }
 
 WOORT_NODISCARD bool woort_reserve_stack(

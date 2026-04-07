@@ -1355,6 +1355,168 @@ WOORT_API void woort_vec_erase(
 
 WOORT_API void woort_vec_clear(woort_StackValue src);
 
+/* ========== Mapping ========== */
+
+/* --- Mapping Capacity --- */
+
+WOORT_API WOORT_NODISCARD size_t woort_map_len(woort_StackValue src);
+
+WOORT_API void woort_map_reserve(
+    woort_StackValue src,
+    size_t reserve);
+
+/* --- Mapping Lookup --- */
+
+/*
+ * Lookup key in map. If found, write value to dst and return true.
+ * If not found, return false (dst is unmodified).
+ */
+WOORT_API WOORT_NODISCARD bool woort_map_get(
+    woort_StackValue dst,
+    woort_StackValue src,
+    woort_StackValue boxed_key);
+
+/*
+ * Lookup by int key. If found, write value to dst and return true.
+ */
+WOORT_API WOORT_NODISCARD bool woort_map_get_int(
+    woort_StackValue dst,
+    woort_StackValue src,
+    woort_Int key);
+
+/*
+ * Lookup by real key. If found, write value to dst and return true.
+ */
+WOORT_API WOORT_NODISCARD bool woort_map_get_real(
+    woort_StackValue dst,
+    woort_StackValue src,
+    woort_Real key);
+
+/*
+ * Lookup by bool key. If found, write value to dst and return true.
+ */
+WOORT_API WOORT_NODISCARD bool woort_map_get_bool(
+    woort_StackValue dst,
+    woort_StackValue src,
+    bool key);
+
+/*
+ * Lookup by string key. If found, write value to dst and return true.
+ */
+WOORT_API WOORT_NODISCARD bool woort_map_get_string(
+    woort_StackValue dst,
+    woort_StackValue src,
+    woort_U8CString key);
+
+/* --- Mapping Insert / Update --- */
+
+/*
+ * Insert or update: map[key] = val.
+ * Returns true if the key was newly inserted, false if an existing key was updated.
+ */
+WOORT_API WOORT_NODISCARD bool woort_map_set(
+    woort_StackValue src,
+    woort_StackValue boxed_key,
+    woort_StackValue boxed_val);
+
+WOORT_API WOORT_NODISCARD bool woort_map_set_int(
+    woort_StackValue src,
+    woort_Int key,
+    woort_StackValue boxed_val);
+
+WOORT_API WOORT_NODISCARD bool woort_map_set_real(
+    woort_StackValue src,
+    woort_Real key,
+    woort_StackValue boxed_val);
+
+WOORT_API WOORT_NODISCARD bool woort_map_set_bool(
+    woort_StackValue src,
+    bool key,
+    woort_StackValue boxed_val);
+
+WOORT_API WOORT_NODISCARD bool woort_map_set_string(
+    woort_StackValue src,
+    woort_U8CString key,
+    woort_StackValue boxed_val);
+
+/* --- Mapping Erase --- */
+
+/*
+ * Erase a key-value pair from the map. Returns true if the key existed and was removed.
+ */
+WOORT_API WOORT_NODISCARD bool woort_map_erase(
+    woort_StackValue src,
+    woort_StackValue boxed_key);
+
+WOORT_API WOORT_NODISCARD bool woort_map_erase_int(
+    woort_StackValue src,
+    woort_Int key);
+
+WOORT_API WOORT_NODISCARD bool woort_map_erase_real(
+    woort_StackValue src,
+    woort_Real key);
+
+WOORT_API WOORT_NODISCARD bool woort_map_erase_bool(
+    woort_StackValue src,
+    bool key);
+
+WOORT_API WOORT_NODISCARD bool woort_map_erase_string(
+    woort_StackValue src,
+    woort_U8CString key);
+
+/* --- Mapping Contains --- */
+
+WOORT_API WOORT_NODISCARD bool woort_map_contains(
+    woort_StackValue src,
+    woort_StackValue boxed_key);
+
+WOORT_API WOORT_NODISCARD bool woort_map_contains_int(
+    woort_StackValue src,
+    woort_Int key);
+
+WOORT_API WOORT_NODISCARD bool woort_map_contains_real(
+    woort_StackValue src,
+    woort_Real key);
+
+WOORT_API WOORT_NODISCARD bool woort_map_contains_bool(
+    woort_StackValue src,
+    bool key);
+
+WOORT_API WOORT_NODISCARD bool woort_map_contains_string(
+    woort_StackValue src,
+    woort_U8CString key);
+
+/* --- Mapping Iteration --- */
+
+/*
+ * Retrieve the key-value pair at the given iterator index.
+ * Returns false if the index is out of range or the slot is empty (tombstone).
+ * On success, writes key to out_key and value to out_val.
+ */
+WOORT_API WOORT_NODISCARD bool woort_map_iter(
+    woort_StackValue src,
+    size_t index,
+    woort_StackValue out_boxed_key,
+    woort_StackValue out_boxed_val);
+
+/* ========== Struct ========== */
+
+/* --- Struct Capacity --- */
+
+WOORT_API WOORT_NODISCARD size_t woort_struct_len(woort_StackValue src);
+
+/* --- Struct Field Access --- */
+
+WOORT_API void woort_struct_get(
+    woort_StackValue dst,
+    woort_StackValue src,
+    size_t index);
+
+WOORT_API void woort_struct_set(
+    woort_StackValue src,
+    size_t index,
+    woort_StackValue val);
+
 #undef WOORT_API
 
 #ifdef __cplusplus
