@@ -3,6 +3,7 @@
 #include "woomem.h"
 #include "woort_gc.h"
 #include "woort_gc_map.h"
+#include "woort_gc_string.h"
 
 const woort_GCUnitProxy WOORT_GCMAP_UNIT_PROXY = {
     .m_destructor = NULL,
@@ -472,6 +473,72 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
     new_bucket->m_prev = NULL_BUCKET_INDEX;
 
     /* 将新 bucket 链接到链表头部 */
+    const uint32_t head_idx = gcmap->m_entries[entry_idx];
+    if (head_idx == NULL_BUCKET_INDEX)
+    {
+        gcmap->m_entries[entry_idx] = new_idx;
+    }
+    else
+    {
+        new_bucket->m_next = head_idx;
+        gcmap->m_buckets[head_idx].m_prev = new_idx;
+        gcmap->m_entries[entry_idx] = new_idx;
+    }
+
+    ++gcmap->m_size;
+    return &new_bucket->m_val;
+}
+
+////////////////////////////////////////////////////////////////////////
+// 类型特化的查找函数：string
+////////////////////////////////////////////////////////////////////////
+
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_string(
+    woort_GCMap* gcmap, const char* key, size_t len)
+{
+    if (gcmap->m_size == 0)
+        return NULL;
+
+    const size_t hash = _woort_hash_string(key, len);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    uint32_t idx = gcmap->m_entries[entry_idx];
+    while (idx != NULL_BUCKET_INDEX)
+    {
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
+        if (woort_DynBox_equal_string(bucket->m_key, key, len))
+            return &bucket->m_val;
+        idx = bucket->m_next;
+    }
+
+    return NULL;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_string(
+    woort_GCMap* gcmap, const char* key, size_t len)
+{
+    woort_DynBox* const existing = woort_GCMap_get_bucket_val_by_string(gcmap, key, len);
+    if (existing != NULL)
+        return existing;
+
+    if (gcmap->m_size >= gcmap->m_mask)
+        woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
+
+    const size_t hash = _woort_hash_string(key, len);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    const woort_GCString* const str = woort_GCString_make_string(key, len);
+
+    const uint32_t new_idx = (uint32_t)gcmap->m_size;
+    woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+    {
+        woort_DynBox boxed;
+        boxed.m_boxed_gc_unit = (woort_GCUnit*)str;
+        woort_GC_mixed_write_barrier_dynbox(&new_bucket->m_key, boxed);
+    }
+    new_bucket->m_next = NULL_BUCKET_INDEX;
+    new_bucket->m_prev = NULL_BUCKET_INDEX;
+
     const uint32_t head_idx = gcmap->m_entries[entry_idx];
     if (head_idx == NULL_BUCKET_INDEX)
     {

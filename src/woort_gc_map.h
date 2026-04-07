@@ -50,6 +50,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_bool(
     woort_GCMap* gcmap, bool key);
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_dynbox(
     woort_GCMap* gcmap, woort_DynBox key);
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_string(
+    woort_GCMap* gcmap, const char* key, size_t len);
  
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_int(
     woort_GCMap* gcmap, woort_Int key);
@@ -59,3 +61,5 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
     woort_GCMap* gcmap, bool key);
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_dynbox(
     woort_GCMap* gcmap, woort_DynBox key);
+WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_string(
+    woort_GCMap* gcmap, const char* key, size_t len);

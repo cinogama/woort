@@ -120,9 +120,9 @@ WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b);
 // 内部函数：用于类型特化操作，避免装箱分配
 ////////////////////////////////////////////////////////////////////////
 
-// 整数/浮点数/布尔值的哈希函数
 WOORT_NODISCARD size_t _woort_hash_int(woort_Int val);
 WOORT_NODISCARD size_t _woort_hash_real(woort_Real val);
+WOORT_NODISCARD size_t _woort_hash_string(const char* str, size_t len);
 
 // 解装箱函数
 WOORT_NODISCARD double _woort_unbox_float64(woort_BoxedFloat63 val);
@@ -152,3 +152,4 @@ WOORT_NODISCARD bool woort_DynBox_equal_int(woort_DynBox boxed_key, woort_Int in
 WOORT_NODISCARD bool woort_DynBox_equal_real(woort_DynBox boxed_key, woort_Real real_key);
 WOORT_NODISCARD bool woort_DynBox_equal_bool(woort_DynBox boxed_key, bool bool_key);
 WOORT_NODISCARD bool woort_DynBox_equal_gcunit(woort_DynBox boxed_key, /* OPTIONAL */ woort_GCUnit* gcunit_key);
+WOORT_NODISCARD bool woort_DynBox_equal_string(woort_DynBox boxed_key, const char* str, size_t len);

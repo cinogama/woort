@@ -556,6 +556,21 @@ WOORT_NODISCARD size_t _woort_hash_real(woort_Real val)
     return hash;
 }
 
+WOORT_NODISCARD size_t _woort_hash_string(const char* str, size_t len)
+{
+    size_t hash = 14695981039346656037ULL;
+    const unsigned char* ptr = (const unsigned char*)str;
+    const unsigned char* const end = ptr + len;
+
+    while (ptr < end)
+    {
+        hash ^= (size_t)*ptr++;
+        hash *= 1099511628211ULL;
+    }
+
+    return hash;
+}
+
 WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val)
 {
     if (val.m_boxed & 0b0111)
@@ -706,9 +721,24 @@ WOORT_NODISCARD bool woort_DynBox_equal_bool(woort_DynBox boxed_key, bool bool_k
 
 WOORT_NODISCARD bool woort_DynBox_equal_gcunit(woort_DynBox boxed_key, /* OPTIONAL */ woort_GCUnit* gcunit_key)
 {
-    // GCUnit 类型：低 3 位必须为 0
     if (boxed_key.m_boxed & 0b0111)
         return false;
 
     return boxed_key.m_boxed_gc_unit == gcunit_key;
+}
+
+WOORT_NODISCARD bool woort_DynBox_equal_string(woort_DynBox boxed_key, const char* str, size_t len)
+{
+    if (boxed_key.m_boxed & 0b0111)
+        return false;
+
+    woort_GCUnit* const gc_unit = boxed_key.m_boxed_gc_unit;
+    if (gc_unit == NULL || gc_unit->m_proxy != &WOORT_GCSTRING_UNIT_PROXY)
+        return false;
+
+    const woort_GCString* const gc_str = (const woort_GCString*)gc_unit;
+    if (gc_str->m_length != len)
+        return false;
+
+    return memcmp(gc_str->m_content, str, len) == 0;
 }

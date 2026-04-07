@@ -1055,18 +1055,11 @@ WOORT_NODISCARD bool woort_map_get_string(
     assert(gcmap != NULL);
 
     const size_t len = strlen(key);
-    const woort_GCString* const str = woort_GCString_make_string(key, len);
-    assert(str != NULL);
-
-    woort_Value str_val;
-    str_val.m_string = str;
-    woort_DynBox boxed_key = woort_DynBox_box(str_val, WOORT_BOX_VALUE_TYPE_STRING);
-
-    woort_DynBox out_val;
-    if (!woort_GCMap_get(gcmap, boxed_key, &out_val))
+    woort_DynBox* const val = woort_GCMap_get_bucket_val_by_string(gcmap, key, len);
+    if (val == NULL)
         return false;
 
-    _WOORT_API_STACK(dst).m_dynamic = out_val;
+    _WOORT_API_STACK(dst).m_dynamic = *val;
     return true;
 }
 
@@ -1160,17 +1153,11 @@ WOORT_NODISCARD bool woort_map_set_string(
     assert(gcmap != NULL);
 
     const size_t len = strlen(key);
-    const woort_GCString* const str = woort_GCString_make_string(key, len);
-    assert(str != NULL);
-
-    woort_Value str_val;
-    str_val.m_string = str;
-    woort_DynBox boxed_key = woort_DynBox_box(str_val, WOORT_BOX_VALUE_TYPE_STRING);
-
     woort_DynBox val = _WOORT_API_STACK(val_boxed).m_dynamic;
 
     const size_t old_size = gcmap->m_size;
-    woort_GCMap_set_or_insert(gcmap, boxed_key, val);
+    woort_DynBox* const slot = woort_GCMap_get_or_create_bucket_val_by_string(gcmap, key, len);
+    woort_GC_mixed_write_barrier_dynbox(slot, val);
     return gcmap->m_size > old_size;
 }
 
@@ -1245,9 +1232,8 @@ WOORT_NODISCARD bool woort_map_erase_string(
     const woort_GCString* const str = woort_GCString_make_string(key, len);
     assert(str != NULL);
 
-    woort_Value str_val;
-    str_val.m_string = str;
-    woort_DynBox boxed_key = woort_DynBox_box(str_val, WOORT_BOX_VALUE_TYPE_STRING);
+    woort_DynBox boxed_key;
+    boxed_key.m_boxed_gc_unit = (woort_GCUnit*)str;
 
     return woort_GCMap_erase(gcmap, boxed_key);
 }
@@ -1317,14 +1303,7 @@ WOORT_NODISCARD bool woort_map_contains_string(
     assert(gcmap != NULL);
 
     const size_t len = strlen(key);
-    const woort_GCString* const str = woort_GCString_make_string(key, len);
-    assert(str != NULL);
-
-    woort_Value str_val;
-    str_val.m_string = str;
-    woort_DynBox boxed_key = woort_DynBox_box(str_val, WOORT_BOX_VALUE_TYPE_STRING);
-
-    return woort_GCMap_get(gcmap, boxed_key, NULL);
+    return woort_GCMap_get_bucket_val_by_string(gcmap, key, len) != NULL;
 }
 
 /* --- Mapping Iteration --- */
