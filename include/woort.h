@@ -1058,6 +1058,11 @@ WOORT_API void woort_CodeEnv_set_const_box_real(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
     woort_Real val);
+WOORT_API void woort_CodeEnv_set_const_struct(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    const woort_IRConstantIndex* members,
+    size_t member_count);
 
 // 
 WOORT_API void woort_set_value(

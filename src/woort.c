@@ -187,6 +187,31 @@ void woort_CodeEnv_set_const_box_real(
     woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
 }
 
+void woort_CodeEnv_set_const_struct(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    const woort_IRConstantIndex* members,
+    size_t member_count)
+{
+    assert(code_env != NULL);
+    assert((size_t)cidx < code_env->m_data_count);
+    assert(members != NULL);
+
+    woort_GCStruct* const s = woort_GCStruct_new(member_count);
+    assert(s != NULL);
+
+    for (size_t i = 0; i < member_count; ++i) {
+        assert((size_t)members[i] < code_env->m_data_count);
+        woort_GC_mixed_write_barrier_value(
+            &s->m_datas[i], code_env->m_data_begin[members[i]]);
+    }
+
+    woort_Value v;
+    v.m_struct = s;
+
+    woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
+}
+
 WOORT_NODISCARD woort_GCStruct* _woort_set_union(
     woort_Value* dst, woort_Int id)
 {
