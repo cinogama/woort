@@ -741,6 +741,73 @@ void woort_import_value(
         src_vm->m_sb[3 + src_in_vm]);
 }
 
+WOORT_NODISCARD woort_VmCallStatus woort_invoke(
+    woort_StackValue dst, woort_StackValue f)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+
+    vm->m_sp -= 2;
+    if (vm->m_sp < vm->m_stack)
+    {
+        vm->m_sp += 2;
+
+        // Stack size not enough.
+        if (!_woort_VMRuntime_extern_stack(vm))
+        {
+            woort_panic(
+                WOORT_PANIC_STACK_OVERFLOW,
+                "Stack overflow.");
+
+            return WOORT_VM_CALL_STATUS_ABORTED;
+        }
+
+        vm->m_sp -= 2;
+    }
+
+    // Set call way and bp offset.
+    vm->m_sp -= 2;
+    vm->m_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FROM_NATIVE;
+    vm->m_sp[1].m_ret_bp.m_bp_offset =
+        (uint32_t)(vm->m_stack_end - vm->m_sb);
+
+    // Set ret addr (Only for trace).
+    vm->m_sp[2].m_ret_addr = vm->m_ip /* trace from current. */;
+
+    vm->m_sb = vm->m_sp;
+
+    const woort_GCClosure* const target = 
+        _WOORT_API_STACK(dst).m_closure;
+
+    // Expand arguments from `target`
+    if (target->m_size != 0)
+    {
+        vm->m_sp -= target->m_size;
+        if (vm->m_sp < vm->m_stack)
+        {
+            vm->m_sp += target->m_size;
+
+            // Stack size not enough.
+            if (!_woort_VMRuntime_extern_stack(vm))
+            {
+                woort_panic(
+                    WOORT_PANIC_STACK_OVERFLOW,
+                    "Stack overflow.");
+
+                return WOORT_VM_CALL_STATUS_ABORTED;
+            }
+
+            vm->m_sp -= target->m_size;
+        }
+    }
+
+    TODO;
+}
+
+WOORT_NODISCARD woort_VmCallStatus woort_dispatch(
+    woort_StackValue dst, woort_StackValue f);
+WOORT_NODISCARD woort_VmCallStatus woort_step(
+    woort_StackValue dst);
+
 WOORT_NODISCARD woort_Int woort_unbox_int(woort_StackValue src)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
