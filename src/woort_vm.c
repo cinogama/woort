@@ -675,7 +675,7 @@ _label_continue_execution:
                 const uint32_t stack_version_before_native_call =
                     vm->m_stack_realloc_version;
 
-                const woort_VmCallStatus status = native_function(vm);
+                const woort_VmCallStatus status = native_function();
 
                 /*
                 ATTENTION:
@@ -822,8 +822,7 @@ _label_continue_execution:
                     const uint32_t stack_version_before_native_call =
                         vm->m_stack_realloc_version;
 
-                    const woort_VmCallStatus status =
-                        target->m_native_function(vm);
+                    const woort_VmCallStatus status = target->m_native_function();
 
                     /*
                     ATTENTION:

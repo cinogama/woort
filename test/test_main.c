@@ -9,29 +9,25 @@
 #include <stdio.h>
 #include <time.h>
 
-woort_api print_int(woort_VMRuntime* vm)
+woort_api print_int(void)
 {
-    (void)vm;
     printf("%lld\n", (long long)woort_int(0));
     return woort_ret_void();
 }
 
-woort_api print_string(woort_VMRuntime* vm)
+woort_api print_string(void)
 {
-    (void)vm;
     printf("%s\n", woort_string(0));
     return woort_ret_void();
 }
 
-woort_api print_current_time(woort_VMRuntime* vm)
+woort_api print_current_time(void)
 {
-    (void)vm;
     return woort_ret_int((woort_Int)clock());
 }
 
-woort_api bar(woort_VMRuntime* vm)
+woort_api bar(void)
 {
-    (void)vm;
     return woort_ret_void();
 }
 

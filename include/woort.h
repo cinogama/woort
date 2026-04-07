@@ -119,7 +119,7 @@ typedef enum woort_BoxValueType
 typedef struct woort_VMRuntime woort_VMRuntime;
 typedef int32_t woort_StackValue;
 
-typedef woort_api(*woort_NativeFunction)(woort_VMRuntime* vm);
+typedef woort_api(*woort_NativeFunction)(void);
 
 typedef struct woort_CodeEnv woort_CodeEnv;
 typedef struct woort_IRCompiler woort_IRCompiler;
@@ -1519,6 +1519,8 @@ WOORT_API void woort_struct_set(
     woort_StackValue src,
     size_t index,
     woort_StackValue val);
+
+/* ---------------------------- */
 
 #undef WOORT_API
 

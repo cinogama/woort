@@ -76,9 +76,8 @@ native 函数将其拷贝到全局变量，以便测试代码检查。
 */
 static woort_Int g_captured_int = 0;
 
-static woort_api capture_int(woort_VMRuntime* vm)
+static woort_api capture_int(void)
 {
-    (void)vm;
     g_captured_int = woort_int(0);
     return WOORT_VM_CALL_STATUS_NORMAL;
 }
