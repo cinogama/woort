@@ -292,7 +292,7 @@ void woort_set_buffer(
 }
 
 void woort_set_vec(
-    woort_StackValue dst, size_t cap)
+    woort_StackValue dst)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
@@ -300,23 +300,17 @@ void woort_set_vec(
     woort_GCVec* const vec = woort_GCVec_new();
     assert(vec != NULL);
 
-    if (cap > 0)
-        woort_GCVec_resize(vec, cap);
-
     _WOORT_API_STACK(dst).m_vec = vec;
 }
 
 void woort_set_map(
-    woort_StackValue dst, size_t reserve)
+    woort_StackValue dst)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
     woort_GCMap* const map = woort_GCMap_new();
     assert(map != NULL);
-
-    if (reserve > 0)
-        woort_GCMap_reserve(map, reserve);
 
     _WOORT_API_STACK(dst).m_map = map;
 }
