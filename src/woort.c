@@ -187,173 +187,6 @@ void woort_CodeEnv_set_const_box_real(
     woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
 }
 
-void _woort_set_value(
-    woort_Value* dst, woort_Value src)
-{
-    assert(dst != NULL);
-
-    *dst = src;
-}
-
-void _woort_set_nil(
-    woort_Value* dst)
-{
-    assert(dst != NULL);
-
-    memset(dst, 0, sizeof(woort_Value));
-}
-
-void _woort_set_bool(
-    woort_Value* dst, bool src)
-{
-    assert(dst != NULL);
-
-    dst->m_integer = src ? 1 : 0;
-}
-
-void _woort_set_int(
-    woort_Value* dst, woort_Int src)
-{
-    assert(dst != NULL);
-
-    dst->m_integer = src;
-}
-
-void _woort_set_real(
-    woort_Value* dst, woort_Real src)
-{
-    assert(dst != NULL);
-
-    dst->m_real = src;
-}
-
-void _woort_set_float(
-    woort_Value* dst, float src)
-{
-    assert(dst != NULL);
-
-    dst->m_real = (woort_Real)src;
-}
-
-void _woort_set_string(
-    woort_Value* dst, woort_U8CString src)
-{
-    assert(dst != NULL);
-    assert(src != NULL);
-
-    size_t len = strlen(src);
-    const woort_GCString* const str = woort_GCString_make_string(src, len);
-    assert(str != NULL);
-
-    dst->m_string = str;
-}
-
-void _woort_set_buffer(
-    woort_Value* dst, const void* src, size_t len)
-{
-    assert(dst != NULL);
-    assert(src != NULL);
-
-    const woort_GCString* const buf = woort_GCString_make_string((const char*)src, len);
-    assert(buf != NULL);
-
-    dst->m_string = buf;
-}
-
-void _woort_set_vec(
-    woort_Value* dst, size_t cap)
-{
-    assert(dst != NULL);
-
-    woort_GCVec* const vec = woort_GCVec_new();
-    assert(vec != NULL);
-
-    if (cap > 0)
-        woort_GCVec_resize(vec, cap);
-
-    dst->m_vec = vec;
-}
-
-void _woort_set_map(
-    woort_Value* dst, size_t reserve)
-{
-    assert(dst != NULL);
-
-    woort_GCMap* const map = woort_GCMap_new();
-    assert(map != NULL);
-
-    if (reserve > 0)
-        woort_GCMap_reserve(map, reserve);
-
-    dst->m_map = map;
-}
-
-void _woort_set_struct(
-    woort_Value* dst, size_t reserve)
-{
-    assert(dst != NULL);
-
-    woort_GCStruct* const s = woort_GCStruct_new(reserve);
-    assert(s != NULL);
-
-    dst->m_struct = s;
-}
-
-void _woort_set_box_int(
-    woort_Value* dst, woort_Int src)
-{
-    assert(dst != NULL);
-
-    woort_DynBox const boxed = woort_DynBox_box_int(src);
-    dst->m_dynamic = boxed;
-}
-
-void _woort_set_box_real(
-    woort_Value* dst, woort_Real src)
-{
-    assert(dst != NULL);
-
-    woort_DynBox const boxed = woort_DynBox_box_real(src);
-    dst->m_dynamic = boxed;
-}
-
-void _woort_set_box_bool(
-    woort_Value* dst, bool src)
-{
-    assert(dst != NULL);
-
-    woort_DynBox const boxed = woort_DynBox_box_bool(src);
-    dst->m_dynamic = boxed;
-}
-
-void _woort_set_gchandle(
-    woort_Value* dst,
-    void* addr,
-    /* OPTIONAL */ woort_Value* holding,
-    woort_GCHandle_UserDestructFunction close)
-{
-    assert(dst != NULL);
-
-    const woort_GCHandle* const handle = woort_GCHandle_new(addr, holding, close);
-    assert(handle != NULL);
-
-    dst->m_gchandle = handle;
-}
-
-void _woort_set_gcstruct(
-    woort_Value* dst,
-    void* addr,
-    woort_GCHandle_UserMarkFunction mark,
-    woort_GCHandle_UserDestructFunction close)
-{
-    assert(dst != NULL);
-
-    const woort_GCHandle* const handle = woort_GCHandle_new_with_marker(addr, mark, close);
-    assert(handle != NULL);
-
-    dst->m_gchandle = handle;
-}
-
 WOORT_NODISCARD woort_GCStruct* _woort_set_union(
     woort_Value* dst, woort_Int id)
 {
@@ -385,7 +218,7 @@ void woort_set_value(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_value(&_WOORT_API_STACK(dst), _WOORT_API_STACK(src));
+    _WOORT_API_STACK(dst) = _WOORT_API_STACK(src);
 }
 
 void woort_set_nil(
@@ -394,7 +227,7 @@ void woort_set_nil(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_nil(&_WOORT_API_STACK(dst));
+    _WOORT_API_STACK(dst).m_integer = 0;
 }
 
 void woort_set_int(
@@ -403,7 +236,7 @@ void woort_set_int(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_int(&_WOORT_API_STACK(dst), src);
+    _WOORT_API_STACK(dst).m_integer = src;
 }
 
 void woort_set_real(
@@ -412,7 +245,7 @@ void woort_set_real(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_real(&_WOORT_API_STACK(dst), src);
+    _WOORT_API_STACK(dst).m_real = src;
 }
 
 void woort_set_float(
@@ -421,7 +254,7 @@ void woort_set_float(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_float(&_WOORT_API_STACK(dst), src);
+    _WOORT_API_STACK(dst).m_real = (woort_Real)src;
 }
 
 void woort_set_bool(
@@ -430,7 +263,7 @@ void woort_set_bool(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_bool(&_WOORT_API_STACK(dst), src);
+    _WOORT_API_STACK(dst).m_integer = src ? 1 : 0;
 }
 
 void woort_set_string(
@@ -439,7 +272,11 @@ void woort_set_string(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_string(&_WOORT_API_STACK(dst), src);
+    const size_t len = strlen(src);
+    const woort_GCString* const str = woort_GCString_make_string(src, len);
+    assert(str != NULL);
+
+    _WOORT_API_STACK(dst).m_string = str;
 }
 
 void woort_set_buffer(
@@ -448,7 +285,10 @@ void woort_set_buffer(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_buffer(&_WOORT_API_STACK(dst), src, len);
+    const woort_GCString* const buf = woort_GCString_make_string((const char*)src, len);
+    assert(buf != NULL);
+
+    _WOORT_API_STACK(dst).m_string = buf;
 }
 
 void woort_set_vec(
@@ -457,7 +297,13 @@ void woort_set_vec(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_vec(&_WOORT_API_STACK(dst), cap);
+    woort_GCVec* const vec = woort_GCVec_new();
+    assert(vec != NULL);
+
+    if (cap > 0)
+        woort_GCVec_resize(vec, cap);
+
+    _WOORT_API_STACK(dst).m_vec = vec;
 }
 
 void woort_set_map(
@@ -466,7 +312,13 @@ void woort_set_map(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_map(&_WOORT_API_STACK(dst), reserve);
+    woort_GCMap* const map = woort_GCMap_new();
+    assert(map != NULL);
+
+    if (reserve > 0)
+        woort_GCMap_reserve(map, reserve);
+
+    _WOORT_API_STACK(dst).m_map = map;
 }
 
 void woort_set_struct(
@@ -475,7 +327,10 @@ void woort_set_struct(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_struct(&_WOORT_API_STACK(dst), cap);
+    woort_GCStruct* const s = woort_GCStruct_new(cap);
+    assert(s != NULL);
+
+    _WOORT_API_STACK(dst).m_struct = s;
 }
 
 void woort_set_box_int(
@@ -484,7 +339,8 @@ void woort_set_box_int(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_box_int(&_WOORT_API_STACK(dst), src);
+    woort_DynBox const boxed = woort_DynBox_box_int(src);
+    _WOORT_API_STACK(dst).m_dynamic = boxed;
 }
 
 void woort_set_box_real(
@@ -493,7 +349,8 @@ void woort_set_box_real(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_box_real(&_WOORT_API_STACK(dst), src);
+    woort_DynBox const boxed = woort_DynBox_box_real(src);
+    _WOORT_API_STACK(dst).m_dynamic = boxed;
 }
 
 void woort_set_box_bool(
@@ -502,7 +359,8 @@ void woort_set_box_bool(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_box_bool(&_WOORT_API_STACK(dst), src);
+    woort_DynBox const boxed = woort_DynBox_box_bool(src);
+    _WOORT_API_STACK(dst).m_dynamic = boxed;
 }
 
 void woort_set_gchandle(
@@ -514,7 +372,10 @@ void woort_set_gchandle(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_gchandle(&_WOORT_API_STACK(dst), addr, &_WOORT_API_STACK(hold), close);
+    const woort_GCHandle* const handle = woort_GCHandle_new(addr, &_WOORT_API_STACK(hold), close);
+    assert(handle != NULL);
+
+    _WOORT_API_STACK(dst).m_gchandle = handle;
 }
 
 void woort_set_gcstruct(
@@ -526,7 +387,10 @@ void woort_set_gcstruct(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    _woort_set_gcstruct(&_WOORT_API_STACK(dst), addr, mark, close);
+    const woort_GCHandle* const handle = woort_GCHandle_new_with_marker(addr, mark, close);
+    assert(handle != NULL);
+
+    _WOORT_API_STACK(dst).m_gchandle = handle;
 }
 
 void woort_set_union_without_value(
@@ -536,7 +400,7 @@ void woort_set_union_without_value(
     assert(vm != NULL);
 
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
-    _woort_set_nil(&s->m_datas[1]);
+    s->m_datas[1].m_integer = 0;
 }
 void woort_set_union_value(
     woort_StackValue dst, woort_Int id, woort_StackValue val)

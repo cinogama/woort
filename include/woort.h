@@ -1302,6 +1302,8 @@ WOORT_API WOORT_NODISCARD bool woort_unbox_bool(woort_StackValue src);
 WOORT_API WOORT_NODISCARD woort_BoxValueType woort_unbox_type(
     woort_StackValue src);
 
+
+
 #undef WOORT_API
 
 #ifdef __cplusplus
