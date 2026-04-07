@@ -1309,13 +1309,51 @@ WOORT_API WOORT_NODISCARD woort_Int woort_union_get(
 #define woort_result_get(dst, src) \
     (0 == woort_union_get(dst, src))
 
-/* Vector */
-WOORT_API WOORT_NODISCARD size_t woort_vec_len(woort_StackValue src);
-WOORT_API WOORT_NODISCARD size_t woort_vec_get(
-    woort_StackValue dst, woort_StackValue src, size_t index);
+/* ========== Vector ========== */
 
-WOORT_API WOORT_NODISCARD size_t woort_vec_set(
-    woort_StackValue src, size_t index, woort_StackValue elem);
+/* --- Vector Capacity --- */
+
+WOORT_API WOORT_NODISCARD size_t woort_vec_len(woort_StackValue src);
+WOORT_API void woort_vec_resize(woort_StackValue src, size_t new_size);
+
+/* --- Vector Element Access --- */
+
+WOORT_API void woort_vec_get(
+    woort_StackValue dst,
+    woort_StackValue src,
+    size_t index);
+
+WOORT_API void woort_vec_first(
+    woort_StackValue dst,
+    woort_StackValue src);
+
+WOORT_API void woort_vec_last(
+    woort_StackValue dst,
+    woort_StackValue src);
+
+/* --- Vector Modifiers --- */
+
+WOORT_API void woort_vec_set(
+    woort_StackValue src,
+    size_t index,
+    woort_StackValue elem);
+
+WOORT_API void woort_vec_push(
+    woort_StackValue src,
+    woort_StackValue elem);
+
+WOORT_API void woort_vec_pop(woort_StackValue src);
+
+WOORT_API void woort_vec_insert(
+    woort_StackValue src,
+    size_t index,
+    woort_StackValue elem);
+
+WOORT_API void woort_vec_erase(
+    woort_StackValue src,
+    size_t index);
+
+WOORT_API void woort_vec_clear(woort_StackValue src);
 
 #undef WOORT_API
 
