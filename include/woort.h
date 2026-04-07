@@ -1300,6 +1300,9 @@ WOORT_API WOORT_NODISCARD bool woort_unbox_bool(woort_StackValue src);
 
 WOORT_API WOORT_NODISCARD woort_BoxValueType woort_unbox_type(
     woort_StackValue src);
+WOORT_API WOORT_NODISCARD woort_BoxValueType woort_unbox(
+    woort_StackValue dst,
+    woort_StackValue src);
 
 WOORT_API WOORT_NODISCARD woort_Int woort_union_get(
     woort_StackValue dst, woort_StackValue src);
@@ -1321,11 +1324,6 @@ WOORT_API void woort_vec_resize(
 /* --- Vector Element Access --- */
 
 WOORT_API void woort_vec_get(
-    woort_StackValue dst,
-    woort_StackValue src,
-    size_t index);
-
-WOORT_API void woort_vec_get_box(
     woort_StackValue dst_boxed,
     woort_StackValue src,
     size_t index);
@@ -1335,35 +1333,18 @@ WOORT_API void woort_vec_get_box(
 WOORT_API void woort_vec_set(
     woort_StackValue src,
     size_t index,
-    woort_StackValue elem,
-    woort_BoxValueType type);
-
-WOORT_API void woort_vec_set_box(
-    woort_StackValue src,
-    size_t index,
-    woort_StackValue boxed_elem);
+    woort_StackValue elem_boxed);
 
 WOORT_API void woort_vec_push(
     woort_StackValue src,
-    woort_StackValue elem,
-    woort_BoxValueType type);
-
-WOORT_API void woort_vec_push_box(
-    woort_StackValue src,
-    woort_StackValue boxed_elem);
+    woort_StackValue elem_boxed);
 
 WOORT_API void woort_vec_pop(woort_StackValue src);
 
 WOORT_API void woort_vec_insert(
     woort_StackValue src,
     size_t index,
-    woort_StackValue elem,
-    woort_BoxValueType type);
-
-WOORT_API void woort_vec_insert_box(
-    woort_StackValue src,
-    size_t index,
-    woort_StackValue boxed_elem);
+    woort_StackValue elem_boxed);
 
 WOORT_API void woort_vec_erase(
     woort_StackValue src,
@@ -1390,7 +1371,7 @@ WOORT_API void woort_map_reserve(
 WOORT_API WOORT_NODISCARD bool woort_map_get(
     woort_StackValue dst,
     woort_StackValue src,
-    woort_StackValue key);
+    woort_StackValue key_boxed);
 
 /*
  * Lookup by int key. If found, write value to dst and return true.
@@ -1432,28 +1413,28 @@ WOORT_API WOORT_NODISCARD bool woort_map_get_string(
  */
 WOORT_API WOORT_NODISCARD bool woort_map_set(
     woort_StackValue src,
-    woort_StackValue boxed_key,
-    woort_StackValue boxed_val);
+    woort_StackValue key_boxed,
+    woort_StackValue val_boxed);
 
 WOORT_API WOORT_NODISCARD bool woort_map_set_int(
     woort_StackValue src,
     woort_Int key,
-    woort_StackValue boxed_val);
+    woort_StackValue val_boxed);
 
 WOORT_API WOORT_NODISCARD bool woort_map_set_real(
     woort_StackValue src,
     woort_Real key,
-    woort_StackValue boxed_val);
+    woort_StackValue val_boxed);
 
 WOORT_API WOORT_NODISCARD bool woort_map_set_bool(
     woort_StackValue src,
     bool key,
-    woort_StackValue boxed_val);
+    woort_StackValue val_boxed);
 
 WOORT_API WOORT_NODISCARD bool woort_map_set_string(
     woort_StackValue src,
     woort_U8CString key,
-    woort_StackValue boxed_val);
+    woort_StackValue val_boxed);
 
 /* --- Mapping Erase --- */
 
@@ -1462,7 +1443,7 @@ WOORT_API WOORT_NODISCARD bool woort_map_set_string(
  */
 WOORT_API WOORT_NODISCARD bool woort_map_erase(
     woort_StackValue src,
-    woort_StackValue boxed_key);
+    woort_StackValue key_boxed);
 
 WOORT_API WOORT_NODISCARD bool woort_map_erase_int(
     woort_StackValue src,
@@ -1484,7 +1465,7 @@ WOORT_API WOORT_NODISCARD bool woort_map_erase_string(
 
 WOORT_API WOORT_NODISCARD bool woort_map_contains(
     woort_StackValue src,
-    woort_StackValue boxed_key);
+    woort_StackValue key_boxed);
 
 WOORT_API WOORT_NODISCARD bool woort_map_contains_int(
     woort_StackValue src,
@@ -1512,8 +1493,8 @@ WOORT_API WOORT_NODISCARD bool woort_map_contains_string(
 WOORT_API WOORT_NODISCARD bool woort_map_iter(
     woort_StackValue src,
     size_t index,
-    woort_StackValue out_boxed_key,
-    woort_StackValue out_boxed_val);
+    woort_StackValue out_key_boxed,
+    woort_StackValue out_val_boxed);
 
 /* ========== Struct ========== */
 

@@ -797,6 +797,18 @@ WOORT_NODISCARD woort_BoxValueType woort_unbox_type(woort_StackValue src)
     return WOORT_BOX_VALUE_TYPE_NIL;
 }
 
+WOORT_NODISCARD woort_BoxValueType woort_unbox(
+    woort_StackValue dst,
+    woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    return woort_DynBox_unbox_no_check_and_get_type(
+        _WOORT_API_STACK(src).m_dynamic,
+        &_WOORT_API_STACK(dst));
+}
+
 WOORT_NODISCARD woort_Int woort_union_get(
     woort_StackValue dst, woort_StackValue src)
 {

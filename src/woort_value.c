@@ -466,6 +466,72 @@ void woort_DynBox_unbox_no_check(
     }
 }
 
+WOORT_NODISCARD woort_BoxValueType
+woort_DynBox_unbox_no_check_and_get_type(
+    woort_DynBox val,
+    woort_Value* out_val)
+{
+    if (val.m_boxed & 0b0111)
+    {
+        if (0b01 & val.m_boxed)
+        {
+            out_val->m_real = _woort_unbox_float64(val.m_boxed);
+            return WOORT_BOX_VALUE_TYPE_REAL;
+        }
+
+        if (0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
+        {
+            out_val->m_integer = _woort_unbox_int64(val.m_boxed);
+            return WOORT_BOX_VALUE_TYPE_INT;
+        }
+
+        out_val->m_integer = _woort_unbox_bool(val.m_boxed) ? 1 : 0;
+        return WOORT_BOX_VALUE_TYPE_BOOL;
+    }
+
+    if (val.m_boxed_gc_unit == NULL)
+    {
+        out_val->m_gcinstance = NULL;
+        return WOORT_BOX_VALUE_TYPE_NIL;
+    }
+
+    const woort_GCUnitProxy* const proxy = val.m_boxed_gc_unit->m_proxy;
+
+    if (proxy == &WOORT_EX_BOX_PROXY)
+    {
+        if (val.m_boxed_ex->m_is_int)
+        {
+            out_val->m_integer = val.m_boxed_ex->m_int;
+            return WOORT_BOX_VALUE_TYPE_INT;
+        }
+        out_val->m_real = val.m_boxed_ex->m_real;
+        return WOORT_BOX_VALUE_TYPE_REAL;
+    }
+
+    out_val->m_gcinstance = val.m_boxed_gc_unit;
+
+    if (proxy == &WOORT_GCSTRING_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_STRING;
+
+    if (proxy == &WOORT_GCVEC_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_VEC;
+
+    if (proxy == &WOORT_GCMAP_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_MAP;
+
+    if (proxy == &WOORT_GCSTRUCT_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_STRUCT;
+
+    if (proxy == &WOORT_GCHANDLE_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_GCHANDLE;
+
+    if (proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
+        return WOORT_BOX_VALUE_TYPE_CLOSURE;
+
+    woort_panic(WOORT_PANIC_BAD_TYPE, "Unknown boxed type.");
+    return WOORT_BOX_VALUE_TYPE_NIL;
+}
+
 WOORT_NODISCARD size_t _woort_hash_int(woort_Int val)
 {
     size_t hash = (size_t)val;
