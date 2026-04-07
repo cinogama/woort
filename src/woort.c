@@ -798,9 +798,27 @@ WOORT_NODISCARD woort_VmCallStatus woort_invoke(
 
             vm->m_sp -= target->m_size;
         }
+
+        memcpy(
+            vm->m_sp + 1,
+            target->m_datas,
+            sizeof(woort_Value) * target->m_size);
     }
 
-    TODO;
+    if (target->m_script_function != NULL)
+    {
+        if (target->m_jit_function != NULL)
+        {
+        }
+        else
+        {
+
+        }
+    }
+    else
+    {
+
+    }
 }
 
 WOORT_NODISCARD woort_VmCallStatus woort_dispatch(
