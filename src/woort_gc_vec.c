@@ -89,12 +89,10 @@ void woort_GCVec_insert(woort_GCVec* vec, size_t index, woort_DynBox boxed_value
 
     _woort_GCVec_assure_vec_space(vec, vec->m_length + 1);
 
-    if (index < vec->m_length)
+    for (size_t i = vec->m_length; i > index; i--)
     {
-        memmove(
-            &vec->m_datas[index + 1],
-            &vec->m_datas[index],
-            (vec->m_length - index) * sizeof(woort_DynBox));
+        woort_GC_mixed_write_barrier_dynbox(
+            &vec->m_datas[i], vec->m_datas[i - 1]);
     }
 
     woort_GC_mixed_write_barrier_dynbox(
@@ -110,12 +108,10 @@ void woort_GCVec_erase(woort_GCVec* vec, size_t index)
     woort_GC_delete_barrier_dynbox(
         vec->m_datas[index]);
 
-    if (index < vec->m_length - 1)
+    for (size_t i = index; i < vec->m_length - 1; i++)
     {
-        memmove(
-            &vec->m_datas[index],
-            &vec->m_datas[index + 1],
-            (vec->m_length - index - 1) * sizeof(woort_DynBox));
+        woort_GC_mixed_write_barrier_dynbox(
+            &vec->m_datas[i], vec->m_datas[i + 1]);
     }
 
     vec->m_length--;

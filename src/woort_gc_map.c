@@ -96,9 +96,11 @@ void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
     const size_t realloc_size =
         capacity * (sizeof(woort_GCMap_Bucket) + sizeof(uint32_t));
 
-    gcmap->m_buckets = gcmap->m_buckets == NULL 
-        ? woort_GCUnit_alloc_attrib(A, realloc_size)
-        : woomem_realloc(gcmap->m_buckets, realloc_size);
+    woort_GC_mixed_write_barrier_gcaddr(
+        &gcmap->m_buckets,
+        gcmap->m_buckets == NULL
+            ? woort_GCUnit_alloc_attrib(A, realloc_size)
+            : woomem_realloc(gcmap->m_buckets, realloc_size));
 
     gcmap->m_entries = (uint32_t*)(gcmap->m_buckets + capacity);
     gcmap->m_mask = capacity - 1;
@@ -146,7 +148,7 @@ woort_GCMap_Bucket* _woort_GCMap_get_writable_bucket_for_key(
 
 void woort_GCMap_set_or_insert(woort_GCMap* gcmap, woort_DynBox key, woort_DynBox val)
 {
-    woort_GCMap_Bucket* const bucket = 
+    woort_GCMap_Bucket* const bucket =
         _woort_GCMap_get_writable_bucket_for_key(gcmap, key);
 
     woort_GC_mixed_write_barrier_dynbox(&bucket->m_val, val);
