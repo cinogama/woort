@@ -687,7 +687,7 @@ WOORT_NODISCARD void* woort_gcpointer(woort_StackValue src)
     return _WOORT_API_STACK(src).m_gchandle->m_user_handle;
 }
 
-WOORT_NODISCARD bool woort_reserve_stack(
+WOORT_NODISCARD bool woort_push_reserve(
     size_t count, woort_StackValue* out_stack)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
@@ -717,6 +717,14 @@ WOORT_NODISCARD bool woort_reserve_stack(
     /* NOTE: 此处实际上是 SP - [SB+3] + 1 */
     *out_stack = (woort_StackValue)((vm->m_sp - vm->m_sb) - 2);
     return true;
+}
+
+void woort_pop(size_t count)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    vm->m_sp += count;
 }
 
 WOORT_NODISCARD woort_Int woort_unbox_int(woort_StackValue src)

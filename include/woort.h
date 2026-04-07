@@ -1019,6 +1019,23 @@ WOORT_API WOORT_NODISCARD bool woort_IR_ret(woort_IRFunction* f, const woort_IRV
 WOORT_API WOORT_NODISCARD bool woort_IR_ret_void(woort_IRFunction* f);
 
 /* ============ Runtime API ============ */
+WOORT_API WOORT_NODISCARD bool woort_push_reserve(
+    size_t count, woort_StackValue* out_stack);
+
+WOORT_API void woort_pop(size_t count);
+
+WOORT_API void woort_import_value(
+    woort_StackValue dst, 
+    woort_VMRuntime* vm, 
+    woort_StackValue src_in_vm);
+
+WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_invoke(
+    woort_StackValue dst, woort_StackValue f);
+WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_dispatch(
+    woort_StackValue dst, woort_StackValue f);
+WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_step(
+    woort_StackValue dst);
+
 /*
 NOTE: woort_CodeEnv_constant_set_* must be called after woort_CodeEnv_lock
 */
