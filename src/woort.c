@@ -741,8 +741,7 @@ void woort_import_value(
         src_vm->m_sb[3 + src_in_vm]);
 }
 
-WOORT_NODISCARD woort_VmCallStatus woort_invoke(
-    woort_StackValue dst, woort_StackValue f)
+WOORT_NODISCARD woort_VMRuntime* _woort_pre_invoke(woort_StackValue f)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
 
@@ -775,8 +774,8 @@ WOORT_NODISCARD woort_VmCallStatus woort_invoke(
 
     vm->m_sb = vm->m_sp;
 
-    const woort_GCClosure* const target = 
-        _WOORT_API_STACK(dst).m_closure;
+    const woort_GCClosure* const target =
+        _WOORT_API_STACK(f).m_closure;
 
     // Expand arguments from `target`
     if (target->m_size != 0)
@@ -805,14 +804,30 @@ WOORT_NODISCARD woort_VmCallStatus woort_invoke(
             sizeof(woort_Value) * target->m_size);
     }
 
+    return vm;
+}
+
+WOORT_NODISCARD woort_VmCallStatus woort_invoke(
+    woort_StackValue dst, woort_StackValue f)
+{
+    woort_VMRuntime* const vm = _woort_pre_invoke(f);
+    const woort_GCClosure* const target = _WOORT_API_STACK(dst).m_closure;
+
     if (target->m_script_function != NULL)
     {
         if (target->m_jit_function != NULL)
         {
+
         }
         else
         {
-
+            /*
+            NOTE: woort_invoke 不能篡改 env，至少应该做到改变之后恢复之前的 env，
+                因为 env 可能被 VMRuntime 的 Resync 机制反向同步导致运行时读取到错
+                误的 env。env 的改变始终应该和调用栈保持一致。
+                这其实是一个比较麻烦的问题，因为 `woort_invoke` 尚可将env保存在局
+                部调用栈，但是 `woort_dispatch` 没有合适的地方保存。
+            */
         }
     }
     else

@@ -257,17 +257,20 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
         vm->m_sp = rt_sp;                       \
         vm->m_sb = rt_sb;                       \
     }while(0)
-#define WOORT_VM_RESYNC_STATE()                 \
-    do{                                         \
-        rt_ip = vm->m_ip;                       \
-        rt_stack = vm->m_stack;                 \
-        rt_stack_end = vm->m_stack_end;         \
-        rt_sp = vm->m_sp;                       \
-        rt_sb = vm->m_sb;                       \
-        rt_env = vm->m_env;                     \
-        rt_env_code = rt_env->m_code_begin;     \
-        rt_env_code_end = rt_env->m_code_end;   \
-        rt_env_data = rt_env->m_data_begin;     \
+#define WOORT_VM_RESYNC_STATE()                     \
+    do{                                             \
+        rt_ip = vm->m_ip;                           \
+        rt_stack = vm->m_stack;                     \
+        rt_stack_end = vm->m_stack_end;             \
+        rt_sp = vm->m_sp;                           \
+        rt_sb = vm->m_sb;                           \
+        if (rt_env != vm->m_env)                    \
+        {                                           \
+            rt_env = vm->m_env;                     \
+            rt_env_code = rt_env->m_code_begin;     \
+            rt_env_code_end = rt_env->m_code_end;   \
+            rt_env_data = rt_env->m_data_begin;     \
+        }                                           \
     }while(0)
 #define WOORT_VM_SYNC_STATE_AND_PANIC(...)  \
     do{                                     \
