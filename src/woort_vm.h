@@ -104,8 +104,36 @@ struct woort_VMRuntime
     woort_Value*            m_sp;
     const woort_Bytecode*   m_ip;
 
-    // NOTE: m_env 仅作为 JIT/SIM 传递 env 的桥梁，具体使用参见SIM实现
-    woort_CodeEnv*    m_env;
+    /*
+    NOTE: m_env 的设计用意如下：
+        考虑到：
+            1) 大多数情况下，far-call 并不总是发生的（仅限于 CALLC/CALLS）
+               在遇到
+            2) 大多数情况下，native-function 调用的脚本函数亦是当前 env 的
+            3) 查询脚本函数所属的 env 开销相对较大
+            4) JIT 不能调用纯的 SIM 函数
+            5) JIT 不需要使用 far-call 机制同步常量表
+        因此：
+            1) SIM 保有自己的 rt_env 局部状态，不关心 native-call 导致的 env
+                变动（因为无论 native-call 中执行了任意 env 中的代码，其返回
+                后总要回到 SIM 的 env 中继续执行）；SIM 的局部 rt_env 仅在 
+                far-call 发生时更新，此时也会更新 m_env。
+            2) m_env 始终保持最后一次同步 env 的结果，这意味着：
+                1. 存在一些情况下，far-call 发生在 native-function，native-
+                    function 返回后，回到之前的 env 上执行时，此时 VM 实际
+                    执行的代码与 m_env 不一致，即：允许 rt_env 与 m_env 不一
+                    致的情况
+                2. 在 GC 和 VM 例外情况处理时，rt_env 需要同步到 m_env
+                3. 从外部，在没有其他机制保证的情况下观测，可能读取到与调用栈
+                    状态不一致的 m_env，所以包括调试器在内的实现，要避免使用
+                    m_env；考虑到调试器等场景性能不敏感，可以读取调用栈后，直
+                    接查询 env
+            3) 可以使用 m_env 快速判别目标函数（在 native-function 中尝试调
+                用 VM 函数时）
+
+    */
+
+    /* OPTIONAL */ woort_CodeEnv*    m_env;
 
     woort_AtomicUInt32      m_check_request_mask;
 

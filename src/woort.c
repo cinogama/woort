@@ -741,10 +741,8 @@ void woort_import_value(
         src_vm->m_sb[3 + src_in_vm]);
 }
 
-WOORT_NODISCARD woort_VMRuntime* _woort_pre_invoke(woort_StackValue f)
+WOORT_NODISCARD bool _woort_pre_invoke(woort_VMRuntime* vm, woort_GCClosure* target)
 {
-    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
-
     vm->m_sp -= 2;
     if (vm->m_sp < vm->m_stack)
     {
@@ -757,9 +755,8 @@ WOORT_NODISCARD woort_VMRuntime* _woort_pre_invoke(woort_StackValue f)
                 WOORT_PANIC_STACK_OVERFLOW,
                 "Stack overflow.");
 
-            return WOORT_VM_CALL_STATUS_ABORTED;
+            return false;
         }
-
         vm->m_sp -= 2;
     }
 
@@ -773,9 +770,6 @@ WOORT_NODISCARD woort_VMRuntime* _woort_pre_invoke(woort_StackValue f)
     vm->m_sp[2].m_ret_addr = vm->m_ip /* trace from current. */;
 
     vm->m_sb = vm->m_sp;
-
-    const woort_GCClosure* const target =
-        _WOORT_API_STACK(f).m_closure;
 
     // Expand arguments from `target`
     if (target->m_size != 0)
@@ -792,7 +786,7 @@ WOORT_NODISCARD woort_VMRuntime* _woort_pre_invoke(woort_StackValue f)
                     WOORT_PANIC_STACK_OVERFLOW,
                     "Stack overflow.");
 
-                return WOORT_VM_CALL_STATUS_ABORTED;
+                return false;
             }
 
             vm->m_sp -= target->m_size;
@@ -803,31 +797,47 @@ WOORT_NODISCARD woort_VMRuntime* _woort_pre_invoke(woort_StackValue f)
             target->m_datas,
             sizeof(woort_Value) * target->m_size);
     }
-
-    return vm;
+    return true;
 }
 
 WOORT_NODISCARD woort_VmCallStatus woort_invoke(
     woort_StackValue dst, woort_StackValue f)
 {
-    woort_VMRuntime* const vm = _woort_pre_invoke(f);
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     const woort_GCClosure* const target = _WOORT_API_STACK(dst).m_closure;
+
+    if (!_woort_pre_invoke(vm, target))
+    {
+        return WOORT_VM_CALL_STATUS_ABORTED;
+    }
 
     if (target->m_script_function != NULL)
     {
         if (target->m_jit_function != NULL)
         {
-
+            // TODO;
+            abort();
         }
         else
         {
-            /*
-            NOTE: woort_invoke 不能篡改 env，至少应该做到改变之后恢复之前的 env，
-                因为 env 可能被 VMRuntime 的 Resync 机制反向同步导致运行时读取到错
-                误的 env。env 的改变始终应该和调用栈保持一致。
-                这其实是一个比较麻烦的问题，因为 `woort_invoke` 尚可将env保存在局
-                部调用栈，但是 `woort_dispatch` 没有合适的地方保存。
-            */
+            if (vm->m_env == NULL
+                || target->m_script_function < vm->m_env->m_code_begin
+                || target->m_script_function >= vm->m_env->m_code_end)
+            {
+                // Target out of env, refetch env.
+                woort_CodeEnv* env;
+                if (!woort_CodeEnv_find(target->m_script_function, &env))
+                {
+                    woort_panic(
+                        WOORT_PANIC_CODE_ENV_NOT_FOUND,
+                        "Cannot find code environment from `%p`.", vm->m_ip);
+
+                    return WOORT_VM_CALL_STATUS_ABORTED;
+                }
+
+                // Ok, apply new env.
+                vm->m_env = env;
+            }
         }
     }
     else
