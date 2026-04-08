@@ -251,13 +251,27 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
     执行反同步时，需要从实例获取 ip, sb, sp 和 env，同时，更新
     rt_env_code，rt_env_code_end 和 rt_env_data
     */
-#define WOORT_VM_SYNC_STATE()                   \
+#define WOORT_VM_SYNC_STATE_WITH_ENV()          \
+    do{                                         \
+        vm->m_ip = rt_ip;                       \
+        vm->m_sp = rt_sp;                       \
+        vm->m_sb = rt_sb;                       \
+        vm->m_env = rt_env;                     \
+    }while(0)
+#define WOORT_VM_SYNC_STATE_WITHOUT_ENV()       \
     do{                                         \
         vm->m_ip = rt_ip;                       \
         vm->m_sp = rt_sp;                       \
         vm->m_sb = rt_sb;                       \
     }while(0)
-#define WOORT_VM_RESYNC_STATE()                     \
+#define WOORT_VM_SYNC_STATE_RETURN()            \
+    do{                                         \
+        vm->m_ip = rt_ip;                       \
+        vm->m_sp = rt_sp;                       \
+        vm->m_sb = rt_sb;                       \
+        vm->m_env = NULL;                       \
+    }while(0)
+#define WOORT_VM_RESYNC_STATE_WITH_ENV()            \
     do{                                             \
         rt_ip = vm->m_ip;                           \
         rt_stack = vm->m_stack;                     \
@@ -272,16 +286,24 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
             rt_env_data = rt_env->m_data_begin;     \
         }                                           \
     }while(0)
+#define WOORT_VM_RESYNC_STATE_WITHOUT_ENV()         \
+    do{                                             \
+        rt_ip = vm->m_ip;                           \
+        rt_stack = vm->m_stack;                     \
+        rt_stack_end = vm->m_stack_end;             \
+        rt_sp = vm->m_sp;                           \
+        rt_sb = vm->m_sb;                           \
+    }while(0)
 #define WOORT_VM_SYNC_STATE_AND_PANIC(...)  \
     do{                                     \
-        WOORT_VM_SYNC_STATE();              \
+        WOORT_VM_SYNC_STATE_WITH_ENV();     \
         woort_panic(__VA_ARGS__);           \
     }while(0)
 #define WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(OLD_VERSION)    \
     do{                                                                     \
         if (/* Unlikely */ OLD_VERSION != vm->m_stack_realloc_version)      \
         {                                                                   \
-            /* Stack updated during native function. */                 \
+            /* Stack updated during native function. */                     \
             rt_sp = vm->m_stack_end - (rt_stack_end - rt_sp);               \
             rt_sb = vm->m_stack_end - (rt_stack_end - rt_sb);               \
             rt_stack = vm->m_stack;                                         \
@@ -291,12 +313,12 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
 
 #define WOORT_VM_THROW(NAME)                    \
     do{                                         \
-        WOORT_VM_SYNC_STATE();                  \
+        WOORT_VM_SYNC_STATE_WITH_ENV();         \
         goto _label_exception_handler_##NAME;   \
     }while(0)
 #define WOORT_VM_HANDLED() \
     do{                                         \
-        WOORT_VM_RESYNC_STATE();                \
+        WOORT_VM_RESYNC_STATE_WITH_ENV();       \
         goto _label_continue_execution;         \
     }while(0)
 #define WOORT_VM_CHECKPOINT()                               \
@@ -671,7 +693,7 @@ _label_continue_execution:
                 const woort_NativeFunction native_function =
                     rt_env_data[WOORT_BYTECODE(MABC26, c)].m_native_function;
 
-                // No need to WOORT_VM_SYNC_STATE(), we will do it manually.
+                // No need to WOORT_VM_SYNC_STATE_WITHOUT_ENV(), we will do it manually.
                 vm->m_sb = vm->m_sp = new_sp;
                 vm->m_ip = (const woort_Bytecode*)native_function;
 
@@ -696,7 +718,7 @@ _label_continue_execution:
                 // Donot need to restore any status.
                 if (status == WOORT_VM_CALL_STATUS_RESYNC)
                 {
-                    WOORT_VM_RESYNC_STATE();
+                    WOORT_VM_RESYNC_STATE_WITHOUT_ENV();
                     WOORT_VM_CHECKPOINT();
                 }
                 else
@@ -725,7 +747,7 @@ _label_continue_execution:
 
                 if (status == WOORT_VM_CALL_STATUS_RESYNC)
                 {
-                    WOORT_VM_RESYNC_STATE();
+                    WOORT_VM_RESYNC_STATE_WITH_ENV();
                     WOORT_VM_CHECKPOINT();
                 }
                 else
@@ -777,7 +799,7 @@ _label_continue_execution:
 
                         if (status == WOORT_VM_CALL_STATUS_RESYNC)
                         {
-                            WOORT_VM_RESYNC_STATE();
+                            WOORT_VM_RESYNC_STATE_WITH_ENV();
                             WOORT_VM_CHECKPOINT();
                         }
                         else
@@ -817,7 +839,7 @@ _label_continue_execution:
                     new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
                     new_sb[2].m_ret_addr = /* Update rt_ip to return place. */ ++rt_ip;
 
-                    // No need to WOORT_VM_SYNC_STATE(), we will do it manually.
+                    // No need to WOORT_VM_SYNC_STATE_WITHOUT_ENV(), we will do it manually.
                     rt_sp = new_sp;
                     rt_sb = new_sb;
                     vm->m_ip = (const woort_Bytecode*)target->m_native_function;
@@ -843,7 +865,7 @@ _label_continue_execution:
                     // Donot need to restore any status.
                     if (status == WOORT_VM_CALL_STATUS_RESYNC)
                     {
-                        WOORT_VM_RESYNC_STATE();
+                        WOORT_VM_RESYNC_STATE_WITHOUT_ENV();
                         WOORT_VM_CHECKPOINT();
                     }
                     else
@@ -869,7 +891,7 @@ _label_continue_execution:
             case WOORT_CALL_WAY_NEAR:
                 break;
             case WOORT_CALL_WAY_FROM_NATIVE:
-                WOORT_VM_SYNC_STATE();
+                WOORT_VM_SYNC_STATE_WITH_ENV();
                 return WOORT_VM_CALL_STATUS_NORMAL;
             case WOORT_CALL_WAY_FAR:
             {
@@ -902,7 +924,7 @@ _label_continue_execution:
             case WOORT_CALL_WAY_NEAR:
                 break;
             case WOORT_CALL_WAY_FROM_NATIVE:
-                WOORT_VM_SYNC_STATE();
+                WOORT_VM_SYNC_STATE_WITH_ENV();
                 return WOORT_VM_CALL_STATUS_NORMAL;
             case WOORT_CALL_WAY_FAR:
             {
@@ -934,7 +956,7 @@ _label_continue_execution:
             case WOORT_CALL_WAY_NEAR:
                 break;
             case WOORT_CALL_WAY_FROM_NATIVE:
-                WOORT_VM_SYNC_STATE();
+                WOORT_VM_SYNC_STATE_WITH_ENV();
                 return WOORT_VM_CALL_STATUS_NORMAL;
             case WOORT_CALL_WAY_FAR:
             {
@@ -3303,7 +3325,7 @@ _label_continue_execution:
     }
 
     // Ok, finished.
-    WOORT_VM_SYNC_STATE();
+    WOORT_VM_SYNC_STATE_RETURN();
     return WOORT_VM_CALL_STATUS_NORMAL;
 
 #define WOORT_VM_EXCEPTION_LABEL(NAME) _label_exception_handler_##NAME

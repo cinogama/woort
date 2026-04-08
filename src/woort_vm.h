@@ -104,6 +104,7 @@ struct woort_VMRuntime
     woort_Value*            m_sp;
     const woort_Bytecode*   m_ip;
 
+    // NOTE: m_env 仅作为 JIT/SIM 传递 env 的桥梁，具体使用参见SIM实现
     woort_CodeEnv*    m_env;
 
     woort_AtomicUInt32      m_check_request_mask;
