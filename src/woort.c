@@ -741,14 +741,10 @@ void woort_import_value(
         src_vm->m_sb[3 + src_in_vm]);
 }
 
-WOORT_NODISCARD bool _woort_pre_invoke(woort_VMRuntime* vm, woort_GCClosure* target)
+WOORT_NODISCARD bool _woort_pre_invoke(woort_VMRuntime* vm, const woort_GCClosure* target)
 {
-    vm->m_sp -= 2;
-    if (vm->m_sp < vm->m_stack)
+    while (vm->m_sp - 2 - target->m_size < vm->m_stack)
     {
-        vm->m_sp += 2;
-
-        // Stack size not enough.
         if (!_woort_VMRuntime_extern_stack(vm))
         {
             woort_panic(
@@ -757,9 +753,9 @@ WOORT_NODISCARD bool _woort_pre_invoke(woort_VMRuntime* vm, woort_GCClosure* tar
 
             return false;
         }
-        vm->m_sp -= 2;
     }
 
+    vm->m_sp -= 2;
     // Set call way and bp offset.
     vm->m_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FROM_NATIVE;
     vm->m_sp[1].m_ret_bp.m_bp_offset =
@@ -774,23 +770,6 @@ WOORT_NODISCARD bool _woort_pre_invoke(woort_VMRuntime* vm, woort_GCClosure* tar
     if (target->m_size != 0)
     {
         vm->m_sp -= target->m_size;
-        if (vm->m_sp < vm->m_stack)
-        {
-            vm->m_sp += target->m_size;
-
-            // Stack size not enough.
-            if (!_woort_VMRuntime_extern_stack(vm))
-            {
-                woort_panic(
-                    WOORT_PANIC_STACK_OVERFLOW,
-                    "Stack overflow.");
-
-                return false;
-            }
-
-            vm->m_sp -= target->m_size;
-        }
-
         memcpy(
             vm->m_sp + 1,
             target->m_datas,
@@ -810,11 +789,12 @@ WOORT_NODISCARD woort_VmCallStatus woort_invoke(
 
     if (target->m_script_function != NULL)
     {
+        vm->m_ip = target->m_script_function;
         if (target->m_jit_function != NULL)
         {
             if (target->m_jit_function(vm, vm->m_sb) == WOORT_VM_CALL_STATUS_NORMAL)
             {
-                _WOORT_API_STACK(dst) = _WOORT_API_STACK(-1);
+                _WOORT_API_STACK(dst) = *vm->m_sp;
                 return WOORT_VM_CALL_STATUS_NORMAL;
             }
             /* else, WOORT_VM_CALL_STATUS_RESYNC, need vm to rehandle. */
@@ -830,42 +810,67 @@ WOORT_NODISCARD woort_VmCallStatus woort_invoke(
                 woort_panic(
                     WOORT_PANIC_CODE_ENV_NOT_FOUND,
                     "Cannot find code environment from `%p`.", vm->m_ip);
-
                 return WOORT_VM_CALL_STATUS_ABORTED;
             }
-
             // Ok, apply new env.
             vm->m_env = env;
         }
+    }
+    else
+    {
+        const woort_Bytecode* const origin_ip = vm->m_ip;
+        vm->m_ip = (const woort_Bytecode*)target->m_script_function;
 
-        switch (_woort_VMRuntime_dispatch(vm))
+        const woort_VmCallStatus r = target->m_native_function();
+        /* 
+        NOTE: Restore preinvoke status.
+            仅 Native function call 需要在此处手动恢复调用状态，其他的调用
+            会由 RET/RETV 指令自动恢复调用栈
+
+        TODO: 考虑 Native function API 在 return 时处理返回？
+        */
+        vm->m_ip = origin_ip;
+        vm->m_sp = vm->m_sb + 2;
+
+        assert(vm->m_sp[-1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE);
+        vm->m_sb = vm->m_stack_end - vm->m_sp[-1].m_ret_bp.m_bp_offset;
+
+        switch (r)
         {
         case WOORT_VM_CALL_STATUS_NORMAL:
             // Fetch return value.
-            _WOORT_API_STACK(dst) = _WOORT_API_STACK(-1);
+            _WOORT_API_STACK(dst) = *vm->m_sp;
             return WOORT_VM_CALL_STATUS_NORMAL;
         case WOORT_VM_CALL_STATUS_RESYNC:
             /*
-            TODO: 考虑，正常情况下 native call 返回 RESYNC 暗示有检查点需要处理
-            此处要怎么处理 RESYNC ?
+            NOTE: Native function 仅当以下情况发生时会返回 WOORT_VM_CALL_STATUS_RESYNC：
+                1) 发生 Abort
+                2）发生 Yield
+                无论上述何种情况，直接回落到 SIM 执行处理即可
             */
+            break;
         default:
             // Unexpected status, should not happend!
             abort();
         }
     }
-    else
+
+    switch (_woort_VMRuntime_dispatch(vm))
     {
-        switch (target->m_native_function())
-        {
-        case WOORT_VM_CALL_STATUS_NORMAL:
-            // Fetch return value.
-            _WOORT_API_STACK(dst) = _WOORT_API_STACK(-1);
-            return WOORT_VM_CALL_STATUS_NORMAL;
-        default:
-            // Unexpected status, should not happend!
-            abort();
-        }
+    case WOORT_VM_CALL_STATUS_NORMAL:
+        // Fetch return value.
+        _WOORT_API_STACK(dst) = *vm->m_sp;
+        return WOORT_VM_CALL_STATUS_NORMAL;
+    case WOORT_VM_CALL_STATUS_YIELD:
+        woort_panic(
+            WOORT_PANIC_BAD_VM_REQUEST,
+            "Cannot yield during `woort_invoke`.");
+        return WOORT_VM_CALL_STATUS_ABORTED;
+    case WOORT_VM_CALL_STATUS_ABORTED:
+        return WOORT_VM_CALL_STATUS_ABORTED;
+    default:
+        // Unexpected status, should not happend!
+        abort();
     }
 }
 
