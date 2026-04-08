@@ -126,7 +126,11 @@ WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     }
 
     // Move stack data from head to tail.
-    memcpy(new_stack + current_stack_size, vm->m_stack, current_stack_size * sizeof(woort_Value));
+    memcpy(
+        new_stack + current_stack_size,
+        vm->m_stack,
+        current_stack_size * sizeof(woort_Value));
+
     free(vm->m_stack);
 
     // Update vm state.
@@ -141,9 +145,6 @@ WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
 
     return true;
 }
-
-WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
-    woort_VMRuntime* vm);
 
 WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
     woort_VMRuntime* vm, const woort_Bytecode* func)
@@ -717,10 +718,7 @@ _label_continue_execution:
 
                 // Donot need to restore any status.
                 if (status == WOORT_VM_CALL_STATUS_RESYNC)
-                {
-                    WOORT_VM_RESYNC_STATE_WITHOUT_ENV();
                     WOORT_VM_CHECKPOINT();
-                }
                 else
                     assert(status == WOORT_VM_CALL_STATUS_NORMAL);
 
@@ -743,7 +741,7 @@ _label_continue_execution:
                     rt_env_data[WOORT_BYTECODE(MABC26, c)].m_jit_function;
 
                 const woort_VmCallStatus status =
-                    jit_function(vm, rt_sp + 1);
+                    jit_function(vm, new_sp);
 
                 if (status == WOORT_VM_CALL_STATUS_RESYNC)
                 {
@@ -795,7 +793,7 @@ _label_continue_execution:
                         new_sb[2].m_ret_addr = ++rt_ip;
 
                         const woort_VmCallStatus status =
-                            target->m_jit_function(vm, rt_sp + 1);
+                            target->m_jit_function(vm, new_sb);
 
                         if (status == WOORT_VM_CALL_STATUS_RESYNC)
                         {
@@ -864,10 +862,7 @@ _label_continue_execution:
 
                     // Donot need to restore any status.
                     if (status == WOORT_VM_CALL_STATUS_RESYNC)
-                    {
-                        WOORT_VM_RESYNC_STATE_WITHOUT_ENV();
                         WOORT_VM_CHECKPOINT();
-                    }
                     else
                         assert(status == WOORT_VM_CALL_STATUS_NORMAL);
                 }

@@ -505,7 +505,7 @@ void woort_set_union_buffer(
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
     const woort_GCString* const buf = woort_GCString_make_string((const char*)src, len);
     assert(buf != NULL);
-    
+
     woort_GC_mixed_write_barrier_gcunit(
         &s->m_datas[1].m_string, buf);
 }
@@ -521,7 +521,7 @@ void woort_set_union_vec(
     assert(vec != NULL);
     if (cap > 0)
         woort_GCVec_resize(vec, cap);
-    
+
     woort_GC_mixed_write_barrier_gcunit(
         &s->m_datas[1].m_vec, vec);
 }
@@ -537,7 +537,7 @@ void woort_set_union_map(
     assert(map != NULL);
     if (reserve > 0)
         woort_GCMap_reserve(map, reserve);
-    
+
     woort_GC_mixed_write_barrier_gcunit(
         &s->m_datas[1].m_map, map);
 }
@@ -551,7 +551,7 @@ void woort_set_union_struct(
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
     woort_GCStruct* const inner = woort_GCStruct_new(cap);
     assert(inner != NULL);
-    
+
     woort_GC_mixed_write_barrier_gcunit(
         &s->m_datas[1].m_struct, inner);
 }
@@ -569,7 +569,7 @@ void woort_set_union_gchandle(
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
     const woort_GCHandle* const handle = woort_GCHandle_new(addr, &_WOORT_API_STACK(hold), close);
     assert(handle != NULL);
-    
+
     woort_GC_mixed_write_barrier_gcunit(
         &s->m_datas[1].m_gchandle, handle);
 }
@@ -587,7 +587,7 @@ void woort_set_union_gcstruct(
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
     const woort_GCHandle* const handle = woort_GCHandle_new_with_marker(addr, mark, close);
     assert(handle != NULL);
-    
+
     woort_GC_mixed_write_barrier_gcunit(
         &s->m_datas[1].m_gchandle, handle);
 }
@@ -761,7 +761,6 @@ WOORT_NODISCARD bool _woort_pre_invoke(woort_VMRuntime* vm, woort_GCClosure* tar
     }
 
     // Set call way and bp offset.
-    vm->m_sp -= 2;
     vm->m_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FROM_NATIVE;
     vm->m_sp[1].m_ret_bp.m_bp_offset =
         (uint32_t)(vm->m_stack_end - vm->m_sb);
@@ -804,45 +803,69 @@ WOORT_NODISCARD woort_VmCallStatus woort_invoke(
     woort_StackValue dst, woort_StackValue f)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
-    const woort_GCClosure* const target = _WOORT_API_STACK(dst).m_closure;
+    const woort_GCClosure* const target = _WOORT_API_STACK(f).m_closure;
 
     if (!_woort_pre_invoke(vm, target))
-    {
         return WOORT_VM_CALL_STATUS_ABORTED;
-    }
 
     if (target->m_script_function != NULL)
     {
         if (target->m_jit_function != NULL)
         {
-            // TODO;
-            abort();
-        }
-        else
-        {
-            if (vm->m_env == NULL
-                || target->m_script_function < vm->m_env->m_code_begin
-                || target->m_script_function >= vm->m_env->m_code_end)
+            if (target->m_jit_function(vm, vm->m_sb) == WOORT_VM_CALL_STATUS_NORMAL)
             {
-                // Target out of env, refetch env.
-                woort_CodeEnv* env;
-                if (!woort_CodeEnv_find(target->m_script_function, &env))
-                {
-                    woort_panic(
-                        WOORT_PANIC_CODE_ENV_NOT_FOUND,
-                        "Cannot find code environment from `%p`.", vm->m_ip);
-
-                    return WOORT_VM_CALL_STATUS_ABORTED;
-                }
-
-                // Ok, apply new env.
-                vm->m_env = env;
+                _WOORT_API_STACK(dst) = _WOORT_API_STACK(-1);
+                return WOORT_VM_CALL_STATUS_NORMAL;
             }
+            /* else, WOORT_VM_CALL_STATUS_RESYNC, need vm to rehandle. */
+        }
+        else if (vm->m_env == NULL
+            || target->m_script_function < vm->m_env->m_code_begin
+            || target->m_script_function >= vm->m_env->m_code_end)
+        {
+            // Target out of env, refetch env.
+            woort_CodeEnv* env;
+            if (!woort_CodeEnv_find(target->m_script_function, &env))
+            {
+                woort_panic(
+                    WOORT_PANIC_CODE_ENV_NOT_FOUND,
+                    "Cannot find code environment from `%p`.", vm->m_ip);
+
+                return WOORT_VM_CALL_STATUS_ABORTED;
+            }
+
+            // Ok, apply new env.
+            vm->m_env = env;
+        }
+
+        switch (_woort_VMRuntime_dispatch(vm))
+        {
+        case WOORT_VM_CALL_STATUS_NORMAL:
+            // Fetch return value.
+            _WOORT_API_STACK(dst) = _WOORT_API_STACK(-1);
+            return WOORT_VM_CALL_STATUS_NORMAL;
+        case WOORT_VM_CALL_STATUS_RESYNC:
+            /*
+            TODO: 考虑，正常情况下 native call 返回 RESYNC 暗示有检查点需要处理
+            此处要怎么处理 RESYNC ?
+            */
+        default:
+            // Unexpected status, should not happend!
+            abort();
         }
     }
     else
     {
-
+        switch (target->m_native_function())
+        {
+        case WOORT_VM_CALL_STATUS_NORMAL:
+            // Fetch return value.
+            _WOORT_API_STACK(dst) = _WOORT_API_STACK(-1);
+            return WOORT_VM_CALL_STATUS_NORMAL;
+        default:
+            // Unexpected status, should not happend!
+            abort();
+        }
     }
 }
 

@@ -91,6 +91,21 @@ typedef enum woort_VMRuntime_CheckRequestMask
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK = 1 << 5,
 
+    /*
+    YIELD
+    请求虚拟以 WOORT_VM_CALL_STATUS_YIELD 状态结束执行，执行完整的正向同步以将 RT 状态
+    保存到 VM 状态，后续可以继续 dispatch 执行。
+
+        * JIT 运行时：
+            JIT 运行时无法处理此请求，执行正同步之后以 WOORT_VM_CALL_STATUS_RESYNC 
+            向上抛出到解释执行
+        * 解释执行运行时：
+            考虑到：
+                1）如果是 Native-call 返回 RESYNC 导致检查点请求：
+                2）
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_YIELD = 1 << 6,
+
 }woort_VMRuntime_CheckRequestMask;
 
 struct woort_VMRuntime
@@ -167,3 +182,7 @@ void woort_VMRuntime_hangup(woort_VMRuntime* vm);
 void woort_VMRuntime_wakeup(woort_VMRuntime* vm);
 
 WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm);
+
+WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
+    woort_VMRuntime* vm);
+
