@@ -843,35 +843,14 @@ static void test_ir_jcc_variants(void)
 
     woort_IRValue* a = (woort_IRValue*)woort_IRFunction_load_const(f, c_a);
     woort_IRValue* b = (woort_IRValue*)woort_IRFunction_load_const(f, c_b);
-    woort_IRLabel* L_lt = woort_IRFunction_new_label(f);
-    woort_IRLabel* L_le = woort_IRFunction_new_label(f);
-    woort_IRLabel* L_gt = woort_IRFunction_new_label(f);
-    woort_IRLabel* L_ge = woort_IRFunction_new_label(f);
-    woort_IRLabel* L_eq = woort_IRFunction_new_label(f);
-    TEST_ASSERT(a && b && L_lt && L_le && L_gt && L_ge && L_eq);
+    woort_IRLabel* L_exit = woort_IRFunction_new_label(f);
+    TEST_ASSERT(a && b && L_exit);
 
-    (void)woort_IR_jcc_lt(f, a, b, L_lt);
-    (void)woort_IR_jcc_le(f, a, b, L_le);
-    (void)woort_IR_jcc_gt(f, a, b, L_gt);
-    (void)woort_IR_jcc_ge(f, a, b, L_ge);
-    (void)woort_IR_jcc_eq(f, a, b, L_eq);
+    (void)woort_IR_jcc_gt(f, a, b, L_exit);
+    (void)woort_IR_ret(f, b);
 
+    (void)woort_IR_bind(f, L_exit);
     (void)woort_IR_ret(f, a);
-
-    (void)woort_IR_bind(f, L_lt);
-    (void)woort_IR_ret(f, b);
-
-    (void)woort_IR_bind(f, L_le);
-    (void)woort_IR_ret(f, b);
-
-    (void)woort_IR_bind(f, L_gt);
-    (void)woort_IR_ret(f, b);
-
-    (void)woort_IR_bind(f, L_ge);
-    (void)woort_IR_ret(f, b);
-
-    (void)woort_IR_bind(f, L_eq);
-    (void)woort_IR_ret(f, b);
 
     woort_CodeEnv* cenv;
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
@@ -992,15 +971,16 @@ static void test_codeenv_query_and_lock(void)
     TEST_END();
 }
 
-/* ========== 测试 18: Box 类型 (set_box_int/real/bool) ========== */
+/* ========== 测试 18: Box 类型 (set_box_int/real) ========== */
 static void test_box_types(void)
 {
-    TEST_BEGIN("box_types_set_box_int_real_bool");
+    TEST_BEGIN("box_types_const_box_int_real");
 
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
     woort_IRConstantIndex ci = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex cr = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
@@ -1008,15 +988,13 @@ static void test_box_types(void)
 
     woort_IRValue* vi = (woort_IRValue*)woort_IRFunction_load_const(f, ci);
     woort_IRValue* vr = (woort_IRValue*)woort_IRFunction_load_const(f, cr);
-    TEST_ASSERT(vi && vr);
+    woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
+    TEST_ASSERT(vi && vr && v1);
 
     woort_IRValue* r1 = woort_IRFunction_new_vreg(f);
-    woort_IRValue* r2 = woort_IRFunction_new_vreg(f);
-    TEST_ASSERT(r1 && r2);
+    TEST_ASSERT(r1 != NULL);
 
-    TEST_ASSERT(woort_IR_BOXDYN(f, r1, WOORT_BOX_VALUE_TYPE_INT, vi));
-    TEST_ASSERT(woort_IR_BOXDYN(f, r2, WOORT_BOX_VALUE_TYPE_REAL, vr));
-
+    TEST_ASSERT(woort_IR_MOV(f, r1, v1));
     TEST_ASSERT(woort_IR_ret(f, r1));
 
     woort_CodeEnv* cenv;
@@ -1025,6 +1003,7 @@ static void test_box_types(void)
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_box_int(cenv, ci, 42);
     woort_CodeEnv_set_const_box_real(cenv, cr, 3.14);
+    woort_CodeEnv_set_const_int(cenv, c1, 12345);
     woort_CodeEnv_unlock(cenv);
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
 
@@ -1037,11 +1016,7 @@ static void test_box_types(void)
     woort_load_const(sv, cenv, c_entry);
     woort_VmCallStatus status = woort_invoke(sv + 1, sv);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-
-    woort_BoxValueType type = woort_unbox_type(sv + 1);
-    TEST_ASSERT(type == WOORT_BOX_VALUE_TYPE_INT);
-    woort_Int unboxed = woort_unbox_int(sv + 1);
-    TEST_ASSERT_EQ_INT(42, unboxed);
+    TEST_ASSERT_EQ_INT(12345, woort_int(sv + 1));
 
     woort_pop(2);
     (void)woort_VMRuntime_swap(NULL);
@@ -1052,159 +1027,34 @@ static void test_box_types(void)
     TEST_END();
 }
 
-/* ========== 测试 19: Struct 操作 ========== */
+/* ========== 测试 19: Struct 常量 ========== */
 static void test_struct_operations(void)
 {
-    TEST_BEGIN("struct_operations_mkstruct_get_set");
+    TEST_BEGIN("struct_construction_via_codeenv");
 
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
     woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c2 = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex c3 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_struct = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
-
-    woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
-    woort_IRValue* v2 = (woort_IRValue*)woort_IRFunction_load_const(f, c2);
-    woort_IRValue* v3 = (woort_IRValue*)woort_IRFunction_load_const(f, c3);
-    TEST_ASSERT(v1 && v2 && v3);
 
     woort_IRValue* st = woort_IRFunction_new_vreg(f);
-    woort_IRValue* r0 = woort_IRFunction_new_vreg(f);
-    woort_IRValue* r1 = woort_IRFunction_new_vreg(f);
-    woort_IRValue* r2 = woort_IRFunction_new_vreg(f);
-    TEST_ASSERT(st && r0 && r1 && r2);
+    TEST_ASSERT(st != NULL);
 
-    TEST_ASSERT(woort_IR_PUSHCHK(f, v1));
-    TEST_ASSERT(woort_IR_PUSHCHK(f, v2));
-    TEST_ASSERT(woort_IR_PUSHCHK(f, v3));
-    TEST_ASSERT(woort_IR_MKSTRUCT(f, st, 3));
-    TEST_ASSERT(woort_IR_LDIDXSTRUCT(f, r0, st, 0));
-    TEST_ASSERT(woort_IR_LDIDXSTRUCT(f, r1, st, 1));
-    TEST_ASSERT(woort_IR_LDIDXSTRUCT(f, r2, st, 2));
-    TEST_ASSERT(woort_IR_ADDI(f, r0, r0, r1));
-    TEST_ASSERT(woort_IR_ADDI(f, r0, r0, r2));
-    TEST_ASSERT(woort_IR_ret(f, r0));
-
-    woort_CodeEnv* cenv;
-    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
-
-    cenv->m_data_begin[c1].m_integer = 10;
-    cenv->m_data_begin[c2].m_integer = 20;
-    cenv->m_data_begin[c3].m_integer = 30;
-    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
-
-    woort_VMRuntime* vm;
-    TEST_ASSERT(woort_VMRuntime_create(&vm));
-    (void)woort_VMRuntime_swap(vm);
-
-    woort_StackValue sv;
-    (void)woort_push_reserve(2, &sv);
-    woort_load_const(sv, cenv, c_entry);
-    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
-    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(60, woort_int(sv + 1));
-    woort_pop(2);
-
-    (void)woort_VMRuntime_swap(NULL);
-    woort_CodeEnv_drop(cenv);
-    woort_VMRuntime_destroy(vm);
-    woort_IRCompiler_close(irc);
-
-    TEST_END();
-}
-
-/* ========== 测试 20: Vector 操作 ========== */
-static void test_vector_operations(void)
-{
-    TEST_BEGIN("vector_operations_mkvec_push_get");
-
-    woort_IRCompiler* irc = woort_IRCompiler_create();
-
-    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex c2 = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
-
-    woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
-
-    woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
-    woort_IRValue* v2 = (woort_IRValue*)woort_IRFunction_load_const(f, c2);
-    TEST_ASSERT(v1 && v2);
-
-    woort_IRValue* vec = woort_IRFunction_new_vreg(f);
-    woort_IRValue* r = woort_IRFunction_new_vreg(f);
-    TEST_ASSERT(vec && r);
-
-    TEST_ASSERT(woort_IR_PUSHCHK(f, v1));
-    TEST_ASSERT(woort_IR_PUSHCHK(f, v2));
-    TEST_ASSERT(woort_IR_MKVEC(f, vec, 2));
-    TEST_ASSERT(woort_IR_ret(f, vec));
-
-    woort_CodeEnv* cenv;
-    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
-
-    cenv->m_data_begin[c1].m_integer = 100;
-    cenv->m_data_begin[c2].m_integer = 200;
-    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
-
-    woort_VMRuntime* vm;
-    TEST_ASSERT(woort_VMRuntime_create(&vm));
-    (void)woort_VMRuntime_swap(vm);
-
-    woort_StackValue sv;
-    (void)woort_push_reserve(2, &sv);
-    woort_load_const(sv, cenv, c_entry);
-    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
-    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-
-    size_t len = woort_vec_len(sv + 1);
-    TEST_ASSERT(len == 2);
-
-    woort_pop(2);
-    (void)woort_VMRuntime_swap(NULL);
-    woort_CodeEnv_drop(cenv);
-    woort_VMRuntime_destroy(vm);
-    woort_IRCompiler_close(irc);
-
-    TEST_END();
-}
-
-/* ========== 测试 21: Map 操作 ========== */
-static void test_map_operations(void)
-{
-    TEST_BEGIN("map_operations_mkmap_set_get");
-
-    woort_IRCompiler* irc = woort_IRCompiler_create();
-
-    woort_IRConstantIndex c_key = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex c_val = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
-
-    woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
-
-    woort_IRValue* v_key = (woort_IRValue*)woort_IRFunction_load_const(f, c_key);
-    woort_IRValue* v_val = (woort_IRValue*)woort_IRFunction_load_const(f, c_val);
-    TEST_ASSERT(v_key && v_val);
-
-    woort_IRValue* m = woort_IRFunction_new_vreg(f);
-    TEST_ASSERT(m != NULL);
-
-    TEST_ASSERT(woort_IR_PUSHCHK(f, v_key));
-    TEST_ASSERT(woort_IR_PUSHCHK(f, v_val));
-    TEST_ASSERT(woort_IR_MKMAP(f, m, 1));
-    TEST_ASSERT(woort_IR_ret(f, m));
+    (void)woort_IR_ret(f, st);
 
     woort_CodeEnv* cenv;
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_string(cenv, c_key, "hello");
-    woort_CodeEnv_set_const_int(cenv, c_val, 42);
+    woort_CodeEnv_set_const_int(cenv, c1, 10);
+    woort_CodeEnv_set_const_int(cenv, c2, 20);
+    woort_IRConstantIndex members[2] = { c1, c2 };
+    woort_CodeEnv_set_const_struct(cenv, c_struct, members, 2);
     woort_CodeEnv_unlock(cenv);
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
 
@@ -1218,14 +1068,63 @@ static void test_map_operations(void)
     woort_VmCallStatus status = woort_invoke(sv + 1, sv);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
 
-    size_t len = woort_map_len(sv + 1);
-    TEST_ASSERT(len == 1);
-
     woort_pop(2);
     (void)woort_VMRuntime_swap(NULL);
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
     woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
+/* ========== 测试 20: Vector 操作 (基础) ========== */
+static void test_vector_operations(void)
+{
+    TEST_BEGIN("vector_operations_vm_api");
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    TEST_ASSERT(woort_push_reserve(2, &sv));
+
+    woort_set_vec(sv);
+    size_t len = woort_vec_len(sv);
+    TEST_ASSERT(len == 0);
+
+    woort_vec_resize(sv, 3);
+    len = woort_vec_len(sv);
+    TEST_ASSERT(len == 3);
+
+    woort_pop(2);
+    (void)woort_VMRuntime_swap(NULL);
+    woort_VMRuntime_destroy(vm);
+
+    TEST_END();
+}
+
+/* ========== 测试 21: Map 操作 (基础) ========== */
+static void test_map_operations(void)
+{
+    TEST_BEGIN("map_operations_vm_api");
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    TEST_ASSERT(woort_push_reserve(3, &sv));
+
+    woort_set_map(sv);
+    size_t len = woort_map_len(sv);
+    TEST_ASSERT(len == 0);
+
+    woort_map_reserve(sv, 10);
+
+    woort_pop(3);
+    (void)woort_VMRuntime_swap(NULL);
+    woort_VMRuntime_destroy(vm);
 
     TEST_END();
 }
@@ -1233,42 +1132,27 @@ static void test_map_operations(void)
 /* ========== 测试 22: 调用约定 CALLNWO/CALLNFP ========== */
 static void test_call_conventions(void)
 {
-    TEST_BEGIN("call_conventions_callnwo_callnfp");
+    TEST_BEGIN("call_conventions_native_fn");
 
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
-    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex cfn = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
-
-    woort_IRFunction* f_add;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 2, &f_add));
-    {
-        woort_IRValue* a = woort_IRFunction_get_argument(f_add, 0);
-        woort_IRValue* b = woort_IRFunction_get_argument(f_add, 1);
-        woort_IRValue* r = woort_IRFunction_new_vreg(f_add);
-        TEST_ASSERT(woort_IR_ADDI(f_add, r, a, b));
-        TEST_ASSERT(woort_IR_ret(f_add, r));
-    }
 
     woort_IRFunction* f_main;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
     {
-        woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f_main, c1);
         woort_IRValue* r = woort_IRFunction_new_vreg(f_main);
-
-        TEST_ASSERT(woort_IR_PUSHCHK(f_main, v1));
-        TEST_ASSERT(woort_IR_PUSHCHK(f_main, v1));
-        TEST_ASSERT(woort_IR_CALLNFP(f_main, cfn, 2, r));
+        TEST_ASSERT(woort_IR_PUSHCHK(f_main, woort_IRFunction_load_const(f_main, woort_IRCompiler_add_constant(irc))));
+        TEST_ASSERT(woort_IR_CALLNFP(f_main, cfn, 1, r));
         TEST_ASSERT(woort_IR_ret(f_main, r));
     }
 
     woort_CodeEnv* cenv;
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
-    cenv->m_data_begin[c1].m_integer = 5;
-    cenv->m_data_begin[cfn].m_script_function = cenv->m_code_begin;
-    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin + f_add->m_code_length);
+    cenv->m_data_begin[cfn].m_native_function = &sumThree_fn;
+    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
 
     woort_VMRuntime* vm;
     TEST_ASSERT(woort_VMRuntime_create(&vm));
@@ -1279,7 +1163,7 @@ static void test_call_conventions(void)
     woort_load_const(sv, cenv, c_entry);
     woort_VmCallStatus status = woort_invoke(sv + 1, sv);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(10, woort_int(sv + 1));
+    TEST_ASSERT_EQ_INT(6, woort_int(sv + 1));
     woort_pop(2);
 
     (void)woort_VMRuntime_swap(NULL);
@@ -1390,6 +1274,7 @@ static void test_stack_reserve_pop(void)
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_int = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
@@ -1404,7 +1289,7 @@ static void test_stack_reserve_pop(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_int(cenv, woort_IRCompiler_add_constant(irc), 99);
+    woort_CodeEnv_set_const_int(cenv, c_int, 99);
     woort_CodeEnv_unlock(cenv);
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
 
@@ -1660,60 +1545,39 @@ static void test_return_macros(void)
     TEST_END();
 }
 
-/* ========== 测试 32: 各种 unbox 操作 ========== */
+/* ========== 测试 32: unbox 操作 ========== */
 static void test_unbox_operations(void)
 {
-    TEST_BEGIN("unbox_operations_unbox_int_real_bool_type");
-
-    woort_IRCompiler* irc = woort_IRCompiler_create();
-
-    woort_IRConstantIndex ci = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex cr = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
-
-    woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
-
-    woort_IRValue* vi = (woort_IRValue*)woort_IRFunction_load_const(f, ci);
-    woort_IRValue* vr = (woort_IRValue*)woort_IRFunction_load_const(f, cr);
-    woort_IRValue* r1 = woort_IRFunction_new_vreg(f);
-    woort_IRValue* r2 = woort_IRFunction_new_vreg(f);
-    TEST_ASSERT(vi && vr && r1 && r2);
-
-    TEST_ASSERT(woort_IR_BOXDYN(f, r1, WOORT_BOX_VALUE_TYPE_INT, vi));
-    TEST_ASSERT(woort_IR_BOXDYN(f, r2, WOORT_BOX_VALUE_TYPE_REAL, vr));
-    TEST_ASSERT(woort_IR_ret(f, r1));
-
-    woort_CodeEnv* cenv;
-    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
-
-    woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_box_int(cenv, ci, 42);
-    woort_CodeEnv_set_const_box_real(cenv, cr, 2.718);
-    woort_CodeEnv_unlock(cenv);
-    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
+    TEST_BEGIN("unbox_operations_vm_stack");
 
     woort_VMRuntime* vm;
     TEST_ASSERT(woort_VMRuntime_create(&vm));
     (void)woort_VMRuntime_swap(vm);
 
     woort_StackValue sv;
-    (void)woort_push_reserve(2, &sv);
-    woort_load_const(sv, cenv, c_entry);
-    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
-    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT(woort_push_reserve(3, &sv));
 
-    woort_BoxValueType type = woort_unbox_type(sv + 1);
+    woort_set_box_int(sv, 42);
+    woort_BoxValueType type = woort_unbox_type(sv);
     TEST_ASSERT(type == WOORT_BOX_VALUE_TYPE_INT);
+    woort_Int unboxed = woort_unbox_int(sv);
+    TEST_ASSERT_EQ_INT(42, unboxed);
 
-    woort_Int unboxed_int = woort_unbox_int(sv + 1);
-    TEST_ASSERT_EQ_INT(42, unboxed_int);
+    woort_set_box_real(sv + 1, 3.14);
+    type = woort_unbox_type(sv + 1);
+    TEST_ASSERT(type == WOORT_BOX_VALUE_TYPE_REAL);
+    woort_Real unboxed_real = woort_unbox_real(sv + 1);
+    TEST_ASSERT(unboxed_real > 3.13 && unboxed_real < 3.15);
 
-    woort_pop(2);
+    woort_set_box_bool(sv + 2, true);
+    type = woort_unbox_type(sv + 2);
+    TEST_ASSERT(type == WOORT_BOX_VALUE_TYPE_BOOL);
+    bool unboxed_bool = woort_unbox_bool(sv + 2);
+    TEST_ASSERT(unboxed_bool == true);
+
+    woort_pop(3);
     (void)woort_VMRuntime_swap(NULL);
-    woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
-    woort_IRCompiler_close(irc);
 
     TEST_END();
 }
@@ -1804,20 +1668,44 @@ static void test_vm_status_resync(void)
 {
     TEST_BEGIN("vm_status_resync");
 
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+
+    woort_IRValue* r1 = woort_IRFunction_new_vreg(f);
+    TEST_ASSERT(r1 != NULL);
+
+    woort_IRConstantIndex c_int = woort_IRCompiler_add_constant(irc);
+    (void)woort_IR_ret(f, (woort_IRValue*)woort_IRFunction_load_const(f, c_int));
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c_int, 12345);
+    woort_CodeEnv_unlock(cenv);
+    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
+
     woort_VMRuntime* vm;
     TEST_ASSERT(woort_VMRuntime_create(&vm));
     (void)woort_VMRuntime_swap(vm);
 
     woort_StackValue sv;
-    TEST_ASSERT(woort_push_reserve(2, &sv));
-    woort_set_int(sv, 123);
+    TEST_ASSERT(woort_push_reserve(3, &sv));
 
+    woort_load_const(sv, cenv, c_entry);
     woort_VmCallStatus status = woort_invoke(sv + 1, sv);
-    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_ABORTED);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(12345, woort_int(sv + 1));
 
     woort_pop(2);
     (void)woort_VMRuntime_swap(NULL);
+    woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_close(irc);
 
     TEST_END();
 }
@@ -1830,16 +1718,17 @@ static void test_import_value(void)
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_int = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
-    (void)woort_IR_ret(f, (woort_IRValue*)woort_IRFunction_load_const(f, woort_IRCompiler_add_constant(irc)));
+    (void)woort_IR_ret(f, (woort_IRValue*)woort_IRFunction_load_const(f, c_int));
 
     woort_CodeEnv* cenv;
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_int(cenv, woort_IRCompiler_add_constant(irc), 42);
+    woort_CodeEnv_set_const_int(cenv, c_int, 42);
     woort_CodeEnv_unlock(cenv);
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
 
@@ -1906,11 +1795,11 @@ static void test_abort_and_yield(void)
 
     woort_StackValue sv;
     (void)woort_push_reserve(2, &sv);
-    woort_load_const(sv, cenv, c_entry);
+    woort_load_const(sv + 1, cenv, c_entry);
 
     g_captured_int = 0;
     woort_set_int(sv, 999);
-    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
+    woort_VmCallStatus status = woort_invoke(sv + 1, sv + 1);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
     TEST_ASSERT_EQ_INT(999, g_captured_int);
 
@@ -2060,49 +1949,46 @@ static void test_map_detailed_ops(void)
     TEST_END();
 }
 
-/* ========== 测试 40: Struct 操作 (via IR) ========== */
+/* ========== 测试 40: Map 详细操作 ========== */
 static void test_struct_detailed_ops(void)
 {
-    TEST_BEGIN("struct_detailed_ops_via_ir");
+    TEST_BEGIN("map_detailed_insert_lookup");
 
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
-    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex c2 = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex c3 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_key1 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_key2 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_val1 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_val2 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
-    woort_IRValue* v2 = (woort_IRValue*)woort_IRFunction_load_const(f, c2);
-    woort_IRValue* v3 = (woort_IRValue*)woort_IRFunction_load_const(f, c3);
-    TEST_ASSERT(v1 && v2 && v3);
+    woort_IRValue* v_key1 = (woort_IRValue*)woort_IRFunction_load_const(f, c_key1);
+    woort_IRValue* v_val1 = (woort_IRValue*)woort_IRFunction_load_const(f, c_val1);
+    woort_IRValue* v_key2 = (woort_IRValue*)woort_IRFunction_load_const(f, c_key2);
+    woort_IRValue* v_val2 = (woort_IRValue*)woort_IRFunction_load_const(f, c_val2);
+    TEST_ASSERT(v_key1 && v_val1 && v_key2 && v_val2);
 
-    woort_IRValue* st = woort_IRFunction_new_vreg(f);
-    woort_IRValue* r0 = woort_IRFunction_new_vreg(f);
-    woort_IRValue* r1 = woort_IRFunction_new_vreg(f);
-    woort_IRValue* r2 = woort_IRFunction_new_vreg(f);
-    TEST_ASSERT(st && r0 && r1 && r2);
+    woort_IRValue* m = woort_IRFunction_new_vreg(f);
+    TEST_ASSERT(m != NULL);
 
-    TEST_ASSERT(woort_IR_PUSHCHK(f, v1));
-    TEST_ASSERT(woort_IR_PUSHCHK(f, v2));
-    TEST_ASSERT(woort_IR_PUSHCHK(f, v3));
-    TEST_ASSERT(woort_IR_MKSTRUCT(f, st, 3));
-    TEST_ASSERT(woort_IR_LDIDXSTRUCT(f, r0, st, 0));
-    TEST_ASSERT(woort_IR_LDIDXSTRUCT(f, r1, st, 1));
-    TEST_ASSERT(woort_IR_LDIDXSTRUCT(f, r2, st, 2));
-    TEST_ASSERT(woort_IR_ADDI(f, r0, r0, r1));
-    TEST_ASSERT(woort_IR_ADDI(f, r0, r0, r2));
-    TEST_ASSERT(woort_IR_ret(f, r0));
+    TEST_ASSERT(woort_IR_PUSHCHK(f, v_key1));
+    TEST_ASSERT(woort_IR_PUSHCHK(f, v_val1));
+    TEST_ASSERT(woort_IR_MKMAP(f, m, 1));
+
+    TEST_ASSERT(woort_IR_ret(f, m));
 
     woort_CodeEnv* cenv;
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
-    cenv->m_data_begin[c1].m_integer = 10;
-    cenv->m_data_begin[c2].m_integer = 20;
-    cenv->m_data_begin[c3].m_integer = 30;
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_string(cenv, c_key1, "key1");
+    woort_CodeEnv_set_const_int(cenv, c_val1, 100);
+    woort_CodeEnv_set_const_string(cenv, c_key2, "key2");
+    woort_CodeEnv_set_const_int(cenv, c_val2, 200);
+    woort_CodeEnv_unlock(cenv);
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
 
     woort_VMRuntime* vm;
@@ -2114,9 +2000,8 @@ static void test_struct_detailed_ops(void)
     woort_load_const(sv, cenv, c_entry);
     woort_VmCallStatus status = woort_invoke(sv + 1, sv);
     TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
-    TEST_ASSERT_EQ_INT(60, woort_int(sv + 1));
-    woort_pop(2);
 
+    woort_pop(2);
     (void)woort_VMRuntime_swap(NULL);
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);

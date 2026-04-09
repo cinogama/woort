@@ -822,6 +822,40 @@ WOORT_NODISCARD woort_VmCallStatus woort_resume(
 WOORT_NODISCARD woort_VmCallStatus woort_spawn(
     woort_StackValue dst, woort_StackValue f)
 {
+    /*
+     * woort_spawn - 从一个函数值启动协程
+     *
+     * @param dst: 用于接收协程完成时返回值的栈槽
+     * @param f:   存放可调用对象（closure）的栈槽
+     *
+     * 调用约定：
+     *   - f 槽位必须包含一个有效的 GCClosure 实例
+     *   - dst 槽位由调用者保留，用于接收返回值
+     *   - f 槽位的内容在调用期间会被覆盖
+     *
+     * 执行流程：
+     *   1. 从 f 提取 closure 指针
+     *   2. 调用 _woort_pre_invoke 进行栈布局和调用准备
+     *   3. 根据 closure 类型分发：
+     *      - Script function (m_script_function != NULL):
+     *          - 若存在 JIT function，尝试 JIT 执行
+     *          - 若 JIT 返回 NORMAL，则直接返回
+     *          - 否则回落到 woort_resume 继续 VM 执行
+     *      - Native function (m_script_function == NULL):
+     *          - 直接调用 m_native_function()
+     *          - Native function 必须遵循调用约定，正确设置返回值
+     *
+     * 返回值：
+     *   - WOORT_VM_CALL_STATUS_NORMAL:  调用成功完成，dst 包含返回值
+     *   - WOORT_VM_CALL_STATUS_RESYNC: JIT 执行未完成，需要 VM 继续处理
+     *   - WOORT_VM_CALL_STATUS_YIELD:  协程让出，需要通过 woort_resume 恢复
+     *   - WOORT_VM_CALL_STATUS_ABORTED: 调用失败（栈溢出、环境查找失败等）
+     *
+     * 注意：
+     *   - Native function 不应在 return 时直接返回 YIELD，因为这会导致后续
+     *     woort_resume 失败（几乎不会发生的边缘情况）
+     *   - 调用完成后，调用者负责通过 woort_pop 清理栈上的参数
+     */
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     const woort_GCClosure* const target = _WOORT_API_STACK(f).m_closure;
 
@@ -902,6 +936,32 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
 WOORT_NODISCARD woort_VmCallStatus woort_invoke(
     woort_StackValue dst, woort_StackValue f)
 {
+    /*
+     * woort_invoke - 同步调用一个函数值并等待完成
+     *
+     * @param dst: 用于接收返回值的栈槽
+     * @param f:   存放可调用对象（closure）的栈槽
+     *
+     * 与 woort_spawn 的区别：
+     *   - woort_spawn 允许协程让出（YIELD），调用者可通过 woort_resume 恢复
+     *   - woort_invoke 不允许 YIELD，若协程让出则直接 panic 并返回 ABORTED
+     *
+     * 因此 woort_invoke 适用于：
+     *   - Native 代码调用 VM 函数，且不需要支持协程挂起
+     *   - 不需要从 VM 内部 yield 的场景
+     *
+     * 调用约定（与 woort_spawn 相同）：
+     *   - f 槽位必须包含一个有效的 GCClosure 实例
+     *   - dst 槽位由调用者保留，用于接收返回值
+     *   - f 槽位的内容在调用期间会被覆盖
+     *
+     * 返回值：
+     *   - WOORT_VM_CALL_STATUS_NORMAL:  调用成功完成
+     *   - WOORT_VM_CALL_STATUS_ABORTED:  调用失败或协程尝试 YIELD
+     *
+     * 注意：
+     *   - 若需要支持协程（可挂起/恢复的函数），应使用 woort_spawn + woort_resume
+     */
     const woort_VmCallStatus r = woort_spawn(dst, f);
     if (r == WOORT_VM_CALL_STATUS_YIELD)
     {
