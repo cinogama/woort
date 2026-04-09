@@ -237,6 +237,17 @@ SB+2，储存函数的返回状态）。当前栈帧自 -3 开始，向负数方
 
 /* Write */
 
+void woort_load_const(
+    woort_StackValue dst, woort_CodeEnv* code_env, woort_IRConstantIndex cidx)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+    assert(code_env != NULL);
+    assert((size_t)cidx < code_env->m_data_count);
+
+    _WOORT_API_STACK(dst) = code_env->m_data_begin[cidx];
+}
+
 void woort_set_value(
     woort_StackValue dst, woort_StackValue src)
 {

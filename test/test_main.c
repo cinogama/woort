@@ -54,6 +54,8 @@ int main(int argc, char** argv) {
     woort_IRFunction* f_main;
 
     woort_IRConstantIndex c_f_fib = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_c_main = woort_IRCompiler_add_constant(irc);
+
     woort_IRConstantIndex c_1 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_2 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_35 = woort_IRCompiler_add_constant(irc);
@@ -106,11 +108,15 @@ int main(int argc, char** argv) {
     const woort_Bytecode* fib_addr;
     (void)woort_CodeEnv_query_function(cenv, f_fib, &fib_addr);
 
+    const woort_Bytecode* main_addr;
+    (void)woort_CodeEnv_query_function(cenv, f_main, &main_addr);
+
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_script_function(cenv, c_f_fib, fib_addr);
+    woort_CodeEnv_set_const_script_closure(cenv, c_c_main, main_addr);
     woort_CodeEnv_set_const_int(cenv, c_1, 1);
     woort_CodeEnv_set_const_int(cenv, c_2, 2);
-    woort_CodeEnv_set_const_int(cenv, c_35, 35);
+    woort_CodeEnv_set_const_int(cenv, c_35, 40);
     woort_CodeEnv_unlock(cenv);
 
     dump_Code(cenv);
@@ -118,14 +124,22 @@ int main(int argc, char** argv) {
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
 
-    const woort_Bytecode* main_addr;
-    (void)woort_CodeEnv_query_function(cenv, f_main, &main_addr);
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    (void)woort_push_reserve(2, &sv);
+
+    woort_load_const(sv, cenv, c_c_main);
 
     const clock_t b0 = clock();
-    (void)woort_VMRuntime_invoke(vm, main_addr);
+    (void)woort_invoke(sv + 1, sv);
     const clock_t e0 = clock();
 
-    printf("%lld\n", (long long)vm->m_sp[0].m_integer);
+    woort_pop(2);
+
+    printf("%lld\n", (long long)woort_int(sv + 1));
+
+    (void)woort_VMRuntime_swap(NULL);
 
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_destroy(vm);
@@ -187,21 +201,30 @@ int main(int argc, char** argv) {
     (void)woort_CodeEnv_create(
         bcs,
         sizeof(bcs) / sizeof(woort_Bytecode),
-        4,
+        5,
         &codeenv);
 
     woort_CodeEnv_lock(codeenv);
     woort_CodeEnv_set_const_int(codeenv, 0, 2);
     woort_CodeEnv_set_const_int(codeenv, 1, 1);
     woort_CodeEnv_set_const_script_function(codeenv, 2, codeenv->m_code_begin);
-    woort_CodeEnv_set_const_int(codeenv, 3, 35);
+    woort_CodeEnv_set_const_int(codeenv, 3, 40);
+    woort_CodeEnv_set_const_script_closure(codeenv, 4, codeenv->m_code_begin + 15);
     woort_CodeEnv_unlock(codeenv);
 
     (void)woort_VMRuntime_create(&vm);
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv2;
+    (void)woort_push_reserve(2, &sv2);
+    woort_load_const(sv2, codeenv, 4);
 
     const clock_t b1 = clock();
-    (void)woort_VMRuntime_invoke(vm, codeenv->m_code_begin + 15);
+    (void)woort_invoke(sv2 + 1, sv2);
     const clock_t e1 = clock();
+
+    woort_pop(2);
+    (void)woort_VMRuntime_swap(NULL);
 
     printf("%d, %d", (int)(e0 - b0), (int)(e1 - b1));
 

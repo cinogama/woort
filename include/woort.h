@@ -1082,6 +1082,9 @@ WOORT_API void woort_CodeEnv_set_const_struct(
     size_t member_count);
 
 // 
+WOORT_API void woort_load_const(
+    woort_StackValue dst, woort_CodeEnv* code_env, woort_IRConstantIndex cidx);
+
 WOORT_API void woort_set_value(
     woort_StackValue dst, woort_StackValue src);
 WOORT_API void woort_set_nil(
