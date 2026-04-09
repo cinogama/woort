@@ -1,5 +1,6 @@
 #include "woort_diagnosis.h"
 #include "woort_log.h"
+#include "woort_vm.h"
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -41,5 +42,29 @@ WOORT_NODISCARD woort_VmCallStatus woort_ret_panic(const char* fmt, ...)
 
     va_end(args);
 
+    return WOORT_VM_CALL_STATUS_RESYNC;
+}
+
+WOORT_NODISCARD woort_VmCallStatus woort_ret_abort(void)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    if (vm != NULL)
+    {
+        (void)woort_VMRuntime_request_set(
+            vm,
+            WOORT_VMRUNTIME_CHECK_REQUEST_ABORT);
+    }
+    return WOORT_VM_CALL_STATUS_RESYNC;
+}
+
+WOORT_NODISCARD woort_VmCallStatus woort_ret_yield(void)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    if (vm != NULL)
+    {
+        (void)woort_VMRuntime_request_set(
+            vm,
+            WOORT_VMRUNTIME_CHECK_REQUEST_YIELD);
+    }
     return WOORT_VM_CALL_STATUS_RESYNC;
 }

@@ -430,10 +430,10 @@ WOORT_API void woort_IRFunction_pop_srcloc(woort_IRFunction* f);
  * @{
  */
 
-/** @name Data Movement */
-/**@{*/
+ /** @name Data Movement */
+ /**@{*/
 
-/** @brief Move: dst = src. */
+ /** @brief Move: dst = src. */
 WOORT_API WOORT_NODISCARD bool woort_IR_MOV(
     woort_IRFunction* f,
     woort_IRValue* dst,
@@ -1024,7 +1024,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_STIDXVECX(
  * I=int, R=real, B=bool, X=boxed(dynamic).
  * @{*/
 
-/** @brief Dict[int] = int. */
+ /** @brief Dict[int] = int. */
 WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTII(
     woort_IRFunction* f,
     woort_IRValue* c,
@@ -1143,7 +1143,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTXX(
  * Same key/value type convention as Dict: I=int, R=real, B=bool, X=boxed(dynamic).
  * @{*/
 
-/** @brief Map[int] = int. */
+ /** @brief Map[int] = int. */
 WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPII(
     woort_IRFunction* f,
     woort_IRValue* c,
@@ -1375,7 +1375,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_jccz(
  * @return true on success, false on OOM.
  * @{ */
 
-/** @brief Jump if a < b. */
+ /** @brief Jump if a < b. */
 WOORT_API WOORT_NODISCARD bool woort_IR_jcc_lt(
     woort_IRFunction* f,
     const woort_IRValue* a,
@@ -1460,8 +1460,8 @@ WOORT_API void woort_pop(size_t count);
  * @param src_in_vm  Source stack slot in the source VM.
  */
 WOORT_API void woort_import_value(
-    woort_StackValue dst, 
-    woort_VMRuntime* src_vm, 
+    woort_StackValue dst,
+    woort_VMRuntime* src_vm,
     woort_StackValue src_in_vm);
 
 /**
@@ -1498,12 +1498,12 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
  * @{
  */
 
-/**
- * @brief Set a constant pool entry to an integer value.
- * @param code_env  The locked code environment.
- * @param cidx      The constant pool index.
- * @param val       The integer value.
- */
+ /**
+  * @brief Set a constant pool entry to an integer value.
+  * @param code_env  The locked code environment.
+  * @param cidx      The constant pool index.
+  * @param val       The integer value.
+  */
 WOORT_API void woort_CodeEnv_set_const_int(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
@@ -1590,7 +1590,7 @@ WOORT_API void woort_load_const(
  * @{
  */
 
-/** @brief Copy a value from one stack slot to another: dst = src. */
+ /** @brief Copy a value from one stack slot to another: dst = src. */
 WOORT_API void woort_set_value(
     woort_StackValue dst, woort_StackValue src);
 
@@ -1687,7 +1687,7 @@ WOORT_API void woort_set_box_bool(
  * @{
  */
 
-/** @brief Set union to a variant with no inline payload (unit-like). */
+ /** @brief Set union to a variant with no inline payload (unit-like). */
 WOORT_API void woort_set_union_without_value(
     woort_StackValue dst, woort_Int id);
 
@@ -1777,7 +1777,7 @@ WOORT_API void woort_set_union_box_bool(
  * @{
  */
 
-/** @brief Set Option to none (no value). */
+ /** @brief Set Option to none (no value). */
 #define woort_set_option_none(dst) woort_set_union_without_value(dst, 1)
 
 /** @brief Set option::value(stack_value). */
@@ -1820,7 +1820,7 @@ WOORT_API void woort_set_union_box_bool(
  * @{
  */
 
-/** @brief Set Result::Ok(stack_value). */
+ /** @brief Set Result::Ok(stack_value). */
 #define woort_set_result_ok_value woort_set_option_value
 /** @brief Set Result::Ok(nil). */
 #define woort_set_result_ok_nil woort_set_option_nil
@@ -1857,7 +1857,7 @@ WOORT_API void woort_set_union_box_bool(
  * @{
  */
 
-/** @brief Set Result::Err(stack_value). */
+ /** @brief Set Result::Err(stack_value). */
 #define woort_set_result_err_value(dst, src) woort_set_union_value(dst, 1, src)
 /** @brief Set Result::Err(nil). */
 #define woort_set_result_err_nil(dst) woort_set_union_nil(dst, 1)
@@ -1900,7 +1900,7 @@ WOORT_API void woort_set_union_box_bool(
  * @{
  */
 
-/** @brief Return a stack value: set slot -1 and return NORMAL. */
+ /** @brief Return a stack value: set slot -1 and return NORMAL. */
 #define woort_ret_value(src) (woort_set_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return void (no value). */
 #define woort_ret_void() WOORT_VM_CALL_STATUS_NORMAL
@@ -1939,7 +1939,7 @@ WOORT_API void woort_set_union_box_bool(
  * @{
  */
 
-/** @brief Return a union with no inline payload. */
+ /** @brief Return a union with no inline payload. */
 #define woort_ret_union_without_value(id) (woort_set_union_without_value(-1, id), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return a union carrying a stack value. */
 #define woort_ret_union_value(id, src) (woort_set_union_value(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
@@ -1980,7 +1980,7 @@ WOORT_API void woort_set_union_box_bool(
  * @{
  */
 
-/** @brief Return option::none. */
+ /** @brief Return option::none. */
 #define woort_ret_option_none() (woort_set_option_none(-1), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return option::value(stack_value). */
 #define woort_ret_option_value(src) (woort_set_option_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
@@ -2022,7 +2022,7 @@ WOORT_API void woort_set_union_box_bool(
  * @{
  */
 
-/** @brief Return Result::Ok(stack_value). */
+ /** @brief Return Result::Ok(stack_value). */
 #define woort_ret_result_ok_value(src) (woort_set_result_ok_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return Result::Ok(nil). */
 #define woort_ret_result_ok_nil() (woort_set_result_ok_nil(-1), WOORT_VM_CALL_STATUS_NORMAL)
@@ -2061,7 +2061,7 @@ WOORT_API void woort_set_union_box_bool(
  * @{
  */
 
-/** @brief Return Result::Err(stack_value). */
+ /** @brief Return Result::Err(stack_value). */
 #define woort_ret_result_err_value(src) (woort_set_result_err_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return Result::Err(nil). */
 #define woort_ret_result_err_nil() (woort_set_result_err_nil(-1), WOORT_VM_CALL_STATUS_NORMAL)
@@ -2094,13 +2094,35 @@ WOORT_API void woort_set_union_box_bool(
 
 /** @} */ /* end Return Result::Err Macros */
 
-
 /**
- * @brief Trigger a panic and return WOORT_VM_CALL_STATUS_RESYNC to resync the VM.
+ * @brief Trigger a panic indicating the current Native-call has encountered a completely unexpected situation
+ *        severe enough that continuing execution may lead to a crash. Panic blocks the current thread and awaits
+ *        further instructions from the user, which may include:
+ *          1) abort the entire program,
+ *          2) treat as Abort (equivalent to woort_ret_abort), or
+ *          3) attach a debugger and break immediately at the current location.
+ *
  * @param fmt  Printf-style format string for the panic message.
+ * @param ...  Arguments for the format string.
+ *
+ * @note Regardless of the user's choice, WooRT makes no guarantees about any program behavior after a panic occurs.
+ *       The program may crash even after the user makes a selection.
  */
 WOORT_API WOORT_NODISCARD woort_api woort_ret_panic(const char* fmt, ...);
 
+/**
+ * @brief Request to abort further VM execution. Use this when the VM has entered an unrecoverable state where
+ *        continuing execution in the current context would lead to unpredictable results. For example, when
+ *        woort_invoke returns WOORT_VM_CALL_STATUS_ABORTED, the call stack may be corrupted, requiring
+ *        woort_ret_abort to abort the current Native-function call and prevent the VM from continuing.
+ */
+WOORT_API WOORT_NODISCARD woort_api woort_ret_abort(void);
+
+/**
+ * @brief Request to pause VM execution, preserving the state after the current Native-function call completes.
+ *        Expects to be resumed later via woort_resume, continuing from the preserved state.
+ */
+WOORT_API WOORT_NODISCARD woort_api woort_ret_yield(void);
 
 /**
  * @name Stack Value Readers
@@ -2111,7 +2133,7 @@ WOORT_API WOORT_NODISCARD woort_api woort_ret_panic(const char* fmt, ...);
  * @{
  */
 
-/** @brief Read a raw integer from a stack slot. */
+ /** @brief Read a raw integer from a stack slot. */
 WOORT_API WOORT_NODISCARD woort_Int woort_int(woort_StackValue src);
 /** @brief Read a raw real (double) from a stack slot. */
 WOORT_API WOORT_NODISCARD woort_Real woort_real(woort_StackValue src);
@@ -2162,7 +2184,7 @@ WOORT_API WOORT_NODISCARD woort_Int woort_union_get(
  * @{
  */
 
-/** @brief Check if Option is value. Returns true if the union id == 0 (value), copies payload to dst. */
+ /** @brief Check if Option is value. Returns true if the union id == 0 (value), copies payload to dst. */
 #define woort_option_get(dst, src) \
     (0 == woort_union_get(dst, src))
 /** @brief Check if Result is Ok. Returns true if the union id == 0 (Ok), copies payload to dst. */
