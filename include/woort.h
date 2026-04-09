@@ -1494,81 +1494,158 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
  * @name CodeEnv Constant Pool Setters
  * @brief Set the value of a constant pool entry in a locked CodeEnv.
  *
- * @note These functions must be called after woort_CodeEnv_lock().
+ * @note These functions MUST be called between woort_CodeEnv_lock() and
+ *       woort_CodeEnv_unlock(). The lock ensures thread-safe access to the
+ *       constant pool and proper GC write barrier handling.
+ *
+ * @note The constant pool index @p cidx must have been allocated via
+ *       woort_IRCompiler_add_constant() BEFORE calling woort_IRCompiler_finish().
+ *       After finish(), the constant pool layout is fixed and no new constants
+ *       can be added.
+ *
+ * Usage pattern:
+ * @code
+ *   woort_IRCompiler_add_constant(irc);  // allocate before finish
+ *   woort_IRCompiler_finish(irc, &cenv);
+ *   woort_CodeEnv_lock(cenv);
+ *   woort_CodeEnv_set_const_int(cenv, cidx, 42);  // set value
+ *   woort_CodeEnv_unlock(cenv);
+ * @endcode
  * @{
  */
 
  /**
   * @brief Set a constant pool entry to an integer value.
   * @param code_env  The locked code environment.
-  * @param cidx      The constant pool index.
-  * @param val       The integer value.
+  * @param cidx      The constant pool index (must be allocated before finish).
+  * @param val       The integer value to store.
   */
-WOORT_API void woort_CodeEnv_set_const_int(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    woort_Int val);
+ WOORT_API void woort_CodeEnv_set_const_int(
+     woort_CodeEnv* code_env,
+     woort_IRConstantIndex cidx,
+     woort_Int val);
 
-/** @brief Set a constant pool entry to a real value. */
-WOORT_API void woort_CodeEnv_set_const_real(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    woort_Real val);
+ /**
+  * @brief Set a constant pool entry to a real (floating-point) value.
+  * @param code_env  The locked code environment.
+  * @param cidx      The constant pool index (must be allocated before finish).
+  * @param val       The real value to store.
+  */
+ WOORT_API void woort_CodeEnv_set_const_real(
+     woort_CodeEnv* code_env,
+     woort_IRConstantIndex cidx,
+     woort_Real val);
 
-/** @brief Set a constant pool entry to a string value. */
-WOORT_API void woort_CodeEnv_set_const_string(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    woort_U8CString val);
+ /**
+  * @brief Set a constant pool entry to a string value.
+  * @param code_env  The locked code environment.
+  * @param cidx      The constant pool index (must be allocated before finish).
+  * @param val       The NUL-terminated string to store (a GCString is created).
+  */
+ WOORT_API void woort_CodeEnv_set_const_string(
+     woort_CodeEnv* code_env,
+     woort_IRConstantIndex cidx,
+     woort_U8CString val);
 
-/** @brief Set a constant pool entry to a script function reference. */
-WOORT_API void woort_CodeEnv_set_const_script_function(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    const woort_Bytecode* val);
+ /**
+  * @brief Set a constant pool entry to a script function entry point.
+  * @param code_env  The locked code environment.
+  * @param cidx      The constant pool index (must be allocated before finish).
+  * @param val       Pointer to the bytecode of the script function entry point.
+  *
+  * @note This creates a reference to a script function. For closures that
+  *       capture the environment, use woort_CodeEnv_set_const_script_closure().
+  */
+ WOORT_API void woort_CodeEnv_set_const_script_function(
+     woort_CodeEnv* code_env,
+     woort_IRConstantIndex cidx,
+     const woort_Bytecode* val);
 
-/** @brief Set a constant pool entry to an extern (native) function reference. */
-WOORT_API void woort_CodeEnv_set_const_extern_function(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    const woort_Bytecode* val);
+ /**
+  * @brief Set a constant pool entry to an extern (native) function.
+  * @param code_env  The locked code environment.
+  * @param cidx      The constant pool index (must be allocated before finish).
+  * @param val       Pointer to the native function entry point.
+  *
+  * @note The native function must follow the woort_api calling convention
+  *       and return woort_VmCallStatus.
+  */
+ WOORT_API void woort_CodeEnv_set_const_extern_function(
+     woort_CodeEnv* code_env,
+     woort_IRConstantIndex cidx,
+     const woort_Bytecode* val);
 
-/** @brief Set a constant pool entry to a script closure reference. */
-WOORT_API void woort_CodeEnv_set_const_script_closure(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    const woort_Bytecode* val);
+ /**
+  * @brief Set a constant pool entry to a script closure (function + env).
+  * @param code_env  The locked code environment.
+  * @param cidx      The constant pool index (must be allocated before finish).
+  * @param val       Pointer to the bytecode entry point of the script function.
+  *
+  * @note This creates a GCClosure wrapping the script function. The closure
+  *       inherits the CodeEnv from the bytecode address.
+  */
+ WOORT_API void woort_CodeEnv_set_const_script_closure(
+     woort_CodeEnv* code_env,
+     woort_IRConstantIndex cidx,
+     const woort_Bytecode* val);
 
-/** @brief Set a constant pool entry to an extern closure reference. */
-WOORT_API void woort_CodeEnv_set_const_extern_closure(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    const woort_Bytecode* val);
+ /**
+  * @brief Set a constant pool entry to an extern (native) closure.
+  * @param code_env  The locked code environment.
+  * @param cidx      The constant pool index (must be allocated before finish).
+  * @param val       Pointer to the native function entry point.
+  *
+  * @note This creates a GCClosure wrapping the native function. The closure
+  *       can be called from script code via CALLNFP/CALLNWO.
+  */
+ WOORT_API void woort_CodeEnv_set_const_extern_closure(
+     woort_CodeEnv* code_env,
+     woort_IRConstantIndex cidx,
+     const woort_Bytecode* val);
 
-/** @brief Set a constant pool entry to a boxed integer value. */
-WOORT_API void woort_CodeEnv_set_const_box_int(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    woort_Int val);
+ /**
+  * @brief Set a constant pool entry to a boxed integer value.
+  * @param code_env  The locked code environment.
+  * @param cidx      The constant pool index (must be allocated before finish).
+  * @param val       The integer value to box.
+  *
+  * @note A DynBox object is allocated on the GC heap and the constant holds
+  *       a reference to this box. Use woort_unbox_int() to retrieve the value.
+  */
+ WOORT_API void woort_CodeEnv_set_const_box_int(
+     woort_CodeEnv* code_env,
+     woort_IRConstantIndex cidx,
+     woort_Int val);
 
-/** @brief Set a constant pool entry to a boxed real value. */
-WOORT_API void woort_CodeEnv_set_const_box_real(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    woort_Real val);
+ /**
+  * @brief Set a constant pool entry to a boxed real value.
+  * @param code_env  The locked code environment.
+  * @param cidx      The constant pool index (must be allocated before finish).
+  * @param val       The real value to box.
+  *
+  * @note A DynBox object is allocated on the GC heap and the constant holds
+  *       a reference to this box. Use woort_unbox_real() to retrieve the value.
+  */
+ WOORT_API void woort_CodeEnv_set_const_box_real(
+     woort_CodeEnv* code_env,
+     woort_IRConstantIndex cidx,
+     woort_Real val);
 
-/**
- * @brief Set a constant pool entry to a struct composed of member constants.
- * @param code_env     The locked code environment.
- * @param cidx         The constant pool index for the struct.
- * @param members      Array of constant indices for each struct field.
- * @param member_count Number of fields.
- */
-WOORT_API void woort_CodeEnv_set_const_struct(
-    woort_CodeEnv* code_env,
-    woort_IRConstantIndex cidx,
-    const woort_IRConstantIndex* members,
-    size_t member_count);
+ /**
+  * @brief Set a constant pool entry to a struct composed of member constants.
+  * @param code_env     The locked code environment.
+  * @param cidx         The constant pool index for the struct (must be allocated before finish).
+  * @param members      Array of constant indices for each struct field.
+  * @param member_count Number of fields in the struct.
+  *
+  * @note Each member must already have its value set via one of the other
+  *       set_const functions before calling this function.
+  */
+ WOORT_API void woort_CodeEnv_set_const_struct(
+     woort_CodeEnv* code_env,
+     woort_IRConstantIndex cidx,
+     const woort_IRConstantIndex* members,
+     size_t member_count);
 
 /** @} */ /* end CodeEnv Constant Pool Setters */
 
