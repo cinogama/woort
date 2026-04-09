@@ -789,19 +789,34 @@ WOORT_NODISCARD bool _woort_pre_invoke(woort_VMRuntime* vm, const woort_GCClosur
     return true;
 }
 
-WOORT_NODISCARD woort_VmCallStatus woort_invoke(
-    woort_StackValue dst, woort_StackValue f)
+WOORT_NODISCARD woort_VmCallStatus woort_resume(
+    woort_StackValue dst)
 {
-    const woort_VmCallStatus r = woort_spawn(dst, f);
-    if (r == WOORT_VM_CALL_STATUS_YIELD)
-    {
-        woort_panic(
-            WOORT_PANIC_BAD_VM_REQUEST,
-            "Cannot yield during `woort_invoke`.");
+    /*
+    NOTE: VM 已经保存到之前的状态，直接继续派发执行即可
+    */
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
 
+    switch (_woort_VMRuntime_dispatch(vm))
+    {
+    case WOORT_VM_CALL_STATUS_NORMAL:
+        // Fetch return value.
+        _WOORT_API_STACK(dst) = *vm->m_sp;
+        return WOORT_VM_CALL_STATUS_NORMAL;
+    case WOORT_VM_CALL_STATUS_YIELD:
+        /*
+        NOTE: 此处实现存在瑕疵，考虑：
+                1）Target function 是 Native function，且尝试 Yield.
+            此时返回 YIELD 会导致后续执行 step 失败，但是考虑到这种情况
+            几乎不会发生，暂时先搁置。
+        */
+        return WOORT_VM_CALL_STATUS_YIELD;
+    case WOORT_VM_CALL_STATUS_ABORTED:
         return WOORT_VM_CALL_STATUS_ABORTED;
+    default:
+        // Unexpected status, should not happend!
+        abort();
     }
-    return r;
 }
 
 WOORT_NODISCARD woort_VmCallStatus woort_spawn(
@@ -881,31 +896,22 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
         }
     }
 
-    switch (_woort_VMRuntime_dispatch(vm))
-    {
-    case WOORT_VM_CALL_STATUS_NORMAL:
-        // Fetch return value.
-        _WOORT_API_STACK(dst) = *vm->m_sp;
-        return WOORT_VM_CALL_STATUS_NORMAL;
-    case WOORT_VM_CALL_STATUS_YIELD:
-        /*
-        NOTE: 此处实现存在瑕疵，考虑：
-                1）Target function 是 Native function，且尝试 Yield.
-            此时返回 YIELD 会导致后续执行 step 失败，但是考虑到这种情况
-            几乎不会发生，暂时先搁置。
-        */
-        return WOORT_VM_CALL_STATUS_YIELD;
-    case WOORT_VM_CALL_STATUS_ABORTED:
-        return WOORT_VM_CALL_STATUS_ABORTED;
-    default:
-        // Unexpected status, should not happend!
-        abort();
-    }
+    return woort_resume(dst);
 }
-WOORT_NODISCARD woort_VmCallStatus woort_resume(
-    woort_StackValue dst)
-{
 
+WOORT_NODISCARD woort_VmCallStatus woort_invoke(
+    woort_StackValue dst, woort_StackValue f)
+{
+    const woort_VmCallStatus r = woort_spawn(dst, f);
+    if (r == WOORT_VM_CALL_STATUS_YIELD)
+    {
+        woort_panic(
+            WOORT_PANIC_BAD_VM_REQUEST,
+            "Cannot yield during `woort_invoke`.");
+
+        return WOORT_VM_CALL_STATUS_ABORTED;
+    }
+    return r;
 }
 
 WOORT_NODISCARD woort_Int woort_unbox_int(woort_StackValue src)
