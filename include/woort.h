@@ -1771,43 +1771,43 @@ WOORT_API void woort_set_union_box_bool(
 /** @} */ /* end Union Value Setters */
 
 /**
- * @name Option Setters (Union with id=0 for Some, id=1 for None)
+ * @name Option Setters (Union with id=0 for value, id=1 for none)
  * @brief Convenience macros for writing Option<T> values to a stack slot.
- *        id=0 is the Some variant, id=1 is the None variant.
+ *        id=0 is the value variant, id=1 is the none variant.
  * @{
  */
 
-/** @brief Set Option to None (no value). */
+/** @brief Set Option to none (no value). */
 #define woort_set_option_none(dst) woort_set_union_without_value(dst, 1)
 
-/** @brief Set Option::Some(stack_value). */
+/** @brief Set option::value(stack_value). */
 #define woort_set_option_value(dst, src) woort_set_union_value(dst, 0, src)
-/** @brief Set Option::Some(nil). */
+/** @brief Set option::value(nil). */
 #define woort_set_option_nil(dst) woort_set_union_nil(dst, 0)
-/** @brief Set Option::Some(void) — alias for nil. */
+/** @brief Set option::value(void) — alias for nil. */
 #define woort_set_option_void(dst) woort_set_union_void(dst, 0)
-/** @brief Set Option::Some(int). */
+/** @brief Set option::value(int). */
 #define woort_set_option_int(dst, src) woort_set_union_int(dst, 0, src)
-/** @brief Set Option::Some(real). */
+/** @brief Set option::value(real). */
 #define woort_set_option_real(dst, src) woort_set_union_real(dst, 0, src)
-/** @brief Set Option::Some(float). */
+/** @brief Set option::value(float). */
 #define woort_set_option_float(dst, src) woort_set_union_float(dst, 0, src)
-/** @brief Set Option::Some(bool). */
+/** @brief Set option::value(bool). */
 #define woort_set_option_bool(dst, src) woort_set_union_bool(dst, 0, src)
-/** @brief Set Option::Some(string). */
+/** @brief Set option::value(string). */
 #define woort_set_option_string(dst, src) woort_set_union_string(dst, 0, src)
-/** @brief Set Option::Some(buffer). */
+/** @brief Set option::value(buffer). */
 #define woort_set_option_buffer(dst, src, len) woort_set_union_buffer(dst, 0, src, len)
-/** @brief Set Option::Some(box_int). */
+/** @brief Set option::value(box_int). */
 #define woort_set_option_box_int(dst, src) woort_set_union_box_int(dst, 0, src)
-/** @brief Set Option::Some(box_real). */
+/** @brief Set option::value(box_real). */
 #define woort_set_option_box_real(dst, src) woort_set_union_box_real(dst, 0, src)
-/** @brief Set Option::Some(box_bool). */
+/** @brief Set option::value(box_bool). */
 #define woort_set_option_box_bool(dst, src) woort_set_union_box_bool(dst, 0, src)
-/** @brief Set Option::Some(gchandle). */
+/** @brief Set option::value(gchandle). */
 #define woort_set_option_gchandle(dst, addr, hold, close) \
     woort_set_union_gchandle(dst, 0, addr, hold, close)
-/** @brief Set Option::Some(gcstruct). */
+/** @brief Set option::value(gcstruct). */
 #define woort_set_option_gcstruct(dst, addr, mark, close) \
     woort_set_union_gcstruct(dst, 0, addr, mark, close)
 
@@ -1976,40 +1976,40 @@ WOORT_API void woort_set_union_box_bool(
 
 /**
  * @name Return Option Macros
- * @brief Set return slot (-1) to Option<T> (Some=0, None=1) and return WOORT_VM_CALL_STATUS_NORMAL.
+ * @brief Set return slot (-1) to Option<T> (value=0, none=1) and return WOORT_VM_CALL_STATUS_NORMAL.
  * @{
  */
 
-/** @brief Return Option::None. */
+/** @brief Return option::none. */
 #define woort_ret_option_none() (woort_set_option_none(-1), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(stack_value). */
+/** @brief Return option::value(stack_value). */
 #define woort_ret_option_value(src) (woort_set_option_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(nil). */
+/** @brief Return option::value(nil). */
 #define woort_ret_option_nil() (woort_set_option_nil(-1), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(void). */
+/** @brief Return option::value(void). */
 #define woort_ret_option_void() (woort_set_option_void(-1), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(int). */
+/** @brief Return option::value(int). */
 #define woort_ret_option_int(src) (woort_set_option_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(real). */
+/** @brief Return option::value(real). */
 #define woort_ret_option_real(src) (woort_set_option_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(float). */
+/** @brief Return option::value(float). */
 #define woort_ret_option_float(src) (woort_set_option_float(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(bool). */
+/** @brief Return option::value(bool). */
 #define woort_ret_option_bool(src) (woort_set_option_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(string). */
+/** @brief Return option::value(string). */
 #define woort_ret_option_string(src) (woort_set_option_string(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(buffer). */
+/** @brief Return option::value(buffer). */
 #define woort_ret_option_buffer(src, len) (woort_set_option_buffer(-1, src, len), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(box_int). */
+/** @brief Return option::value(box_int). */
 #define woort_ret_option_box_int(src) (woort_set_option_box_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(box_real). */
+/** @brief Return option::value(box_real). */
 #define woort_ret_option_box_real(src) (woort_set_option_box_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(box_bool). */
+/** @brief Return option::value(box_bool). */
 #define woort_ret_option_box_bool(src) (woort_set_option_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(gchandle). */
+/** @brief Return option::value(gchandle). */
 #define woort_ret_option_gchandle(addr, hold, close) \
     (woort_set_option_gchandle(-1, addr, hold, close), WOORT_VM_CALL_STATUS_NORMAL)
-/** @brief Return Option::Some(gcstruct). */
+/** @brief Return option::value(gcstruct). */
 #define woort_ret_option_gcstruct(addr, mark, close) \
     (woort_set_option_gcstruct(-1, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
 
@@ -2094,6 +2094,14 @@ WOORT_API void woort_set_union_box_bool(
 
 /** @} */ /* end Return Result::Err Macros */
 
+
+/**
+ * @brief Trigger a panic and return WOORT_VM_CALL_STATUS_RESYNC to resync the VM.
+ * @param fmt  Printf-style format string for the panic message.
+ */
+WOORT_API WOORT_NODISCARD woort_api woort_ret_panic(const char* fmt, ...);
+
+
 /**
  * @name Stack Value Readers
  * @brief Read a typed value from a VM stack slot.
@@ -2154,7 +2162,7 @@ WOORT_API WOORT_NODISCARD woort_Int woort_union_get(
  * @{
  */
 
-/** @brief Check if Option is Some. Returns true if the union id == 0 (Some), copies payload to dst. */
+/** @brief Check if Option is value. Returns true if the union id == 0 (value), copies payload to dst. */
 #define woort_option_get(dst, src) \
     (0 == woort_union_get(dst, src))
 /** @brief Check if Result is Ok. Returns true if the union id == 0 (Ok), copies payload to dst. */

@@ -6,6 +6,8 @@ woort_diagnosis.h
 
 #include "woort.h"
 
+#include <stdarg.h>
+
 typedef enum woort_PanicReason
 {
     WOORT_PANIC_BAD_BYTE_CODE = 0xD001,
@@ -18,6 +20,9 @@ typedef enum woort_PanicReason
     WOORT_PANIC_ABORTED = 0xD008,
     WOORT_PANIC_INDEX_OUT_OF_RANGE = 0xD009,
 } woort_PanicReason;
+
+void woort_vpanic(
+    woort_PanicReason reason, const char* msgfmt, va_list va_list);
 
 void woort_panic(
     woort_PanicReason reason, const char* msgfmt, ...);
