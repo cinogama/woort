@@ -146,64 +146,6 @@ WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     return true;
 }
 
-WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
-    woort_VMRuntime* vm, const woort_Bytecode* func)
-{
-    /*
-    注意，此处 woort_CodeEnv_find 在以下情况是安全的：
-        1）CodeEnv 尚未被 Drop
-        2）func 出自一个其他虚拟机依然持有的地址，这意味着 func 对
-            应的 CodeEnv 能够被标记
-    */
-    if (!woort_CodeEnv_find(func, &vm->m_env))
-        return WOORT_VM_CALL_STATUS_ABORTED;
-
-    // Push call stack info here.
-    /*
-        [  SP AFTER CALL ]
-        [  CALL CONTEXT  ] ==> {
-        [ CLOSUER UNPACK ]          [   RETURN ADDRESS    ]
-        [   ARGUMENTS    ]          [ CALLSTACK TYPE & BP ]
-                                }
-    */
-
-    woort_VMRuntime* const last_running_vm =
-        woort_VMRuntime_swap(vm);
-
-    // Reserve sp
-    if (vm->m_sp - 2 < vm->m_stack)
-    {
-        // Stack size not enough.
-        while (!_woort_VMRuntime_extern_stack(vm))
-        {
-            woort_panic(
-                WOORT_PANIC_STACK_OVERFLOW,
-                "Stack overflow.");
-        }
-    }
-
-    vm->m_sp -= 2;
-
-    // Set call way and bp offset.
-    vm->m_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FROM_NATIVE;
-    vm->m_sp[1].m_ret_bp.m_bp_offset =
-        (uint32_t)(vm->m_stack_end - vm->m_sb);
-
-    // Set ret addr (Only for trace).
-    vm->m_sp[2].m_ret_addr = vm->m_ip /* trace from current. */;
-
-    // Sync bp to sp.
-    vm->m_sb = vm->m_sp;
-
-    // Set target ip.
-    vm->m_ip = func;
-
-    woort_VmCallStatus r = _woort_VMRuntime_dispatch(vm);
-    (void)woort_VMRuntime_swap(last_running_vm);
-
-    return r;
-}
-
 void woort_VMRuntime_hangup(woort_VMRuntime* vm)
 {
     woort_mutex_lock(vm->m_hangup_mx);

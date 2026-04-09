@@ -161,10 +161,6 @@ WOORT_API void woort_VMRuntime_destroy(
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     /* OPTIONAL */ woort_VMRuntime* vm);
 
-WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_invoke(
-    woort_VMRuntime* vm,
-    const woort_Bytecode* func);
-
 /* ========== IR API ========== */
 
 WOORT_API void woort_CodeEnv_drop(
@@ -1031,9 +1027,9 @@ WOORT_API void woort_import_value(
 
 WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_invoke(
     woort_StackValue dst, woort_StackValue f);
-WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_dispatch(
+WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_spawn(
     woort_StackValue dst, woort_StackValue f);
-WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_step(
+WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
     woort_StackValue dst);
 
 /*

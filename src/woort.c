@@ -792,6 +792,21 @@ WOORT_NODISCARD bool _woort_pre_invoke(woort_VMRuntime* vm, const woort_GCClosur
 WOORT_NODISCARD woort_VmCallStatus woort_invoke(
     woort_StackValue dst, woort_StackValue f)
 {
+    const woort_VmCallStatus r = woort_spawn(dst, f);
+    if (r == WOORT_VM_CALL_STATUS_YIELD)
+    {
+        woort_panic(
+            WOORT_PANIC_BAD_VM_REQUEST,
+            "Cannot yield during `woort_invoke`.");
+
+        return WOORT_VM_CALL_STATUS_ABORTED;
+    }
+    return r;
+}
+
+WOORT_NODISCARD woort_VmCallStatus woort_spawn(
+    woort_StackValue dst, woort_StackValue f)
+{
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     const woort_GCClosure* const target = _WOORT_API_STACK(f).m_closure;
 
@@ -833,7 +848,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_invoke(
         vm->m_ip = (const woort_Bytecode*)target->m_script_function;
 
         const woort_VmCallStatus r = target->m_native_function();
-        /* 
+        /*
         NOTE: Restore preinvoke status.
             仅 Native function call 需要在此处手动恢复调用状态，其他的调用
             会由 RET/RETV 指令自动恢复调用栈
@@ -873,10 +888,13 @@ WOORT_NODISCARD woort_VmCallStatus woort_invoke(
         _WOORT_API_STACK(dst) = *vm->m_sp;
         return WOORT_VM_CALL_STATUS_NORMAL;
     case WOORT_VM_CALL_STATUS_YIELD:
-        woort_panic(
-            WOORT_PANIC_BAD_VM_REQUEST,
-            "Cannot yield during `woort_invoke`.");
-        return WOORT_VM_CALL_STATUS_ABORTED;
+        /*
+        NOTE: 此处实现存在瑕疵，考虑：
+                1）Target function 是 Native function，且尝试 Yield.
+            此时返回 YIELD 会导致后续执行 step 失败，但是考虑到这种情况
+            几乎不会发生，暂时先搁置。
+        */
+        return WOORT_VM_CALL_STATUS_YIELD;
     case WOORT_VM_CALL_STATUS_ABORTED:
         return WOORT_VM_CALL_STATUS_ABORTED;
     default:
@@ -884,11 +902,11 @@ WOORT_NODISCARD woort_VmCallStatus woort_invoke(
         abort();
     }
 }
+WOORT_NODISCARD woort_VmCallStatus woort_resume(
+    woort_StackValue dst)
+{
 
-WOORT_NODISCARD woort_VmCallStatus woort_dispatch(
-    woort_StackValue dst, woort_StackValue f);
-WOORT_NODISCARD woort_VmCallStatus woort_step(
-    woort_StackValue dst);
+}
 
 WOORT_NODISCARD woort_Int woort_unbox_int(woort_StackValue src)
 {
