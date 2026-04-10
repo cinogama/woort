@@ -3255,15 +3255,14 @@ _label_continue_execution:
         }
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_TRAP):
         {
-            if (!woort_VMRuntime_Debugger_try_trap())
+            if (woort_VMRuntime_Debugger_try_trap())
             {
-                /* 没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
-                (void)woort_CodeEnv_clear_trap(rt_ip);
-                continue;
+                // TODO: 通过 CodeEnv 查询 Trap，获取原本的指令，然后重新执行
+                goto _label_vm_dispatch_reentry_for_debug_trap;
             }
-            // TODO: 通过 CodeEnv 查询 Trap，获取原本的指令，然后重新执行
-
-            goto _label_vm_dispatch_reentry_for_debug_trap;
+             /* 没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
+            (void)woort_CodeEnv_clear_trap(rt_ip);
+            continue;
         }
         default:
             // Unknown bytecode command.
