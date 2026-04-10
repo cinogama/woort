@@ -807,7 +807,10 @@ static bool _phase3_stack_allocation(
     }
 
     /*
-     * 构建需要分配的活跃区间列表（排除参数、常量直连和未使用的 vreg）
+     * 构建需要分配的活跃区间列表（排除参数、CONST 和未使用的 vreg）
+     * 注意：所有 CONST vreg 都由 Phase 4c 统一处理，不在 Phase 3 分配栈槽。
+     * const_direct 的 CONST vreg 不需要栈槽（使用 PUSHCCHK）；
+     * 非 const_direct 的 CONST vreg 需要 Phase 4c 分配的栈槽来放置 LOAD。
      */
     uint32_t interval_count = 0;
     for (uint32_t id = 0; id < vreg_count; ++id)
@@ -817,8 +820,8 @@ static bool _phase3_stack_allocation(
             continue;
         if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
             continue; /* 参数已有预分配的栈偏移 SB+3+idx */
-        if (v->m_is_const_direct)
-            continue; /* 常量直连不需要栈槽 */
+        if (v->m_source == WOORT_IRVALUE_SOURCE_CONST)
+            continue; /* CONST vreg 由 Phase 4c 处理 */
         if (first_point[id] == UINT32_MAX)
             continue; /* 从未出现 */
         interval_count++;
@@ -845,7 +848,7 @@ static bool _phase3_stack_allocation(
                 continue;
             if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
                 continue;
-            if (v->m_is_const_direct)
+            if (v->m_source == WOORT_IRVALUE_SOURCE_CONST)
                 continue;
             if (first_point[id] == UINT32_MAX)
                 continue;
