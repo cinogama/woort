@@ -1854,6 +1854,23 @@ WOORT_NODISCARD woort_IRStaticIndex woort_IRCompiler_add_static(woort_IRCompiler
     return c->m_static_storage_alloc_count++;
 }
 
+#include <stdio.h>
+
+#include "woort_disassembly.h"
+
+void dump_Code(woort_CodeEnv* cenv)
+{
+    const woort_Bytecode* pc = cenv->m_code_begin;
+
+    printf("\n");
+
+    while (pc < cenv->m_code_end)
+        pc = woort_Disassembly(pc);
+
+    printf("\n");
+}
+
+
 WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv** out_cenv)
 {
     /*
@@ -1937,6 +1954,8 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
             func_count);
     }
 
+    dump_Code(*out_cenv);
+
     /* 清理临时数据 */
     if (per_func_entries != NULL)
     {
@@ -1944,6 +1963,7 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
             woort_vector_deinit(&per_func_entries[i]);
         free(per_func_entries);
     }
+
 
     return result;
 }

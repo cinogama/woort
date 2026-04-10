@@ -1581,7 +1581,7 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
  WOORT_API void woort_CodeEnv_set_const_extern_function(
      woort_CodeEnv* code_env,
      woort_IRConstantIndex cidx,
-     const woort_Bytecode* val);
+     woort_NativeFunction val);
 
  /**
   * @brief Set a constant pool entry to a script closure (function + env).
@@ -1609,7 +1609,7 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
  WOORT_API void woort_CodeEnv_set_const_extern_closure(
      woort_CodeEnv* code_env,
      woort_IRConstantIndex cidx,
-     const woort_Bytecode* val);
+     woort_NativeFunction val);
 
  /**
   * @brief Set a constant pool entry to a boxed integer value.

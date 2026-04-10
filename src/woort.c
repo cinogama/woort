@@ -117,13 +117,13 @@ void woort_CodeEnv_set_const_script_function(
 void woort_CodeEnv_set_const_extern_function(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
-    const woort_Bytecode* val)
+    woort_NativeFunction val)
 {
     assert(code_env != NULL);
     assert((size_t)cidx < code_env->m_data_count);
 
     woort_Value v;
-    v.m_script_function = val;
+    v.m_native_function = val;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
 }
@@ -148,13 +148,12 @@ void woort_CodeEnv_set_const_script_closure(
 void woort_CodeEnv_set_const_extern_closure(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
-    const woort_Bytecode* val)
+    woort_NativeFunction val)
 {
     assert(code_env != NULL);
     assert((size_t)cidx < code_env->m_data_count);
 
-    woort_NativeFunction native_func = (woort_NativeFunction)val;
-    woort_GCClosure* closure = woort_GCClosure_new_native_func(native_func);
+    woort_GCClosure* closure = woort_GCClosure_new_native_func(val);
     assert(closure != NULL);
 
     woort_Value v;
