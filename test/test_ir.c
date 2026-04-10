@@ -54,21 +54,6 @@ static int g_tests_passed = 0;
         }                                                       \
     } while(0)
 
-/* 反汇编输出 */
-void dump_Code(woort_CodeEnv* cenv)
-{
-    const woort_Bytecode* pc = cenv->m_code_begin;
-
-    printf("\n");
-
-    while (pc < cenv->m_code_end)
-        pc = woort_Disassembly(pc);
-
-    printf("\n");
-
-    fflush(stdout);
-}
-
 /*
 辅助：用于从 native 函数中捕获 IR 编译函数的返回值。
 调用约定：被调函数的返回值在 vm->m_sp[0] 中（通过 RESULT 指令获取）。

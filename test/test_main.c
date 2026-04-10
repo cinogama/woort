@@ -31,7 +31,7 @@ woort_api bar(void)
     return woort_ret_void();
 }
 
-void dump_Code(woort_CodeEnv* cenv)
+static void dump_Code(woort_CodeEnv* cenv)
 {
     const woort_Bytecode* pc = cenv->m_code_begin;
 

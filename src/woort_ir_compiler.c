@@ -1503,29 +1503,25 @@ static bool _patch_jumps(
     if (block_starts == NULL)
         return false;
 
-    /*
-     * PUSHRCHK 占据 1 个 bytecode 槽（单指令编码），如果存在，
-     * block 0 的实际起始偏移需要加上它。
-     */
-    const uint32_t pushrchk_size = (stack_space > 0) ? 1 : 0;
-
     bool need_recalc = true;
     while (need_recalc)
     {
         need_recalc = false;
 
         /* 计算每个块的起始偏移 */
-        uint32_t offset = 0;
+
+        /*
+         * PUSHRCHK 占据 1 个 bytecode 槽（单指令编码），如果存在，
+         * block 0 的实际起始偏移需要加上它。
+         */
+        uint32_t offset = (stack_space > 0) ? 1 : 0;
+
         for (uint32_t bi = 0; bi < block_count; ++bi)
         {
             block_starts[bi] = offset;
             woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, bi);
             offset += (uint32_t)blk->m_bytecodes.m_size;
         }
-
-        /* 将 PUSHRCHK 的大小加到 block 0 的起始偏移上 */
-        if (pushrchk_size > 0)
-            block_starts[0] += pushrchk_size;
 
         /* 修正每条跳转指令 */
         for (size_t pi = 0; pi < jump_patches->m_size; ++pi)
@@ -1872,23 +1868,6 @@ WOORT_NODISCARD woort_IRStaticIndex woort_IRCompiler_add_static(woort_IRCompiler
     return c->m_static_storage_alloc_count++;
 }
 
-#include <stdio.h>
-
-#include "woort_disassembly.h"
-
-void dump_Code(woort_CodeEnv* cenv)
-{
-    const woort_Bytecode* pc = cenv->m_code_begin;
-
-    printf("\n");
-
-    while (pc < cenv->m_code_end)
-        pc = woort_Disassembly(pc);
-
-    printf("\n");
-}
-
-
 WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv** out_cenv)
 {
     /*
@@ -1972,8 +1951,6 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
             func_count);
     }
 
-    dump_Code(*out_cenv);
-
     /* 清理临时数据 */
     if (per_func_entries != NULL)
     {
@@ -1981,8 +1958,6 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
             woort_vector_deinit(&per_func_entries[i]);
         free(per_func_entries);
     }
-
-
     return result;
 }
 
