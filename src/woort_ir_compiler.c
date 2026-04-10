@@ -1413,16 +1413,6 @@ static bool _emit_function(
         woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, bi);
 
         /*
-         * 第一个 block: 在开头发射 PUSHRCHK(stack_space)
-         */
-        if (bi == 0 && stack_space > 0)
-        {
-            assert(stack_space <= WOORT_UINT24_MAX_VAL);
-            if (!_emit_bc(blk, woort_OpCode_PUSHRCHK((uint32_t)stack_space)))
-                return false;
-        }
-
-        /*
          * 发射 block 的常量加载（m_const_loads）
          */
         if (blk->m_const_loads.m_size > 0 && blk->m_const_loads.m_element_size > 0)
@@ -1498,7 +1488,8 @@ static bool _emit_function(
 
 static bool _patch_jumps(
     woort_IRFunction* f,
-    woort_Vector* jump_patches)
+    woort_Vector* jump_patches,
+    size_t stack_space)
 {
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
 
@@ -1511,6 +1502,12 @@ static bool _patch_jumps(
     uint32_t* block_starts = (uint32_t*)malloc(sizeof(uint32_t) * block_count);
     if (block_starts == NULL)
         return false;
+
+    /*
+     * PUSHRCHK 占据 1 个 bytecode 槽（单指令编码），如果存在，
+     * block 0 的实际起始偏移需要加上它。
+     */
+    const uint32_t pushrchk_size = (stack_space > 0) ? 1 : 0;
 
     bool need_recalc = true;
     while (need_recalc)
@@ -1525,6 +1522,10 @@ static bool _patch_jumps(
             woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, bi);
             offset += (uint32_t)blk->m_bytecodes.m_size;
         }
+
+        /* 将 PUSHRCHK 的大小加到 block 0 的起始偏移上 */
+        if (pushrchk_size > 0)
+            block_starts[0] += pushrchk_size;
 
         /* 修正每条跳转指令 */
         for (size_t pi = 0; pi < jump_patches->m_size; ++pi)
@@ -1776,7 +1777,7 @@ static bool _compile_function(
     }
 
     /* 第 3 步：跳转修正 */
-    if (!_patch_jumps(f, &jump_patches))
+    if (!_patch_jumps(f, &jump_patches, stack_space))
     {
         woort_vector_deinit(&jump_patches);
         return false;
@@ -1787,6 +1788,23 @@ static bool _compile_function(
     /* 第 4 步：将 block 字节码拼接到 compiler 的 m_commited_codes */
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
     f->m_code_offset = c->m_commited_codes.m_size;
+
+    /*
+     * PUSHRCHK 预留在函数入口处单独发射，不放在任何 block 内，
+     * 以避免后向跳转（如循环）错误地跳到 PUSHRCHK 指令上。
+     * 将其放在所有 block 字节码之前，这样 block_starts[0] 指向
+     * 第一个实际 IR 指令，后向跳转会跳过 PUSHRCHK。
+     */
+    if (stack_space > 0)
+    {
+        assert(stack_space <= WOORT_UINT24_MAX_VAL);
+        woort_Bytecode bc = woort_OpCode_PUSHRCHK((uint32_t)stack_space);
+        if (!woort_vector_push_back(&c->m_commited_codes, 1, &bc))
+            return false;
+    }
+
+    /* 更新 m_code_offset 以反映 PUSHRCHK 的大小 */
+    f->m_code_offset = c->m_commited_codes.m_size - (stack_space > 0 ? 1 : 0);
 
     for (uint32_t bi = 0; bi < block_count; ++bi)
     {
