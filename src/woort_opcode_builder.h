@@ -786,3 +786,9 @@
                                                              */
 #define woort_OpCode_PACKARG(n10, bc16) \
     woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_PACKARG, n10, bc16)
+
+                                                             /*
+                                                              * TRAP - 陷阱/断点
+                                                              */
+#define woort_OpCode_TRAP() \
+    woort_OpCodeFormal_cons(OP6, WOORT_OPCODE_TRAP)

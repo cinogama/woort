@@ -6,6 +6,8 @@
 #include "woort_codeenv.h"
 #include "woort_ir_function.h"
 #include "woort_ir_srcloc.h"
+#include "woort_opcode.h"
+#include "woort_opcode_builder.h"
 #include "woort_spin.h"
 #include "woort_vector.h"
 #include "woort_atomic.h"
@@ -290,7 +292,49 @@ void woort_CodeEnv_GC_mark_all_envs(void)
 
 WOORT_NODISCARD bool woort_CodeEnv_set_trap(woort_Bytecode* code)
 {
+    // Find env
+    woort_CodeEnv* codeenv;
+    if (!woort_CodeEnv_find(code, &codeenv))
+    {
+        // Bad code.
+        return false;
+    }
 
+    bool r = false;
+    woort_CodeEnv_lock(codeenv);
+    {
+        if (WOORT_HASHMAP_RESULT_OK == woort_hashmap_insert(&codeenv->m_trap_records, &code, code))
+        {
+            // Traped.
+            *code = woort_OpCode_TRAP();
+            r = true;
+        }
+    }
+    woort_CodeEnv_unlock(codeenv);
+    return r;
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_clear_trap(woort_Bytecode* code)
+{
+    woort_CodeEnv* codeenv;
+    if (!woort_CodeEnv_find(code, &codeenv))
+    {
+        return false;
+    }
+
+    bool r = false;
+    woort_CodeEnv_lock(codeenv);
+    {
+        woort_Bytecode* value_addr;
+        if (woort_hashmap_find(&codeenv->m_trap_records, &code, &value_addr))
+        {
+            *code = *value_addr;
+            (void)woort_hashmap_remove(&codeenv->m_trap_records, &code);
+            r = true;
+        }
+    }
+    woort_CodeEnv_unlock(codeenv);
+    return r;
 }
 
 /* ========================================================================

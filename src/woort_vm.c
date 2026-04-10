@@ -87,7 +87,12 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
         WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE,
         WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
-    if (!woort_GC_register_root_vm(vm))
+    woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
+    
+    const bool r = woort_GC_register_root_vm(vm);
+
+    (void)woort_VMRuntime_swap(last);
+    if (!r)
         // Failed to register root.
         goto _label_failed_to_init;
 
@@ -100,8 +105,14 @@ _label_failed_to_init:
 }
 void woort_VMRuntime_destroy(woort_VMRuntime* vm)
 {
+    // 离开当前作用域避免 GC 死锁
+    woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
+
     woort_GC_unregister_root_vm(vm);
     _woort_VMRuntime_destroy(vm);
+
+    if (last != vm)
+        (void)woort_VMRuntime_swap(last);
 }
 
 
@@ -3246,9 +3257,11 @@ _label_continue_execution:
         {
             if (!woort_VMRuntime_Debugger_try_trap())
             {
-                /* TODO: 如果没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
+                /* 没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
+                (void)woort_CodeEnv_clear_trap(rt_ip);
+                continue;
             }
-            // 通过 CodeEnv 查询 Trap，获取原本的指令，然后重新执行
+            // TODO: 通过 CodeEnv 查询 Trap，获取原本的指令，然后重新执行
 
             goto _label_vm_dispatch_reentry_for_debug_trap;
         }
@@ -3471,7 +3484,6 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     WOORT_t_this_thread_vm = vm;
     if (vm != NULL)
     {
-        woort_VMRuntime_gc_checkpoint(vm);
         const bool r = woort_VMRuntime_request_accept(
             vm,
             WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE);
@@ -3481,6 +3493,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
             woort_panic(WOORT_PANIC_REENTRY_GC_SCOPE,
                 "VM %p already in running, cannot entry it again.", vm);
         }
+        woort_VMRuntime_gc_checkpoint(vm);
     }
     return last_vm;
 }

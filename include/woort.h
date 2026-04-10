@@ -288,9 +288,17 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
 /**
  * @brief Set a breakpoint trap at the given bytecode address.
  * @param code  Pointer to the bytecode instruction to trap.
- * @return true on success, false if the address is invalid.
+ * @return true on success, false if the address is invalid/already traped/out of memory.
  */
 WOORT_API WOORT_NODISCARD bool woort_CodeEnv_set_trap(
+    woort_Bytecode* code);
+
+/**
+ * @brief Clear a breakpoint trap at the given bytecode address, restoring the original instruction.
+ * @param code  Pointer to the bytecode instruction whose trap should be cleared.
+ * @return true on success, false if the address is invalid or not trapped.
+ */
+WOORT_API WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
     woort_Bytecode* code);
 
 /* ========== IR Compiler ========== */
