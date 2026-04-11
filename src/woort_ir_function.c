@@ -531,9 +531,6 @@ static void _record_use(
 {
     if (val == NULL)
         return;
-    /* CONST 源的 vreg 不参与 bitset 活跃性分析 */
-    if (val->m_source == WOORT_IRVALUE_SOURCE_CONST)
-        return;
     /* 如果还没被 DEF 过，则加入 USE */
     if (!woort_bitset_test(def_set, val->m_id))
         (void)woort_bitset_set(use_set, val->m_id);
@@ -548,7 +545,7 @@ static void _record_def(
     (void)woort_bitset_set(def_set, val->m_id);
 }
 
-static bool _phase2_liveness_analysis(woort_IRFunction* f)
+static bool _phase2_liveness_analysis(woort_IRFunction* f, const uint32_t* const_placement_block)
 {
     const uint32_t vreg_count = f->m_next_vreg_id;
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
@@ -570,6 +567,19 @@ static bool _phase2_liveness_analysis(woort_IRFunction* f)
             return false;
         if (!woort_bitset_init(&blk->m_live_out, vreg_count))
             return false;
+    }
+
+    /* 为 CONST vreg 在其放置 block 预设 DEF（LOAD 发生在块头部，先于任何 USE） */
+    if (const_placement_block != NULL)
+    {
+        for (uint32_t id = 0; id < vreg_count; ++id)
+        {
+            if (const_placement_block[id] == UINT32_MAX)
+                continue;
+            woort_IRBlock* place_blk = (woort_IRBlock*)woort_vector_at(
+                &f->m_blocks, const_placement_block[id]);
+            (void)woort_bitset_set(&place_blk->m_def, id);
+        }
     }
 
     /* 计算每个 block 的 USE 和 DEF 集合 */
@@ -706,7 +716,8 @@ static bool _phase2b_const_optimization(woort_IRFunction* f)
 
 static bool _phase3_stack_allocation(
     woort_IRFunction* f,
-    size_t* out_stack_space)
+    size_t* out_stack_space,
+    const uint32_t* const_placement_block)
 {
     const uint32_t vreg_count = f->m_next_vreg_id;
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
@@ -782,6 +793,20 @@ static bool _phase3_stack_allocation(
         }
     }
 
+    /* 为 CONST vreg 设置放置块起始点作为活跃区间起点 */
+    if (const_placement_block != NULL)
+    {
+        for (uint32_t id = 0; id < vreg_count; ++id)
+        {
+            if (const_placement_block[id] == UINT32_MAX)
+                continue;
+            woort_IRBlock* place_blk = (woort_IRBlock*)woort_vector_at(
+                &f->m_blocks, const_placement_block[id]);
+            if (place_blk->m_begin < first_point[id])
+                first_point[id] = place_blk->m_begin;
+        }
+    }
+
     /* 根据活跃性信息扩展区间以覆盖跨块活跃 */
     for (uint32_t b = 0; b < block_count; ++b)
     {
@@ -807,10 +832,8 @@ static bool _phase3_stack_allocation(
     }
 
     /*
-     * 构建需要分配的活跃区间列表（排除参数、CONST 和未使用的 vreg）
-     * 注意：所有 CONST vreg 都由 Phase 4c 统一处理，不在 Phase 3 分配栈槽。
-     * const_direct 的 CONST vreg 不需要栈槽（使用 PUSHCCHK）；
-     * 非 const_direct 的 CONST vreg 需要 Phase 4c 分配的栈槽来放置 LOAD。
+     * 构建需要分配的活跃区间列表（排除参数、const_direct 和未使用的 vreg）
+     * 非 const_direct 的 CONST vreg 参与统一线性扫描栈槽分配。
      */
     uint32_t interval_count = 0;
     for (uint32_t id = 0; id < vreg_count; ++id)
@@ -819,11 +842,16 @@ static bool _phase3_stack_allocation(
         if (v == NULL)
             continue;
         if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
-            continue; /* 参数已有预分配的栈偏移 SB+3+idx */
+            continue;
         if (v->m_source == WOORT_IRVALUE_SOURCE_CONST)
-            continue; /* CONST vreg 由 Phase 4c 处理 */
+        {
+            if (v->m_is_const_direct)
+                continue;
+            if (const_placement_block == NULL || const_placement_block[id] == UINT32_MAX)
+                continue;
+        }
         if (first_point[id] == UINT32_MAX)
-            continue; /* 从未出现 */
+            continue;
         interval_count++;
     }
 
@@ -849,7 +877,12 @@ static bool _phase3_stack_allocation(
             if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
                 continue;
             if (v->m_source == WOORT_IRVALUE_SOURCE_CONST)
-                continue;
+            {
+                if (v->m_is_const_direct)
+                    continue;
+                if (const_placement_block == NULL || const_placement_block[id] == UINT32_MAX)
+                    continue;
+            }
             if (first_point[id] == UINT32_MAX)
                 continue;
 
@@ -1339,21 +1372,40 @@ static void _cleanup_const_infos(woort_Vector* const_infos)
     woort_vector_deinit(const_infos);
 }
 
-static bool _phase4c_const_load_placement(woort_IRFunction* f, size_t* out_stack_space)
+static bool _phase4c_determine_const_load_placement(
+    woort_IRFunction* f,
+    uint32_t** out_const_placement_block)
 {
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
     const size_t instr_count = f->m_instructions.m_size;
     woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
+    const uint32_t vreg_count = f->m_next_vreg_id;
+
+    *out_const_placement_block = NULL;
 
     if (block_count == 0 || instr_count == 0)
         return true;
+
+    /*
+     * 输出数组：const_placement_block[vreg_id] = 放置 block 索引
+     * UINT32_MAX 表示不适用（非 CONST / const_direct / 无使用）
+     */
+    uint32_t* const_placement_block = (uint32_t*)malloc(vreg_count * sizeof(uint32_t));
+    if (const_placement_block == NULL)
+        return false;
+
+    for (uint32_t i = 0; i < vreg_count; ++i)
+        const_placement_block[i] = UINT32_MAX;
 
     /*
      * 构建 instruction → block 映射
      */
     uint32_t* instr_to_block = (uint32_t*)malloc(instr_count * sizeof(uint32_t));
     if (instr_to_block == NULL)
+    {
+        free(const_placement_block);
         return false;
+    }
 
     for (uint32_t b = 0; b < block_count; ++b)
     {
@@ -1377,18 +1429,17 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f, size_t* out_stack
         if (cv->m_is_const_direct)
             continue;
 
-        /* 创建使用信息 */
         _woort_ConstUseInfo* info;
         if (!woort_vector_emplace_back(&const_infos, 1, (void**)&info))
         {
             _cleanup_const_infos(&const_infos);
             free(instr_to_block);
+            free(const_placement_block);
             return false;
         }
         info->m_const_vreg = cv;
         woort_vector_init(&info->m_use_blocks, sizeof(uint32_t));
 
-        /* 扫描指令流，找到所有使用该 CONST vreg 的 block */
         for (size_t i = 0; i < instr_count; ++i)
         {
             woort_IROp* op = &instrs[i];
@@ -1405,8 +1456,6 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f, size_t* out_stack
                 continue;
 
             uint32_t blk_idx = instr_to_block[i];
-
-            /* 去重 */
             bool already_in = false;
             for (size_t ubi = 0; ubi < info->m_use_blocks.m_size; ++ubi)
             {
@@ -1422,6 +1471,7 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f, size_t* out_stack
                 {
                     _cleanup_const_infos(&const_infos);
                     free(instr_to_block);
+                    free(const_placement_block);
                     return false;
                 }
             }
@@ -1431,11 +1481,8 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f, size_t* out_stack
     free(instr_to_block);
 
     /*
-     * 为每个 CONST vreg 分配栈槽，并决定 LOAD 放置位置
+     * 为每个 CONST vreg 计算放置位置（不分配栈槽）
      */
-    size_t const_slot_base = *out_stack_space; /* 从 Phase 3 已分配的栈槽之后继续 */
-    size_t next_const_slot = const_slot_base;
-
     for (size_t ci = 0; ci < const_infos.m_size; ++ci)
     {
         _woort_ConstUseInfo* info = (_woort_ConstUseInfo*)woort_vector_at(
@@ -1443,11 +1490,6 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f, size_t* out_stack
 
         if (info->m_use_blocks.m_size == 0)
             continue;
-
-        /* 为该 CONST vreg 分配栈槽 */
-        int32_t slot_offset = -(int32_t)next_const_slot;
-        next_const_slot++;
-        info->m_const_vreg->m_assigned_stack_offset = slot_offset;
 
         /* 所有使用 block 的公共支配者 */
         int32_t common_dom = (int32_t)(
@@ -1470,31 +1512,102 @@ static bool _phase4c_const_load_placement(woort_IRFunction* f, size_t* out_stack
                 if (header_blk->m_idom >= 0)
                     common_dom = header_blk->m_idom;
                 else
-                    common_dom = 0; /* 提升到入口 */
+                    common_dom = 0;
             }
         }
 
-        /* 在公共支配者 block 中记录常量加载 */
+        /* 记录放置 block 索引 */
         if (common_dom >= 0 && (uint32_t)common_dom < block_count)
         {
+            const_placement_block[info->m_const_vreg->m_id] = (uint32_t)common_dom;
+
+            /* 在放置 block 中记录常量加载（栈偏移暂为占位符） */
             woort_IRBlock* place_blk = (woort_IRBlock*)woort_vector_at(
                 &f->m_blocks, (uint32_t)common_dom);
 
             _woort_ConstLoadInfo load_info;
             load_info.m_const_index = info->m_const_vreg->m_const_idx;
-            load_info.m_stack_offset = slot_offset;
+            load_info.m_stack_offset = WOORT_IRVALUE_STACK_NOT_ASSIGN;
 
             if (!woort_vector_push_back(&place_blk->m_const_loads, 1, &load_info))
             {
                 _cleanup_const_infos(&const_infos);
+                free(const_placement_block);
                 return false;
             }
         }
     }
 
-    *out_stack_space = next_const_slot;
-
     _cleanup_const_infos(&const_infos);
+    *out_const_placement_block = const_placement_block;
+    return true;
+}
+
+/* ===================================================================
+ * Phase 4c_part2: 更新常量加载的实际栈偏移
+ * =================================================================== */
+
+static bool _phase4c_update_const_load_offsets(woort_IRFunction* f)
+{
+    const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
+
+    /*
+     * 构建 const_index → m_assigned_stack_offset 映射
+     */
+    woort_Vector /* _woort_ConstLoadInfo */ const_map;
+    woort_vector_init(&const_map, sizeof(_woort_ConstLoadInfo));
+
+    for (woort_IRValue* cv = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
+         cv != NULL;
+         cv = (woort_IRValue*)woort_linklist_next(cv))
+    {
+        if (cv->m_source != WOORT_IRVALUE_SOURCE_CONST)
+            continue;
+        if (cv->m_is_const_direct)
+            continue;
+        if (cv->m_assigned_stack_offset == WOORT_IRVALUE_STACK_NOT_ASSIGN)
+            continue;
+
+        _woort_ConstLoadInfo entry;
+        entry.m_const_index = cv->m_const_idx;
+        entry.m_stack_offset = cv->m_assigned_stack_offset;
+
+        if (!woort_vector_push_back(&const_map, 1, &entry))
+        {
+            woort_vector_deinit(&const_map);
+            return false;
+        }
+    }
+
+    /*
+     * 更新每个 block 的 m_const_loads 中的栈偏移
+     */
+    for (uint32_t b = 0; b < block_count; ++b)
+    {
+        woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, b);
+
+        for (size_t li = 0; li < blk->m_const_loads.m_size; ++li)
+        {
+            _woort_ConstLoadInfo* info = (_woort_ConstLoadInfo*)woort_vector_at(
+                &blk->m_const_loads, li);
+
+            if (info->m_stack_offset != WOORT_IRVALUE_STACK_NOT_ASSIGN)
+                continue;
+
+            for (size_t mi = 0; mi < const_map.m_size; ++mi)
+            {
+                const _woort_ConstLoadInfo* map_entry =
+                    (const _woort_ConstLoadInfo*)woort_vector_at(&const_map, mi);
+                if (map_entry->m_const_index == info->m_const_index)
+                {
+                    info->m_stack_offset = map_entry->m_stack_offset;
+                    break;
+                }
+            }
+        }
+    }
+
+    woort_vector_deinit(&const_map);
     return true;
 }
 
@@ -1515,16 +1628,8 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     if (!_phase1_split_blocks_and_build_cfg(f))
         return false;
 
-    /* Phase 2: 活跃性分析 */
-    if (!_phase2_liveness_analysis(f))
-        return false;
-
     /* Phase 2b: 常量直接使用标记（PUSHCCHK / RETVC） */
     if (!_phase2b_const_optimization(f))
-        return false;
-
-    /* Phase 3: 栈槽分配（线性扫描，跳过 CONST 源 vreg） */
-    if (!_phase3_stack_allocation(f, out_stack_space))
         return false;
 
     /* Phase 4a: Dominator tree */
@@ -1535,9 +1640,32 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     if (!_phase4b_detect_loops(f))
         return false;
 
-    /* Phase 4c: 常量加载放置（为非 const_direct 的 CONST vreg 分配栈槽并放置 LOAD） */
-    if (!_phase4c_const_load_placement(f, out_stack_space))
+    /* Phase 4c_part1: 确定常量加载放置位置（不分配栈槽） */
+    uint32_t* const_placement_block = NULL;
+    if (!_phase4c_determine_const_load_placement(f, &const_placement_block))
         return false;
 
+    /* Phase 2: 活跃性分析（CONST vreg 以放置块作为 DEF 参与分析） */
+    if (!_phase2_liveness_analysis(f, const_placement_block))
+    {
+        free(const_placement_block);
+        return false;
+    }
+
+    /* Phase 3: 栈槽分配（线性扫描，CONST vreg 统一参与复用） */
+    if (!_phase3_stack_allocation(f, out_stack_space, const_placement_block))
+    {
+        free(const_placement_block);
+        return false;
+    }
+
+    /* Phase 4c_part2: 用实际栈偏移更新常量加载记录 */
+    if (!_phase4c_update_const_load_offsets(f))
+    {
+        free(const_placement_block);
+        return false;
+    }
+
+    free(const_placement_block);
     return true;
 }
