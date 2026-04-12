@@ -946,15 +946,12 @@ static bool _phase3_stack_allocation(
 
         /* 过期旧区间：逆序遍历释放栈槽，使最后释放的栈槽（src[0]）被优先复用 */
         {
-            for (size_t a = active_count; a > 0; --a)
-            {
-                if (active_list[a - 1]->m_end < cur->m_start)
-                    free_slot_stack[free_slot_count++] = active_list[a - 1]->m_assigned_slot;
-            }
             size_t new_active = 0;
             for (size_t a = 0; a < active_count; ++a)
             {
-                if (active_list[a]->m_end >= cur->m_start)
+                if (active_list[a]->m_end < cur->m_start)
+                    free_slot_stack[free_slot_count++] = active_list[a]->m_assigned_slot;
+                else /* if (active_list[a]->m_end >= cur->m_start) */
                     active_list[new_active++] = active_list[a];
             }
             active_count = new_active;
@@ -962,9 +959,7 @@ static bool _phase3_stack_allocation(
 
         /* 分配或复用栈槽 */
         if (free_slot_count > 0)
-        {
             cur->m_assigned_slot = free_slot_stack[--free_slot_count];
-        }
         else
         {
             cur->m_assigned_slot = (int32_t)max_slots;

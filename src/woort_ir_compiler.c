@@ -1951,6 +1951,9 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
             func_count);
     }
 
+    void woort_dump_codes(const woort_CodeEnv * code_env);
+    woort_dump_codes(*out_cenv);
+
     /* 清理临时数据 */
     if (per_func_entries != NULL)
     {
