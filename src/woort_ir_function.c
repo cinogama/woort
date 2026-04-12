@@ -943,8 +943,6 @@ static bool _phase3_stack_allocation(
     for (uint32_t i = 0; i < interval_count; ++i)
     {
         _woort_LiveInterval* cur = &intervals[i];
-
-        /* 过期旧区间：逆序遍历释放栈槽，使最后释放的栈槽（src[0]）被优先复用 */
         {
             size_t new_active = 0;
             for (size_t a = 0; a < active_count; ++a)
