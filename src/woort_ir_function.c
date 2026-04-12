@@ -769,26 +769,28 @@ static bool _phase3_stack_allocation(
     {
         woort_IROp* op = &instrs[i];
 
-        /* m_dst 是定义点 */
+        /* m_dst 是定义点（半指令粒度：DEF = 2*i+1） */
         if (op->m_dst != NULL)
         {
             uint32_t id = op->m_dst->m_id;
-            if ((uint32_t)i < first_point[id])
-                first_point[id] = (uint32_t)i;
-            if ((uint32_t)i > last_point[id])
-                last_point[id] = (uint32_t)i;
+            uint32_t def_pt = (uint32_t)i * 2 + 1;
+            if (def_pt < first_point[id])
+                first_point[id] = def_pt;
+            if (def_pt > last_point[id])
+                last_point[id] = def_pt;
         }
 
-        /* m_src[] 是使用点 */
+        /* m_src[] 是使用点（半指令粒度：USE = 2*i） */
         for (int s = 0; s < 3; ++s)
         {
             if (op->m_src[s] != NULL)
             {
                 uint32_t id = op->m_src[s]->m_id;
-                if ((uint32_t)i < first_point[id])
-                    first_point[id] = (uint32_t)i;
-                if ((uint32_t)i > last_point[id])
-                    last_point[id] = (uint32_t)i;
+                uint32_t use_pt = (uint32_t)i * 2;
+                if (use_pt < first_point[id])
+                    first_point[id] = use_pt;
+                if (use_pt > last_point[id])
+                    last_point[id] = use_pt;
             }
         }
     }
@@ -802,8 +804,8 @@ static bool _phase3_stack_allocation(
                 continue;
             woort_IRBlock* place_blk = (woort_IRBlock*)woort_vector_at(
                 &f->m_blocks, const_placement_block[id]);
-            if (place_blk->m_begin < first_point[id])
-                first_point[id] = place_blk->m_begin;
+            if (place_blk->m_begin * 2 < first_point[id])
+                first_point[id] = place_blk->m_begin * 2;
         }
     }
 
@@ -817,16 +819,20 @@ static bool _phase3_stack_allocation(
             /* 如果 vreg 在 block 出口活跃，区间需覆盖到 block 末尾 */
             if (woort_bitset_test(&blk->m_live_out, id))
             {
-                if (blk->m_end > 0 && (blk->m_end - 1) > last_point[id])
-                    last_point[id] = blk->m_end - 1;
+                if (blk->m_end > 0)
+                {
+                    uint32_t block_tail = (blk->m_end - 1) * 2 + 1;
+                    if (block_tail > last_point[id])
+                        last_point[id] = block_tail;
+                }
                 if (first_point[id] == UINT32_MAX)
-                    first_point[id] = blk->m_begin;
+                    first_point[id] = blk->m_begin * 2;
             }
             /* 如果 vreg 在 block 入口活跃，区间需覆盖到 block 起始 */
             if (woort_bitset_test(&blk->m_live_in, id))
             {
-                if (blk->m_begin < first_point[id])
-                    first_point[id] = blk->m_begin;
+                if (blk->m_begin * 2 < first_point[id])
+                    first_point[id] = blk->m_begin * 2;
             }
         }
     }
@@ -938,19 +944,18 @@ static bool _phase3_stack_allocation(
     {
         _woort_LiveInterval* cur = &intervals[i];
 
-        /* 过期旧区间：将 end < cur->m_start 的移除并回收栈槽 */
+        /* 过期旧区间：逆序遍历释放栈槽，使最后释放的栈槽（src[0]）被优先复用 */
         {
+            for (size_t a = active_count; a > 0; --a)
+            {
+                if (active_list[a - 1]->m_end < cur->m_start)
+                    free_slot_stack[free_slot_count++] = active_list[a - 1]->m_assigned_slot;
+            }
             size_t new_active = 0;
             for (size_t a = 0; a < active_count; ++a)
             {
-                if (active_list[a]->m_end < cur->m_start)
-                {
-                    free_slot_stack[free_slot_count++] = active_list[a]->m_assigned_slot;
-                }
-                else
-                {
+                if (active_list[a]->m_end >= cur->m_start)
                     active_list[new_active++] = active_list[a];
-                }
             }
             active_count = new_active;
         }
