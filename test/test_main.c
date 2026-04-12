@@ -31,20 +31,6 @@ woort_api bar(void)
     return woort_ret_void();
 }
 
-static void dump_Code(woort_CodeEnv* cenv)
-{
-    const woort_Bytecode* pc = cenv->m_code_begin;
-
-    printf("\n");
-
-    while (pc < cenv->m_code_end)
-        pc = woort_Disassembly(pc);
-
-    printf("\n");
-
-    fflush(stdout);
-}
-
 int main(int argc, char** argv) {
     woort_init();
 
@@ -119,7 +105,7 @@ int main(int argc, char** argv) {
     woort_CodeEnv_set_const_int(cenv, c_35, 40);
     woort_CodeEnv_unlock(cenv);
 
-    dump_Code(cenv);
+    woort_dump_codes(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);

@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-const woort_Bytecode* woort_Disassembly(const woort_Bytecode* c)
+const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
 {
     const woort_Bytecode bc = c[0];
     const uint8_t op6 = (uint8_t)WOORT_BYTECODE(OP6, bc);
@@ -1377,4 +1377,14 @@ const woort_Bytecode* woort_Disassembly(const woort_Bytecode* c)
 
     // Never been here.
     abort();
+}
+
+void woort_dump_codes(const woort_CodeEnv* code_env)
+{
+    const woort_Bytecode* pc = code_env->m_code_begin;
+
+    while (pc < code_env->m_code_end)
+        pc = woort_disassembly(pc);
+
+    printf("\n");
 }
