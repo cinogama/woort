@@ -1026,11 +1026,11 @@ static void test_function_5_params(void)
         woort_IRValue* r = woort_IRFunction_new_vreg(f_main);
         TEST_ASSERT(v1 && v2 && v3 && v4 && v5 && r);
 
-        (void)woort_IR_PUSHCHK(f_main, v1);
-        (void)woort_IR_PUSHCHK(f_main, v2);
-        (void)woort_IR_PUSHCHK(f_main, v3);
-        (void)woort_IR_PUSHCHK(f_main, v4);
         (void)woort_IR_PUSHCHK(f_main, v5);
+        (void)woort_IR_PUSHCHK(f_main, v4);
+        (void)woort_IR_PUSHCHK(f_main, v3);
+        (void)woort_IR_PUSHCHK(f_main, v2);
+        (void)woort_IR_PUSHCHK(f_main, v1);
         (void)woort_IR_CALLNWO(f_main, cfn, 5, r);
         (void)woort_IR_ret(f_main, r);
     }
