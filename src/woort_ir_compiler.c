@@ -1868,8 +1868,6 @@ WOORT_NODISCARD woort_IRStaticIndex woort_IRCompiler_add_static(woort_IRCompiler
     return c->m_static_storage_alloc_count++;
 }
 
-#include "woort_disassembly.h"
-
 WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv** out_cenv)
 {
     /*
@@ -1952,8 +1950,6 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
             per_func_entries,
             func_count);
     }
-
-    woort_dump_codes(*out_cenv);
 
     /* 清理临时数据 */
     if (per_func_entries != NULL)

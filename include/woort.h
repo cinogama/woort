@@ -2401,7 +2401,7 @@ WOORT_API void woort_map_reserve(
 /**@{*/
 
 /**
- * @brief Lookup key in map. If found, write value to dst and return true.
+ * @brief Lookup key in map. If found, write boxed value to dst and return true.
  * If not found, return false (dst is unmodified).
  * @param dst         Destination stack slot for the boxed value.
  * @param src         Stack slot holding the map.
@@ -2414,49 +2414,49 @@ WOORT_API WOORT_NODISCARD bool woort_map_get(
     woort_StackValue key_boxed);
 
 /**
- * @brief Lookup by int key. If found, write value to dst and return true.
+ * @brief Lookup by int key. If found, write boxed value to dst and return true.
  * @param dst   Destination stack slot.
  * @param src   Stack slot holding the map.
  * @param key   Integer key to look up.
  * @return true if the key was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_get_int(
+WOORT_API WOORT_NODISCARD bool woort_map_get_by_int(
     woort_StackValue dst,
     woort_StackValue src,
     woort_Int key);
 
 /**
- * @brief Lookup by real key. If found, write value to dst and return true.
+ * @brief Lookup by real key. If found, write boxed value to dst and return true.
  * @param dst   Destination stack slot.
  * @param src   Stack slot holding the map.
  * @param key   Real key to look up.
  * @return true if the key was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_get_real(
+WOORT_API WOORT_NODISCARD bool woort_map_get_by_real(
     woort_StackValue dst,
     woort_StackValue src,
     woort_Real key);
 
 /**
- * @brief Lookup by bool key. If found, write value to dst and return true.
+ * @brief Lookup by bool key. If found, write boxed value to dst and return true.
  * @param dst   Destination stack slot.
  * @param src   Stack slot holding the map.
  * @param key   Boolean key to look up.
  * @return true if the key was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_get_bool(
+WOORT_API WOORT_NODISCARD bool woort_map_get_by_bool(
     woort_StackValue dst,
     woort_StackValue src,
     bool key);
 
 /**
- * @brief Lookup by string key. If found, write value to dst and return true.
+ * @brief Lookup by string key. If found, write boxed value to dst and return true.
  * @param dst   Destination stack slot.
  * @param src   Stack slot holding the map.
  * @param key   String key to look up.
  * @return true if the key was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_get_string(
+WOORT_API WOORT_NODISCARD bool woort_map_get_by_string(
     woort_StackValue dst,
     woort_StackValue src,
     woort_U8CString key);
@@ -2479,25 +2479,25 @@ WOORT_API WOORT_NODISCARD bool woort_map_set(
     woort_StackValue val_boxed);
 
 /** @brief Insert/update with int key. Returns true if newly inserted. */
-WOORT_API WOORT_NODISCARD bool woort_map_set_int(
+WOORT_API WOORT_NODISCARD bool woort_map_set_by_int(
     woort_StackValue src,
     woort_Int key,
     woort_StackValue val_boxed);
 
 /** @brief Insert/update with real key. Returns true if newly inserted. */
-WOORT_API WOORT_NODISCARD bool woort_map_set_real(
+WOORT_API WOORT_NODISCARD bool woort_map_set_by_real(
     woort_StackValue src,
     woort_Real key,
     woort_StackValue val_boxed);
 
 /** @brief Insert/update with bool key. Returns true if newly inserted. */
-WOORT_API WOORT_NODISCARD bool woort_map_set_bool(
+WOORT_API WOORT_NODISCARD bool woort_map_set_by_bool(
     woort_StackValue src,
     bool key,
     woort_StackValue val_boxed);
 
 /** @brief Insert/update with string key. Returns true if newly inserted. */
-WOORT_API WOORT_NODISCARD bool woort_map_set_string(
+WOORT_API WOORT_NODISCARD bool woort_map_set_by_string(
     woort_StackValue src,
     woort_U8CString key,
     woort_StackValue val_boxed);
@@ -2518,22 +2518,22 @@ WOORT_API WOORT_NODISCARD bool woort_map_erase(
     woort_StackValue key_boxed);
 
 /** @brief Erase by int key. Returns true if found and removed. */
-WOORT_API WOORT_NODISCARD bool woort_map_erase_int(
+WOORT_API WOORT_NODISCARD bool woort_map_erase_by_int(
     woort_StackValue src,
     woort_Int key);
 
 /** @brief Erase by real key. Returns true if found and removed. */
-WOORT_API WOORT_NODISCARD bool woort_map_erase_real(
+WOORT_API WOORT_NODISCARD bool woort_map_erase_by_real(
     woort_StackValue src,
     woort_Real key);
 
 /** @brief Erase by bool key. Returns true if found and removed. */
-WOORT_API WOORT_NODISCARD bool woort_map_erase_bool(
+WOORT_API WOORT_NODISCARD bool woort_map_erase_by_bool(
     woort_StackValue src,
     bool key);
 
 /** @brief Erase by string key. Returns true if found and removed. */
-WOORT_API WOORT_NODISCARD bool woort_map_erase_string(
+WOORT_API WOORT_NODISCARD bool woort_map_erase_by_string(
     woort_StackValue src,
     woort_U8CString key);
 

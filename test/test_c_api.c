@@ -1969,10 +1969,10 @@ static void test_map_detailed_ops(void)
     woort_set_int(sv + 3, 200);
     woort_set_string(sv + 4, "key2");
 
-    bool inserted = woort_map_set_string(sv, "key1", sv + 3);
+    bool inserted = woort_map_set_by_string(sv, "key1", sv + 3);
     TEST_ASSERT(inserted == true);
 
-    inserted = woort_map_set_string(sv, "key2", sv + 4);
+    inserted = woort_map_set_by_string(sv, "key2", sv + 4);
     TEST_ASSERT(inserted == true);
 
     size_t len = woort_map_len(sv);
@@ -1981,7 +1981,7 @@ static void test_map_detailed_ops(void)
     bool contains = woort_map_contains_string(sv, "key1");
     TEST_ASSERT(contains == true);
 
-    bool erased = woort_map_erase_string(sv, "key1");
+    bool erased = woort_map_erase_by_string(sv, "key1");
     TEST_ASSERT(erased == true);
 
     contains = woort_map_contains_string(sv, "key1");

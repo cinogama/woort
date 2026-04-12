@@ -1205,7 +1205,7 @@ WOORT_NODISCARD bool woort_map_get(
     return true;
 }
 
-WOORT_NODISCARD bool woort_map_get_int(
+WOORT_NODISCARD bool woort_map_get_by_int(
     woort_StackValue dst,
     woort_StackValue src,
     woort_Int key)
@@ -1224,7 +1224,7 @@ WOORT_NODISCARD bool woort_map_get_int(
     return true;
 }
 
-WOORT_NODISCARD bool woort_map_get_real(
+WOORT_NODISCARD bool woort_map_get_by_real(
     woort_StackValue dst,
     woort_StackValue src,
     woort_Real key)
@@ -1243,7 +1243,7 @@ WOORT_NODISCARD bool woort_map_get_real(
     return true;
 }
 
-WOORT_NODISCARD bool woort_map_get_bool(
+WOORT_NODISCARD bool woort_map_get_by_bool(
     woort_StackValue dst,
     woort_StackValue src,
     bool key)
@@ -1262,7 +1262,7 @@ WOORT_NODISCARD bool woort_map_get_bool(
     return true;
 }
 
-WOORT_NODISCARD bool woort_map_get_string(
+WOORT_NODISCARD bool woort_map_get_by_string(
     woort_StackValue dst,
     woort_StackValue src,
     woort_U8CString key)
@@ -1303,7 +1303,7 @@ WOORT_NODISCARD bool woort_map_set(
     return gcmap->m_size > old_size;
 }
 
-WOORT_NODISCARD bool woort_map_set_int(
+WOORT_NODISCARD bool woort_map_set_by_int(
     woort_StackValue src,
     woort_Int key,
     woort_StackValue val_boxed)
@@ -1322,7 +1322,7 @@ WOORT_NODISCARD bool woort_map_set_int(
     return gcmap->m_size > old_size;
 }
 
-WOORT_NODISCARD bool woort_map_set_real(
+WOORT_NODISCARD bool woort_map_set_by_real(
     woort_StackValue src,
     woort_Real key,
     woort_StackValue val_boxed)
@@ -1341,7 +1341,7 @@ WOORT_NODISCARD bool woort_map_set_real(
     return gcmap->m_size > old_size;
 }
 
-WOORT_NODISCARD bool woort_map_set_bool(
+WOORT_NODISCARD bool woort_map_set_by_bool(
     woort_StackValue src,
     bool key,
     woort_StackValue val_boxed)
@@ -1360,7 +1360,7 @@ WOORT_NODISCARD bool woort_map_set_bool(
     return gcmap->m_size > old_size;
 }
 
-WOORT_NODISCARD bool woort_map_set_string(
+WOORT_NODISCARD bool woort_map_set_by_string(
     woort_StackValue src,
     woort_U8CString key,
     woort_StackValue val_boxed)
@@ -1395,7 +1395,7 @@ WOORT_NODISCARD bool woort_map_erase(
     return woort_GCMap_erase(gcmap, _WOORT_API_STACK(key_boxed).m_dynamic);
 }
 
-WOORT_NODISCARD bool woort_map_erase_int(
+WOORT_NODISCARD bool woort_map_erase_by_int(
     woort_StackValue src,
     woort_Int key)
 {
@@ -1409,7 +1409,7 @@ WOORT_NODISCARD bool woort_map_erase_int(
     return woort_GCMap_erase(gcmap, boxed_key);
 }
 
-WOORT_NODISCARD bool woort_map_erase_real(
+WOORT_NODISCARD bool woort_map_erase_by_real(
     woort_StackValue src,
     woort_Real key)
 {
@@ -1423,7 +1423,7 @@ WOORT_NODISCARD bool woort_map_erase_real(
     return woort_GCMap_erase(gcmap, boxed_key);
 }
 
-WOORT_NODISCARD bool woort_map_erase_bool(
+WOORT_NODISCARD bool woort_map_erase_by_bool(
     woort_StackValue src,
     bool key)
 {
@@ -1437,7 +1437,7 @@ WOORT_NODISCARD bool woort_map_erase_bool(
     return woort_GCMap_erase(gcmap, boxed_key);
 }
 
-WOORT_NODISCARD bool woort_map_erase_string(
+WOORT_NODISCARD bool woort_map_erase_by_string(
     woort_StackValue src,
     woort_U8CString key)
 {

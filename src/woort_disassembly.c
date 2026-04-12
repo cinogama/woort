@@ -1369,14 +1369,12 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
         printf("PACKARG     %u -> [SB %+d]\n", n, dst);
         return c + 1;
     }
-
     default:
-        printf("UNKNOWN_OPCODE(%u)\n", op6);
-        return c + 1;
+        break;
     }
 
-    // Never been here.
-    abort();
+    printf("UNKNOWN_OPCODE(%u)\n", op6);
+    return c + 1;
 }
 
 void woort_dump_codes(const woort_CodeEnv* code_env)
