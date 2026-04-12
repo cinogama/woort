@@ -898,7 +898,7 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
             printf("CADDS       [SB %+d] += [SB %+d]\n", dst, a);
             return c + 1;
         case 1:
-            printf("CVADDS      [SB %+d] += [SB %+d]\n", dst, a);
+            printf("CVADDS      [SB %+d] = [SB %+d] + [SB %+d]\n", dst, a, dst);
             return c + 1;
         case 2:
             printf("CMODI       [SB %+d] %%= [SB %+d]\n", dst, a);
