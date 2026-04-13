@@ -748,8 +748,9 @@ static bool _phase3_stack_allocation(
     /*
      * 计算每个 vreg 的活跃区间 [first_def, last_use]
      */
-    uint32_t* first_point = (uint32_t*)malloc(vreg_count * sizeof(uint32_t));
-    uint32_t* last_point  = (uint32_t*)malloc(vreg_count * sizeof(uint32_t));
+    uint32_t* const first_point = (uint32_t*)malloc(vreg_count * sizeof(uint32_t));
+    uint32_t* const last_point  = (uint32_t*)malloc(vreg_count * sizeof(uint32_t));
+
     if (first_point == NULL || last_point == NULL)
     {
         free(first_point);
@@ -767,13 +768,14 @@ static bool _phase3_stack_allocation(
     /* 扫描所有指令收集 def/use 点 */
     for (size_t i = 0; i < instr_count; ++i)
     {
-        woort_IROp* op = &instrs[i];
+        woort_IROp* const op = &instrs[i];
 
-        /* m_dst 是定义点（半指令粒度：DEF = 2*i+1） */
+        /* m_dst 是定义点（半指令粒度：DEF = 5*i+4） */
         if (op->m_dst != NULL)
         {
-            uint32_t id = op->m_dst->m_id;
-            uint32_t def_pt = (uint32_t)i * 2 + 1;
+            const uint32_t id = op->m_dst->m_id;
+            const uint32_t def_pt = (uint32_t)i * 5 + 4;
+
             if (def_pt < first_point[id])
                 first_point[id] = def_pt;
             if (def_pt > last_point[id])
@@ -781,12 +783,15 @@ static bool _phase3_stack_allocation(
         }
 
         /* m_src[] 是使用点（半指令粒度：USE = 2*i） */
-        for (int s = 0; s < 3; ++s)
+        for (uint32_t s = 0; s < 3; ++s)
         {
             if (op->m_src[s] != NULL)
             {
-                uint32_t id = op->m_src[s]->m_id;
-                uint32_t use_pt = (uint32_t)i * 2;
+                const uint32_t id = op->m_src[s]->m_id;
+
+                /* NOTE: 此处使用逆序，期待优先复用首个读操作数以便计算指令能够使用更快寻址的特化版本 */
+                const uint32_t use_pt = (uint32_t)i * 5 + (3 - s);
+
                 if (use_pt < first_point[id])
                     first_point[id] = use_pt;
                 if (use_pt > last_point[id])
@@ -802,10 +807,11 @@ static bool _phase3_stack_allocation(
         {
             if (const_placement_block[id] == UINT32_MAX)
                 continue;
-            woort_IRBlock* place_blk = (woort_IRBlock*)woort_vector_at(
+            woort_IRBlock* const place_blk = (woort_IRBlock*)woort_vector_at(
                 &f->m_blocks, const_placement_block[id]);
-            if (place_blk->m_begin * 2 < first_point[id])
-                first_point[id] = place_blk->m_begin * 2;
+
+            if (place_blk->m_begin * 5 < first_point[id])
+                first_point[id] = place_blk->m_begin * 5;
         }
     }
 
@@ -821,18 +827,18 @@ static bool _phase3_stack_allocation(
             {
                 if (blk->m_end > 0)
                 {
-                    uint32_t block_tail = (blk->m_end - 1) * 2 + 1;
+                    uint32_t block_tail = (blk->m_end - 1) * 5 + 4;
                     if (block_tail > last_point[id])
                         last_point[id] = block_tail;
                 }
                 if (first_point[id] == UINT32_MAX)
-                    first_point[id] = blk->m_begin * 2;
+                    first_point[id] = blk->m_begin * 5;
             }
             /* 如果 vreg 在 block 入口活跃，区间需覆盖到 block 起始 */
             if (woort_bitset_test(&blk->m_live_in, id))
             {
-                if (blk->m_begin * 2 < first_point[id])
-                    first_point[id] = blk->m_begin * 2;
+                if (blk->m_begin * 5 < first_point[id])
+                    first_point[id] = blk->m_begin * 5;
             }
         }
     }
@@ -844,7 +850,7 @@ static bool _phase3_stack_allocation(
     uint32_t interval_count = 0;
     for (uint32_t id = 0; id < vreg_count; ++id)
     {
-        woort_IRValue* v = vreg_by_id[id];
+        woort_IRValue* const v = vreg_by_id[id];
         if (v == NULL)
             continue;
         if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
