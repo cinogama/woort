@@ -88,7 +88,7 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
         WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
     woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
-    
+
     const bool r = woort_GC_register_root_vm(vm);
 
     (void)woort_VMRuntime_swap(last);
@@ -3253,6 +3253,34 @@ _label_continue_execution:
 
             break;
         }
+        // JFWDTCAS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JMPCAS, 0):
+        {
+            woort_AtomicInt64* const object =
+                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+            _Static_assert(sizeof(woort_AtomicInt64) == sizeof(woort_Int),
+                "To make sure atomic operation work correctly, the size must be same.");
+
+            woort_Int* const expected =
+                &rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            const woort_Int desired =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+
+            if (woort_atomic_compare_exchange_strong_explicit(
+                (woort_AtomicInt64*)object,
+                expected,
+                desired,
+                WOORT_ATOMIC_MEMORY_ORDER_RELEASE,
+                WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE))
+            {
+                // Matched, Jump.
+                rt_ip += WOORT_BYTECODE(C8, c);
+            }
+            else
+                rt_ip += 2;
+
+            continue;
+        }
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_TRAP):
         {
             if (woort_VMRuntime_Debugger_try_trap())
@@ -3260,7 +3288,7 @@ _label_continue_execution:
                 // TODO: 通过 CodeEnv 查询 Trap，获取原本的指令，然后重新执行
                 goto _label_vm_dispatch_reentry_for_debug_trap;
             }
-             /* 没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
+            /* 没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
             (void)woort_CodeEnv_clear_trap(rt_ip);
             continue;
         }
