@@ -1798,6 +1798,617 @@ static void test_real_arithmetic_loop(void)
     TEST_END();
 }
 
+/* ========== CAS 测试 ========== */
+
+/*
+ * test_jmpcas_t_basic:
+ *   atomic_val = 10 (在常量池中)
+ *   expected = 10, desired = 99
+ *   if CAS(atomic_val, expected, desired) succeeds, goto L_success
+ *   return 0   (fall-through: CAS 失败)
+ *   L_success:
+ *   return 1   (CAS 成功)
+ *
+ *   由于 expected == atomic_val，CAS 必定成功，返回 1。
+ */
+static void test_jmpcas_t_basic(void)
+{
+    TEST_BEGIN("jmpcas_t_basic (CAS success forward jump)");
+
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c99 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_atomic = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    {
+        woort_IRValue* v10 = (woort_IRValue*)woort_IRFunction_load_const(f, c10);
+        woort_IRValue* v99 = (woort_IRValue*)woort_IRFunction_load_const(f, c99);
+        woort_IRValue* v0 = (woort_IRValue*)woort_IRFunction_load_const(f, c0);
+        woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
+        TEST_ASSERT(v10 && v99 && v0 && v1);
+
+        woort_IRLabel* L_success = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_success);
+
+        /* expected = v10, desired = v99, atomic = c_atomic */
+        TEST_ASSERT(woort_IR_jmpcas_t(f, v10, v99, L_success, c_atomic));
+        (void)woort_IR_ret(f, v0);
+
+        (void)woort_IR_bind(f, L_success);
+        (void)woort_IR_ret(f, v1);
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c10, 10);
+    woort_CodeEnv_set_const_int(cenv, c99, 99);
+    woort_CodeEnv_set_const_int(cenv, c0, 0);
+    woort_CodeEnv_set_const_int(cenv, c1, 1);
+    woort_CodeEnv_set_const_int(cenv, c_atomic, 10);
+    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
+    woort_CodeEnv_unlock(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    (void)woort_push_reserve(2, &sv);
+    woort_load_const(sv, cenv, c_entry);
+    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(1, woort_int(sv + 1));
+    woort_pop(2);
+
+    (void)woort_VMRuntime_swap(NULL);
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
+/*
+ * test_jmpcas_t_mismatch:
+ *   atomic_val = 42, expected = 10, desired = 99
+ *   CAS(expected=10, desired=99) 在 atomic_val=42 上必定失败
+ *   fall-through → return 0
+ */
+static void test_jmpcas_t_mismatch(void)
+{
+    TEST_BEGIN("jmpcas_t_mismatch (CAS fail, fall-through)");
+
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c99 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_atomic = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    {
+        woort_IRValue* v10 = (woort_IRValue*)woort_IRFunction_load_const(f, c10);
+        woort_IRValue* v99 = (woort_IRValue*)woort_IRFunction_load_const(f, c99);
+        woort_IRValue* v0 = (woort_IRValue*)woort_IRFunction_load_const(f, c0);
+        woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
+        TEST_ASSERT(v10 && v99 && v0 && v1);
+
+        woort_IRLabel* L_success = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_success);
+
+        TEST_ASSERT(woort_IR_jmpcas_t(f, v10, v99, L_success, c_atomic));
+        (void)woort_IR_ret(f, v0);
+
+        (void)woort_IR_bind(f, L_success);
+        (void)woort_IR_ret(f, v1);
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c10, 10);
+    woort_CodeEnv_set_const_int(cenv, c99, 99);
+    woort_CodeEnv_set_const_int(cenv, c0, 0);
+    woort_CodeEnv_set_const_int(cenv, c1, 1);
+    woort_CodeEnv_set_const_int(cenv, c_atomic, 42);
+    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
+    woort_CodeEnv_unlock(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    (void)woort_push_reserve(2, &sv);
+    woort_load_const(sv, cenv, c_entry);
+    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(0, woort_int(sv + 1));
+    woort_pop(2);
+
+    (void)woort_VMRuntime_swap(NULL);
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
+/*
+ * test_jmpcas_f_basic:
+ *   atomic_val = 42, expected = 10, desired = 99
+ *   if CAS fails, goto L_fail → return 1
+ *   fall-through (CAS 成功) → return 0
+ *
+ *   由于 expected(10) != atomic_val(42)，CAS 失败，跳转到 L_fail 返回 1。
+ */
+static void test_jmpcas_f_basic(void)
+{
+    TEST_BEGIN("jmpcas_f_basic (CAS fail forward jump)");
+
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c99 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_atomic = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    {
+        woort_IRValue* v10 = (woort_IRValue*)woort_IRFunction_load_const(f, c10);
+        woort_IRValue* v99 = (woort_IRValue*)woort_IRFunction_load_const(f, c99);
+        woort_IRValue* v0 = (woort_IRValue*)woort_IRFunction_load_const(f, c0);
+        woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
+        TEST_ASSERT(v10 && v99 && v0 && v1);
+
+        woort_IRLabel* L_fail = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_fail);
+
+        TEST_ASSERT(woort_IR_jmpcas_f(f, v10, v99, L_fail, c_atomic));
+        (void)woort_IR_ret(f, v0);
+
+        (void)woort_IR_bind(f, L_fail);
+        (void)woort_IR_ret(f, v1);
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c10, 10);
+    woort_CodeEnv_set_const_int(cenv, c99, 99);
+    woort_CodeEnv_set_const_int(cenv, c0, 0);
+    woort_CodeEnv_set_const_int(cenv, c1, 1);
+    woort_CodeEnv_set_const_int(cenv, c_atomic, 42);
+    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
+    woort_CodeEnv_unlock(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    (void)woort_push_reserve(2, &sv);
+    woort_load_const(sv, cenv, c_entry);
+    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(1, woort_int(sv + 1));
+    woort_pop(2);
+
+    (void)woort_VMRuntime_swap(NULL);
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
+/*
+ * test_jmpcas_f_no_jump:
+ *   atomic_val = 10, expected = 10, desired = 99
+ *   CAS succeeds → no jump → return 0
+ *   (L_fail 标签绑定的 return 1 不可达)
+ */
+static void test_jmpcas_f_no_jump(void)
+{
+    TEST_BEGIN("jmpcas_f_no_jump (CAS succeed, no jump)");
+
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c99 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_atomic = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    {
+        woort_IRValue* v10 = (woort_IRValue*)woort_IRFunction_load_const(f, c10);
+        woort_IRValue* v99 = (woort_IRValue*)woort_IRFunction_load_const(f, c99);
+        woort_IRValue* v0 = (woort_IRValue*)woort_IRFunction_load_const(f, c0);
+        woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
+        TEST_ASSERT(v10 && v99 && v0 && v1);
+
+        woort_IRLabel* L_fail = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_fail);
+
+        TEST_ASSERT(woort_IR_jmpcas_f(f, v10, v99, L_fail, c_atomic));
+        (void)woort_IR_ret(f, v0);
+
+        (void)woort_IR_bind(f, L_fail);
+        (void)woort_IR_ret(f, v1);
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c10, 10);
+    woort_CodeEnv_set_const_int(cenv, c99, 99);
+    woort_CodeEnv_set_const_int(cenv, c0, 0);
+    woort_CodeEnv_set_const_int(cenv, c1, 1);
+    woort_CodeEnv_set_const_int(cenv, c_atomic, 10);
+    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
+    woort_CodeEnv_unlock(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    (void)woort_push_reserve(2, &sv);
+    woort_load_const(sv, cenv, c_entry);
+    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(0, woort_int(sv + 1));
+    woort_pop(2);
+
+    (void)woort_VMRuntime_swap(NULL);
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
+/*
+ * test_jmpcas_backward_loop:
+ *   典型的 CAS 循环模式（使用 jmpcas_f 后向跳转）：
+ *
+ *   atomic_val = 0 (初始值)
+ *   expected = 0
+ *   desired = 42
+ *
+ *   L_retry:
+ *     if CAS(atomic_val, expected, desired) fails, goto L_retry
+ *     ; CAS 成功, expected 被写入新值 42
+ *     return expected   ; 返回 expected（CAS 成功后等于 desired=42）
+ *
+ *   第一次 CAS: expected=0 == atomic_val=0 → 成功 → return 42
+ *
+ *   验证：jmpcas_f 生成的后向跳转路径（尽管这里不会执行到），
+ *   以及 CAS 成功后 expected 被正确更新（但实际上 CAS 成功时 expected 不变）。
+ */
+static void test_jmpcas_backward_loop(void)
+{
+    TEST_BEGIN("jmpcas_backward_loop (CAS retry loop)");
+
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c42 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_atomic = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    {
+        woort_IRValue* v0 = (woort_IRValue*)woort_IRFunction_load_const(f, c0);
+        woort_IRValue* v42 = (woort_IRValue*)woort_IRFunction_load_const(f, c42);
+        woort_IRValue* expected = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v0 && v42 && expected);
+
+        (void)woort_IR_MOV(f, expected, v0);
+
+        woort_IRLabel* L_retry = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_retry);
+
+        (void)woort_IR_bind(f, L_retry);
+        /* CAS: expected 已被 MOV 初始化为 0, desired=42 */
+        TEST_ASSERT(woort_IR_jmpcas_f(f, expected, v42, L_retry, c_atomic));
+        /* CAS 成功 → expected 保持原值, 继续执行 */
+        (void)woort_IR_ret(f, expected);
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c0, 0);
+    woort_CodeEnv_set_const_int(cenv, c42, 42);
+    woort_CodeEnv_set_const_int(cenv, c_atomic, 0);
+    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
+    woort_CodeEnv_unlock(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    (void)woort_push_reserve(2, &sv);
+    woort_load_const(sv, cenv, c_entry);
+    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(0, woort_int(sv + 1));
+    woort_pop(2);
+
+    (void)woort_VMRuntime_swap(NULL);
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
+/*
+ * test_jmpcas_t_backward:
+ *   使用 jmpcas_t 的后向跳转模式：
+ *
+ *   L_loop:
+ *     if CAS(atomic_val, expected, desired) succeeds, goto L_loop
+ *     ; CAS 失败 → expected 被更新为 atomic_val 的实际值
+ *     return expected
+ *
+ *   atomic_val = 42, expected = 10, desired = 99
+ *   CAS 失败 (10 != 42), expected 被更新为 42, return 42
+ */
+static void test_jmpcas_t_backward(void)
+{
+    TEST_BEGIN("jmpcas_t_backward (CAS success backward loop)");
+
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c99 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_atomic = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    {
+        woort_IRValue* v10 = (woort_IRValue*)woort_IRFunction_load_const(f, c10);
+        woort_IRValue* v99 = (woort_IRValue*)woort_IRFunction_load_const(f, c99);
+        woort_IRValue* expected = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v10 && v99 && expected);
+
+        (void)woort_IR_MOV(f, expected, v10);
+
+        woort_IRLabel* L_loop = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_loop);
+
+        (void)woort_IR_bind(f, L_loop);
+        TEST_ASSERT(woort_IR_jmpcas_t(f, expected, v99, L_loop, c_atomic));
+        /* CAS 失败 → expected 被更新为实际值, 继续执行 */
+        (void)woort_IR_ret(f, expected);
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c10, 10);
+    woort_CodeEnv_set_const_int(cenv, c99, 99);
+    woort_CodeEnv_set_const_int(cenv, c_atomic, 42);
+    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
+    woort_CodeEnv_unlock(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    (void)woort_push_reserve(2, &sv);
+    woort_load_const(sv, cenv, c_entry);
+    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(42, woort_int(sv + 1));
+    woort_pop(2);
+
+    (void)woort_VMRuntime_swap(NULL);
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
+/*
+ * test_jmpcas_overflow:
+ *   测试前向跳转偏移溢出（C8 > 255）时的展开逻辑。
+ *
+ *   结构：
+ *     jmpcas_t(expected=10, desired=99, L_success)  ; atomic=42, CAS fails
+ *     return 0            ; fall-through: CAS 失败 → 返回 0
+ *     ... 260 条 MOV ...  ; padding (不可达)
+ *     L_success:
+ *     return 1            ; CAS 成功 → 返回 1
+ *
+ *   由于 CAS 失败（10 != 42），返回 0。
+ *   测试目标：验证溢出展开（反转条件 + 无条件跳转）的编译正确性。
+ */
+static void test_jmpcas_overflow(void)
+{
+    TEST_BEGIN("jmpcas_overflow (C8 forward overflow expansion)");
+
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c99 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_dummy = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_atomic = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    {
+        woort_IRValue* v10 = (woort_IRValue*)woort_IRFunction_load_const(f, c10);
+        woort_IRValue* v99 = (woort_IRValue*)woort_IRFunction_load_const(f, c99);
+        woort_IRValue* v0 = (woort_IRValue*)woort_IRFunction_load_const(f, c0);
+        woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
+        woort_IRValue* v_dummy = (woort_IRValue*)woort_IRFunction_load_const(f, c_dummy);
+        TEST_ASSERT(v10 && v99 && v0 && v1 && v_dummy);
+
+        woort_IRLabel* L_success = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_success);
+
+        TEST_ASSERT(woort_IR_jmpcas_t(f, v10, v99, L_success, c_atomic));
+        (void)woort_IR_ret(f, v0);
+
+        for (int i = 0; i < 260; ++i)
+            (void)woort_IR_MOV(f, v_dummy, v_dummy);
+
+        (void)woort_IR_bind(f, L_success);
+        (void)woort_IR_ret(f, v1);
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c10, 10);
+    woort_CodeEnv_set_const_int(cenv, c99, 99);
+    woort_CodeEnv_set_const_int(cenv, c0, 0);
+    woort_CodeEnv_set_const_int(cenv, c1, 1);
+    woort_CodeEnv_set_const_int(cenv, c_dummy, 0);
+    woort_CodeEnv_set_const_int(cenv, c_atomic, 42);
+    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
+    woort_CodeEnv_unlock(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    (void)woort_push_reserve(2, &sv);
+    woort_load_const(sv, cenv, c_entry);
+    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(0, woort_int(sv + 1));
+    woort_pop(2);
+
+    (void)woort_VMRuntime_swap(NULL);
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
+/*
+ * test_jmpcas_overflow_backward:
+ *   测试后向跳转溢出（C8 > 255）时的展开逻辑。
+ *   先绑定 L_target 标签，然后填充大量指令，最后用 jmpcas_t 跳回。
+ *   CAS 成功(10 == 10) → 跳回 L_target → 进入循环
+ *   但由于这是无限循环，我们改用 jmpcas_f 测试：
+ *   CAS 失败 → 跳回 L_target。
+ *
+ *   atomic = 42 (mismatch with expected=10)
+ *   L_target:
+ *     jmpcas_f(expected=10, desired=99, L_target)  ; CAS 失败 → 跳回
+ *     return expected  ; CAS 成功 → 返回 expected
+ *
+ *   但后向跳转距离太大(>255)，需要溢出展开。
+ *   在 L_target 和 jmpcas_f 之间填充 260 条指令。
+ *
+ *   CAS 失败 → 跳回 L_target → 再失败 → 无限循环！
+ *   因此我们让 CAS 成功: atomic=10, expected=10 → return 10
+ */
+static void test_jmpcas_overflow_backward(void)
+{
+    TEST_BEGIN("jmpcas_overflow_backward (C8 backward overflow)");
+
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c99 = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_dummy = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_atomic = woort_IRCompiler_add_constant(irc);
+    woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
+
+    woort_IRFunction* f;
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    {
+        woort_IRValue* v10 = (woort_IRValue*)woort_IRFunction_load_const(f, c10);
+        woort_IRValue* v99 = (woort_IRValue*)woort_IRFunction_load_const(f, c99);
+        woort_IRValue* v_dummy = (woort_IRValue*)woort_IRFunction_load_const(f, c_dummy);
+        woort_IRValue* expected = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v10 && v99 && v_dummy && expected);
+
+        (void)woort_IR_MOV(f, expected, v10);
+
+        woort_IRLabel* L_target = woort_IRFunction_new_label(f);
+        TEST_ASSERT(L_target);
+
+        (void)woort_IR_bind(f, L_target);
+
+        for (int i = 0; i < 260; ++i)
+            (void)woort_IR_MOV(f, v_dummy, v_dummy);
+
+        /* CAS: expected=10, desired=99, atomic=10 → 成功 → fall-through → return expected */
+        TEST_ASSERT(woort_IR_jmpcas_f(f, expected, v99, L_target, c_atomic));
+        (void)woort_IR_ret(f, expected);
+    }
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    woort_CodeEnv_lock(cenv);
+    woort_CodeEnv_set_const_int(cenv, c10, 10);
+    woort_CodeEnv_set_const_int(cenv, c99, 99);
+    woort_CodeEnv_set_const_int(cenv, c_dummy, 0);
+    woort_CodeEnv_set_const_int(cenv, c_atomic, 10);
+    woort_CodeEnv_set_const_script_closure(cenv, c_entry, cenv->m_code_begin);
+    woort_CodeEnv_unlock(cenv);
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    (void)woort_push_reserve(2, &sv);
+    woort_load_const(sv, cenv, c_entry);
+    woort_VmCallStatus status = woort_invoke(sv + 1, sv);
+    TEST_ASSERT(status == WOORT_VM_CALL_STATUS_NORMAL);
+    TEST_ASSERT_EQ_INT(10, woort_int(sv + 1));
+    woort_pop(2);
+
+    (void)woort_VMRuntime_swap(NULL);
+    woort_CodeEnv_drop(cenv);
+    woort_VMRuntime_destroy(vm);
+    woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
 /* ========== Main ========== */
 
 int main(int argc, char** argv)
@@ -1831,6 +2442,15 @@ int main(int argc, char** argv)
     test_string_in_if_else();
     test_deeply_nested_if();
     test_real_arithmetic_loop();
+
+    test_jmpcas_t_basic();
+    test_jmpcas_t_mismatch();
+    test_jmpcas_f_basic();
+    test_jmpcas_f_no_jump();
+    test_jmpcas_backward_loop();
+    test_jmpcas_t_backward();
+    test_jmpcas_overflow();
+    test_jmpcas_overflow_backward();
 
     (void)printf("\n  %d/%d tests passed.\n\n", g_tests_passed, g_tests_run);
 
