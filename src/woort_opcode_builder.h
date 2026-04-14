@@ -256,6 +256,29 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_JBCKCMP, 3, a8, b8, c8)
 
                       /*
+                       * JMPCAS - 原子比较并交换 + 条件跳转
+                       * 主字使用 OP6_M2_A8_B8_C8 格式，EX32 为常量池索引 (R_W_C32)
+                       *
+                       * JFWDTCAS (mode=0): if CAS(object, expected, desired) succeeds, rt_ip += c8
+                       * JBCKTCAS (mode=1): if CAS(object, expected, desired) succeeds, rt_ip -= c8
+                       * JFWDFCAS (mode=2): if CAS(object, expected, desired) fails,   rt_ip += c8
+                       * JBCKFCAS (mode=3): if CAS(object, expected, desired) fails,   rt_ip -= c8
+                       *
+                       * A8 = R_W_S8 (expected, updated on failure)
+                       * B8 = R_ONLY_S8 (desired)
+                       * C8 = U8 (jump offset)
+                       * EX32 = R_W_C32 (constant pool index for atomic object)
+                       */
+#define woort_OpCode_JFWDTCAS(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_JMPCAS, 0, a8, b8, c8)
+#define woort_OpCode_JBCKTCAS(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_JMPCAS, 1, a8, b8, c8)
+#define woort_OpCode_JFWDFCAS(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_JMPCAS, 2, a8, b8, c8)
+#define woort_OpCode_JBCKFCAS(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_JMPCAS, 3, a8, b8, c8)
+
+                      /*
                        * CONS - 容器构造
                        * MKVEC    (mode=0): 构造向量，n8 个元素 -> [SB + bc16]
                        * MKMAP    (mode=1): 构造字典，n8 个键值对 -> [SB + bc16]
@@ -767,10 +790,10 @@
 #define woort_OpCode_PUSHIDXSTRUCT(n8, bc16) \
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_UNPACK, 3, n8, bc16)
 
-                                                            /*
-                                                             * PUSHIDXSTBOX - 压入结构体字段引用
-                                                            * PUSHIDXSTBOXI/R/B/X: 压入 struct.n8 的引用到栈，类型 int/real/bool/dynamic
-                                                            */
+                                                           /*
+                                                            * PUSHIDXSTBOX - 压入结构体字段引用
+                                                           * PUSHIDXSTBOXI/R/B/X: 压入 struct.n8 的引用到栈，类型 int/real/bool/dynamic
+                                                           */
 #define woort_OpCode_PUSHIDXSTBOXI(n8, bc16) \
     woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_PUSHIDXSTBOX, ((n8) << 8) | 0, bc16)
 #define woort_OpCode_PUSHIDXSTBOXR(n8, bc16) \
@@ -780,15 +803,15 @@
 #define woort_OpCode_PUSHIDXSTBOXX(n8, bc16) \
     woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_PUSHIDXSTBOX, ((n8) << 8) | 3, bc16)
 
-                                                            /*
-                                                             * PACKARG - 打包参数
-                                                             * 将 n10 个参数打包到 [SB + bc16]
-                                                             */
+                                                           /*
+                                                            * PACKARG - 打包参数
+                                                            * 将 n10 个参数打包到 [SB + bc16]
+                                                            */
 #define woort_OpCode_PACKARG(n10, bc16) \
     woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_PACKARG, n10, bc16)
 
-                                                             /*
-                                                              * TRAP - 陷阱/断点
-                                                              */
+                                                            /*
+                                                             * TRAP - 陷阱/断点
+                                                             */
 #define woort_OpCode_TRAP() \
     woort_OpCodeFormal_cons(OP6, WOORT_OPCODE_TRAP)

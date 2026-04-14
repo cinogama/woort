@@ -1425,6 +1425,34 @@ WOORT_API WOORT_NODISCARD bool woort_IR_jcc_ne(
     const woort_IRValue* b,
     woort_IRLabel* target);
 
+/** @brief Atomic CAS: if CAS(const_idx, expected, desired) succeeds, jump to target.
+ *  @param f          The IR function.
+ *  @param expected   R/W vreg: the expected value (updated on failure).
+ *  @param desired    R/O vreg: the desired value to store.
+ *  @param target     Jump target label on CAS success.
+ *  @param const_idx  Constant pool index of the atomic integer.
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_jmpcas_t(
+    woort_IRFunction* f,
+    const woort_IRValue* expected,
+    const woort_IRValue* desired,
+    woort_IRLabel* target,
+    woort_IRConstantIndex const_idx);
+
+/** @brief Atomic CAS: if CAS(const_idx, expected, desired) fails, jump to target.
+ *  @param f          The IR function.
+ *  @param expected   R/W vreg: the expected value (updated on failure).
+ *  @param desired    R/O vreg: the desired value to store.
+ *  @param target     Jump target label on CAS failure.
+ *  @param const_idx  Constant pool index of the atomic integer.
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_jmpcas_f(
+    woort_IRFunction* f,
+    const woort_IRValue* expected,
+    const woort_IRValue* desired,
+    woort_IRLabel* target,
+    woort_IRConstantIndex const_idx);
+
 /** @} */
 
 /* ============ Return ============ */

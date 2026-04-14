@@ -530,6 +530,26 @@ _DEFINE_JCC_CMP(woort_IR_jcc_gt, WOORT_IROP_KIND_JCC_GT)
 _DEFINE_JCC_CMP(woort_IR_jcc_ge, WOORT_IROP_KIND_JCC_GE)
 _DEFINE_JCC_CMP(woort_IR_jcc_ne, WOORT_IROP_KIND_JCC_NE)
 
+/* 原子 CAS 条件跳转 */
+#define _DEFINE_JMPCAS(name, kind)                                                 \
+    WOORT_NODISCARD bool name(                                                     \
+        woort_IRFunction* f,                                                       \
+        const woort_IRValue* expected,                                             \
+        const woort_IRValue* desired,                                              \
+        woort_IRLabel* target,                                                     \
+        woort_IRConstantIndex const_idx)                                           \
+    {                                                                              \
+        _EMIT_BEGIN(f, kind);                                                      \
+        op_->m_src[0] = expected;                                                  \
+        op_->m_src[1] = desired;                                                   \
+        op_->m_jmpcas_target = target;                                             \
+        op_->m_jmpcas_const_idx = const_idx;                                       \
+        _EMIT_END();                                                               \
+    }
+
+_DEFINE_JMPCAS(woort_IR_jmpcas_t, WOORT_IROP_KIND_JMPCAS_T)
+_DEFINE_JMPCAS(woort_IR_jmpcas_f, WOORT_IROP_KIND_JMPCAS_F)
+
 /* ========== 返回 ========== */
 
 WOORT_NODISCARD bool woort_IR_ret(

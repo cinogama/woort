@@ -178,6 +178,8 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_JCC_GT,         /* if (a > b) goto label (sugar: swapped lt) */
     WOORT_IROP_KIND_JCC_GE,         /* if (a >= b) goto label (sugar: swapped le) */
     WOORT_IROP_KIND_JCC_NE,         /* if (a != b) goto label (sugar: swapped eq args + invert) */
+    WOORT_IROP_KIND_JMPCAS_T,       /* if CAS(object, expected, desired) succeeds, goto target */
+    WOORT_IROP_KIND_JMPCAS_F,       /* if CAS(object, expected, desired) fails, goto target */
 
     /* ============ 返回 ============ */
     WOORT_IROP_KIND_RET,            /* return src */
@@ -240,6 +242,13 @@ typedef struct woort_IROp
 
         /* JMP, JCC, JCCZ, JCC_LT, JCC_LE, JCC_EQ, JCC_GT, JCC_GE, JCC_NE */
         woort_IRLabel* m_jump_target;
+
+        /* JMPCAS_T / JMPCAS_F */
+        struct
+        {
+            woort_IRLabel* m_jmpcas_target;
+            woort_IRConstantIndex m_jmpcas_const_idx;
+        };
 
         /* LABEL */
         woort_IRLabel* m_label;
