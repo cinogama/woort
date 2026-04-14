@@ -506,6 +506,30 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
         break;
     }
 
+    case WOORT_OPCODE_JMPCAS:
+    {
+        const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
+        const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
+        const uint8_t offset = (uint8_t)WOORT_BYTECODE(C8, bc);
+        const uint32_t const_idx = (uint32_t)c[1];
+        switch (m2)
+        {
+        case 0:
+            printf("JFWDTCAS    +%u IF CAS(DATA[%u], [SB %+d], [SB %+d]) OK\n", offset, const_idx, a, b);
+            return c + 2;
+        case 1:
+            printf("JBCKTCAS    -%u IF CAS(DATA[%u], [SB %+d], [SB %+d]) OK\n", offset, const_idx, a, b);
+            return c + 2;
+        case 2:
+            printf("JFWDFCAS    +%u IF CAS(DATA[%u], [SB %+d], [SB %+d]) FAIL\n", offset, const_idx, a, b);
+            return c + 2;
+        case 3:
+            printf("JBCKFCAS    -%u IF CAS(DATA[%u], [SB %+d], [SB %+d]) FAIL\n", offset, const_idx, a, b);
+            return c + 2;
+        }
+        break;
+    }
+
     case WOORT_OPCODE_CONS:
     {
         const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
