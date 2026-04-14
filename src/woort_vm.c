@@ -3253,6 +3253,7 @@ _label_continue_execution:
 
             break;
         }
+        // TRAP
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_TRAP):
         {
             if (woort_VMRuntime_Debugger_try_trap())
