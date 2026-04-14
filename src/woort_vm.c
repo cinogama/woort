@@ -3281,6 +3281,85 @@ _label_continue_execution:
 
             continue;
         }
+        // JBCKTCAS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JMPCAS, 1):
+        {
+            woort_AtomicInt64* const object =
+                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+
+            woort_Int* const expected =
+                &rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            const woort_Int desired =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+
+            if (woort_atomic_compare_exchange_strong_explicit(
+                (woort_AtomicInt64*)object,
+                expected,
+                desired,
+                WOORT_ATOMIC_MEMORY_ORDER_RELEASE,
+                WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE))
+            {
+                rt_ip -= WOORT_BYTECODE(C8, c);
+                WOORT_VM_CHECKPOINT();
+                continue;
+            }
+            else
+                rt_ip += 2;
+
+            continue;
+        }
+        // JFWDFCAS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JMPCAS, 2):
+        {
+            woort_AtomicInt64* const object =
+                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+
+            woort_Int* const expected =
+                &rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            const woort_Int desired =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+
+            if (!woort_atomic_compare_exchange_strong_explicit(
+                (woort_AtomicInt64*)object,
+                expected,
+                desired,
+                WOORT_ATOMIC_MEMORY_ORDER_RELEASE,
+                WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE))
+            {
+                rt_ip += WOORT_BYTECODE(C8, c);
+            }
+            else
+                rt_ip += 2;
+
+            continue;
+        }
+        // JBCKFCAS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JMPCAS, 3):
+        {
+            woort_AtomicInt64* const object =
+                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+
+            woort_Int* const expected =
+                &rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            const woort_Int desired =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer;
+
+            if (!woort_atomic_compare_exchange_strong_explicit(
+                (woort_AtomicInt64*)object,
+                expected,
+                desired,
+                WOORT_ATOMIC_MEMORY_ORDER_RELEASE,
+                WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE))
+            {
+                rt_ip -= WOORT_BYTECODE(C8, c);
+                WOORT_VM_CHECKPOINT();
+                continue;
+            }
+            else
+                rt_ip += 2;
+
+            continue;
+        }
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_TRAP):
         {
             if (woort_VMRuntime_Debugger_try_trap())
