@@ -510,10 +510,6 @@ static bool _emit_op(
     case WOORT_IROP_KIND_LABEL:
         return true;
 
-    /* ============ NOP ============ */
-    case WOORT_IROP_KIND_NOP:
-        return _emit_bc(blk, woort_OpCode_NOP());
-
     /* ============ MOV ============ */
     case WOORT_IROP_KIND_MOV:
     {
@@ -1389,45 +1385,6 @@ static bool _emit_op(
         return woort_vector_push_back(jump_patches, 1, &patch);
     }
 
-    case WOORT_IROP_KIND_JMPCAS_T:
-    case WOORT_IROP_KIND_JMPCAS_F:
-    {
-        assert(op->m_src[0] != NULL && op->m_src[1] != NULL);
-
-        int8_t desired_s8;
-        if (!_load_to_s8(blk, op->m_src[0], -126, &desired_s8))
-            return false;
-
-        int8_t expected_s8;
-        if (!_load_to_s8(blk, op->m_dst, -127, &expected_s8))
-            return false;
-
-        _JumpPatch patch;
-        patch.m_block_idx = block_idx;
-        patch.m_bc_idx = (uint32_t)blk->m_bytecodes.m_size;
-        patch.m_target = op->m_jmpcas_target;
-        patch.m_kind = op->m_op;
-        patch.m_src0_off = expected_s8;
-        patch.m_src1_off = desired_s8;
-
-        woort_Bytecode placeholder = (op->m_op == WOORT_IROP_KIND_JMPCAS_T)
-            ? woort_OpCode_JFWDTCAS(expected_s8, desired_s8, 0)
-            : woort_OpCode_JFWDFCAS(expected_s8, desired_s8, 0);
-
-        if (!_emit_bc_ex32(
-            blk,
-            placeholder,
-            op->m_jmpcas_static_idx + c->m_constant_alloc_count))
-        {
-            return false;
-        }
-
-        if (!_apply_store(blk, op->m_dst, (int32_t)expected_s8))
-            return false;
-
-        return woort_vector_push_back(jump_patches, 1, &patch);
-    }
-
     default:
         assert(false && "Unknown or unhandled IROp kind");
         return false;
@@ -1657,88 +1614,6 @@ static bool _patch_jumps(
                             *bc_ptr = woort_OpCode_JBCKNZ((int8_t)patch->m_src0_off, (uint16_t)rel_offset);
                         else
                             *bc_ptr = woort_OpCode_JBCKZ((int8_t)patch->m_src0_off, (uint16_t)rel_offset);
-                    }
-                }
-            }
-            else if (patch->m_kind == WOORT_IROP_KIND_JMPCAS_T ||
-                     patch->m_kind == WOORT_IROP_KIND_JMPCAS_F)
-            {
-                /*
-                 * JMPCAS: 原子比较并交换 + 条件跳转
-                 * 相对偏移 U8, 2 字节码字 (main + EX32)
-                 */
-                bool is_forward = (target_addr >= source_addr);
-                uint32_t rel_offset = is_forward
-                    ? (target_addr - source_addr)
-                    : (source_addr - target_addr);
-
-                if (rel_offset > UINT8_MAX)
-                {
-                    /*
-                     * 偏移溢出：反转条件 + 无条件跳转
-                     * JMPCAS_T <-> JMPCAS_F
-                     * C8=3: 跳过反转指令 (main + EX32) + 无条件跳转 (1 word)
-                     */
-                    int8_t a_s8 = (int8_t)patch->m_src0_off;
-                    int8_t b_s8 = (int8_t)patch->m_src1_off;
-
-                    woort_Bytecode inv_code = (patch->m_kind == WOORT_IROP_KIND_JMPCAS_T)
-                        ? woort_OpCode_JFWDFCAS(a_s8, b_s8, 3)
-                        : woort_OpCode_JFWDTCAS(a_s8, b_s8, 3);
-
-                    *bc_ptr = inv_code;
-                    /* EX32 word (bc_idx+1) 保持不变 */
-
-                    /* 在 bc_idx+2 处插入无条件跳转 (EX32 之后) */
-                    woort_Bytecode uncond = woort_OpCode_JFWD(0);
-                    size_t insert_pos = patch->m_bc_idx + 2;
-
-                    woort_Bytecode placeholder = 0;
-                    if (!woort_vector_push_back(&src_blk->m_bytecodes, 1, &placeholder))
-                    {
-                        free(block_starts);
-                        return false;
-                    }
-                    woort_Bytecode* data = (woort_Bytecode*)src_blk->m_bytecodes.m_data;
-                    size_t total = src_blk->m_bytecodes.m_size;
-                    for (size_t j = total - 1; j > insert_pos; --j)
-                        data[j] = data[j - 1];
-                    data[insert_pos] = uncond;
-
-                    /* 更新同 block 中后续 patch 的索引 */
-                    for (size_t j = 0; j < jump_patches->m_size; ++j)
-                    {
-                        _JumpPatch* other = (_JumpPatch*)woort_vector_at(jump_patches, j);
-                        if (other->m_block_idx == patch->m_block_idx &&
-                            other->m_bc_idx > patch->m_bc_idx &&
-                            other != patch)
-                        {
-                            other->m_bc_idx++;
-                        }
-                    }
-
-                    patch->m_bc_idx = (uint32_t)insert_pos;
-                    patch->m_kind = WOORT_IROP_KIND_JMP;
-                    need_recalc = true;
-                    break;
-                }
-                else
-                {
-                    int8_t a_s8 = (int8_t)patch->m_src0_off;
-                    int8_t b_s8 = (int8_t)patch->m_src1_off;
-                    uint8_t off8 = (uint8_t)rel_offset;
-
-                    if (is_forward)
-                    {
-                        *bc_ptr = (patch->m_kind == WOORT_IROP_KIND_JMPCAS_T)
-                            ? woort_OpCode_JFWDTCAS(a_s8, b_s8, off8)
-                            : woort_OpCode_JFWDFCAS(a_s8, b_s8, off8);
-                    }
-                    else
-                    {
-                        *bc_ptr = (patch->m_kind == WOORT_IROP_KIND_JMPCAS_T)
-                            ? woort_OpCode_JBCKTCAS(a_s8, b_s8, off8)
-                            : woort_OpCode_JBCKFCAS(a_s8, b_s8, off8);
                     }
                 }
             }
