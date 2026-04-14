@@ -164,6 +164,9 @@ typedef uint32_t woort_IRStaticIndex;
 /** @brief The Woolang integer type (64-bit signed). */
 typedef int64_t woort_Int;
 
+/** @brief The Woolang handle type (64-bit unsigned). */
+typedef uint64_t woort_Handle;
+
 /** @brief The Woolang real (floating-point) type (double precision). */
 typedef double woort_Real;
 
