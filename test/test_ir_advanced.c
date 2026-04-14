@@ -1837,7 +1837,7 @@ static void test_jmpcas_t_basic(void)
         TEST_ASSERT(L_success);
 
         /* expected = v10, desired = v99, atomic = c_atomic */
-        TEST_ASSERT(woort_IR_jmpcas_t(f, v10, v99, L_success, c_atomic));
+        TEST_ASSERT(woort_IR_JMPTCAS(f, v10, v99, c_atomic, L_success));
         (void)woort_IR_ret(f, v0);
 
         (void)woort_IR_bind(f, L_success);
@@ -1907,7 +1907,7 @@ static void test_jmpcas_t_mismatch(void)
         woort_IRLabel* L_success = woort_IRFunction_new_label(f);
         TEST_ASSERT(L_success);
 
-        TEST_ASSERT(woort_IR_jmpcas_t(f, v10, v99, L_success, c_atomic));
+        TEST_ASSERT(woort_IR_JMPTCAS(f, v10, v99, c_atomic, L_success));
         (void)woort_IR_ret(f, v0);
 
         (void)woort_IR_bind(f, L_success);
@@ -1979,7 +1979,7 @@ static void test_jmpcas_f_basic(void)
         woort_IRLabel* L_fail = woort_IRFunction_new_label(f);
         TEST_ASSERT(L_fail);
 
-        TEST_ASSERT(woort_IR_jmpcas_f(f, v10, v99, L_fail, c_atomic));
+        TEST_ASSERT(woort_IR_JMPFCAS(f, v10, v99, c_atomic, L_fail));
         (void)woort_IR_ret(f, v0);
 
         (void)woort_IR_bind(f, L_fail);
@@ -2049,7 +2049,7 @@ static void test_jmpcas_f_no_jump(void)
         woort_IRLabel* L_fail = woort_IRFunction_new_label(f);
         TEST_ASSERT(L_fail);
 
-        TEST_ASSERT(woort_IR_jmpcas_f(f, v10, v99, L_fail, c_atomic));
+        TEST_ASSERT(woort_IR_JMPFCAS(f, v10, v99, c_atomic, L_fail));
         (void)woort_IR_ret(f, v0);
 
         (void)woort_IR_bind(f, L_fail);
@@ -2132,7 +2132,7 @@ static void test_jmpcas_backward_loop(void)
 
         (void)woort_IR_bind(f, L_retry);
         /* CAS: expected 已被 MOV 初始化为 0, desired=42 */
-        TEST_ASSERT(woort_IR_jmpcas_f(f, expected, v42, L_retry, c_atomic));
+        TEST_ASSERT(woort_IR_JMPFCAS(f, expected, v42, c_atomic, L_retry));
         /* CAS 成功 → expected 保持原值, 继续执行 */
         (void)woort_IR_ret(f, expected);
     }
@@ -2204,7 +2204,7 @@ static void test_jmpcas_t_backward(void)
         TEST_ASSERT(L_loop);
 
         (void)woort_IR_bind(f, L_loop);
-        TEST_ASSERT(woort_IR_jmpcas_t(f, expected, v99, L_loop, c_atomic));
+        TEST_ASSERT(woort_IR_JMPTCAS(f, expected, v99, c_atomic, L_loop));
         /* CAS 失败 → expected 被更新为实际值, 继续执行 */
         (void)woort_IR_ret(f, expected);
     }
@@ -2274,17 +2274,16 @@ static void test_jmpcas_overflow(void)
         woort_IRValue* v99 = (woort_IRValue*)woort_IRFunction_load_const(f, c99);
         woort_IRValue* v0 = (woort_IRValue*)woort_IRFunction_load_const(f, c0);
         woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
-        woort_IRValue* v_dummy = (woort_IRValue*)woort_IRFunction_load_const(f, c_dummy);
-        TEST_ASSERT(v10 && v99 && v0 && v1 && v_dummy);
+        TEST_ASSERT(v10 && v99 && v0 && v1);
 
         woort_IRLabel* L_success = woort_IRFunction_new_label(f);
         TEST_ASSERT(L_success);
 
-        TEST_ASSERT(woort_IR_jmpcas_t(f, v10, v99, L_success, c_atomic));
+        TEST_ASSERT(woort_IR_JMPTCAS(f, v10, v99, c_atomic, L_success));
         (void)woort_IR_ret(f, v0);
 
         for (int i = 0; i < 260; ++i)
-            (void)woort_IR_MOV(f, v_dummy, v_dummy);
+            (void)woort_IR_NOP(f);
 
         (void)woort_IR_bind(f, L_success);
         (void)woort_IR_ret(f, v1);
@@ -2359,9 +2358,8 @@ static void test_jmpcas_overflow_backward(void)
     {
         woort_IRValue* v10 = (woort_IRValue*)woort_IRFunction_load_const(f, c10);
         woort_IRValue* v99 = (woort_IRValue*)woort_IRFunction_load_const(f, c99);
-        woort_IRValue* v_dummy = (woort_IRValue*)woort_IRFunction_load_const(f, c_dummy);
         woort_IRValue* expected = woort_IRFunction_new_vreg(f);
-        TEST_ASSERT(v10 && v99 && v_dummy && expected);
+        TEST_ASSERT(v10 && v99 && expected);
 
         (void)woort_IR_MOV(f, expected, v10);
 
@@ -2371,10 +2369,10 @@ static void test_jmpcas_overflow_backward(void)
         (void)woort_IR_bind(f, L_target);
 
         for (int i = 0; i < 260; ++i)
-            (void)woort_IR_MOV(f, v_dummy, v_dummy);
+            (void)woort_IR_NOP(f);
 
         /* CAS: expected=10, desired=99, atomic=10 → 成功 → fall-through → return expected */
-        TEST_ASSERT(woort_IR_jmpcas_f(f, expected, v99, L_target, c_atomic));
+        TEST_ASSERT(woort_IR_JMPFCAS(f, expected, v99, c_atomic, L_target));
         (void)woort_IR_ret(f, expected);
     }
 

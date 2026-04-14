@@ -17,6 +17,9 @@
 
 typedef enum woort_IROp_Kind
 {
+    /* ============ 空操作 ============ */
+    WOORT_IROP_KIND_NOP,            /* no-operation */
+
     /* ============ 数据移动 ============ */
     WOORT_IROP_KIND_MOV,            /* dst = src */
     WOORT_IROP_KIND_LOAD,           /* dst = G[static_idx] */
@@ -247,7 +250,7 @@ typedef struct woort_IROp
         struct
         {
             woort_IRLabel* m_jmpcas_target;
-            woort_IRConstantIndex m_jmpcas_const_idx;
+            woort_IRStaticIndex m_jmpcas_static_idx;
         };
 
         /* LABEL */

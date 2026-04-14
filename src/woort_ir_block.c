@@ -194,6 +194,14 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
         _EMIT_END();                                                            \
     }
 
+/* ========== 空操作 ========== */
+
+WOORT_NODISCARD bool woort_IR_NOP(woort_IRFunction* f)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_NOP);
+    _EMIT_END();
+}
+
 /* ========== 数据移动 ========== */
 
 WOORT_NODISCARD bool woort_IR_MOV(
@@ -534,21 +542,21 @@ _DEFINE_JCC_CMP(woort_IR_jcc_ne, WOORT_IROP_KIND_JCC_NE)
 #define _DEFINE_JMPCAS(name, kind)                                                 \
     WOORT_NODISCARD bool name(                                                     \
         woort_IRFunction* f,                                                       \
-        const woort_IRValue* expected,                                             \
+        woort_IRValue* expected,                                                   \
         const woort_IRValue* desired,                                              \
-        woort_IRLabel* target,                                                     \
-        woort_IRConstantIndex const_idx)                                           \
+        woort_IRStaticIndex idx,                                                   \
+        woort_IRLabel* target)                                                     \
     {                                                                              \
         _EMIT_BEGIN(f, kind);                                                      \
-        op_->m_src[0] = expected;                                                  \
-        op_->m_src[1] = desired;                                                   \
+        op_->m_dst = expected;                                                     \
+        op_->m_src[0] = desired;                                                   \
         op_->m_jmpcas_target = target;                                             \
-        op_->m_jmpcas_const_idx = const_idx;                                       \
+        op_->m_jmpcas_static_idx = idx;                                            \
         _EMIT_END();                                                               \
     }
 
-_DEFINE_JMPCAS(woort_IR_jmpcas_t, WOORT_IROP_KIND_JMPCAS_T)
-_DEFINE_JMPCAS(woort_IR_jmpcas_f, WOORT_IROP_KIND_JMPCAS_F)
+_DEFINE_JMPCAS(woort_IR_JMPTCAS, WOORT_IROP_KIND_JMPCAS_T)
+_DEFINE_JMPCAS(woort_IR_JMPFCAS, WOORT_IROP_KIND_JMPCAS_F)
 
 /* ========== 返回 ========== */
 

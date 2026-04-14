@@ -510,6 +510,10 @@ static bool _emit_op(
     case WOORT_IROP_KIND_LABEL:
         return true;
 
+    /* ============ NOP ============ */
+    case WOORT_IROP_KIND_NOP:
+        return _emit_bc(blk, woort_OpCode_NOP());
+
     /* ============ MOV ============ */
     case WOORT_IROP_KIND_MOV:
     {
@@ -1390,12 +1394,12 @@ static bool _emit_op(
     {
         assert(op->m_src[0] != NULL && op->m_src[1] != NULL);
 
-        int8_t expected_s8;
-        if (!_load_to_s8(blk, op->m_src[0], -126, &expected_s8))
+        int8_t desired_s8;
+        if (!_load_to_s8(blk, op->m_src[0], -126, &desired_s8))
             return false;
 
-        int8_t desired_s8;
-        if (!_load_to_s8(blk, op->m_src[1], -127, &desired_s8))
+        int8_t expected_s8;
+        if (!_load_to_s8(blk, op->m_dst, -127, &expected_s8))
             return false;
 
         _JumpPatch patch;
@@ -1410,10 +1414,15 @@ static bool _emit_op(
             ? woort_OpCode_JFWDTCAS(expected_s8, desired_s8, 0)
             : woort_OpCode_JFWDFCAS(expected_s8, desired_s8, 0);
 
-        if (!_emit_bc_ex32(blk, placeholder, op->m_jmpcas_const_idx))
+        if (!_emit_bc_ex32(
+            blk,
+            placeholder,
+            op->m_jmpcas_static_idx + c->m_constant_alloc_count))
+        {
             return false;
+        }
 
-        if (!_apply_store(blk, op->m_src[0], (int32_t)expected_s8))
+        if (!_apply_store(blk, op->m_dst, (int32_t)expected_s8))
             return false;
 
         return woort_vector_push_back(jump_patches, 1, &patch);
