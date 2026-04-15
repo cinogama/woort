@@ -788,7 +788,15 @@
     woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_PACKARG, n10, bc16)
 
                                                               /*
-                                                               * TRAP - 陷阱/断点
+                                                               * JIFINITED - 一次性初始化跳转
+                                                               * 如果 env_data[c32] 的原子标志 == 2（已初始化），跳转到地址 u26
+                                                               * 否则尝试 CAS 0->1 并继续执行初始化代码
                                                                */
+#define woort_OpCode_JIFINITED(u26)       \
+    woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JIFINITED, u26)
+
+                                                               /*
+                                                                * TRAP - 陷阱/断点
+                                                                */
 #define woort_OpCode_TRAP() \
     woort_OpCodeFormal_cons(OP6, WOORT_OPCODE_TRAP)

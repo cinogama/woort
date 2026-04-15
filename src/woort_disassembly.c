@@ -1369,6 +1369,15 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
         printf("PACKARG     %u -> [SB %+d]\n", n, dst);
         return c + 1;
     }
+
+    case WOORT_OPCODE_JIFINITED:
+    {
+        const uint32_t addr = WOORT_BYTECODE(MABC26, bc);
+        const uint32_t c32 = (uint32_t)c[1];
+        printf("JIFINITED   %u, IF ALOAD G[%u] != 0\n", addr, c32);
+        return c + 2;
+    }
+
     default:
         break;
     }

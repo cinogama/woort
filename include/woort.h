@@ -1396,6 +1396,29 @@ WOORT_API WOORT_NODISCARD bool woort_IR_bind(woort_IRFunction* f, woort_IRLabel*
 WOORT_API WOORT_NODISCARD bool woort_IR_jmp(woort_IRFunction* f, woort_IRLabel* target);
 
 /**
+ * @brief Thread-safe once-only initialization guard.
+ *
+ * Emits a JIFINITED instruction that performs an atomic check on the static
+ * data value. The 64-bit integer at that slot acts as a tri-state
+ * flag: 0 = uninitialized, 1 = initializing (another thread), 2 = initialized.
+ *
+ * - If flag == 2: jump to @p target (initialization already complete).
+ * - If flag == 0: atomically CAS flag 0 -> 1; on success, fall through to
+ *   the next instruction so the caller can emit initialization code.
+ * - If flag == 1 or CAS failed: spin (with GC checkpoints) until flag
+ *   becomes 2, then jump to @p target.
+ *
+ * @param f          The IR function. Must not be NULL.
+ * @param cond_idx   Static index of the atomic flag slot. Must not be NULL.
+ * @param target     The label to jump to when initialized. Must not be NULL.
+ * @return true on success, false on OOM.
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_jifinited(
+    woort_IRFunction* f,
+    woort_IRStaticIndex* cond_idx,
+    woort_IRLabel* target);
+
+/**
  * @brief Conditional jump: if (cond != 0) goto target.
  * @param f       The IR function. Must not be NULL.
  * @param cond    The condition register.
