@@ -1369,26 +1369,6 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
         printf("PACKARG     %u -> [SB %+d]\n", n, dst);
         return c + 1;
     }
-
-    case WOORT_OPCODE_JACMP:
-    {
-        const int8_t expected = (int8_t)WOORT_BYTECODE(A8, bc);
-        const uint16_t offset = (uint16_t)WOORT_BYTECODE(BC16, bc);
-        const uint32_t src = (uint32_t)c[1];
-        switch (m2)
-        {
-        case 0:
-            printf("JFWDAEQ     +%u IF [SB %+d] == ALOAD G[%u]\n", offset, expected, src);
-        case 1:
-            printf("JBCKAEQ     +%u IF [SB %+d] == ALOAD G[%u]\n", offset, expected, src);
-        case 2:
-            printf("JFWDANEQ    +%u IF [SB %+d] != ALOAD G[%u]\n", offset, expected, src);
-        case 3:
-            printf("JBCKANEQ    +%u IF [SB %+d] != ALOAD G[%u]\n", offset, expected, src);
-        }
-        return c + 2;
-    }
-
     default:
         break;
     }

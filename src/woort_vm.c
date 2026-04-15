@@ -3302,86 +3302,43 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-        // JFWDAEQ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JACMP, 0):
+        // JIFINITED
+        case WOORT_VM_CASE_OP6(WOORT_OPCODE_JIFINITED):
         {
-            woort_AtomicInt64* const storage =
+            woort_AtomicInt64* const flag =
                 (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
 
-            const woort_Int actual = woort_atomic_load_explicit(
-                (woort_AtomicInt64*)storage, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+            int64_t flag_stat = woort_atomic_load_explicit(
+                (woort_AtomicInt64*)flag, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
 
-            const woort_Int expected =
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
-
-            if (actual == expected)
-                rt_ip += WOORT_BYTECODE(BC16, c);
-            else
-                rt_ip += 2;
-
-            continue;
-        }
-        // JBCKAEQ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JACMP, 1):
-        {
-            woort_AtomicInt64* const storage =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
-
-            const woort_Int actual = woort_atomic_load_explicit(
-                (woort_AtomicInt64*)storage, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
-
-            const woort_Int expected =
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
-
-            if (actual == expected)
+            if (2 != flag_stat)
             {
-                rt_ip -= WOORT_BYTECODE(BC16, c);
-                WOORT_VM_CHECKPOINT();
+                if (flag_stat == 0)
+                {
+                    if (woort_atomic_compare_exchange_strong_explicit(
+                        (woort_AtomicInt64*)flag,
+                        &flag_stat,
+                        1,
+                        WOORT_ATOMIC_MEMORY_ORDER_RELEASE,
+                        WOORT_ATOMIC_MEMORY_ORDER_RELAXED))
+                    {
+                        // Ok, do init job.
+                        rt_ip += 2;
+                        continue;
+                    }
+                }
+
+                // Already in init, wait.
+                do
+                {
+                    WOORT_VM_CHECKPOINT();
+
+                } while (2 != woort_atomic_load_explicit(
+                    (woort_AtomicInt64*)flag, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
+                
+                woort_atomic_thread_fence(WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
             }
-            else
-                rt_ip += 2;
-
-            continue;
-        }
-        // JFWDANEQ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JACMP, 2):
-        {
-            woort_AtomicInt64* const storage =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
-
-            const woort_Int actual = woort_atomic_load_explicit(
-                (woort_AtomicInt64*)storage, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
-
-            const woort_Int expected =
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
-
-            if (actual != expected)
-                rt_ip += WOORT_BYTECODE(BC16, c);
-            else
-                rt_ip += 2;
-
-            continue;
-        }
-        // JBCKANEQ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_JACMP, 3):
-        {
-            woort_AtomicInt64* const storage =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
-
-            const woort_Int actual = woort_atomic_load_explicit(
-                (woort_AtomicInt64*)storage, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
-
-            const woort_Int expected =
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
-
-            if (actual != expected)
-            {
-                rt_ip -= WOORT_BYTECODE(BC16, c);
-                WOORT_VM_CHECKPOINT();
-            }
-            else
-                rt_ip += 2;
-
+            rt_ip = rt_env_code + WOORT_BYTECODE(MABC26, c);
             continue;
         }
         // TRAP

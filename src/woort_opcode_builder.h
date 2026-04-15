@@ -788,29 +788,6 @@
     woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_PACKARG, n10, bc16)
 
                                                               /*
-                                                               * JACMP - 原子比较跳转
-                                                               * JFWDAEQ  (mode=0): if atomic == expected, jump forward u16
-                                                               * JBCKAEQ  (mode=1): if atomic == expected, jump backward u16
-                                                               * JFWDANEQ (mode=2): if atomic != expected, jump forward u16
-                                                               * JBCKANEQ (mode=3): if atomic != expected, jump backward u16
-                                                               * a8: 期望值寄存器偏移 (SB + a8)
-                                                               * u16: 跳转偏移
-                                                               * c32: 原子内存位置索引
-                                                               */
-#define woort_OpCode_JFWDAEQ(a8, u16, c32) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_JACMP, 0, a8, u16), \
-    (woort_Bytecode)(c32)
-#define woort_OpCode_JBCKAEQ(a8, u16, c32) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_JACMP, 1, a8, u16), \
-    (woort_Bytecode)(c32)
-#define woort_OpCode_JFWDANEQ(a8, u16, c32) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_JACMP, 2, a8, u16), \
-    (woort_Bytecode)(c32)
-#define woort_OpCode_JBCKANEQ(a8, u16, c32) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_JACMP, 3, a8, u16), \
-    (woort_Bytecode)(c32)
-
-                                                              /*
                                                                * TRAP - 陷阱/断点
                                                                */
 #define woort_OpCode_TRAP() \
