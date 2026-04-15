@@ -229,7 +229,7 @@ static void test_ir_label_and_bind(void)
     TEST_ASSERT(L2 != NULL);
     TEST_ASSERT(L1 != L2);
 
-    woort_IRValue* v0 = (woort_IRValue*)woort_IRFunction_load_const(f, c0);
+    const woort_IRValue* v0 = woort_IRFunction_load_const(f, c0);
     TEST_ASSERT(v0 != NULL);
 
     TEST_ASSERT(woort_IR_jmp(f, L1));
@@ -324,7 +324,7 @@ static void test_ir_mov_load_store(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* v10 = (woort_IRValue*)woort_IRFunction_load_const(f, c10);
+    const woort_IRValue* v10 = woort_IRFunction_load_const(f, c10);
     woort_IRValue* r1 = woort_IRFunction_new_vreg(f);
     woort_IRValue* r2 = woort_IRFunction_new_vreg(f);
     TEST_ASSERT(v10 != NULL && r1 != NULL && r2 != NULL);
@@ -387,8 +387,8 @@ static void test_ir_stack_ops(void)
     woort_IRFunction* f_main;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
     {
-        woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f_main, c1);
-        woort_IRValue* v2 = (woort_IRValue*)woort_IRFunction_load_const(f_main, c2);
+        const woort_IRValue* v1 = woort_IRFunction_load_const(f_main, c1);
+        const woort_IRValue* v2 = woort_IRFunction_load_const(f_main, c2);
         woort_IRValue* r = woort_IRFunction_new_vreg(f_main);
 
         TEST_ASSERT(woort_IR_PUSHCHK(f_main, v1));
@@ -441,8 +441,8 @@ static void test_ir_type_conversions(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* v_int = (woort_IRValue*)woort_IRFunction_load_const(f, c_int_val);
-    woort_IRValue* v_real = (woort_IRValue*)woort_IRFunction_load_const(f, c_real_val);
+    const woort_IRValue* v_int = woort_IRFunction_load_const(f, c_int_val);
+    const woort_IRValue* v_real = woort_IRFunction_load_const(f, c_real_val);
     woort_IRValue* r1 = woort_IRFunction_new_vreg(f);
     woort_IRValue* r2 = woort_IRFunction_new_vreg(f);
     woort_IRValue* r3 = woort_IRFunction_new_vreg(f);
@@ -499,8 +499,8 @@ static void test_ir_real_arithmetic(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* a = (woort_IRValue*)woort_IRFunction_load_const(f, c_a);
-    woort_IRValue* b = (woort_IRValue*)woort_IRFunction_load_const(f, c_b);
+    const woort_IRValue* a = woort_IRFunction_load_const(f, c_a);
+    const woort_IRValue* b = woort_IRFunction_load_const(f, c_b);
     woort_IRValue* r_add = woort_IRFunction_new_vreg(f);
     woort_IRValue* r_sub = woort_IRFunction_new_vreg(f);
     woort_IRValue* r_mul = woort_IRFunction_new_vreg(f);
@@ -559,8 +559,8 @@ static void test_ir_real_comparisons(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* a = (woort_IRValue*)woort_IRFunction_load_const(f, c_a);
-    woort_IRValue* b = (woort_IRValue*)woort_IRFunction_load_const(f, c_b);
+    const woort_IRValue* a = woort_IRFunction_load_const(f, c_a);
+    const woort_IRValue* b = woort_IRFunction_load_const(f, c_b);
     woort_IRValue* r_lt = woort_IRFunction_new_vreg(f);
     woort_IRValue* r_gt = woort_IRFunction_new_vreg(f);
     woort_IRValue* r_le = woort_IRFunction_new_vreg(f);
@@ -628,8 +628,8 @@ static void test_ir_string_comparisons(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* s1 = (woort_IRValue*)woort_IRFunction_load_const(f, c_s1);
-    woort_IRValue* s2 = (woort_IRValue*)woort_IRFunction_load_const(f, c_s2);
+    const woort_IRValue* s1 = woort_IRFunction_load_const(f, c_s1);
+    const woort_IRValue* s2 = woort_IRFunction_load_const(f, c_s2);
     woort_IRValue* r_lt = woort_IRFunction_new_vreg(f);
     woort_IRValue* r_gt = woort_IRFunction_new_vreg(f);
     woort_IRValue* r_eq = woort_IRFunction_new_vreg(f);
@@ -688,8 +688,8 @@ static void test_ir_string_concat(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* s1 = (woort_IRValue*)woort_IRFunction_load_const(f, c_s1);
-    woort_IRValue* s2 = (woort_IRValue*)woort_IRFunction_load_const(f, c_s2);
+    const woort_IRValue* s1 = woort_IRFunction_load_const(f, c_s1);
+    const woort_IRValue* s2 = woort_IRFunction_load_const(f, c_s2);
     woort_IRValue* r = woort_IRFunction_new_vreg(f);
     TEST_ASSERT(s1 && s2 && r);
 
@@ -740,8 +740,8 @@ static void test_ir_logical_ops(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* t = (woort_IRValue*)woort_IRFunction_load_const(f, c_t);
-    woort_IRValue* fv = (woort_IRValue*)woort_IRFunction_load_const(f, c_f);
+    const woort_IRValue* t = woort_IRFunction_load_const(f, c_t);
+    const woort_IRValue* fv = woort_IRFunction_load_const(f, c_f);
     woort_IRValue* r_land = woort_IRFunction_new_vreg(f);
     woort_IRValue* r_lor = woort_IRFunction_new_vreg(f);
     woort_IRValue* r_lnot = woort_IRFunction_new_vreg(f);
@@ -799,7 +799,7 @@ static void test_ir_jcc_jccz(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* x = (woort_IRValue*)woort_IRFunction_load_const(f, c_x);
+    const woort_IRValue* x = woort_IRFunction_load_const(f, c_x);
     woort_IRValue* neg = woort_IRFunction_new_vreg(f);
     woort_IRValue* cond = woort_IRFunction_new_vreg(f);
     woort_IRLabel* L_neg = woort_IRFunction_new_label(f);
@@ -808,7 +808,7 @@ static void test_ir_jcc_jccz(void)
     TEST_ASSERT(woort_IR_NEGI(f, neg, x));
     TEST_ASSERT(woort_IR_LTI(f, cond, x, woort_IRFunction_load_const(f, woort_IRCompiler_add_constant(irc))));
 
-    woort_IRValue* zero = (woort_IRValue*)woort_IRFunction_load_const(f, c_x);
+    const woort_IRValue* zero = woort_IRFunction_load_const(f, c_x);
     (void)woort_IR_LTI(f, cond, x, zero);
     (void)woort_IR_jcc(f, cond, L_neg);
     (void)woort_IR_ret(f, x);
@@ -857,8 +857,8 @@ static void test_ir_jcc_variants(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* a = (woort_IRValue*)woort_IRFunction_load_const(f, c_a);
-    woort_IRValue* b = (woort_IRValue*)woort_IRFunction_load_const(f, c_b);
+    const woort_IRValue* a = woort_IRFunction_load_const(f, c_a);
+    const woort_IRValue* b = woort_IRFunction_load_const(f, c_b);
     woort_IRLabel* L_exit = woort_IRFunction_new_label(f);
     TEST_ASSERT(a && b && L_exit);
 
@@ -960,7 +960,7 @@ static void test_codeenv_query_and_lock(void)
     {
         woort_IRValue* v = woort_IRFunction_new_vreg(f1);
         TEST_ASSERT(v != NULL);
-        TEST_ASSERT(woort_IR_ret(f1, (woort_IRValue*)woort_IRFunction_load_const(f1, woort_IRCompiler_add_constant(irc))));
+        TEST_ASSERT(woort_IR_ret(f1, woort_IRFunction_load_const(f1, woort_IRCompiler_add_constant(irc))));
     }
 
     woort_IRFunction* f2;
@@ -968,7 +968,7 @@ static void test_codeenv_query_and_lock(void)
     {
         woort_IRValue* v = woort_IRFunction_new_vreg(f2);
         TEST_ASSERT(v != NULL);
-        (void)woort_IR_ret(f2, (woort_IRValue*)woort_IRFunction_load_const(f2, woort_IRCompiler_add_constant(irc)));
+        (void)woort_IR_ret(f2, woort_IRFunction_load_const(f2, woort_IRCompiler_add_constant(irc)));
     }
 
     woort_CodeEnv* cenv;
@@ -1008,9 +1008,9 @@ static void test_box_types(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* vi = (woort_IRValue*)woort_IRFunction_load_const(f, ci);
-    woort_IRValue* vr = (woort_IRValue*)woort_IRFunction_load_const(f, cr);
-    woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f, c1);
+    const woort_IRValue* vi = woort_IRFunction_load_const(f, ci);
+    const woort_IRValue* vr = woort_IRFunction_load_const(f, cr);
+    const woort_IRValue* v1 = woort_IRFunction_load_const(f, c1);
     TEST_ASSERT(vi && vr && v1);
 
     woort_IRValue* r1 = woort_IRFunction_new_vreg(f);
@@ -1274,7 +1274,7 @@ static void test_float_type(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* vr = (woort_IRValue*)woort_IRFunction_load_const(f, cr);
+    const woort_IRValue* vr = woort_IRFunction_load_const(f, cr);
     woort_IRValue* r = woort_IRFunction_new_vreg(f);
     TEST_ASSERT(vr && r);
 
@@ -1641,8 +1641,8 @@ static void test_recursive_fibonacci(void)
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f_fib));
     {
         woort_IRValue* n = woort_IRFunction_get_argument(f_fib, 0);
-        woort_IRValue* v2 = (woort_IRValue*)woort_IRFunction_load_const(f_fib, c2);
-        woort_IRValue* v1 = (woort_IRValue*)woort_IRFunction_load_const(f_fib, c1);
+        const woort_IRValue* v2 = woort_IRFunction_load_const(f_fib, c2);
+        const woort_IRValue* v1 = woort_IRFunction_load_const(f_fib, c1);
         woort_IRValue* tmp1 = woort_IRFunction_new_vreg(f_fib);
         woort_IRValue* tmp2 = woort_IRFunction_new_vreg(f_fib);
         woort_IRValue* r1 = woort_IRFunction_new_vreg(f_fib);
@@ -1669,7 +1669,7 @@ static void test_recursive_fibonacci(void)
     woort_IRFunction* f_main;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
     {
-        woort_IRValue* vn = (woort_IRValue*)woort_IRFunction_load_const(f_main, cn);
+        const woort_IRValue* vn = woort_IRFunction_load_const(f_main, cn);
         woort_IRValue* result = woort_IRFunction_new_vreg(f_main);
         (void)woort_IR_PUSHCHK(f_main, vn);
         (void)woort_IR_CALLNWO(f_main, cfib, 1, result);
@@ -1721,7 +1721,7 @@ static void test_vm_status_resync(void)
     TEST_ASSERT(r1 != NULL);
 
     woort_IRConstantIndex c_int = woort_IRCompiler_add_constant(irc);
-    (void)woort_IR_ret(f, (woort_IRValue*)woort_IRFunction_load_const(f, c_int));
+    (void)woort_IR_ret(f, woort_IRFunction_load_const(f, c_int));
 
     woort_CodeEnv* cenv;
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
@@ -1764,7 +1764,7 @@ static void test_import_value(void)
 
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
-    (void)woort_IR_ret(f, (woort_IRValue*)woort_IRFunction_load_const(f, c_int));
+    (void)woort_IR_ret(f, woort_IRFunction_load_const(f, c_int));
 
     woort_CodeEnv* cenv;
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
@@ -2010,10 +2010,10 @@ static void test_struct_detailed_ops(void)
     woort_IRFunction* f;
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
 
-    woort_IRValue* v_key1 = (woort_IRValue*)woort_IRFunction_load_const(f, c_key1);
-    woort_IRValue* v_val1 = (woort_IRValue*)woort_IRFunction_load_const(f, c_val1);
-    woort_IRValue* v_key2 = (woort_IRValue*)woort_IRFunction_load_const(f, c_key2);
-    woort_IRValue* v_val2 = (woort_IRValue*)woort_IRFunction_load_const(f, c_val2);
+    const woort_IRValue* v_key1 = woort_IRFunction_load_const(f, c_key1);
+    const woort_IRValue* v_val1 = woort_IRFunction_load_const(f, c_val1);
+    const woort_IRValue* v_key2 = woort_IRFunction_load_const(f, c_key2);
+    const woort_IRValue* v_val2 = woort_IRFunction_load_const(f, c_val2);
     TEST_ASSERT(v_key1 && v_val1 && v_key2 && v_val2);
 
     woort_IRValue* m = woort_IRFunction_new_vreg(f);
