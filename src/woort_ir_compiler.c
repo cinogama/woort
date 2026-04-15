@@ -1235,17 +1235,22 @@ static bool _emit_op(
         (void)c;
         assert(op->m_src[0] != NULL);
 
+        int16_t r;
+
         /* 常量直连优化：直接发 RETVC，跳过 LOAD + RETVS */
         if (op->m_src[0]->m_is_const_direct)
         {
             uint32_t cidx = op->m_src[0]->m_const_idx;
             if (cidx <= WOORT_UINT24_MAX_VAL)
                 return _emit_bc(blk, woort_OpCode_RETVC(cidx));
-            /* 超出 24-bit 范围，回退到 RETVS（需要栈槽，不应该到这里） */
-        }
 
-        int16_t r;
-        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
+            /* 超出 24-bit 范围，回退到 RETVS */
+            if (!_emit_bc_ex32(blk, woort_OpCode_LOADEX(-128), cidx))
+                return false;
+
+            r = -128;
+        }
+        else if (!_load_to_s16(blk, op->m_src[0], -128, &r))
             return false;
         return _emit_bc(blk, woort_OpCode_RETVS(r));
     }
