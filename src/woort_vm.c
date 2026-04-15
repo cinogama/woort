@@ -3253,6 +3253,41 @@ _label_continue_execution:
 
             break;
         }
+        // ASTORE
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 0):
+        {
+            woort_AtomicInt64* const storage = 
+                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+
+            const woort_Int desired = 
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            woort_atomic_store_explicit(
+                (woort_AtomicInt64*)storage, 
+                desired, 
+                WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
+
+            rt_ip += 2;
+            continue;
+        }
+        // CAS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 1):
+        {
+            woort_AtomicInt64* const storage =
+                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+
+            woort_Int expected =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+
+            const woort_Int desired =
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            (void)woort_atomic_compare_exchange_strong(
+                    (woort_AtomicInt64*)storage, &expected, desired);
+
+            rt_ip += 2;
+            continue;
+        }
         // TRAP
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_TRAP):
         {
