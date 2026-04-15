@@ -17,6 +17,7 @@
 
 typedef enum woort_IROp_Kind
 {
+    WOORT_IROP_KIND_NOP,            /* no-op */
     /* ============ 数据移动 ============ */
     WOORT_IROP_KIND_MOV,            /* dst = src */
     WOORT_IROP_KIND_LOAD,           /* dst = G[static_idx] */

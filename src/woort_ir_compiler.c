@@ -511,6 +511,13 @@ static bool _emit_op(
     case WOORT_IROP_KIND_LABEL:
         return true;
 
+    /* ============ NOP ============ */
+    case WOORT_IROP_KIND_NOP:
+    {
+        (void)c;
+        return _emit_bc(blk, woort_OpCode_NOP());
+    }
+
     /* ============ MOV ============ */
     case WOORT_IROP_KIND_MOV:
     {

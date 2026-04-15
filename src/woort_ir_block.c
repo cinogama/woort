@@ -196,6 +196,12 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
 
 /* ========== 数据移动 ========== */
 
+WOORT_NODISCARD bool woort_IR_NOP(woort_IRFunction* f)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_NOP);
+    _EMIT_END();
+}
+
 WOORT_NODISCARD bool woort_IR_MOV(
     woort_IRFunction* f, woort_IRValue* dst, const woort_IRValue* src)
 {

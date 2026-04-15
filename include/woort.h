@@ -444,6 +444,10 @@ WOORT_API void woort_IRFunction_pop_srcloc(woort_IRFunction* f);
  /** @name Data Movement */
  /**@{*/
 
+ /** @brief No-operation: occupies a code slot but has no runtime effect. */
+ WOORT_API WOORT_NODISCARD bool woort_IR_NOP(
+     woort_IRFunction* f);
+
  /** @brief Move: dst = src. */
 WOORT_API WOORT_NODISCARD bool woort_IR_MOV(
     woort_IRFunction* f,
