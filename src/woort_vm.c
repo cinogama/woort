@@ -3290,14 +3290,14 @@ _label_continue_execution:
             woort_AtomicInt64* const storage =
                 (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
 
-            woort_Int expected =
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            woort_Int* const expected =
+                &rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
 
             const woort_Int desired =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
 
             (void)woort_atomic_compare_exchange_strong(
-                (woort_AtomicInt64*)storage, &expected, desired);
+                (woort_AtomicInt64*)storage, expected, desired);
 
             rt_ip += 2;
             continue;

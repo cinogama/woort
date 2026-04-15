@@ -180,6 +180,11 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_JCC_NE,         /* if (a != b) goto label (sugar: swapped eq args + invert) */
     WOORT_IROP_KIND_JIFINITED,      /* once init guard: if G[static]==2 goto label; else CAS 0->1 fallthrough */
 
+    /* ============ 原子操作 ============ */
+    WOORT_IROP_KIND_ASTORE,         /* atomic store: G[static_idx] = src (release) */
+    WOORT_IROP_KIND_ALOAD,          /* atomic load:  dst = G[static_idx] (acquire) */
+    WOORT_IROP_KIND_CAS,            /* compare-and-swap: CAS G[static_idx](expected, desired) */
+
     /* ============ 返回 ============ */
     WOORT_IROP_KIND_RET,            /* return src */
     WOORT_IROP_KIND_RET_VOID,       /* return void */

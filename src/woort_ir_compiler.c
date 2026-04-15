@@ -1262,6 +1262,43 @@ static bool _emit_op(
         return _emit_bc(blk, woort_OpCode_RET());
     }
 
+    /* ============ 原子操作 ============ */
+    case WOORT_IROP_KIND_ASTORE:
+    {
+        assert(op->m_src[0] != NULL);
+        const uint32_t storage = op->m_static_index + c->m_constant_alloc_count;
+
+        int16_t r;
+        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
+            return false;
+        return _emit_bc_ex32(blk, woort_OpCode_ASTORE(r), storage);
+    }
+
+    case WOORT_IROP_KIND_ALOAD:
+    {
+        assert(op->m_dst != NULL);
+        const uint32_t storage = op->m_static_index + c->m_constant_alloc_count;
+
+        const int16_t w = _get_store_s16(op->m_dst, -128);
+        if (!_emit_bc_ex32(blk, woort_OpCode_ALOAD(w), storage))
+            return false;
+        return _apply_store(blk, op->m_dst, w);
+    }
+
+    case WOORT_IROP_KIND_CAS:
+    {
+        assert(op->m_src[0] != NULL && op->m_src[1] != NULL);
+        const uint32_t storage = op->m_static_index + c->m_constant_alloc_count;
+
+        int8_t desired;
+        if (!_load_to_s8(blk, op->m_src[1], -128, &desired))
+            return false;
+        const int16_t expected = _get_store_s16(op->m_src[0], -127);
+        if (!_emit_bc_ex32(blk, woort_OpCode_CAS(desired, expected), storage))
+            return false;
+        return _apply_store(blk, op->m_src[0], expected);
+    }
+
     /* ============ 跳转指令：发射占位符 + 记录 patch ============ */
     case WOORT_IROP_KIND_JMP:
     {

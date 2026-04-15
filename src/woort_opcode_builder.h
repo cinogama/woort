@@ -795,8 +795,22 @@
 #define woort_OpCode_JIFINITED(u26)       \
     woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_JIFINITED, u26)
 
-                                                               /*
-                                                                * TRAP - 陷阱/断点
-                                                                */
+                                                                /*
+                                                                 * ATOMIC - 原子操作
+                                                                 * ASTORE (mode=0): G[ex32] = [SB + bc16] (release)
+                                                                 * ALOAD  (mode=1): [SB + bc16] = G[ex32] (acquire)
+                                                                 * CAS    (mode=2): CAS G[ex32]([SB + bc16], [SB + a8])
+                                                                 *   a8 = desired (R_ONLY_S8), bc16 = expected (R_W_S16)
+                                                                 */
+#define woort_OpCode_ASTORE(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_ATOMIC, 0, bc16)
+#define woort_OpCode_ALOAD(bc16)  \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_ATOMIC, 1, bc16)
+#define woort_OpCode_CAS(a8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_ATOMIC, 2, a8, bc16)
+
+                                                                /*
+                                                                 * TRAP - 陷阱/断点
+                                                                 */
 #define woort_OpCode_TRAP() \
     woort_OpCodeFormal_cons(OP6, WOORT_OPCODE_TRAP)

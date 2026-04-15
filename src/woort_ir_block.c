@@ -479,6 +479,45 @@ _DEFINE_PUSHIDX(woort_IR_PUSHIDXSTBOXR, WOORT_IROP_KIND_PUSHIDXSTBOXR)
 _DEFINE_PUSHIDX(woort_IR_PUSHIDXSTBOXB, WOORT_IROP_KIND_PUSHIDXSTBOXB)
 _DEFINE_PUSHIDX(woort_IR_PUSHIDXSTBOXX, WOORT_IROP_KIND_PUSHIDXSTBOXX)
 
+/* ========== 原子操作 ========== */
+
+WOORT_NODISCARD bool woort_IR_ASTORE(
+    woort_IRFunction* f,
+    woort_IRStaticIndex idx,
+    const woort_IRValue* src)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_ASTORE);
+    op_->m_dst = NULL;
+    op_->m_src[0] = src;
+    op_->m_static_index = idx;
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_ALOAD(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    woort_IRStaticIndex idx)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_ALOAD);
+    op_->m_dst = dst;
+    op_->m_static_index = idx;
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_CAS(
+    woort_IRFunction* f,
+    woort_IRStaticIndex idx,
+    woort_IRValue* expected,
+    const woort_IRValue* desired)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_CAS);
+    op_->m_dst = NULL;
+    op_->m_src[0] = expected;
+    op_->m_src[1] = desired;
+    op_->m_static_index = idx;
+    _EMIT_END();
+}
+
 /* ========== 控制流 ========== */
 
 WOORT_NODISCARD bool woort_IR_bind(
