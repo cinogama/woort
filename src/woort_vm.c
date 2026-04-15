@@ -88,7 +88,7 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
         WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
     woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
-    
+
     const bool r = woort_GC_register_root_vm(vm);
 
     (void)woort_VMRuntime_swap(last);
@@ -3256,22 +3256,36 @@ _label_continue_execution:
         // ASTORE
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 0):
         {
-            woort_AtomicInt64* const storage = 
+            woort_AtomicInt64* const storage =
                 (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
 
-            const woort_Int desired = 
+            const woort_Int desired =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
 
             woort_atomic_store_explicit(
-                (woort_AtomicInt64*)storage, 
-                desired, 
+                (woort_AtomicInt64*)storage,
+                desired,
                 WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
 
             rt_ip += 2;
             continue;
         }
-        // CAS
+        // ALOAD
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 1):
+        {
+            woort_AtomicInt64* const storage =
+                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer =
+                woort_atomic_load_explicit(
+                    (woort_AtomicInt64*)storage,
+                    WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+
+            rt_ip += 2;
+            continue;
+        }
+        // CAS
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 2):
         {
             woort_AtomicInt64* const storage =
                 (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
@@ -3283,7 +3297,7 @@ _label_continue_execution:
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
 
             (void)woort_atomic_compare_exchange_strong(
-                    (woort_AtomicInt64*)storage, &expected, desired);
+                (woort_AtomicInt64*)storage, &expected, desired);
 
             rt_ip += 2;
             continue;
@@ -3296,7 +3310,7 @@ _label_continue_execution:
                 // TODO: 通过 CodeEnv 查询 Trap，获取原本的指令，然后重新执行
                 goto _label_vm_dispatch_reentry_for_debug_trap;
             }
-             /* 没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
+            /* 没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
             (void)woort_CodeEnv_clear_trap(rt_ip);
             continue;
         }
