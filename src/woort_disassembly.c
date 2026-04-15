@@ -1370,6 +1370,36 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
         return c + 1;
     }
 
+    case WOORT_OPCODE_ATOMIC:
+    {
+        switch (m2)
+        {
+        case 0:
+        {
+            const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
+            const uint32_t dst = (uint32_t)c[1];
+            printf("ASTORE      G[%u] = [SB %+d]\n", dst, src);
+            return c + 2;
+        }
+        case 1:
+        {
+            const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
+            const uint32_t src = (uint32_t)c[1];
+            printf("ALOAD       [SB %+d] = G[%u]\n", dst, src);
+            return c + 2;
+        }
+        case 2:
+        {
+            const int8_t desired = (int8_t)WOORT_BYTECODE(A8, bc);
+            const int16_t expected = (int16_t)WOORT_BYTECODE(BC16, bc);
+            const uint32_t addr = (uint32_t)c[1];
+            printf("CAS         DESIRED=[SB %+d] EXPECTED=[SB %+d], G[%u]\n", desired, expected, addr);
+            return c + 2;
+        }
+        }
+        break;
+    }
+
     case WOORT_OPCODE_JIFINITED:
     {
         const uint32_t addr = WOORT_BYTECODE(MABC26, bc);

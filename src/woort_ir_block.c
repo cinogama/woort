@@ -508,11 +508,11 @@ WOORT_NODISCARD bool woort_IR_CAS(
     woort_IRFunction* f,
     woort_IRStaticIndex idx,
     woort_IRValue* expected,
-    woort_IRValue* dst)
+    const woort_IRValue* desired)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_CAS);
-    op_->m_dst = dst;
-    op_->m_src[0] = expected;
+    op_->m_dst = expected;
+    op_->m_src[0] = desired;
     op_->m_static_index = idx;
     _EMIT_END();
 }

@@ -799,8 +799,8 @@
  * ATOMIC - 原子操作
  * ASTORE (mode=0): G[ex32] = [SB + bc16] (release)
  * ALOAD  (mode=1): [SB + bc16] = G[ex32] (acquire)
- * CAS    (mode=2): CAS G[ex32](expected=[SB + a8], desired=[SB + bc16])
- *   a8 = expected (R_W_S8, written back), bc16 = desired (R_ONLY_S16)
+ * CAS    (mode=2): CAS G[ex32](desired=[SB + a8], expected=[SB + bc16])
+ *   a8 = desired (R_ONLY_S8, written back), bc16 = expected (R_W_S16)
  */
 #define woort_OpCode_ASTORE(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_ATOMIC, 0, bc16)

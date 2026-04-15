@@ -1291,18 +1291,18 @@ static bool _emit_op(
         const uint32_t storage = op->m_static_index + c->m_constant_alloc_count;
 
         /*
-         * VM: expected = SB[A8] (read+write), desired = SB[BC16] (read)
+         * VM: desired = SB[A8] (read), expected = SB[BC16] (read+write)
          * IR: m_src[0] = expected, m_dst = desired
          */
-        int8_t expected;
-        if (!_load_to_s8(blk, op->m_src[0], -128, &expected))
+        int8_t desired;
+        if (!_load_to_s8(blk, op->m_src[0], -128, &desired))
             return false;
-        int16_t desired;
-        if (!_load_to_s16(blk, op->m_dst, -127, &desired))
+        int16_t expected;
+        if (!_load_to_s16(blk, op->m_dst, -127, &expected))
             return false;
-        if (!_emit_bc_ex32(blk, woort_OpCode_CAS(expected, desired), storage))
+        if (!_emit_bc_ex32(blk, woort_OpCode_CAS(desired, expected), storage))
             return false;
-        return _apply_store(blk, op->m_src[0], expected);
+        return _apply_store(blk, op->m_dst, expected);
     }
 
     /* ============ 跳转指令：发射占位符 + 记录 patch ============ */
