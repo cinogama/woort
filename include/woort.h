@@ -1335,6 +1335,44 @@ WOORT_API WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXX(
     const woort_IRValue* src,
     uint32_t idx);
 
+/**
+ * @brief Atomic store operation (release semantics).
+ * @param f    The IR function. Must not be NULL.
+ * @param idx  Static index of the atomic variable.
+ * @param src  The value to store.
+ * @return true on success, false on OOM.
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_ASTORE(
+    woort_IRFunction* f,
+    woort_IRStaticIndex idx,
+    const woort_IRValue* src);
+
+/**
+ * @brief Atomic load operation (acquire semantics).
+ * @param f    The IR function. Must not be NULL.
+ * @param dst  The destination virtual register to store the loaded value.
+ * @param idx  Static index of the atomic variable.
+ * @return true on success, false on OOM.
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_ALOAD(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    woort_IRStaticIndex idx);
+
+/**
+ * @brief Compare-and-swap operation.
+ * @param f        The IR function. Must not be NULL.
+ * @param idx      Static index of the atomic variable.
+ * @param expected The expected current value (compare and load).
+ * @param descired The desired new value to swap in if comparison succeeds.
+ * @return true on success, false on OOM.
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_CAS(
+    woort_IRFunction* f,
+    woort_IRStaticIndex idx,
+    woort_IRValue* expected,
+    const woort_IRValue* descired);
+
 /**@}*/
 
 /** @} */ /* end IR Instruction Emission group */
