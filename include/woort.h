@@ -1364,14 +1364,14 @@ WOORT_API WOORT_NODISCARD bool woort_IR_ALOAD(
  * @param f        The IR function. Must not be NULL.
  * @param idx      Static index of the atomic variable.
  * @param expected The expected current value (compare and load).
- * @param descired The desired new value to swap in if comparison succeeds.
+ * @param dst      The desired new value to swap in if comparison succeeds.
  * @return true on success, false on OOM.
  */
 WOORT_API WOORT_NODISCARD bool woort_IR_CAS(
     woort_IRFunction* f,
     woort_IRStaticIndex idx,
     woort_IRValue* expected,
-    const woort_IRValue* descired);
+    woort_IRValue* dst);
 
 /**@}*/
 

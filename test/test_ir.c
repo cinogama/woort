@@ -3603,7 +3603,8 @@ static void test_cas_success(void)
     {
         woort_IRValue* v_result = woort_IRFunction_new_vreg(f);
         woort_IRValue* v_exp = woort_IRFunction_new_vreg(f);
-        TEST_ASSERT(v_result && v_exp);
+        woort_IRValue* v_des = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v_result && v_exp && v_des);
 
         const woort_IRValue* v_init = woort_IRFunction_load_const(f, c10);
         TEST_ASSERT(v_init != NULL);
@@ -3614,8 +3615,10 @@ static void test_cas_success(void)
         TEST_ASSERT(k_exp != NULL && k_zero != NULL);
         TEST_ASSERT(woort_IR_ADDI(f, v_exp, k_exp, k_zero));
 
-        const woort_IRValue* v_des = woort_IRFunction_load_const(f, c_des);
-        TEST_ASSERT(v_des != NULL);
+        const woort_IRValue* k_des = woort_IRFunction_load_const(f, c_des);
+        const woort_IRValue* k_zero2 = woort_IRFunction_load_const(f, c_zero);
+        TEST_ASSERT(k_des != NULL && k_zero2 != NULL);
+        TEST_ASSERT(woort_IR_ADDI(f, v_des, k_des, k_zero2));
 
         TEST_ASSERT(woort_IR_CAS(f, s_val, v_exp, v_des));
 
@@ -3680,7 +3683,8 @@ static void test_cas_failure(void)
     {
         woort_IRValue* v_result = woort_IRFunction_new_vreg(f);
         woort_IRValue* v_exp = woort_IRFunction_new_vreg(f);
-        TEST_ASSERT(v_result && v_exp);
+        woort_IRValue* v_des = woort_IRFunction_new_vreg(f);
+        TEST_ASSERT(v_result && v_exp && v_des);
 
         const woort_IRValue* v_init = woort_IRFunction_load_const(f, c10);
         TEST_ASSERT(v_init != NULL);
@@ -3691,8 +3695,10 @@ static void test_cas_failure(void)
         TEST_ASSERT(k_exp != NULL && k_zero != NULL);
         TEST_ASSERT(woort_IR_ADDI(f, v_exp, k_exp, k_zero));
 
-        const woort_IRValue* v_des = woort_IRFunction_load_const(f, c_des);
-        TEST_ASSERT(v_des != NULL);
+        const woort_IRValue* k_des = woort_IRFunction_load_const(f, c_des);
+        const woort_IRValue* k_zero2 = woort_IRFunction_load_const(f, c_zero);
+        TEST_ASSERT(k_des != NULL && k_zero2 != NULL);
+        TEST_ASSERT(woort_IR_ADDI(f, v_des, k_des, k_zero2));
 
         TEST_ASSERT(woort_IR_CAS(f, s_val, v_exp, v_des));
 

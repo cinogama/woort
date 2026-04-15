@@ -1287,18 +1287,18 @@ static bool _emit_op(
 
     case WOORT_IROP_KIND_CAS:
     {
-        assert(op->m_src[0] != NULL && op->m_src[1] != NULL);
+        assert(op->m_src[0] != NULL && op->m_dst != NULL);
         const uint32_t storage = op->m_static_index + c->m_constant_alloc_count;
 
         /*
          * VM: expected = SB[A8] (read+write), desired = SB[BC16] (read)
-         * IR: m_src[0] = expected, m_src[1] = desired
+         * IR: m_src[0] = expected, m_dst = desired
          */
         int8_t expected;
         if (!_load_to_s8(blk, op->m_src[0], -128, &expected))
             return false;
         int16_t desired;
-        if (!_load_to_s16(blk, op->m_src[1], -127, &desired))
+        if (!_load_to_s16(blk, op->m_dst, -127, &desired))
             return false;
         if (!_emit_bc_ex32(blk, woort_OpCode_CAS(expected, desired), storage))
             return false;
