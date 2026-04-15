@@ -178,6 +178,7 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_JCC_GT,         /* if (a > b) goto label (sugar: swapped lt) */
     WOORT_IROP_KIND_JCC_GE,         /* if (a >= b) goto label (sugar: swapped le) */
     WOORT_IROP_KIND_JCC_NE,         /* if (a != b) goto label (sugar: swapped eq args + invert) */
+    WOORT_IROP_KIND_JIFINITED,      /* once init guard: if G[static]==2 goto label; else CAS 0->1 fallthrough */
 
     /* ============ 返回 ============ */
     WOORT_IROP_KIND_RET,            /* return src */
@@ -244,5 +245,8 @@ typedef struct woort_IROp
         /* LABEL */
         woort_IRLabel* m_label;
     };
+
+    /* JIFINITED: static index of the atomic flag slot */
+    woort_IRStaticIndex m_jifinited_static;
 
 } woort_IROp;

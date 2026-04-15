@@ -64,6 +64,7 @@ static bool _is_conditional_jump(woort_IROp_Kind kind)
     case WOORT_IROP_KIND_JCC_GT:
     case WOORT_IROP_KIND_JCC_GE:
     case WOORT_IROP_KIND_JCC_NE:
+    case WOORT_IROP_KIND_JIFINITED:
         return true;
     default:
         return false;

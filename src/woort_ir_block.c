@@ -530,6 +530,17 @@ _DEFINE_JCC_CMP(woort_IR_jcc_gt, WOORT_IROP_KIND_JCC_GT)
 _DEFINE_JCC_CMP(woort_IR_jcc_ge, WOORT_IROP_KIND_JCC_GE)
 _DEFINE_JCC_CMP(woort_IR_jcc_ne, WOORT_IROP_KIND_JCC_NE)
 
+WOORT_NODISCARD bool woort_IR_jifinited(
+    woort_IRFunction* f,
+    woort_IRStaticIndex cond_idx,
+    woort_IRLabel* target)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_JIFINITED);
+    op_->m_jifinited_static = cond_idx;
+    op_->m_jump_target = target;
+    _EMIT_END();
+}
+
 /* ========== 返回 ========== */
 
 WOORT_NODISCARD bool woort_IR_ret(

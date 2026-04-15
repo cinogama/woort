@@ -487,6 +487,7 @@ static bool _is_jump_op(woort_IROp_Kind kind)
     case WOORT_IROP_KIND_JCC_GT:
     case WOORT_IROP_KIND_JCC_GE:
     case WOORT_IROP_KIND_JCC_NE:
+    case WOORT_IROP_KIND_JIFINITED:
         return true;
     default:
         return false;
@@ -1390,6 +1391,24 @@ static bool _emit_op(
         return woort_vector_push_back(jump_patches, 1, &patch);
     }
 
+    /* ============ JIFINITED (一次性初始化守卫) ============ */
+    case WOORT_IROP_KIND_JIFINITED:
+    {
+        _JumpPatch patch;
+        patch.m_block_idx = block_idx;
+        patch.m_bc_idx = (uint32_t)blk->m_bytecodes.m_size;
+        patch.m_target = op->m_jump_target;
+        patch.m_kind = WOORT_IROP_KIND_JIFINITED;
+        patch.m_src0_off = 0;
+        patch.m_src1_off = 0;
+
+        const uint32_t storage = op->m_jifinited_static + c->m_constant_alloc_count;
+
+        if (!_emit_bc_ex32(blk, woort_OpCode_JIFINITED(0), storage))
+            return false;
+        return woort_vector_push_back(jump_patches, 1, &patch);
+    }
+
     default:
         assert(false && "Unknown or unhandled IROp kind");
         return false;
@@ -1550,6 +1569,12 @@ static bool _patch_jumps(
                     *bc_ptr = woort_OpCode_JBCK(target_addr);
                 else
                     *bc_ptr = woort_OpCode_JFWD(target_addr);
+            }
+            else if (patch->m_kind == WOORT_IROP_KIND_JIFINITED)
+            {
+                /* JIFINITED：绝对地址（2 字指令，bc_ptr 指向第一字） */
+                assert(target_addr <= WOORT_UINT26_MAX_VAL);
+                *bc_ptr = woort_OpCode_JIFINITED(target_addr);
             }
             else if (patch->m_kind == WOORT_IROP_KIND_JCC ||
                      patch->m_kind == WOORT_IROP_KIND_JCCZ)

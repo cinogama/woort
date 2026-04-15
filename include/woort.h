@@ -1409,13 +1409,13 @@ WOORT_API WOORT_NODISCARD bool woort_IR_jmp(woort_IRFunction* f, woort_IRLabel* 
  *   becomes 2, then jump to @p target.
  *
  * @param f          The IR function. Must not be NULL.
- * @param cond_idx   Static index of the atomic flag slot. Must not be NULL.
+ * @param cond_idx   Static index of the atomic flag slot.
  * @param target     The label to jump to when initialized. Must not be NULL.
  * @return true on success, false on OOM.
  */
 WOORT_API WOORT_NODISCARD bool woort_IR_jifinited(
     woort_IRFunction* f,
-    woort_IRStaticIndex* cond_idx,
+    woort_IRStaticIndex cond_idx,
     woort_IRLabel* target);
 
 /**
