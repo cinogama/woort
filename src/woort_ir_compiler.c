@@ -1290,11 +1290,17 @@ static bool _emit_op(
         assert(op->m_src[0] != NULL && op->m_src[1] != NULL);
         const uint32_t storage = op->m_static_index + c->m_constant_alloc_count;
 
-        int8_t desired;
-        if (!_load_to_s8(blk, op->m_src[1], -128, &desired))
+        /*
+         * VM: expected = SB[A8] (read+write), desired = SB[BC16] (read)
+         * IR: m_src[0] = expected, m_src[1] = desired
+         */
+        int8_t expected;
+        if (!_load_to_s8(blk, op->m_src[0], -128, &expected))
             return false;
-        const int16_t expected = _get_store_s16(op->m_src[0], -127);
-        if (!_emit_bc_ex32(blk, woort_OpCode_CAS(desired, expected), storage))
+        int16_t desired;
+        if (!_load_to_s16(blk, op->m_src[1], -127, &desired))
+            return false;
+        if (!_emit_bc_ex32(blk, woort_OpCode_CAS(expected, desired), storage))
             return false;
         return _apply_store(blk, op->m_src[0], expected);
     }
