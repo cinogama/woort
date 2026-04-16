@@ -19,6 +19,7 @@ typedef enum woort_PanicReason
     WOORT_PANIC_BAD_VM_REQUEST = 0xD007,
     WOORT_PANIC_ABORTED = 0xD008,
     WOORT_PANIC_INDEX_OUT_OF_RANGE = 0xD009,
+    WOORT_PANIC_USER = 0xD00A,
 } woort_PanicReason;
 
 void woort_vpanic(

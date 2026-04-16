@@ -1495,6 +1495,24 @@ WOORT_API WOORT_NODISCARD bool woort_IR_jcc_ne(
 
 /** @} */
 
+/* ============ Trap / Panic ============ */
+
+/**
+ * @brief Emit a debug trap (breakpoint).
+ * @param f  The IR function. Must not be NULL.
+ * @return true on success, false on OOM.
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_debugtrap(woort_IRFunction* f);
+
+/**
+ * @brief Emit a panic with a string message.
+ * @param f    The IR function. Must not be NULL.
+ * @param msg  The string value to use as the panic message.
+ * @return true on success, false on OOM.
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_panic(
+    woort_IRFunction* f, const woort_IRValue* msg);
+
 /* ============ Return ============ */
 
 /**

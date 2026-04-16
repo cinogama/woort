@@ -186,6 +186,10 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_ALOAD,          /* atomic load:  dst = G[static_idx] (acquire) */
     WOORT_IROP_KIND_CAS,            /* compare-and-swap: CAS G[static_idx](expected, desired) */
 
+    /* ============ 陷阱/Panic ============ */
+    WOORT_IROP_KIND_DEBUGTRAP,      /* debug trap/breakpoint */
+    WOORT_IROP_KIND_PANIC,          /* panic with string message */
+
     /* ============ 返回 ============ */
     WOORT_IROP_KIND_RET,            /* return src */
     WOORT_IROP_KIND_RET_VOID,       /* return void */

@@ -306,7 +306,7 @@ WOORT_NODISCARD bool woort_CodeEnv_set_trap(woort_Bytecode* code)
         if (WOORT_HASHMAP_RESULT_OK == woort_hashmap_insert(&codeenv->m_trap_records, &code, code))
         {
             // Traped.
-            *code = woort_OpCode_TRAP();
+            *code = woort_OpCode_DEBUGTRAP();
             r = true;
         }
     }

@@ -814,3 +814,17 @@
  */
 #define woort_OpCode_DEBUGTRAP() \
     woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_TRAP, 0)
+
+/*
+ * PANICS - 从栈槽读取字符串并触发 panic
+ * PANICS [SB + bc16]
+ */
+#define woort_OpCode_PANICS(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_TRAP, 1, bc16)
+
+/*
+ * PANICC - 从常量区读取字符串并触发 panic
+ * PANICC G[abc24]
+ */
+#define woort_OpCode_PANICC(abc24) \
+    woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_TRAP, 2, abc24)

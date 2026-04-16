@@ -1408,6 +1408,29 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
         return c + 2;
     }
 
+    case WOORT_OPCODE_TRAP:
+    {
+        switch (m2)
+        {
+        case 0:
+            printf("DEBUGTRAP\n");
+            return c + 1;
+        case 1:
+        {
+            const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
+            printf("PANICS      [SB %+d]\n", src);
+            return c + 1;
+        }
+        case 2:
+        {
+            const uint32_t src = WOORT_BYTECODE(ABC24, bc);
+            printf("PANICC      G[%u]\n", src);
+            return c + 1;
+        }
+        }
+        break;
+    }
+
     default:
         break;
     }

@@ -1459,6 +1459,30 @@ static bool _emit_op(
         return woort_vector_push_back(jump_patches, 1, &patch);
     }
 
+    /* ============ 陷阱/Panic ============ */
+    case WOORT_IROP_KIND_DEBUGTRAP:
+    {
+        (void)c;
+        return _emit_bc(blk, woort_OpCode_DEBUGTRAP());
+    }
+
+    case WOORT_IROP_KIND_PANIC:
+    {
+        assert(op->m_src[0] != NULL);
+
+        if (op->m_src[0]->m_is_const_direct)
+        {
+            uint32_t cidx = op->m_src[0]->m_const_idx;
+            if (cidx <= WOORT_UINT24_MAX_VAL)
+                return _emit_bc(blk, woort_OpCode_PANICC(cidx));
+        }
+
+        int16_t r;
+        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
+            return false;
+        return _emit_bc(blk, woort_OpCode_PANICS(r));
+    }
+
     default:
         assert(false && "Unknown or unhandled IROp kind");
         return false;

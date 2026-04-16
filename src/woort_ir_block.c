@@ -601,6 +601,22 @@ WOORT_NODISCARD bool woort_IR_ret_void(woort_IRFunction* f)
     _EMIT_END();
 }
 
+/* ========== 陷阱/Panic ========== */
+
+WOORT_NODISCARD bool woort_IR_debugtrap(woort_IRFunction* f)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_DEBUGTRAP);
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_panic(
+    woort_IRFunction* f, const woort_IRValue* msg)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_PANIC);
+    op_->m_src[0] = msg;
+    _EMIT_END();
+}
+
 /* ========== 清理内部宏 ========== */
 
 #undef _EMIT_BEGIN
