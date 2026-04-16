@@ -3341,7 +3341,7 @@ _label_continue_execution:
             rt_ip = rt_env_code + WOORT_BYTECODE(MABC26, c);
             continue;
         }
-        // TRAP
+        // DEBUGTRAP
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_TRAP):
         {
             if (woort_VMRuntime_Debugger_try_trap())

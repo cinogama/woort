@@ -810,7 +810,7 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_ATOMIC, 2, a8, bc16)
 
 /*
- * TRAP - 陷阱/断点
+ * DEBUGTRAP - 陷阱/断点
  */
-#define woort_OpCode_TRAP() \
-    woort_OpCodeFormal_cons(OP6, WOORT_OPCODE_TRAP)
+#define woort_OpCode_DEBUGTRAP() \
+    woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_TRAP, 0)
