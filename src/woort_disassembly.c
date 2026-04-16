@@ -1442,9 +1442,19 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
 void woort_dump_codes(const woort_CodeEnv* code_env)
 {
     const woort_Bytecode* pc = code_env->m_code_begin;
+    const woort_Bytecode* next_bc = pc;
 
     while (pc < code_env->m_code_end)
-        pc = woort_disassembly(pc);
+    {
+        printf("%04zu:\t", (size_t)(pc - code_env->m_code_begin));
+
+        if (pc == next_bc)
+            next_bc = woort_disassembly(pc);
+        else
+            printf("\n");
+
+        ++pc;
+    }
 
     printf("\n");
 }
