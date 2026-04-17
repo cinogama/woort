@@ -588,6 +588,74 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
 }
 
 /* ===================================================================
+ * Phase 1b: 基于CFG的死代码消除
+ *
+ * 从 block 0 出发 BFS 标记所有可达块，
+ * 将不可达块中的非 LABEL 指令替换为 NOP（清除 dst/src）。
+ * =================================================================== */
+
+static void _phase1b_eliminate_dead_blocks(woort_IRFunction* f)
+{
+    const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
+    if (block_count <= 1)
+        return;
+
+    bool* reachable = (bool*)calloc(block_count, sizeof(bool));
+    if (reachable == NULL)
+        return;
+
+    uint32_t* queue = (uint32_t*)malloc(block_count * sizeof(uint32_t));
+    if (queue == NULL)
+    {
+        free(reachable);
+        return;
+    }
+
+    uint32_t head = 0, tail = 0;
+    reachable[0] = true;
+    queue[tail++] = 0;
+
+    while (head < tail)
+    {
+        uint32_t bi = queue[head++];
+        woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, bi);
+        for (size_t si = 0; si < blk->m_successors.m_size; ++si)
+        {
+            uint32_t succ = *(uint32_t*)woort_vector_at(&blk->m_successors, si);
+            if (!reachable[succ])
+            {
+                reachable[succ] = true;
+                queue[tail++] = succ;
+            }
+        }
+    }
+
+    free(queue);
+
+    woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
+    for (uint32_t b = 0; b < block_count; ++b)
+    {
+        if (reachable[b])
+            continue;
+
+        woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, b);
+        for (uint32_t i = blk->m_begin; i < blk->m_end; ++i)
+        {
+            if (instrs[i].m_op != WOORT_IROP_KIND_LABEL)
+            {
+                instrs[i].m_op = WOORT_IROP_KIND_NOP;
+                instrs[i].m_dst = NULL;
+                instrs[i].m_src[0] = NULL;
+                instrs[i].m_src[1] = NULL;
+                instrs[i].m_src[2] = NULL;
+            }
+        }
+    }
+
+    free(reachable);
+}
+
+/* ===================================================================
  * Phase 2: 活跃性分析
  * =================================================================== */
 
@@ -1701,6 +1769,9 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     /* Phase 1: 基本块切分 + CFG 构建 */
     if (!_phase1_split_blocks_and_build_cfg(f))
         return false;
+
+    /* Phase 1b: 死代码消除 */
+    _phase1b_eliminate_dead_blocks(f);
 
     /* Phase 2b: 常量直接使用标记（PUSHCCHK / RETVC） */
     if (!_phase2b_const_optimization(f))
