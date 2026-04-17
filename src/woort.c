@@ -12,6 +12,7 @@
 #include "woort_gc_struct.h"
 #include "woort_gc_gchandle.h"
 #include "woort_gc_closure.h"
+#include "woort_disassembly.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -1546,4 +1547,10 @@ WOORT_NODISCARD bool woort_map_iter(
     _WOORT_API_STACK(out_key_boxed).m_dynamic = bucket->m_key;
     _WOORT_API_STACK(out_val_boxed).m_dynamic = bucket->m_val;
     return true;
+}
+
+void woort_CodeEnv_dumps(
+    const woort_CodeEnv* env)
+{
+    woort_dump_codes(env);
 }

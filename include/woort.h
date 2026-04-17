@@ -304,6 +304,13 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_set_trap(
 WOORT_API WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
     woort_Bytecode* code);
 
+/**
+ * @brief Disassemble and print codes to stdout.
+ * @param env  The code environment to dump. Must not be NULL.
+ */
+WOORT_API void woort_CodeEnv_dumps(
+    const woort_CodeEnv* env);
+
 /* ========== IR Compiler ========== */
 
 /**

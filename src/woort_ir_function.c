@@ -329,6 +329,72 @@ WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_load_const(
 }
 
 /* ===================================================================
+ * Phase 0: 跳转合并（Jump Chaining）
+ *
+ * 如果一条跳转指令的目标是一个纯重定向块（仅包含 LABEL + JMP），
+ * 则将跳转目标直接指向该 JMP 的最终目标，消除中间跳转。
+ * 对所有跳转类型（JMP、JCC、JCCZ、JCC_*、JIFINITED）均适用。
+ * =================================================================== */
+
+static void _phase0_jump_chaining(woort_IRFunction* f)
+{
+    const size_t instr_count = f->m_instructions.m_size;
+    if (instr_count == 0)
+        return;
+
+    woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
+
+    for (size_t i = 0; i < instr_count; ++i)
+    {
+        woort_IROp* const op = &instrs[i];
+
+        if (!_is_jump_op(op->m_op))
+            continue;
+
+        woort_IRLabel* const original_target = op->m_jump_target;
+
+        woort_IRLabel* final_target = original_target;
+
+        assert(final_target != NULL && final_target->m_bound);
+
+        for (;;)
+        {
+            assert(final_target->m_bound);
+            uint32_t bind_idx = final_target->m_bind_index;
+
+            woort_IROp* target_real_op = NULL;
+            for (size_t j = bind_idx; j < instr_count; ++j)
+            {
+                if (instrs[j].m_op != WOORT_IROP_KIND_LABEL)
+                {
+                    target_real_op = &instrs[j];
+                    break;
+                }
+            }
+
+            if (target_real_op != NULL &&
+                target_real_op->m_op == WOORT_IROP_KIND_JMP)
+            {
+                woort_IRLabel* next_target = target_real_op->m_jump_target;
+                assert(next_target != NULL && next_target->m_bound);
+
+                if (next_target == final_target
+                    || next_target == original_target)
+                    break;
+
+                final_target = next_target;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        op->m_jump_target = final_target;
+    }
+}
+
+/* ===================================================================
  * Phase 1: Label → 基本块切分 + CFG 构建
  * =================================================================== */
 
@@ -1628,6 +1694,9 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     assert(out_stack_space != NULL);
 
     *out_stack_space = 0;
+
+    /* Phase 0: 跳转合并 */
+    _phase0_jump_chaining(f);
 
     /* Phase 1: 基本块切分 + CFG 构建 */
     if (!_phase1_split_blocks_and_build_cfg(f))
