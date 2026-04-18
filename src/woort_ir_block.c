@@ -241,6 +241,15 @@ WOORT_NODISCARD bool woort_IR_PUSHCHK(
     _EMIT_END();
 }
 
+WOORT_NODISCARD bool woort_IR_PUSHSTATICCHK(
+    woort_IRFunction* f, woort_IRStaticIndex src)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_PUSHSTATICCHK);
+    op_->m_dst = NULL;
+    op_->m_static_index = src;
+    _EMIT_END();
+}
+
 WOORT_NODISCARD bool woort_IR_POP(
     woort_IRFunction* f, woort_IRValue* dst)
 {

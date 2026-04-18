@@ -27,6 +27,7 @@ typedef enum woort_IROp_Kind
 
     /* ============ 栈操作 ============ */
     WOORT_IROP_KIND_PUSHCHK,        /* push src (with stack check) */
+    WOORT_IROP_KIND_PUSHSTATICCHK,  /* push G[static_idx] (with stack check) */
     WOORT_IROP_KIND_POP,            /* dst = pop */
     WOORT_IROP_KIND_POPR,           /* pop n (discard) */
     WOORT_IROP_KIND_POPRS,          /* pop count from src vreg */

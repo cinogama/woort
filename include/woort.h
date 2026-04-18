@@ -483,6 +483,12 @@ WOORT_API WOORT_NODISCARD bool woort_IR_PUSHCHK(
     woort_IRFunction* f,
     const woort_IRValue* src);
 
+/** @brief Push static storage value onto stack with overflow check.
+ *  Equivalent to LOAD + PUSHCHK but without intermediate vreg. */
+WOORT_API WOORT_NODISCARD bool woort_IR_PUSHSTATICCHK(
+    woort_IRFunction* f,
+    woort_IRStaticIndex src);
+
 /** @brief Pop top of stack into dst. */
 WOORT_API WOORT_NODISCARD bool woort_IR_POP(
     woort_IRFunction* f,

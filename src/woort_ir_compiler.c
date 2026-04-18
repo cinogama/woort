@@ -594,6 +594,15 @@ static bool _emit_op(
         return _emit_bc(blk, woort_OpCode_PUSHSCHK(r));
     }
 
+    /* ============ PUSHSTATICCHK ============ */
+    case WOORT_IROP_KIND_PUSHSTATICCHK:
+    {
+        const uint32_t storage = op->m_static_index + c->m_constant_alloc_count;
+        if (storage <= WOORT_UINT24_MAX_VAL)
+            return _emit_bc(blk, woort_OpCode_PUSHCCHK(storage));
+        return _emit_bc_ex32(blk, woort_OpCode_PUSHCCHKEXT(), storage);
+    }
+
     /* ============ POP ============ */
     case WOORT_IROP_KIND_POP:
     {
