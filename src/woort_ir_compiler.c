@@ -507,8 +507,9 @@ static bool _emit_op(
 {
     switch (op->m_op)
     {
-    /* ============ LABEL: 跳过 ============ */
+    /* ============ LABEL & EMPTY: 跳过 ============ */
     case WOORT_IROP_KIND_LABEL:
+    case WOORT_IROP_KIND_EMPTY:
         return true;
 
     /* ============ NOP ============ */

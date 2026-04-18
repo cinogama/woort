@@ -643,7 +643,7 @@ static void _phase1b_eliminate_dead_blocks(woort_IRFunction* f)
         {
             if (instrs[i].m_op != WOORT_IROP_KIND_LABEL)
             {
-                instrs[i].m_op = WOORT_IROP_KIND_NOP;
+                instrs[i].m_op = WOORT_IROP_KIND_EMPTY;
                 instrs[i].m_dst = NULL;
                 instrs[i].m_src[0] = NULL;
                 instrs[i].m_src[1] = NULL;
