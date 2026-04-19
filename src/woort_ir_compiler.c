@@ -523,6 +523,12 @@ static bool _emit_op(
     case WOORT_IROP_KIND_MOV:
     {
         assert(op->m_dst != NULL && op->m_src[0] != NULL);
+        if (op->m_src[0]->m_is_const_direct)
+        {
+            const uint32_t cidx = op->m_src[0]->m_const_idx;
+            return _emit_const_load(blk, op->m_dst->m_assigned_stack_offset, cidx);
+        }
+
         const int32_t src_f = _get_fact_offset(op->m_src[0]->m_assigned_stack_offset);
         const int32_t dst_f = _get_fact_offset(op->m_dst->m_assigned_stack_offset);
 
