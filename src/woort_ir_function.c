@@ -410,6 +410,71 @@ static void _phase0_jump_chaining(woort_IRFunction* f)
 }
 
 /* ===================================================================
+ * Phase 0b: 移除无意义跳转
+ *
+ * 如果跳转指令（JIFINITED 除外）的 fall-through 路径和跳转路径
+ * 到达同一条实际指令，则该跳转无意义，替换为 EMPTY。
+ * =================================================================== */
+
+static size_t _skip_labels(woort_IROp* instrs, size_t instr_count, size_t idx)
+{
+    while (idx < instr_count)
+    {
+        switch (instrs[idx].m_op)
+        {
+        case WOORT_IROP_KIND_LABEL:
+        case WOORT_IROP_KIND_NOP:
+        case WOORT_IROP_KIND_EMPTY:
+            idx++;
+            break;
+        default:
+            return idx;
+        }
+    }
+    return idx;
+}
+
+static bool _is_noop_jump(
+    woort_IROp* instrs,
+    size_t instr_count,
+    size_t jump_idx,
+    woort_IRLabel* target)
+{
+    size_t fallthrough = _skip_labels(instrs, instr_count, jump_idx + 1);
+    size_t target_real = _skip_labels(instrs, instr_count, target->m_bind_index);
+    return fallthrough < instr_count && fallthrough == target_real;
+}
+
+static void _phase2b_remove_noop_jumps(woort_IRFunction* f)
+{
+    const size_t instr_count = f->m_instructions.m_size;
+    if (instr_count == 0)
+        return;
+
+    woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
+
+    for (size_t i = 0; i < instr_count; ++i)
+    {
+        woort_IROp* op = &instrs[i];
+
+        if (!_is_jump_op(op->m_op))
+            continue;
+
+        if (op->m_op == WOORT_IROP_KIND_JIFINITED)
+            continue;
+
+        if (!_is_noop_jump(instrs, instr_count, i, op->m_jump_target))
+            continue;
+
+        op->m_op = WOORT_IROP_KIND_EMPTY;
+        op->m_dst = NULL;
+        op->m_src[0] = NULL;
+        op->m_src[1] = NULL;
+        op->m_src[2] = NULL;
+    }
+}
+
+/* ===================================================================
  * Phase 1: Label → 基本块切分 + CFG 构建
  * =================================================================== */
 
@@ -804,7 +869,7 @@ static bool _phase2_liveness_analysis(woort_IRFunction* f, const uint32_t* const
  * 它们只作为其他指令的 m_src[] 出现。
  * =================================================================== */
 
-static bool _phase2b_const_optimization(woort_IRFunction* f)
+static bool _phase3b_const_optimization(woort_IRFunction* f)
 {
     const size_t instr_count = f->m_instructions.m_size;
     woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
@@ -1789,8 +1854,11 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     /* Phase 1b: 死代码消除 */
     _phase1b_eliminate_dead_blocks(f);
 
-    /* Phase 2b: 常量直接使用标记（PUSHCCHK / RETVC） */
-    if (!_phase2b_const_optimization(f))
+    /* Phase 2b: 移除无意义跳转 */
+    _phase2b_remove_noop_jumps(f);
+
+    /* Phase 3b: 常量直接使用标记（PUSHCCHK / RETVC） */
+    if (!_phase3b_const_optimization(f))
         return false;
 
     /* Phase 4a: Dominator tree */
