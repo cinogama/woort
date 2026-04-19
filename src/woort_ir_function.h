@@ -22,6 +22,7 @@
 struct woort_IRFunction
 {
     uint32_t m_param_count;
+    uint32_t m_captured_count;
 
     /* 虚拟寄存器池（LinkList 持有 woort_IRValue） */
     woort_LinkList /* woort_IRValue */ m_ir_values;
@@ -50,7 +51,8 @@ struct woort_IRFunction
     woort_Vector /* woort_SourceLocation */ m_source_locations;
 };
 
-void woort_IRFunction_init(woort_IRFunction* f, uint32_t param_count);
+void woort_IRFunction_init(
+    woort_IRFunction* f, uint32_t param_count, uint32_t captured_count);
 void woort_IRFunction_deinit(woort_IRFunction* f);
 
 /* finish 阶段内部函数 */

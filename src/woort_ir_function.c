@@ -166,9 +166,10 @@ static int _compare_intervals_by_start(const void* a, const void* b)
  * 公共 API 实现
  * ======================================================================== */
 
-void woort_IRFunction_init(woort_IRFunction* f, uint32_t param_count)
+void woort_IRFunction_init(woort_IRFunction* f, uint32_t param_count, uint32_t captured_count)
 {
     f->m_param_count = param_count;
+    f->m_captured_count = captured_count;
 
     woort_linklist_init(&f->m_ir_values, sizeof(woort_IRValue));
     f->m_next_vreg_id = 0;
@@ -285,6 +286,20 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_argument(
         return NULL;
 
     woort_IRValue_init_argument(v, f->m_next_vreg_id, param_idx);
+    f->m_next_vreg_id++;
+    return v;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_captured(
+    woort_IRFunction* f, uint32_t captured_idx)
+{
+    assert(captured_idx < f->m_captured_count);
+
+    woort_IRValue* v;
+    if (!woort_linklist_emplace_back(&f->m_ir_values, (void**)&v))
+        return NULL;
+
+    woort_IRValue_init_captured(v, f->m_next_vreg_id, captured_idx);
     f->m_next_vreg_id++;
     return v;
 }
@@ -861,7 +876,7 @@ static bool _phase3_stack_allocation(
 
     if (vreg_count == 0)
     {
-        *out_stack_space = 0;
+        *out_stack_space = f->m_captured_count;
         return true;
     }
 
@@ -1134,13 +1149,13 @@ static bool _phase3_stack_allocation(
         woort_IRValue* v = vreg_by_id[id];
         assert(v != NULL);
         /* slot 0 → offset 0, slot 1 → offset -1, slot 2 → offset -2, ... */
-        v->m_assigned_stack_offset = -slot;
+        v->m_assigned_stack_offset = -slot - f->m_captured_count;
     }
 
     free(intervals);
     free(vreg_by_id);
 
-    *out_stack_space = max_slots;
+    *out_stack_space = max_slots + f->m_captured_count;
     return true;
 }
 

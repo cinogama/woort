@@ -336,6 +336,7 @@ WOORT_API void woort_IRCompiler_close(
 WOORT_API WOORT_NODISCARD bool woort_IRCompiler_add_function(
     woort_IRCompiler* c,
     uint32_t param_count,
+    uint32_t captured_count,
     woort_IRFunction** out_f);
 
 /**
@@ -384,6 +385,10 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_new_vre
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_argument(
     woort_IRFunction* f,
     uint32_t param_idx);
+
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_captured(
+    woort_IRFunction* f,
+    uint32_t captured_idx);
 
 /**
  * @brief Create a new label (branch target) in the function.

@@ -1259,9 +1259,7 @@ _label_continue_execution:
 
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_closure = gcclosure;
 
-            for (size_t i = 1; i <= size; ++i)
-                woort_GC_mixed_write_barrier_value(
-                    &gcclosure->m_datas[size - i], rt_sp[i]);
+            memcpy(gcclosure->m_datas, rt_sp + 1, sizeof(woort_Value) * size);
 
             rt_sp += size;
             rt_ip += 2;

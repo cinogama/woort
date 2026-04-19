@@ -1960,14 +1960,14 @@ void woort_IRCompiler_deinit(woort_IRCompiler* c)
 }
 
 WOORT_NODISCARD bool woort_IRCompiler_add_function(
-    woort_IRCompiler* c, uint32_t param_count, woort_IRFunction** out_f)
+    woort_IRCompiler* c, uint32_t param_count, uint32_t captured_count, woort_IRFunction** out_f)
 {
     void* storage;
     if (!woort_linklist_emplace_back(&c->m_ir_functions, &storage))
         return false;
 
     woort_IRFunction* f = (woort_IRFunction*)storage;
-    woort_IRFunction_init(f, param_count);
+    woort_IRFunction_init(f, param_count, captured_count);
     *out_f = f;
     return true;
 }

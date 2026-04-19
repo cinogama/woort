@@ -42,9 +42,6 @@ struct woort_IRValue
 
     union
     {
-        /* WOORT_IRVALUE_SOURCE_ARGUMENT 专用 */
-        uint32_t m_argument_idx;
-
         /* WOORT_IRVALUE_SOURCE_CONST 专用 */
         woort_IRConstantIndex m_const_idx;
     };
@@ -64,4 +61,5 @@ struct woort_IRValue
 
 void woort_IRValue_init_vreg(woort_IRValue* v, uint32_t id);
 void woort_IRValue_init_argument(woort_IRValue* v, uint32_t id, uint32_t argument_idx);
+void woort_IRValue_init_captured(woort_IRValue* v, uint32_t id, uint32_t captured_idx);
 void woort_IRValue_init_const(woort_IRValue* v, uint32_t id, woort_IRConstantIndex const_idx);
