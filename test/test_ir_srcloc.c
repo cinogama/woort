@@ -175,7 +175,7 @@ static void test_ir_srcloc_basic(void)
 
     /* 添加函数 */
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f));
 
     /* 获取参数 */
     woort_IRValue* arg_x = woort_IRFunction_get_argument(f, 0);
@@ -259,7 +259,7 @@ static void test_ir_no_srcloc(void)
     woort_IRConstantIndex c42 = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
 
     /* 不推入任何源码位置，直接发射 IR */
     const woort_IRValue* v = woort_IRFunction_load_const(f, c42);
@@ -313,7 +313,7 @@ static void test_ir_srcloc_nested_push_pop(void)
     woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 2, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 2, 0, &f));
 
     woort_IRValue* a = woort_IRFunction_get_argument(f, 0);
     woort_IRValue* b = woort_IRFunction_get_argument(f, 1);
@@ -381,7 +381,7 @@ static void test_ir_srcloc_multi_function(void)
 
     /* 函数 1: 在 file_a.woo */
     woort_IRFunction* f1;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f1));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f1));
 
     woort_IRValue* arg1 = woort_IRFunction_get_argument(f1, 0);
     const woort_IRValue* one1 = woort_IRFunction_load_const(f1, c1);
@@ -395,7 +395,7 @@ static void test_ir_srcloc_multi_function(void)
 
     /* 函数 2: 在 file_b.woo */
     woort_IRFunction* f2;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f2));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f2));
 
     woort_IRValue* arg2 = woort_IRFunction_get_argument(f2, 0);
     const woort_IRValue* one2 = woort_IRFunction_load_const(f2, c1);

@@ -84,7 +84,7 @@ static void test_constant_return(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* v = woort_IRFunction_load_const(f, c42); TEST_ASSERT(v != NULL);
         TEST_ASSERT(woort_IR_ret(f, v));
@@ -134,7 +134,7 @@ static void test_integer_arithmetic(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* sum = woort_IRFunction_new_vreg(f);
         woort_IRValue* diff = woort_IRFunction_new_vreg(f);
@@ -192,7 +192,7 @@ static void test_divmod(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* div_result = woort_IRFunction_new_vreg(f);
         woort_IRValue* mod_result = woort_IRFunction_new_vreg(f);
@@ -249,7 +249,7 @@ static void test_negate(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* neg = woort_IRFunction_new_vreg(f);
 
@@ -302,7 +302,7 @@ static void test_branch_helper(woort_Int a, woort_Int b, woort_Int expected)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    (void)woort_IRCompiler_add_function(irc, 0, &f);
+    (void)woort_IRCompiler_add_function(irc, 0, 0, &f);
     {
         woort_IRLabel* L_true = woort_IRFunction_new_label(f);
 
@@ -383,7 +383,7 @@ static void test_loop(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* i = woort_IRFunction_new_vreg(f);
         woort_IRValue* acc = woort_IRFunction_new_vreg(f);
@@ -475,7 +475,7 @@ static void test_fibonacci(void)
 
     /* func fib(n) */
     woort_IRFunction* f_fib;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f_fib));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f_fib));
     {
         woort_IRValue* n_arg = woort_IRFunction_get_argument(f_fib, 0);
         woort_IRValue* tmp1 = woort_IRFunction_new_vreg(f_fib);
@@ -514,7 +514,7 @@ static void test_fibonacci(void)
 
     /* func main(): 调用 fib(10) */
     woort_IRFunction* f_main;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f_main));
     {
         woort_IRValue* result = woort_IRFunction_new_vreg(f_main);
         TEST_ASSERT(result);
@@ -572,7 +572,7 @@ static void test_logic_ops(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* land = woort_IRFunction_new_vreg(f);
         woort_IRValue* lnot = woort_IRFunction_new_vreg(f);
@@ -641,7 +641,7 @@ static void test_integer_comparisons(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* lt = woort_IRFunction_new_vreg(f);
         woort_IRValue* gt = woort_IRFunction_new_vreg(f);
@@ -722,7 +722,7 @@ static void test_fallthrough(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRLabel* L_mid = woort_IRFunction_new_label(f);
         woort_IRLabel* L_exit = woort_IRFunction_new_label(f);
@@ -783,7 +783,7 @@ static void test_call_native(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* v = woort_IRFunction_load_const(f, c_val); TEST_ASSERT(v != NULL);
         TEST_ASSERT(woort_IR_PUSHCHK(f, v));
@@ -840,7 +840,7 @@ static void test_multi_param(void)
 
     /* func add3(a, b, c) */
     woort_IRFunction* f_add3;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 3, &f_add3));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 3, 0, &f_add3));
     {
         woort_IRValue* a = woort_IRFunction_get_argument(f_add3, 0);
         woort_IRValue* b = woort_IRFunction_get_argument(f_add3, 1);
@@ -856,7 +856,7 @@ static void test_multi_param(void)
 
     /* func main() */
     woort_IRFunction* f_main;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f_main));
     {
         woort_IRValue* result = woort_IRFunction_new_vreg(f_main);
         TEST_ASSERT(result);
@@ -923,7 +923,7 @@ static void test_jcc_helper(woort_Int x, woort_Int expected)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    (void)woort_IRCompiler_add_function(irc, 0, &f);
+    (void)woort_IRCompiler_add_function(irc, 0, 0, &f);
     {
         woort_IRValue* neg = woort_IRFunction_new_vreg(f);
         woort_IRValue* cond = woort_IRFunction_new_vreg(f);
@@ -999,7 +999,7 @@ static void test_jccz_helper(woort_Int x, woort_Int expected)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    (void)woort_IRCompiler_add_function(irc, 0, &f);
+    (void)woort_IRCompiler_add_function(irc, 0, 0, &f);
     {
         woort_IRValue* cond = woort_IRFunction_new_vreg(f);
 
@@ -1075,7 +1075,7 @@ static void test_jcc_variants_helper(woort_Int x, woort_Int lo, woort_Int hi,
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    (void)woort_IRCompiler_add_function(irc, 0, &f);
+    (void)woort_IRCompiler_add_function(irc, 0, 0, &f);
     {
         woort_IRLabel* L_lt = woort_IRFunction_new_label(f);
         woort_IRLabel* L_eq = woort_IRFunction_new_label(f);
@@ -1166,7 +1166,7 @@ static void test_nested_loop(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* sum = woort_IRFunction_new_vreg(f);
         woort_IRValue* i = woort_IRFunction_new_vreg(f);
@@ -1265,7 +1265,7 @@ static void test_compound_ops(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* a = woort_IRFunction_new_vreg(f); TEST_ASSERT(a != NULL);
         const woort_IRValue* v5 = woort_IRFunction_load_const(f, c5); TEST_ASSERT(v5 != NULL);
@@ -1336,7 +1336,7 @@ static void test_vreg_reuse(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* x = woort_IRFunction_new_vreg(f);
         const woort_IRValue* cv1 = woort_IRFunction_load_const(f, c1); TEST_ASSERT(x != NULL);    /* x = 1 */
@@ -1393,7 +1393,7 @@ static void test_multi_branch_helper(woort_Int x, woort_Int expected)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    (void)woort_IRCompiler_add_function(irc, 0, &f);
+    (void)woort_IRCompiler_add_function(irc, 0, 0, &f);
     {
         woort_IRLabel* L_negative = woort_IRFunction_new_label(f);
         woort_IRLabel* L_zero = woort_IRFunction_new_label(f);
@@ -1465,7 +1465,7 @@ static void test_empty_func(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         TEST_ASSERT(woort_IR_ret_void(f));
     }
@@ -1515,7 +1515,7 @@ static void test_static_storage(void)
     woort_IRStaticIndex s_counter = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* val = woort_IRFunction_new_vreg(f);
         TEST_ASSERT(val);
@@ -1583,7 +1583,7 @@ static void test_multi_native_call(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* v100 = woort_IRFunction_load_const(f, c100); TEST_ASSERT(v100 != NULL);
         const woort_IRValue* v200 = woort_IRFunction_load_const(f, c200); TEST_ASSERT(v200 != NULL);
@@ -1663,7 +1663,7 @@ static void test_fib_iterative(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* a = woort_IRFunction_new_vreg(f);
         woort_IRValue* b = woort_IRFunction_new_vreg(f);
@@ -1762,7 +1762,7 @@ static void test_backward_jcc(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* sum = woort_IRFunction_new_vreg(f);
         woort_IRValue* n = woort_IRFunction_new_vreg(f);
@@ -1848,7 +1848,7 @@ static void test_const_hoist(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* sum = woort_IRFunction_new_vreg(f);
         woort_IRValue* i = woort_IRFunction_new_vreg(f);
@@ -1938,7 +1938,7 @@ static void test_retvc(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* v = woort_IRFunction_load_const(f, c42); TEST_ASSERT(v != NULL);
         TEST_ASSERT(woort_IR_ret(f, v));
@@ -1995,7 +1995,7 @@ static void test_pushcchk(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* v = woort_IRFunction_load_const(f, c_val); TEST_ASSERT(v != NULL);
         TEST_ASSERT(woort_IR_PUSHCHK(f, v));
@@ -2061,7 +2061,7 @@ static void test_const_direct_no_trigger(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* result = woort_IRFunction_new_vreg(f);
         TEST_ASSERT(result);
@@ -2131,7 +2131,7 @@ static void test_const_merge(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* t = woort_IRFunction_new_vreg(f);
         woort_IRValue* result = woort_IRFunction_new_vreg(f);
@@ -2201,7 +2201,7 @@ static void test_pushcchk_retvc_combo(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         /* PUSHCCHK: v_push 仅被 PUSHCHK 使用 */
         const woort_IRValue* v_push = woort_IRFunction_load_const(f, c0); TEST_ASSERT(v_push != NULL);
@@ -2268,7 +2268,7 @@ static void test_no_direct_on_redef(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* c_v = woort_IRFunction_load_const(f, c42); TEST_ASSERT(c_v != NULL);
         woort_IRValue* v = woort_IRFunction_new_vreg(f);
@@ -2326,7 +2326,7 @@ static void test_const_direct_overwrite_arg(void)
 
     /* func f(x) */
     woort_IRFunction* f_inner;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f_inner));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f_inner));
     {
         const woort_IRValue* x = woort_IRFunction_load_const(f_inner, c99); TEST_ASSERT(x != NULL);
         TEST_ASSERT(woort_IR_ret(f_inner, x));
@@ -2334,7 +2334,7 @@ static void test_const_direct_overwrite_arg(void)
 
     /* func main() */
     woort_IRFunction* f_main;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f_main));
     {
         woort_IRValue* result = woort_IRFunction_new_vreg(f_main);
         TEST_ASSERT(result);
@@ -2397,7 +2397,7 @@ static void test_no_direct_on_jcc_use(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRLabel* L_skip = woort_IRFunction_new_label(f);
         TEST_ASSERT(L_skip != NULL);
@@ -2466,7 +2466,7 @@ static void test_direct_and_nondirect_same_const(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* result = woort_IRFunction_new_vreg(f);
         TEST_ASSERT(result);
@@ -2529,7 +2529,7 @@ static void test_consecutive_load_const(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* v = woort_IRFunction_load_const(f, c10); TEST_ASSERT(v != NULL);
         v = woort_IRFunction_load_const(f, c20); TEST_ASSERT(v != NULL);    /* 覆写 */
@@ -2594,7 +2594,7 @@ static void test_all_const_direct_zero_stack(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* v1 = woort_IRFunction_load_const(f, c100); TEST_ASSERT(v1 != NULL);
         TEST_ASSERT(woort_IR_PUSHCHK(f, v1));
@@ -2679,7 +2679,7 @@ static void test_const_merge_across_loop(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* v5 = woort_IRFunction_load_const(f, c5);
         const woort_IRValue* v0 = woort_IRFunction_load_const(f, c0);
@@ -2764,7 +2764,7 @@ static void test_const_merge_rejected_not_live(void)
 
     /* func f(x) */
     woort_IRFunction* f_inner;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f_inner));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f_inner));
     {
         woort_IRValue* x = woort_IRFunction_get_argument(f_inner, 0);
         woort_IRValue* result = woort_IRFunction_new_vreg(f_inner);
@@ -2790,7 +2790,7 @@ static void test_const_merge_rejected_not_live(void)
 
     /* func main() */
     woort_IRFunction* f_main;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f_main));
     {
         woort_IRValue* res = woort_IRFunction_new_vreg(f_main);
         TEST_ASSERT(res);
@@ -2821,7 +2821,7 @@ static void test_const_merge_rejected_not_live(void)
     woort_IRConstantIndex c_fn = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f_inner));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f_inner));
     {
         woort_IRValue* x = woort_IRFunction_get_argument(f_inner, 0);
         woort_IRValue* result = woort_IRFunction_new_vreg(f_inner);
@@ -2842,7 +2842,7 @@ static void test_const_merge_rejected_not_live(void)
         (void)woort_IR_ret(f_inner, result2);
     }
 
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f_main));
     {
         woort_IRValue* res = woort_IRFunction_new_vreg(f_main);
 
@@ -2892,7 +2892,7 @@ static void test_no_merge_different_const(void)
     woort_IRConstantIndex c20 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* r = woort_IRFunction_new_vreg(f);
         const woort_IRValue* a = woort_IRFunction_load_const(f, c10); TEST_ASSERT(a != NULL);
@@ -2929,7 +2929,7 @@ static void test_merge_independence(void)
     woort_IRConstantIndex c5 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* a = woort_IRFunction_load_const(f, c5);
         woort_IRValue* b = woort_IRFunction_new_vreg(f);
@@ -2969,7 +2969,7 @@ static void test_merge_survives_call(void)
     woort_IRConstantIndex c_fn = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* r = woort_IRFunction_new_vreg(f);
         const woort_IRValue* a = woort_IRFunction_load_const(f, c7); TEST_ASSERT(a != NULL);
@@ -3016,7 +3016,7 @@ static void test_no_merge_across_disjoint_branches(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f_inner;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f_inner));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f_inner));
     {
         woort_IRValue* x = woort_IRFunction_get_argument(f_inner, 0);
         woort_IRValue* r1 = woort_IRFunction_new_vreg(f_inner);
@@ -3037,7 +3037,7 @@ static void test_no_merge_across_disjoint_branches(void)
     }
 
     woort_IRFunction* f_main;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f_main));
     {
         woort_IRValue* res = woort_IRFunction_new_vreg(f_main);
         const woort_IRValue* arg = woort_IRFunction_load_const(f_main, c_arg);  /* 独立的常量索引作参数 */
@@ -3095,7 +3095,7 @@ static void test_merge_in_loop_iterations(void)
     woort_IRConstantIndex c5 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* v1 = woort_IRFunction_load_const(f, c1);
         const woort_IRValue* v0 = woort_IRFunction_load_const(f, c0);
@@ -3149,7 +3149,7 @@ static void test_pushcchk_nested_calls(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f_add;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 2, &f_add));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 2, 0, &f_add));
     {
         woort_IRValue* a = woort_IRFunction_get_argument(f_add, 0);
         woort_IRValue* b = woort_IRFunction_get_argument(f_add, 1);
@@ -3158,7 +3158,7 @@ static void test_pushcchk_nested_calls(void)
         TEST_ASSERT(woort_IR_ret(f_add, r));
     }
     woort_IRFunction* f_add3;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f_add3));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f_add3));
     {
         woort_IRValue* x = woort_IRFunction_get_argument(f_add3, 0);
         woort_IRValue* result = woort_IRFunction_new_vreg(f_add3);
@@ -3169,7 +3169,7 @@ static void test_pushcchk_nested_calls(void)
         TEST_ASSERT(woort_IR_ret(f_add3, result));
     }
     woort_IRFunction* f_main;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f_main));
     {
         woort_IRValue* r1 = woort_IRFunction_new_vreg(f_main);
         woort_IRValue* r2 = woort_IRFunction_new_vreg(f_main);
@@ -3213,7 +3213,7 @@ static void test_merge_liveness_extension(void)
     woort_IRConstantIndex c10 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* x = woort_IRFunction_new_vreg(f);
         woort_IRValue* y = woort_IRFunction_new_vreg(f);
@@ -3258,7 +3258,7 @@ static void test_retvc_in_recursion(void)
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
 
     woort_IRFunction* f_rec;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, &f_rec));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f_rec));
     {
         woort_IRValue* n = woort_IRFunction_get_argument(f_rec, 0);
         woort_IRValue* tmp = woort_IRFunction_new_vreg(f_rec);
@@ -3276,7 +3276,7 @@ static void test_retvc_in_recursion(void)
         TEST_ASSERT(woort_IR_ret(f_rec, val));
     }
     woort_IRFunction* f_main;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f_main));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f_main));
     {
         woort_IRValue* res = woort_IRFunction_new_vreg(f_main);
         const woort_IRValue* v3 = woort_IRFunction_load_const(f_main, c3); TEST_ASSERT(v3 != NULL);
@@ -3322,7 +3322,7 @@ static void test_mixed_optimizations(void)
     woort_IRConstantIndex c_fn = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_entry = woort_IRCompiler_add_constant(irc);
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* t = woort_IRFunction_new_vreg(f);
         const woort_IRValue* a = woort_IRFunction_load_const(f, c10); TEST_ASSERT(a != NULL);     /* 非直连 (use>1) */
@@ -3375,7 +3375,7 @@ static void test_astore_aload(void)
     woort_IRStaticIndex s_val = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* v_dst = woort_IRFunction_new_vreg(f);
         TEST_ASSERT(v_dst);
@@ -3429,7 +3429,7 @@ static void test_aload_default(void)
     woort_IRStaticIndex s_val = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* v_dst = woort_IRFunction_new_vreg(f);
         TEST_ASSERT(v_dst);
@@ -3487,7 +3487,7 @@ static void test_cas_success(void)
     woort_IRStaticIndex s_val = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* v_result = woort_IRFunction_new_vreg(f);
         woort_IRValue* v_exp = woort_IRFunction_new_vreg(f);
@@ -3567,7 +3567,7 @@ static void test_cas_failure(void)
     woort_IRStaticIndex s_val = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRValue* v_result = woort_IRFunction_new_vreg(f);
         woort_IRValue* v_exp = woort_IRFunction_new_vreg(f);
@@ -3648,7 +3648,7 @@ static void test_jifinited_fallthrough(void)
     woort_IRStaticIndex s_value = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRLabel* L_done = woort_IRFunction_new_label(f);
         TEST_ASSERT(L_done != NULL);
@@ -3729,7 +3729,7 @@ static void test_jifinited_already_init(void)
     woort_IRStaticIndex s_value = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRLabel* L_done = woort_IRFunction_new_label(f);
         TEST_ASSERT(L_done != NULL);
@@ -3812,7 +3812,7 @@ static void test_jifinited_multi_invoke(void)
     woort_IRStaticIndex s_value = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRLabel* L_done = woort_IRFunction_new_label(f);
         TEST_ASSERT(L_done != NULL);
@@ -3900,7 +3900,7 @@ static void test_jifinited_with_other_ops(void)
     woort_IRStaticIndex s_value = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRLabel* L_done = woort_IRFunction_new_label(f);
         TEST_ASSERT(L_done != NULL);
@@ -3999,7 +3999,7 @@ static void test_jifinited_multi_statics(void)
     woort_IRStaticIndex s_val2 = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRLabel* L_done1 = woort_IRFunction_new_label(f);
         woort_IRLabel* L_done2 = woort_IRFunction_new_label(f);
@@ -4102,7 +4102,7 @@ static void test_jifinited_in_loop(void)
     woort_IRStaticIndex s_bonus = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         const woort_IRValue* v0 = woort_IRFunction_load_const(f, c0);
         const woort_IRValue* v1 = woort_IRFunction_load_const(f, c1);
@@ -4205,7 +4205,7 @@ static void test_jifinited_full_once_only(void)
     woort_IRStaticIndex s_value = woort_IRCompiler_add_static(irc);
 
     woort_IRFunction* f;
-    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, &f));
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
     {
         woort_IRLabel* L_done = woort_IRFunction_new_label(f);
         TEST_ASSERT(L_done != NULL);

@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
     woort_IRConstantIndex c_2 = woort_IRCompiler_add_constant(irc);
     woort_IRConstantIndex c_35 = woort_IRCompiler_add_constant(irc);
     {
-        (void)woort_IRCompiler_add_function(irc, 1, &f_fib);
+        (void)woort_IRCompiler_add_function(irc, 1, 0, &f_fib);
         {
             const woort_IRValue* n = woort_IRFunction_get_argument(f_fib, 0);
             const woort_IRValue* cv_1 = woort_IRFunction_load_const(f_fib, c_1);
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
             (void)woort_IR_ret(f_fib, r);
         }
 
-        (void)woort_IRCompiler_add_function(irc, 0, &f_main);
+        (void)woort_IRCompiler_add_function(irc, 0, 0, &f_main);
         {
             (void)woort_IR_PUSHCHK(f_main, woort_IRFunction_load_const(f_main, c_35));
 

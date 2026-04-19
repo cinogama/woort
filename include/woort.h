@@ -386,6 +386,12 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_arg
     woort_IRFunction* f,
     uint32_t param_idx);
 
+/**
+ * @brief Get the virtual register for a captured variable (closure upvalue).
+ * @param f            The IR function. Must not be NULL.
+ * @param captured_idx Zero-based captured variable index.
+ * @return The IR value handle for the captured variable, or NULL on out-of-memory.
+ */
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_captured(
     woort_IRFunction* f,
     uint32_t captured_idx);
