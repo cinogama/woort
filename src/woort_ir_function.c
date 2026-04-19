@@ -319,7 +319,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_IRLabel* woort_IRFunction_new_label(
     return label;
 }
 
-WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_load_const(
+WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_fetch_const(
     woort_IRFunction* f, woort_IRConstantIndex idx)
 {
     /*
@@ -840,8 +840,9 @@ static bool _phase2b_const_optimization(woort_IRFunction* f)
         if (use_count != 1 || unique_user == NULL)
             continue;
 
-        /* 检查唯一使用者是否是 PUSHCHK 或 RET */
-        if (unique_user->m_op != WOORT_IROP_KIND_PUSHCHK &&
+        /* 检查唯一使用者是否是 MOV, PUSHCHK 或 RET */
+        if (unique_user->m_op != WOORT_IROP_KIND_MOV &&
+            unique_user->m_op != WOORT_IROP_KIND_PUSHCHK &&
             unique_user->m_op != WOORT_IROP_KIND_RET)
         {
             continue;

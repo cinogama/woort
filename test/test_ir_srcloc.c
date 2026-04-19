@@ -183,7 +183,7 @@ static void test_ir_srcloc_basic(void)
 
     /* line 2: let result = x + 1 */
     TEST_ASSERT(woort_IRFunction_push_srcloc(f, path, 2, 1, 2, 22));
-    const woort_IRValue* v_one = woort_IRFunction_load_const(f, c1);
+    const woort_IRValue* v_one = woort_IRFunction_fetch_const(f, c1);
     TEST_ASSERT(v_one != NULL);
     woort_IRValue* v_result = woort_IRFunction_new_vreg(f);
     TEST_ASSERT(v_result != NULL);
@@ -262,7 +262,7 @@ static void test_ir_no_srcloc(void)
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 0, &f));
 
     /* 不推入任何源码位置，直接发射 IR */
-    const woort_IRValue* v = woort_IRFunction_load_const(f, c42);
+    const woort_IRValue* v = woort_IRFunction_fetch_const(f, c42);
     TEST_ASSERT(v != NULL);
     TEST_ASSERT(woort_IR_ret(f, v));
 
@@ -384,7 +384,7 @@ static void test_ir_srcloc_multi_function(void)
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f1));
 
     woort_IRValue* arg1 = woort_IRFunction_get_argument(f1, 0);
-    const woort_IRValue* one1 = woort_IRFunction_load_const(f1, c1);
+    const woort_IRValue* one1 = woort_IRFunction_fetch_const(f1, c1);
     woort_IRValue* res1 = woort_IRFunction_new_vreg(f1);
     TEST_ASSERT(arg1 && one1 && res1);
 
@@ -398,7 +398,7 @@ static void test_ir_srcloc_multi_function(void)
     TEST_ASSERT(woort_IRCompiler_add_function(irc, 1, 0, &f2));
 
     woort_IRValue* arg2 = woort_IRFunction_get_argument(f2, 0);
-    const woort_IRValue* one2 = woort_IRFunction_load_const(f2, c1);
+    const woort_IRValue* one2 = woort_IRFunction_fetch_const(f2, c1);
     woort_IRValue* res2 = woort_IRFunction_new_vreg(f2);
     TEST_ASSERT(arg2 && one2 && res2);
 

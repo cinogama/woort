@@ -414,7 +414,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRLabel* woort_IRFunction_new_lab
  * @param idx  The constant pool index.
  * @return The IR value for the constant, or NULL on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_load_const(
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_fetch_const(
     woort_IRFunction* f,
     woort_IRConstantIndex idx);
 

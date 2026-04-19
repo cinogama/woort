@@ -38,7 +38,7 @@ woort_IRValue* v = woort_IRFunction_new_vreg(f);
 woort_IRValue* arg = woort_IRFunction_get_argument(f, 0);
 
 /* 常量值（返回绑定到 G[idx] 的 IRValue*，同一 idx 返回同一指针） */
-const woort_IRValue* c = woort_IRFunction_load_const(f, ci);
+const woort_IRValue* c = woort_IRFunction_fetch_const(f, ci);
 
 /* Label */
 woort_IRLabel* L = woort_IRFunction_new_label(f);
@@ -86,8 +86,8 @@ woort_IRFunction* f_fib;
 woort_IRCompiler_add_function(&irc, 1, &f_fib);
 {
     woort_IRValue* n_arg = woort_IRFunction_get_argument(f_fib, 0);
-    const woort_IRValue* v2 = woort_IRFunction_load_const(f_fib, c2);
-    const woort_IRValue* v1 = woort_IRFunction_load_const(f_fib, c1);
+    const woort_IRValue* v2 = woort_IRFunction_fetch_const(f_fib, c2);
+    const woort_IRValue* v1 = woort_IRFunction_fetch_const(f_fib, c1);
     woort_IRValue* tmp1  = woort_IRFunction_new_vreg(f_fib);
     woort_IRValue* tmp2  = woort_IRFunction_new_vreg(f_fib);
     woort_IRValue* r1    = woort_IRFunction_new_vreg(f_fib);
@@ -120,7 +120,7 @@ woort_IRCompiler_add_function(&irc, 1, &f_fib);
 woort_IRFunction* f_main;
 woort_IRCompiler_add_function(&irc, 0, &f_main);
 {
-    const woort_IRValue* vn = woort_IRFunction_load_const(f_main, cn);
+    const woort_IRValue* vn = woort_IRFunction_fetch_const(f_main, cn);
     woort_IRValue* result = woort_IRFunction_new_vreg(f_main);
 
     woort_IR_PUSHCHK(f_main, vn);
@@ -156,9 +156,9 @@ woort_VMRuntime_invoke(vm, cenv->m_code_begin + f_fib->m_code_length);
 woort_IRFunction* f;
 woort_IRCompiler_add_function(&irc, 0, &f);
 {
-    const woort_IRValue* vn = woort_IRFunction_load_const(f, cn);  /* 常量 n=10 */
-    const woort_IRValue* v0 = woort_IRFunction_load_const(f, c0);  /* 常量 0 */
-    const woort_IRValue* v1 = woort_IRFunction_load_const(f, c1);  /* 常量 1 */
+    const woort_IRValue* vn = woort_IRFunction_fetch_const(f, cn);  /* 常量 n=10 */
+    const woort_IRValue* v0 = woort_IRFunction_fetch_const(f, c0);  /* 常量 0 */
+    const woort_IRValue* v1 = woort_IRFunction_fetch_const(f, c1);  /* 常量 1 */
     woort_IRValue* i    = woort_IRFunction_new_vreg(f);        /* 可变：循环计数器 */
     woort_IRValue* acc  = woort_IRFunction_new_vreg(f);        /* 可变：累加器 */
 
@@ -199,7 +199,7 @@ woort_IRCompiler_add_function(&irc, 0, &f);
 
 ## 注意
 
-* `woort_IRFunction_load_const` 返回的 const IRValue* 代表不可变的常量值，不应作为指令的 `dst` 参数。可变变量应使用 `woort_IRFunction_new_vreg` 创建，通过 `woort_IR_MOV` 从常量值初始化。
+* `woort_IRFunction_fetch_const` 返回的 const IRValue* 代表不可变的常量值，不应作为指令的 `dst` 参数。可变变量应使用 `woort_IRFunction_new_vreg` 创建，通过 `woort_IR_MOV` 从常量值初始化。
 * 同一 `const_index` 多次调用 `load_const` 返回相同的 IRValue*（天然去重）
 * 常量值的加载时机和方式由框架自动决定：单次使用于 PUSHCHK/RET 时直接使用特化指令（PUSHCCHK/RETVC）；多次使用时在最优位置放置 LOAD 指令
 * 指令发射函数名保持大写（如 `woort_IR_ADDI`），控制流函数使用小写（如 `woort_IR_jmp`）

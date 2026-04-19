@@ -49,8 +49,8 @@ int main(int argc, char** argv) {
         (void)woort_IRCompiler_add_function(irc, 1, 0, &f_fib);
         {
             const woort_IRValue* n = woort_IRFunction_get_argument(f_fib, 0);
-            const woort_IRValue* cv_1 = woort_IRFunction_load_const(f_fib, c_1);
-            const woort_IRValue* cv_2 = woort_IRFunction_load_const(f_fib, c_2);
+            const woort_IRValue* cv_1 = woort_IRFunction_fetch_const(f_fib, c_1);
+            const woort_IRValue* cv_2 = woort_IRFunction_fetch_const(f_fib, c_2);
 
             woort_IRLabel* lb = woort_IRFunction_new_label(f_fib);
 
@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
 
         (void)woort_IRCompiler_add_function(irc, 0, 0, &f_main);
         {
-            (void)woort_IR_PUSHCHK(f_main, woort_IRFunction_load_const(f_main, c_35));
+            (void)woort_IR_PUSHCHK(f_main, woort_IRFunction_fetch_const(f_main, c_35));
 
             woort_IRValue* v = woort_IRFunction_new_vreg(f_main);
             (void)woort_IR_CALLNWO(f_main, c_f_fib, 1, v);
