@@ -21,11 +21,11 @@
 #include <string.h>
 #include <assert.h>
 
-/* ========== 私有类型 ========== */
+ /* ========== 私有类型 ========== */
 
-/*
- * 常量加载放置信息（放置在 block 的 m_const_loads 中）
- */
+ /*
+  * 常量加载放置信息（放置在 block 的 m_const_loads 中）
+  */
 typedef struct _woort_ConstLoadInfo
 {
     woort_IRConstantIndex m_const_index;
@@ -92,7 +92,7 @@ static bool _is_terminator(woort_IROp_Kind kind)
 
 static bool _add_cfg_edge(
     woort_IRBlock* from_block, uint32_t from_idx,
-    woort_IRBlock* to_block,   uint32_t to_idx)
+    woort_IRBlock* to_block, uint32_t to_idx)
 {
     if (!woort_vector_push_back(&from_block->m_successors, 1, &to_idx))
         return false;
@@ -105,9 +105,9 @@ static bool _add_cfg_edge(
  * 辅助函数：Bitset 操作
  * ======================================================================== */
 
-/*
- * dst |= src ，返回是否有位发生改变
- */
+ /*
+  * dst |= src ，返回是否有位发生改变
+  */
 static bool _bitset_union_into(woort_Bitset* dst, const woort_Bitset* src)
 {
     assert(dst->m_word_count == src->m_word_count);
@@ -326,8 +326,8 @@ WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_fetch_const
      * 查找已有的 CONST vreg（同一 const_index 返回同一 IRValue*）
      */
     for (woort_IRValue* v = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
-         v != NULL;
-         v = (woort_IRValue*)woort_linklist_next(v))
+        v != NULL;
+        v = (woort_IRValue*)woort_linklist_next(v))
     {
         if (v->m_source == WOORT_IRVALUE_SOURCE_CONST && v->m_const_idx == idx)
             return v;
@@ -586,8 +586,8 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
 
     /* 为每个 label 设置 m_block_index */
     for (woort_IRLabel* label = (woort_IRLabel*)woort_linklist_iter(&f->m_ir_labels);
-         label != NULL;
-         label = (woort_IRLabel*)woort_linklist_next(label))
+        label != NULL;
+        label = (woort_IRLabel*)woort_linklist_next(label))
     {
         if (label->m_bound)
         {
@@ -846,10 +846,10 @@ static bool _phase2_liveness_analysis(woort_IRFunction* f, const uint32_t* const
 
                 /* LIVE_IN(B) = USE(B) | (LIVE_OUT(B) & ~DEF(B)) */
                 if (_bitset_assign_live_in(
-                        &blk->m_live_in,
-                        &blk->m_use,
-                        &blk->m_live_out,
-                        &blk->m_def))
+                    &blk->m_live_in,
+                    &blk->m_use,
+                    &blk->m_live_out,
+                    &blk->m_def))
                     changed = true;
             }
         }
@@ -878,8 +878,8 @@ static bool _phase3b_const_optimization(woort_IRFunction* f)
      * 对每个 CONST vreg 统计 use_count 并查找唯一使用者
      */
     for (woort_IRValue* cv = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
-         cv != NULL;
-         cv = (woort_IRValue*)woort_linklist_next(cv))
+        cv != NULL;
+        cv = (woort_IRValue*)woort_linklist_next(cv))
     {
         if (cv->m_source != WOORT_IRVALUE_SOURCE_CONST)
             continue;
@@ -907,6 +907,7 @@ static bool _phase3b_const_optimization(woort_IRFunction* f)
 
         /* 检查唯一使用者是否是 MOV, PUSHCHK 或 RET */
         if (unique_user->m_op != WOORT_IROP_KIND_MOV &&
+            unique_user->m_op != WOORT_IROP_KIND_PANIC &&
             unique_user->m_op != WOORT_IROP_KIND_PUSHCHK &&
             unique_user->m_op != WOORT_IROP_KIND_RET)
         {
@@ -914,7 +915,8 @@ static bool _phase3b_const_optimization(woort_IRFunction* f)
         }
 
         /* RETVC 没有扩展编码，const_index 超 U24 范围时不可用 */
-        if (unique_user->m_op == WOORT_IROP_KIND_RET &&
+        if ((unique_user->m_op == WOORT_IROP_KIND_RET ||
+            unique_user->m_op == WOORT_IROP_KIND_PANIC) &&
             cv->m_const_idx > ((1u << 24) - 1))
         {
             continue;
@@ -954,8 +956,8 @@ static bool _phase3_stack_allocation(
         return false;
 
     for (woort_IRValue* v = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
-         v != NULL;
-         v = (woort_IRValue*)woort_linklist_next(v))
+        v != NULL;
+        v = (woort_IRValue*)woort_linklist_next(v))
     {
         assert(v->m_id < vreg_count);
         vreg_by_id[v->m_id] = v;
@@ -965,7 +967,7 @@ static bool _phase3_stack_allocation(
      * 计算每个 vreg 的活跃区间 [first_def, last_use]
      */
     uint32_t* const first_point = (uint32_t*)malloc(vreg_count * sizeof(uint32_t));
-    uint32_t* const last_point  = (uint32_t*)malloc(vreg_count * sizeof(uint32_t));
+    uint32_t* const last_point = (uint32_t*)malloc(vreg_count * sizeof(uint32_t));
 
     if (first_point == NULL || last_point == NULL)
     {
@@ -978,7 +980,7 @@ static bool _phase3_stack_allocation(
     for (uint32_t i = 0; i < vreg_count; ++i)
     {
         first_point[i] = UINT32_MAX;
-        last_point[i]  = 0;
+        last_point[i] = 0;
     }
 
     /* 扫描所有指令收集 def/use 点 */
@@ -1130,7 +1132,7 @@ static bool _phase3_stack_allocation(
     if (interval_count > 1)
     {
         qsort(intervals, interval_count,
-              sizeof(_woort_LiveInterval), _compare_intervals_by_start);
+            sizeof(_woort_LiveInterval), _compare_intervals_by_start);
     }
 
     /*
@@ -1235,10 +1237,10 @@ static bool _phase4a_build_dominator_tree(woort_IRFunction* f)
     if (block_count == 0)
         return true;
 
-    int32_t*  idom       = (int32_t*)malloc(block_count * sizeof(int32_t));
-    uint32_t* rpo_order  = (uint32_t*)malloc(block_count * sizeof(uint32_t));
+    int32_t* idom = (int32_t*)malloc(block_count * sizeof(int32_t));
+    uint32_t* rpo_order = (uint32_t*)malloc(block_count * sizeof(uint32_t));
     uint32_t* rpo_number = (uint32_t*)malloc(block_count * sizeof(uint32_t));
-    bool*     visited    = (bool*)calloc(block_count, sizeof(bool));
+    bool* visited = (bool*)calloc(block_count, sizeof(bool));
 
     if (idom == NULL || rpo_order == NULL || rpo_number == NULL || visited == NULL)
     {
@@ -1476,7 +1478,7 @@ static bool _phase4b_detect_loops(woort_IRFunction* f)
                 return false;
 
             in_loop[succ] = true;
-            in_loop[b]    = true;
+            in_loop[b] = true;
 
             uint32_t* worklist = (uint32_t*)malloc(block_count * sizeof(uint32_t));
             if (worklist == NULL)
@@ -1532,9 +1534,9 @@ static bool _phase4b_detect_loops(woort_IRFunction* f)
  * Phase 4c: 常量加载放置
  * =================================================================== */
 
-/*
- * 求两个 block 的最近公共支配者
- */
+ /*
+  * 求两个 block 的最近公共支配者
+  */
 static int32_t _find_common_dominator(woort_IRFunction* f, int32_t a, int32_t b)
 {
     if (a < 0) return b;
@@ -1641,8 +1643,8 @@ static bool _phase4c_determine_const_load_placement(
     woort_vector_init(&const_infos, sizeof(_woort_ConstUseInfo));
 
     for (woort_IRValue* cv = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
-         cv != NULL;
-         cv = (woort_IRValue*)woort_linklist_next(cv))
+        cv != NULL;
+        cv = (woort_IRValue*)woort_linklist_next(cv))
     {
         if (cv->m_source != WOORT_IRVALUE_SOURCE_CONST)
             continue;
@@ -1778,8 +1780,8 @@ static bool _phase4c_update_const_load_offsets(woort_IRFunction* f)
     woort_vector_init(&const_map, sizeof(_woort_ConstLoadInfo));
 
     for (woort_IRValue* cv = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
-         cv != NULL;
-         cv = (woort_IRValue*)woort_linklist_next(cv))
+        cv != NULL;
+        cv = (woort_IRValue*)woort_linklist_next(cv))
     {
         if (cv->m_source != WOORT_IRVALUE_SOURCE_CONST)
             continue;
