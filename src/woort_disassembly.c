@@ -256,36 +256,39 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
         break;
     }
 
-    case WOORT_OPCODE_CASTS:
+    case WOORT_OPCODE_CASTX:
     {
         switch (m2)
         {
         case 0:
         {
-            const int8_t src = (int8_t)WOORT_BYTECODE(A8, bc);
-            const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("STOIST      [SB %+d] -> [SB %+d]\n", src, dst);
+            const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
+            const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
+            const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
+            printf("CASTSTO     T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
             return c + 1;
         }
         case 1:
         {
-            const int8_t dst = (int8_t)WOORT_BYTECODE(A8, bc);
-            const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("STOILD      [SB %+d] -> [SB %+d]\n", src, dst);
+            const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
+            const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
+            const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
+            printf("CASTSFROM   T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
             return c + 1;
         }
         case 2:
         {
-            const int8_t src = (int8_t)WOORT_BYTECODE(A8, bc);
-            const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("STORST      [SB %+d] -> [SB %+d]\n", src, dst);
+            const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
+            const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
+            const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
+            printf("CASTBOX     T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
             return c + 1;
         }
         case 3:
         {
-            const int8_t dst = (int8_t)WOORT_BYTECODE(A8, bc);
+            const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("STORLD      [SB %+d] -> [SB %+d]\n", src, dst);
+            printf("ASSERTBOX   T%u, [SB %+d]\n", t, src);
             return c + 1;
         }
         }

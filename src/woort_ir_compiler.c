@@ -650,10 +650,12 @@ static bool _emit_op(
         _EMIT_CAST_BODY(blk, op, c, woort_OpCode_RTOSST, woort_OpCode_RTOSLD);
 
     case WOORT_IROP_KIND_STOI:
-        _EMIT_CAST_BODY(blk, op, c, woort_OpCode_STOIST, woort_OpCode_STOILD);
+        /* TODO: 适配新的 CASTSTO 指令 */
+        abort();
 
     case WOORT_IROP_KIND_STOR:
-        _EMIT_CAST_BODY(blk, op, c, woort_OpCode_STORST, woort_OpCode_STORLD);
+        /* TODO: 适配新的 CASTSFROM 指令 */
+        abort();
 
     /* ============ 函数调用 ============ */
     case WOORT_IROP_KIND_CALLNWO:

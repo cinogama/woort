@@ -562,48 +562,39 @@ _label_continue_execution:
                 woort_GCString_from_real(real_val);
             break;
         }
-        // STOIST
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTS, 0):
+        // CASTSTO
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 0):
         {
-            const woort_GCString* str_val = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string;
-            woort_Int int_result;
-            if (woort_GCString_to_integer(str_val, &int_result))
-                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer = int_result;
-            else
-                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer = 0;
+            (void)WOORT_BYTECODE(A8, c);
+            (void)rt_sb[(int8_t)WOORT_BYTECODE(B8, c)];
+            (void)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)];
+            abort();
             break;
         }
-        // STOILD
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTS, 1):
+        // CASTSFROM
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 1):
         {
-            const woort_GCString* str_val = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_string;
-            woort_Int int_result;
-            if (woort_GCString_to_integer(str_val, &int_result))
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer = int_result;
-            else
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer = 0;
+            (void)WOORT_BYTECODE(A8, c);
+            (void)rt_sb[(int8_t)WOORT_BYTECODE(B8, c)];
+            (void)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)];
+            abort();
             break;
         }
-        // STORST
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTS, 2):
+        // CASTBOX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 2):
         {
-            const woort_GCString* str_val = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string;
-            woort_Real real_result;
-            if (woort_GCString_to_real(str_val, &real_result))
-                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real = real_result;
-            else
-                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real = 0.0;
+            (void)WOORT_BYTECODE(A8, c);
+            (void)rt_sb[(int8_t)WOORT_BYTECODE(B8, c)];
+            (void)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)];
+            abort();
             break;
         }
-        // STORLD
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTS, 3):
+        // ASSERTBOX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 3):
         {
-            const woort_GCString* str_val = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_string;
-            woort_Real real_result;
-            if (woort_GCString_to_real(str_val, &real_result))
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real = real_result;
-            else
-                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_real = 0.0;
+            (void)WOORT_BYTECODE(A8, c);
+            (void)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
+            abort();
             break;
         }
 

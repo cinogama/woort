@@ -122,20 +122,20 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CASTR, 3, a8, bc16)
 
 /*
- * CASTS - 字符串类型转换
- * STOIST (mode=0): [SB + a8] -> [SB + bc16] (int)
- * STOILD (mode=1): [SB + bc16] -> [SB + a8] (int)
- * STORST (mode=2): [SB + a8] -> [SB + bc16] (real)
- * STORLD (mode=3): [SB + bc16] -> [SB + a8] (real)
+ * CASTS - 类型转换（字符串/BOXED）
+ * CASTSTO   (mode=0): 将字符串 [SB + b8] 转换为 T8 类型 -> [SB + c8]
+ * CASTSFROM (mode=1): 将 T8 类型值 [SB + b8] 转换为字符串 -> [SB + c8]
+ * CASTBOX   (mode=2): 将 BOXED 值 [SB + b8] 转换为 T8 类型 -> [SB + c8]
+ * ASSERTBOX (mode=3): 诊断 BOXED 值 [SB + bc16] 是否是 T8 类型，否则 PANIC
  */
-#define woort_OpCode_STOIST(a8, bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CASTS, 0, a8, bc16)
-#define woort_OpCode_STOILD(a8, bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CASTS, 1, a8, bc16)
-#define woort_OpCode_STORST(a8, bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CASTS, 2, a8, bc16)
-#define woort_OpCode_STORLD(a8, bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CASTS, 3, a8, bc16)
+#define woort_OpCode_CASTSTO(t8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_CASTX, 0, t8, b8, c8)
+#define woort_OpCode_CASTSFROM(t8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_CASTX, 1, t8, b8, c8)
+#define woort_OpCode_CASTBOX(t8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_CASTX, 2, t8, b8, c8)
+#define woort_OpCode_ASSERTBOX(t8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CASTX, 3, t8, bc16)
 
 /*
  * CALLNWO/CALLNFP/CALLNJIT - 函数调用
