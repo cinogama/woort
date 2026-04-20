@@ -546,6 +546,19 @@ WOORT_NODISCARD bool woort_IR_CAS(
     _EMIT_END();
 }
 
+WOORT_NODISCARD bool woort_IR_PACKARG(
+    woort_IRFunction* f,
+    uint16_t named_param_count,
+    woort_IRValue* dst)
+{
+    if (named_param_count > 1023)
+        return false;
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_PACKARG);
+    op_->m_dst = dst;
+    op_->m_packarg_count = named_param_count;
+    _EMIT_END();
+}
+
 /* ========== 控制流 ========== */
 
 WOORT_NODISCARD bool woort_IR_bind(

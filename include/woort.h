@@ -1421,6 +1421,18 @@ WOORT_API WOORT_NODISCARD bool woort_IR_CAS(
     woort_IRValue* expected,
     const woort_IRValue* desired);
 
+/**
+ * @brief Pack remaining arguments into an array for variadic function calls.
+ * @param f                The IR function. Must not be NULL.
+ * @param named_param_count Number of named parameters to skip (arguments already bound).
+ * @param dst              The destination to store the packed argument array.
+ * @return true on success, false on OOM.
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_PACKARG(
+    woort_IRFunction* f,
+    uint16_t named_param_count,
+    woort_IRValue* dst);
+
 /**@}*/
 
 /** @} */ /* end IR Instruction Emission group */

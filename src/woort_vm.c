@@ -3303,15 +3303,17 @@ _label_continue_execution:
         // PACKARG
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_PACKARG):
         {
+            const uint16_t skip_count = WOORT_BYTECODE(MA10, c);
+
             const woort_Value* const argument_to_pack = &rt_sb[
                 3 /* First argument place */
                     + 1 /* Argument count for variadic function */
-                    + WOORT_BYTECODE(MA10, c) /* Skip count */];
+                    + skip_count];
 
             woort_GCVec* const gcvec = woort_GCVec_new();
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_vec = gcvec;
 
-            const size_t pack_argc = rt_sb[3].m_integer;
+            const size_t pack_argc = (size_t)rt_sb[3].m_integer - skip_count;
 
             // NOTE: 此处不同步虚拟机状态直接分配是没有问题的，如果分配失败
             //      会假定整个栈空间都在被使用中，肯定能标记到 gcvec 实例

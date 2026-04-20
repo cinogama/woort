@@ -192,6 +192,7 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_ASTORE,         /* atomic store: G[static_idx] = src (release) */
     WOORT_IROP_KIND_ALOAD,          /* atomic load:  dst = G[static_idx] (acquire) */
     WOORT_IROP_KIND_CAS,            /* compare-and-swap: CAS G[static_idx](expected, desired) */
+    WOORT_IROP_KIND_PACKARG,        /* pack remaining arguments for variadic call */
 
     /* ============ 陷阱/Panic ============ */
     WOORT_IROP_KIND_DEBUGTRAP,      /* debug trap/breakpoint */
@@ -255,6 +256,9 @@ typedef struct woort_IROp
 
         /* POPR */
         uint32_t m_pop_count;
+
+        /* PACKARG */
+        uint16_t m_packarg_count;
 
         /* JMP, JCC, JCCZ, JCC_LT, JCC_LE, JCC_EQ, JCC_GT, JCC_GE, JCC_NE */
         woort_IRLabel* m_jump_target;

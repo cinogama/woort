@@ -1365,6 +1365,16 @@ static bool _emit_op(
         return _apply_store(blk, op->m_dst, expected);
     }
 
+    /* ============ PACKARG ============ */
+    case WOORT_IROP_KIND_PACKARG:
+    {
+        assert(op->m_dst != NULL);
+        const int16_t w16 = _get_store_s16(op->m_dst, -128);
+        if (!_emit_bc(blk, woort_OpCode_PACKARG((uint16_t)op->m_packarg_count, (uint16_t)w16)))
+            return false;
+        return _apply_store(blk, op->m_dst, w16);
+    }
+
     /* ============ 跳转指令：发射占位符 + 记录 patch ============ */
     case WOORT_IROP_KIND_JMP:
     {
