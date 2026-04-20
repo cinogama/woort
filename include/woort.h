@@ -704,14 +704,14 @@ WOORT_API WOORT_NODISCARD bool woort_IR_CASTSFROM(
     const woort_IRValue* src);
 
 /** @brief Unbox a BOXED value to T8-specified type: dst = unbox_to<T>(src). */
-WOORT_API WOORT_NODISCARD bool woort_IR_CASTBOX(
+WOORT_API WOORT_NODISCARD bool woort_IR_CASTDYN(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint8_t typ,
     const woort_IRValue* src);
 
 /** @brief Assert BOXED value is of T8-specified type; panic if not. */
-WOORT_API WOORT_NODISCARD bool woort_IR_ASSERTBOX(
+WOORT_API WOORT_NODISCARD bool woort_IR_ASSERTDYN(
     woort_IRFunction* f,
     uint8_t typ,
     const woort_IRValue* src);

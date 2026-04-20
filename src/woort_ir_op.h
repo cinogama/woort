@@ -59,8 +59,8 @@ typedef enum woort_IROp_Kind
     /* ============ 字符串/BOXED 转换 ============ */
     WOORT_IROP_KIND_CASTSTO,
     WOORT_IROP_KIND_CASTSFROM,
-    WOORT_IROP_KIND_CASTBOX,
-    WOORT_IROP_KIND_ASSERTBOX,
+    WOORT_IROP_KIND_CASTDYN,
+    WOORT_IROP_KIND_ASSERTDYN,
 
     /* ============ 整数算术 ============ */
     WOORT_IROP_KIND_ADDI,

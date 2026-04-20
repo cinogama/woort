@@ -281,14 +281,14 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
             const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("CASTBOX     T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
+            printf("CASTDYN     T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
             return c + 1;
         }
         case 3:
         {
             const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("ASSERTBOX   T%u, [SB %+d]\n", t, src);
+            printf("ASSERTDYN   T%u, [SB %+d]\n", t, src);
             return c + 1;
         }
         }

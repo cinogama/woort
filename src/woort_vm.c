@@ -658,7 +658,7 @@ _label_continue_execution:
             abort();
             break;
         }
-        // CASTBOX
+        // CASTDYN
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 2):
         {
             (void)WOORT_BYTECODE(A8, c);
@@ -667,7 +667,7 @@ _label_continue_execution:
             abort();
             break;
         }
-        // ASSERTBOX
+        // ASSERTDYN
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 3):
         {
             if (!woort_DynBox_check(

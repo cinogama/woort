@@ -882,24 +882,24 @@ static bool _emit_op(
             return false;
         return _apply_store(blk, op->m_dst, w);
     }
-    case WOORT_IROP_KIND_CASTBOX:
+    case WOORT_IROP_KIND_CASTDYN:
     {
         (void)c;
         int8_t r;
         if (!_load_to_s8(blk, op->m_src[0], -128, &r))
             return false;
         const int8_t w = _get_store_s8(op->m_dst, -127);
-        if (!_emit_bc(blk, woort_OpCode_CASTBOX(op->m_type, r, w)))
+        if (!_emit_bc(blk, woort_OpCode_CASTDYN(op->m_type, r, w)))
             return false;
         return _apply_store(blk, op->m_dst, w);
     }
-    case WOORT_IROP_KIND_ASSERTBOX:
+    case WOORT_IROP_KIND_ASSERTDYN:
     {
         (void)c;
         int16_t r;
         if (!_load_to_s16(blk, op->m_src[0], -128, &r))
             return false;
-        return _emit_bc(blk, woort_OpCode_ASSERTBOX(op->m_type, r));
+        return _emit_bc(blk, woort_OpCode_ASSERTDYN(op->m_type, r));
     }
 
     /* ============ 整数算术 ============ */
