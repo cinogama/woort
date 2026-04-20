@@ -262,11 +262,11 @@
  * MKSTRUCT (mode=2): 构造结构体，n8 个字段 -> [SB + bc16]
  */
 #define woort_OpCode_MKVEC(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_CONS, ((n8) << 8) | 0, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONS, 0, n8, bc16)
 #define woort_OpCode_MKMAP(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_CONS, ((n8) << 8) | 1, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONS, 1, n8, bc16)
 #define woort_OpCode_MKSTRUCT(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_CONS, ((n8) << 8) | 2, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONS, 2, n8, bc16)
 
 /*
  * MKCLOSURE - 闭包创建
@@ -772,13 +772,13 @@
  * PUSHIDXSTBOXI/R/B/X: 压入 struct.n8 的引用到栈，类型 int/real/bool/dynamic
  */
 #define woort_OpCode_PUSHIDXSTBOXI(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_PUSHIDXSTBOX, ((n8) << 8) | 0, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDXSTBOX, 0, n8, bc16)
 #define woort_OpCode_PUSHIDXSTBOXR(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_PUSHIDXSTBOX, ((n8) << 8) | 1, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDXSTBOX, 1, n8, bc16)
 #define woort_OpCode_PUSHIDXSTBOXB(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_PUSHIDXSTBOX, ((n8) << 8) | 2, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDXSTBOX, 2, n8, bc16)
 #define woort_OpCode_PUSHIDXSTBOXX(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_PUSHIDXSTBOX, ((n8) << 8) | 3, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDXSTBOX, 3, n8, bc16)
 
 /*
  * PACKARG - 打包参数
