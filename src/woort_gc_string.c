@@ -83,71 +83,12 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_from_real(woort_Real value)
     return woort_GCString_make_string(buffer, (size_t)len);
 }
 
-WOORT_NODISCARD bool woort_GCString_to_integer(const woort_GCString* str, woort_Int* out_value)
+WOORT_NODISCARD woort_Int woort_GCString_to_integer(const woort_GCString* str)
 {
-    if (str == NULL || str->m_length == 0 || out_value == NULL)
-        return false;
-
-    // 使用 sscanf 解析整数
-    // 支持十进制、十六进制(0x)、八进制(0)格式
-    char* end_ptr = NULL;
-    const char* start = str->m_content;
-
-    // 跳过前导空白
-    while (start < str->m_content + str->m_length && (*start == ' ' || *start == '\t'))
-        ++start;
-
-    if (start >= str->m_content + str->m_length)
-        return false;
-
-    const woort_Int result = strtoll(start, &end_ptr, 0);
-
-    // 检查是否解析成功
-    if (end_ptr == start)
-        return false;
-
-    // 跳过尾随空白
-    while (end_ptr < str->m_content + str->m_length && (*end_ptr == ' ' || *end_ptr == '\t'))
-        ++end_ptr;
-
-    // 确保整个字符串都被解析（除了空白）
-    if (end_ptr != str->m_content + str->m_length)
-        return false;
-
-    *out_value = result;
-    return true;
+    return (woort_Int)strtoll(str->m_content, NULL, 0);
 }
 
-WOORT_NODISCARD bool woort_GCString_to_real(const woort_GCString* str, woort_Real* out_value)
+WOORT_NODISCARD woort_Real woort_GCString_to_real(const woort_GCString* str)
 {
-    if (str == NULL || str->m_length == 0 || out_value == NULL)
-        return false;
-
-    // 使用 strtod 解析浮点数
-    char* end_ptr = NULL;
-    const char* start = str->m_content;
-
-    // 跳过前导空白
-    while (start < str->m_content + str->m_length && (*start == ' ' || *start == '\t'))
-        ++start;
-
-    if (start >= str->m_content + str->m_length)
-        return false;
-
-    const woort_Real result = strtod(start, &end_ptr);
-
-    // 检查是否解析成功
-    if (end_ptr == start)
-        return false;
-
-    // 跳过尾随空白
-    while (end_ptr < str->m_content + str->m_length && (*end_ptr == ' ' || *end_ptr == '\t'))
-        ++end_ptr;
-
-    // 确保整个字符串都被解析（除了空白）
-    if (end_ptr != str->m_content + str->m_length)
-        return false;
-
-    *out_value = result;
-    return true;
+    return (woort_Real)strtod(str->m_content, NULL);
 }

@@ -37,8 +37,6 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_ITOS,
     WOORT_IROP_KIND_RTOI,
     WOORT_IROP_KIND_RTOS,
-    WOORT_IROP_KIND_STOI,
-    WOORT_IROP_KIND_STOR,
 
     /* ============ 函数调用 ============ */
     WOORT_IROP_KIND_CALLNWO,        /* call script function */
@@ -57,6 +55,12 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_UNBOXDYN,
     WOORT_IROP_KIND_CHECKDYN,
     WOORT_IROP_KIND_PUSHBOXDYN,
+
+    /* ============ 字符串/BOXED 转换 ============ */
+    WOORT_IROP_KIND_CASTSTO,
+    WOORT_IROP_KIND_CASTSFROM,
+    WOORT_IROP_KIND_CASTBOX,
+    WOORT_IROP_KIND_ASSERTBOX,
 
     /* ============ 整数算术 ============ */
     WOORT_IROP_KIND_ADDI,

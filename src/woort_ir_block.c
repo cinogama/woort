@@ -282,8 +282,6 @@ _DEFINE_UNARY_OP(woort_IR_ITOR, WOORT_IROP_KIND_ITOR)
 _DEFINE_UNARY_OP(woort_IR_ITOS, WOORT_IROP_KIND_ITOS)
 _DEFINE_UNARY_OP(woort_IR_RTOI, WOORT_IROP_KIND_RTOI)
 _DEFINE_UNARY_OP(woort_IR_RTOS, WOORT_IROP_KIND_RTOS)
-_DEFINE_UNARY_OP(woort_IR_STOI, WOORT_IROP_KIND_STOI)
-_DEFINE_UNARY_OP(woort_IR_STOR, WOORT_IROP_KIND_STOR)
 
 /* ========== 函数调用 ========== */
 
@@ -334,6 +332,22 @@ WOORT_NODISCARD bool woort_IR_PUSHBOXDYN(
     woort_IRFunction* f, uint8_t typ, const woort_IRValue* src)
 {
     _EMIT_BEGIN(f, WOORT_IROP_KIND_PUSHBOXDYN);
+    op_->m_dst = NULL;
+    op_->m_src[0] = src;
+    op_->m_type = typ;
+    _EMIT_END();
+}
+
+/* ========== 字符串/BOXED 转换 ========== */
+
+_DEFINE_DYNBOX(woort_IR_CASTSTO,   WOORT_IROP_KIND_CASTSTO)
+_DEFINE_DYNBOX(woort_IR_CASTSFROM, WOORT_IROP_KIND_CASTSFROM)
+_DEFINE_DYNBOX(woort_IR_CASTBOX,   WOORT_IROP_KIND_CASTBOX)
+
+WOORT_NODISCARD bool woort_IR_ASSERTBOX(
+    woort_IRFunction* f, uint8_t typ, const woort_IRValue* src)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_ASSERTBOX);
     op_->m_dst = NULL;
     op_->m_src[0] = src;
     op_->m_type = typ;

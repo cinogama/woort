@@ -544,19 +544,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_RTOS(
     woort_IRValue* dst,
     const woort_IRValue* src);
 
-/** @brief Convert string to integer: dst = parse_int(src). */
-WOORT_API WOORT_NODISCARD bool woort_IR_STOI(
-    woort_IRFunction* f,
-    woort_IRValue* dst,
-    const woort_IRValue* src);
-
-/** @brief Convert string to real: dst = parse_real(src). */
-WOORT_API WOORT_NODISCARD bool woort_IR_STOR(
-    woort_IRFunction* f,
-    woort_IRValue* dst,
-    const woort_IRValue* src);
-
-/**@}*/
+/** @}*/
 
 /** @name Function Calls */
 /**@{*/
@@ -692,6 +680,38 @@ WOORT_API WOORT_NODISCARD bool woort_IR_CHECKDYN(
 
 /** @brief Box and push a dynamic value onto the stack. */
 WOORT_API WOORT_NODISCARD bool woort_IR_PUSHBOXDYN(
+    woort_IRFunction* f,
+    uint8_t typ,
+    const woort_IRValue* src);
+
+/**@}*/
+
+/** @name String / Boxed Conversions */
+/**@{*/
+
+/** @brief Convert string value to T8-specified type: dst = cast_to<T>(src). */
+WOORT_API WOORT_NODISCARD bool woort_IR_CASTSTO(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    uint8_t typ,
+    const woort_IRValue* src);
+
+/** @brief Convert T8-typed value to string: dst = tostring(src). */
+WOORT_API WOORT_NODISCARD bool woort_IR_CASTSFROM(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    uint8_t typ,
+    const woort_IRValue* src);
+
+/** @brief Unbox a BOXED value to T8-specified type: dst = unbox_to<T>(src). */
+WOORT_API WOORT_NODISCARD bool woort_IR_CASTBOX(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    uint8_t typ,
+    const woort_IRValue* src);
+
+/** @brief Assert BOXED value is of T8-specified type; panic if not. */
+WOORT_API WOORT_NODISCARD bool woort_IR_ASSERTBOX(
     woort_IRFunction* f,
     uint8_t typ,
     const woort_IRValue* src);

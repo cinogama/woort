@@ -649,14 +649,6 @@ static bool _emit_op(
     case WOORT_IROP_KIND_RTOS:
         _EMIT_CAST_BODY(blk, op, c, woort_OpCode_RTOSST, woort_OpCode_RTOSLD);
 
-    case WOORT_IROP_KIND_STOI:
-        /* TODO: 适配新的 CASTSTO 指令 */
-        abort();
-
-    case WOORT_IROP_KIND_STOR:
-        /* TODO: 适配新的 CASTSFROM 指令 */
-        abort();
-
     /* ============ 函数调用 ============ */
     case WOORT_IROP_KIND_CALLNWO:
     {
@@ -865,6 +857,49 @@ static bool _emit_op(
         if (!_load_to_s16(blk, op->m_src[0], -128, &r))
             return false;
         return _emit_bc(blk, woort_OpCode_PUSHBOXDYN(op->m_type, r));
+    }
+
+    /* ============ 字符串/BOXED 转换 ============ */
+    case WOORT_IROP_KIND_CASTSTO:
+    {
+        (void)c;
+        int8_t r;
+        if (!_load_to_s8(blk, op->m_src[0], -128, &r))
+            return false;
+        const int8_t w = _get_store_s8(op->m_dst, -127);
+        if (!_emit_bc(blk, woort_OpCode_CASTSTO(op->m_type, r, w)))
+            return false;
+        return _apply_store(blk, op->m_dst, w);
+    }
+    case WOORT_IROP_KIND_CASTSFROM:
+    {
+        (void)c;
+        int8_t r;
+        if (!_load_to_s8(blk, op->m_src[0], -128, &r))
+            return false;
+        const int8_t w = _get_store_s8(op->m_dst, -127);
+        if (!_emit_bc(blk, woort_OpCode_CASTSFROM(op->m_type, r, w)))
+            return false;
+        return _apply_store(blk, op->m_dst, w);
+    }
+    case WOORT_IROP_KIND_CASTBOX:
+    {
+        (void)c;
+        int8_t r;
+        if (!_load_to_s8(blk, op->m_src[0], -128, &r))
+            return false;
+        const int8_t w = _get_store_s8(op->m_dst, -127);
+        if (!_emit_bc(blk, woort_OpCode_CASTBOX(op->m_type, r, w)))
+            return false;
+        return _apply_store(blk, op->m_dst, w);
+    }
+    case WOORT_IROP_KIND_ASSERTBOX:
+    {
+        (void)c;
+        int16_t r;
+        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
+            return false;
+        return _emit_bc(blk, woort_OpCode_ASSERTBOX(op->m_type, r));
     }
 
     /* ============ 整数算术 ============ */

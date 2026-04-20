@@ -28,6 +28,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <string.h>
 
 WOORT_THREAD_LOCAL woort_VMRuntime* WOORT_t_this_thread_vm;
 
@@ -565,15 +566,92 @@ _label_continue_execution:
         // CASTSTO
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 0):
         {
-            (void)WOORT_BYTECODE(A8, c);
-            (void)rt_sb[(int8_t)WOORT_BYTECODE(B8, c)];
-            (void)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)];
-            abort();
+            const woort_GCString* str_val = rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string;
+
+            switch (WOORT_BYTECODE(A8, c))
+            {
+            case WOORT_BOX_VALUE_TYPE_REAL:
+                // Cast string to real.
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_real =
+                    woort_GCString_to_real(str_val);
+                break;
+            case WOORT_BOX_VALUE_TYPE_INT:
+                // Cast string to int.
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                    woort_GCString_to_integer(str_val);
+                break;
+            case WOORT_BOX_VALUE_TYPE_BOOL:
+                // Cast string to bool.
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                    0 == strcmp("true", str_val->m_content);
+                break;
+            case WOORT_BOX_VALUE_TYPE_STRING:
+                // ...
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
+                    str_val;
+                break;
+            default:
+                WOORT_VM_THROW(bad_cast);
+                break;
+            }
             break;
         }
         // CASTSFROM
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 1):
         {
+            switch (WOORT_BYTECODE(A8, c))
+            {
+            case WOORT_BOX_VALUE_TYPE_REAL:
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
+                    woort_GCString_from_real(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
+                break;
+            case WOORT_BOX_VALUE_TYPE_INT:
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
+                    woort_GCString_from_integer(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+                break;
+            case WOORT_BOX_VALUE_TYPE_BOOL:
+                if (0 == rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer)
+                {
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
+                        woort_GCString_make_string("false", 5);
+                }
+                else
+                {
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
+                        woort_GCString_make_string("true", 4);
+                }
+                break;
+            case WOORT_BOX_VALUE_TYPE_NIL:
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
+                    woort_GCString_make_string("nil", 3);
+                break;
+            case WOORT_BOX_VALUE_TYPE_STRING:
+                // ...
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
+                    rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string;
+                break;
+            case WOORT_BOX_VALUE_TYPE_VEC:
+                // TODO;
+                abort();
+                break;
+            case WOORT_BOX_VALUE_TYPE_MAP:
+                // TODO;
+                abort();
+                break;
+            case WOORT_BOX_VALUE_TYPE_STRUCT:
+                // TODO;
+                abort();
+                break;
+            case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+                // TODO;
+                abort();
+                break;
+            case WOORT_BOX_VALUE_TYPE_CLOSURE:
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
+                    woort_GCString_make_string("<function>", 10);
+                break;
+            }
+
             (void)WOORT_BYTECODE(A8, c);
             (void)rt_sb[(int8_t)WOORT_BYTECODE(B8, c)];
             (void)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)];
@@ -592,9 +670,12 @@ _label_continue_execution:
         // ASSERTBOX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 3):
         {
-            (void)WOORT_BYTECODE(A8, c);
-            (void)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
-            abort();
+            if (!woort_DynBox_check(
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_dynamic,
+                (woort_BoxValueType)WOORT_BYTECODE(A8, c)))
+            {
+                WOORT_VM_THROW(bad_type);
+            }
             break;
         }
 
@@ -3324,7 +3405,7 @@ _label_continue_execution:
 
                 } while (2 != woort_atomic_load_explicit(
                     (woort_AtomicInt64*)flag, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
-                
+
                 woort_atomic_thread_fence(WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
             }
             rt_ip = rt_env_code + WOORT_BYTECODE(MABC26, c);
@@ -3459,6 +3540,14 @@ _label_continue_execution:
         WOORT_VM_SYNC_STATE_AND_PANIC(
             WOORT_PANIC_BAD_TYPE,
             "Bad type.");
+        return WOORT_VM_CALL_STATUS_ABORTED;
+    }
+    WOORT_VM_EXCEPTION_LABEL(bad_cast) :
+    {
+        // Bad command.
+        WOORT_VM_SYNC_STATE_AND_PANIC(
+            WOORT_PANIC_BAD_TYPE,
+            "Bad cast.");
         return WOORT_VM_CALL_STATUS_ABORTED;
     }
     WOORT_VM_EXCEPTION_LABEL(bad_command) :
