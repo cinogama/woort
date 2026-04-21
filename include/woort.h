@@ -1331,6 +1331,61 @@ WOORT_API WOORT_NODISCARD bool woort_IR_STIDXSTRUCT(
 /** @name Unpacking */
 /**@{*/
 
+/**
+ * @brief Unpack vector and unbox elements onto stack.
+ * @param f IR function
+ * @param count Number of elements to unpack
+ * @param val Vector value to unpack
+ * @return true on success, false on OOM
+ * @note Emits UNPACKVEC bytecode (mode=0)
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVEC(
+    woort_IRFunction* f,
+    uint8_t count,
+    const woort_IRValue* val); 
+
+/**
+ * @brief Unpack vector without unboxing onto stack.
+ * @param f IR function
+ * @param count Number of elements to unpack
+ * @param val Vector value to unpack
+ * @return true on success, false on OOM
+ * @note Emits UNPACKVECX bytecode (mode=1)
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVECX(
+    woort_IRFunction* f,
+    uint8_t count,
+    const woort_IRValue* val);
+
+/**
+ * @brief Unpack all vector elements, unboxing at least count elements.
+ * @param f IR function
+ * @param dst Output slot to store actual unpacked count
+ * @param count Minimum number of elements to unpack and unbox
+ * @param val Vector value to unpack
+ * @return true on success, false on OOM
+ * @note Emits UNPACKVECALL bytecode (mode=2)
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVECALL(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    uint8_t count,
+    const woort_IRValue* val);
+
+/**
+ * @brief Unpack all vector elements without unboxing, writing count to dst.
+ * @param f IR function
+ * @param dst Output slot to store actual unpacked count
+ * @param count Minimum number of elements to unpack
+ * @param val Vector value to unpack
+ * @return true on success, false on OOM
+ * @note Emits UNPACKVECXALL bytecode (mode=3)
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVECXALL(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    uint8_t count,
+    const woort_IRValue* val);
 
 /**@}*/
 

@@ -766,7 +766,7 @@
 #define woort_OpCode_UNPACKVECALL(n8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_UNPACK, 2, n8, b8, c8)
 #define woort_OpCode_UNPACKVECXALL(n8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_UNPACK, 2, n8, b8, c8)
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_UNPACK, 3, n8, b8, c8)
 
 /*
  * PUSHIDXSTBOX - 压入结构体字段引用

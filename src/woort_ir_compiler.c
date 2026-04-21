@@ -1207,6 +1207,53 @@ static bool _emit_op(
     }
 
     /* ============ 解包 ============ */
+    case WOORT_IROP_KIND_UNPACKVEC:
+    {
+        (void)c;
+        assert(op->m_src[0] != NULL);
+        int16_t r;
+        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
+            return false;
+        return _emit_bc(blk, woort_OpCode_UNPACKVEC((uint8_t)op->m_count, r));
+    }
+
+    case WOORT_IROP_KIND_UNPACKVECX:
+    {
+        (void)c;
+        assert(op->m_src[0] != NULL);
+        int16_t r;
+        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
+            return false;
+        return _emit_bc(blk, woort_OpCode_UNPACKVECX((uint8_t)op->m_count, r));
+    }
+
+    case WOORT_IROP_KIND_UNPACKVECALL:
+    {
+        (void)c;
+        assert(op->m_src[0] != NULL);
+        assert(op->m_dst != NULL);
+        int8_t vec_r;
+        if (!_load_to_s8(blk, op->m_src[0], -128, &vec_r))
+            return false;
+        const int8_t dst_r = _get_store_s8(op->m_dst, -127);
+        if (!_emit_bc(blk, woort_OpCode_UNPACKVECALL((uint8_t)op->m_count, vec_r, dst_r)))
+            return false;
+        return _apply_store(blk, op->m_dst, dst_r);
+    }
+
+    case WOORT_IROP_KIND_UNPACKVECXALL:
+    {
+        (void)c;
+        assert(op->m_src[0] != NULL);
+        assert(op->m_dst != NULL);
+        int8_t vec_r;
+        if (!_load_to_s8(blk, op->m_src[0], -128, &vec_r))
+            return false;
+        const int8_t dst_r = _get_store_s8(op->m_dst, -127);
+        if (!_emit_bc(blk, woort_OpCode_UNPACKVECXALL((uint8_t)op->m_count, vec_r, dst_r)))
+            return false;
+        return _apply_store(blk, op->m_dst, dst_r);
+    }
 
     /* ============ 结构体字段推栈 ============ */
     case WOORT_IROP_KIND_PUSHIDXSTRUCT:

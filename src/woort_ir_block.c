@@ -488,6 +488,55 @@ WOORT_NODISCARD bool woort_IR_STIDXSTRUCT(
 
 /* ========== 解包 ========== */
 
+WOORT_NODISCARD bool woort_IR_UNPACKVEC(
+    woort_IRFunction* f,
+    uint8_t count,
+    const woort_IRValue* val)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_UNPACKVEC);
+    op_->m_dst = NULL;
+    op_->m_src[0] = val;
+    op_->m_count = count;
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_UNPACKVECX(
+    woort_IRFunction* f,
+    uint8_t count,
+    const woort_IRValue* val)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_UNPACKVECX);
+    op_->m_dst = NULL;
+    op_->m_src[0] = val;
+    op_->m_count = count;
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_UNPACKVECALL(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    uint8_t count,
+    const woort_IRValue* val)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_UNPACKVECALL);
+    op_->m_dst = dst;
+    op_->m_src[0] = val;
+    op_->m_count = count;
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_UNPACKVECXALL(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    uint8_t count,
+    const woort_IRValue* val)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_UNPACKVECXALL);
+    op_->m_dst = dst;
+    op_->m_src[0] = val;
+    op_->m_count = count;
+    _EMIT_END();
+}
 
 /* ========== 结构体字段推栈 ========== */
 
