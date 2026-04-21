@@ -3182,8 +3182,7 @@ _label_continue_execution:
                 WOORT_VM_THROW(stack_overflow);
             }
 
-
-            rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer = (woort_Int)size;
+            if ((int8_t)WOORT_BYTECODE(A8, c))
 
             // 将向量的元素解包并压入栈中（保持顺序）
             for (size_t i = 0; i < size; ++i)
