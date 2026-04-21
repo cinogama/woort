@@ -488,17 +488,6 @@ WOORT_NODISCARD bool woort_IR_STIDXSTRUCT(
 
 /* ========== 解包 ========== */
 
-WOORT_NODISCARD bool woort_IR_UNPACKSTRUCT(
-    woort_IRFunction* f, const woort_IRValue* src)
-{
-    _EMIT_BEGIN(f, WOORT_IROP_KIND_UNPACKSTRUCT);
-    op_->m_dst = NULL;
-    op_->m_src[0] = src;
-    _EMIT_END();
-}
-
-_DEFINE_UNARY_OP(woort_IR_UNPACKVEC,  WOORT_IROP_KIND_UNPACKVEC)
-_DEFINE_UNARY_OP(woort_IR_UNPACKVECX, WOORT_IROP_KIND_UNPACKVECX)
 
 /* ========== 结构体字段推栈 ========== */
 

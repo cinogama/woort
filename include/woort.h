@@ -1331,22 +1331,6 @@ WOORT_API WOORT_NODISCARD bool woort_IR_STIDXSTRUCT(
 /** @name Unpacking */
 /**@{*/
 
-/** @brief Unpack all struct fields onto the stack. */
-WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKSTRUCT(
-    woort_IRFunction* f,
-    const woort_IRValue* src);
-
-/** @brief Unpack vector elements onto the stack (bounds-checked). */
-WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVEC(
-    woort_IRFunction* f,
-    woort_IRValue* dst,
-    const woort_IRValue* src);
-
-/** @brief Unpack vector elements onto the stack (unchecked). */
-WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVECX(
-    woort_IRFunction* f,
-    woort_IRValue* dst,
-    const woort_IRValue* src);
 
 /**@}*/
 

@@ -1207,40 +1207,6 @@ static bool _emit_op(
     }
 
     /* ============ 解包 ============ */
-    case WOORT_IROP_KIND_UNPACKSTRUCT:
-    {
-        /* UNPACKSTRUCT bc16: [SB + bc16] */
-        (void)c;
-        int16_t r;
-        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
-            return false;
-        return _emit_bc(blk, woort_OpCode_UNPACKSTRUCT(r));
-    }
-
-    case WOORT_IROP_KIND_UNPACKVEC:
-    {
-        /* UNPACKVEC a8, bc16: src=[SB+a8], 展开数量写入 [SB+bc16] (dst) */
-        (void)c;
-        int8_t r;
-        if (!_load_to_s8(blk, op->m_src[0], -128, &r))
-            return false;
-        const int16_t w = _get_store_s16(op->m_dst, -127);
-        if (!_emit_bc(blk, woort_OpCode_UNPACKVEC(r, w)))
-            return false;
-        return _apply_store(blk, op->m_dst, w);
-    }
-
-    case WOORT_IROP_KIND_UNPACKVECX:
-    {
-        (void)c;
-        int8_t r;
-        if (!_load_to_s8(blk, op->m_src[0], -128, &r))
-            return false;
-        const int16_t w = _get_store_s16(op->m_dst, -127);
-        if (!_emit_bc(blk, woort_OpCode_UNPACKVECX(r, w)))
-            return false;
-        return _apply_store(blk, op->m_dst, w);
-    }
 
     /* ============ 结构体字段推栈 ============ */
     case WOORT_IROP_KIND_PUSHIDXSTRUCT:
