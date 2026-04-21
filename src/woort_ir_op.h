@@ -165,9 +165,10 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_SDIDXSTRUCT,
 
     /* ============ 解包 ============ */
-    WOORT_IROP_KIND_UNPACKSTRUCT,
     WOORT_IROP_KIND_UNPACKVEC,
     WOORT_IROP_KIND_UNPACKVECX,
+    WOORT_IROP_KIND_UNPACKVECALL,
+    WOORT_IROP_KIND_UNPACKVECXALL,
 
     /* ============ 结构体字段推栈 ============ */
     WOORT_IROP_KIND_PUSHIDXSTRUCT,

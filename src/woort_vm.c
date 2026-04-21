@@ -3152,18 +3152,98 @@ _label_continue_execution:
         // UNPACKVEC
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 0):
         {
+            const uint8_t n8 = (uint8_t)WOORT_BYTECODE(A8, c);
+            const int16_t vec_offset = (int16_t)WOORT_BYTECODE(BC16, c);
+
+            woort_GCVec* const gcvec = rt_sb[vec_offset].m_vec;
+
+            if (gcvec->m_length < n8)
+                WOORT_VM_THROW(index_out_of_range);
+
+            if ((size_t)(rt_sp - rt_stack) < n8)
+                WOORT_VM_THROW(stack_overflow);
+
+            rt_sp -= n8;
+
+            for (size_t i = 0; i < n8; ++i)
+                woort_DynBox_unbox_no_check(
+                    gcvec->m_datas[i],
+                    &rt_sp[i + 1]);
+
+            break;
         }
-        // UNPACKXVEC
+        // UNPACKVECX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 1):
         {
+            const uint8_t n8 = (uint8_t)WOORT_BYTECODE(A8, c);
+            const int16_t vec_offset = (int16_t)WOORT_BYTECODE(BC16, c);
+
+            woort_GCVec* const gcvec = rt_sb[vec_offset].m_vec;
+
+            if (gcvec->m_length < n8)
+                WOORT_VM_THROW(index_out_of_range);
+
+            if ((size_t)(rt_sp - rt_stack) < n8)
+                WOORT_VM_THROW(stack_overflow);
+
+            rt_sp -= n8;
+            for (size_t i = 0; i < n8; ++i)
+                rt_sp[i + 1].m_dynamic = gcvec->m_datas[i];
+
+            break;
         }
         // UNPACKVECALL
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 2):
         {
+            const uint8_t n8 = (uint8_t)WOORT_BYTECODE(A8, c);
+            const int8_t vec_offset = (int8_t)WOORT_BYTECODE(B8, c);
+            const int8_t count_dst = (int8_t)WOORT_BYTECODE(C8, c);
+
+            woort_GCVec* const gcvec = rt_sb[vec_offset].m_vec;
+            const size_t vec_len = gcvec->m_length;
+
+            if (vec_len < n8)
+                WOORT_VM_THROW(index_out_of_range);
+
+            if ((size_t)(rt_sp - rt_stack) < vec_len)
+                WOORT_VM_THROW(stack_overflow);
+
+            rt_sp -= vec_len;
+
+            for (size_t i = 0; i < n8; ++i)
+                woort_DynBox_unbox_no_check(
+                    gcvec->m_datas[i],
+                    &rt_sp[i + 1]);
+
+            for (size_t i = n8; i < vec_len; ++i)
+                rt_sp[i + 1].m_dynamic = gcvec->m_datas[i];
+
+            rt_sb[count_dst].m_integer = (woort_Int)vec_len;
+            break;
         }
         // UNPACKVECXALL
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 3):
         {
+            const uint8_t n8 = (uint8_t)WOORT_BYTECODE(A8, c);
+            const int8_t vec_offset = (int8_t)WOORT_BYTECODE(B8, c);
+            const int8_t count_dst = (int8_t)WOORT_BYTECODE(C8, c);
+
+            woort_GCVec* const gcvec = rt_sb[vec_offset].m_vec;
+            const size_t vec_len = gcvec->m_length;
+
+            if (vec_len < n8)
+                WOORT_VM_THROW(index_out_of_range);
+
+            if ((size_t)(rt_sp - rt_stack) < vec_len)
+                WOORT_VM_THROW(stack_overflow);
+
+            rt_sp -= vec_len;
+
+            for (size_t i = 0; i < vec_len; ++i)
+                rt_sp[i + 1].m_dynamic = gcvec->m_datas[i];
+
+            rt_sb[count_dst].m_integer = (woort_Int)vec_len;
+            break;
         }
         // PUSHIDXSTBOXX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 0):
