@@ -3202,11 +3202,11 @@ _label_continue_execution:
             woort_GCVec* const gcvec = rt_sb[vec_offset].m_vec;
             const size_t vec_len = gcvec->m_length;
 
-            if (vec_len < n8)
-                WOORT_VM_THROW(index_out_of_range);
-
             if ((size_t)(rt_sp - rt_stack) < vec_len)
                 WOORT_VM_THROW(stack_overflow);
+
+            if (vec_len < n8)
+                WOORT_VM_THROW(index_out_of_range);
 
             rt_sp -= vec_len;
 
