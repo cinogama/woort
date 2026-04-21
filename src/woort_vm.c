@@ -3149,79 +3149,28 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
-        // UNPACKSTRUCT
+        // UNPACKVEC
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 0):
         {
-            const int16_t struct_reg = (int16_t)WOORT_BYTECODE(BC16, c);
-
-            woort_GCStruct* const gcstruct = rt_sb[struct_reg].m_struct;
-            const size_t size = gcstruct->m_size;
-
-            // 检查栈空间
-            if ((size_t)(rt_sp - rt_stack) < size)
-                WOORT_VM_THROW(stack_overflow);
-
-            // 将结构体的元素压入栈中（保持顺序）
-            for (size_t i = 0; i < size; ++i)
-                rt_sp[-(ptrdiff_t)i] = gcstruct->m_datas[size - 1 - i];
-
-            rt_sp -= size;
-            break;
         }
-        // UNPACKVEC
+        // UNPACKXVEC
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 1):
         {
-            const int16_t vec_reg = (int16_t)WOORT_BYTECODE(BC16, c);
-
-            woort_GCVec* const gcvec = rt_sb[vec_reg].m_vec;
-            const size_t size = gcvec->m_length;
-
-            // 检查栈空间
-            if ((size_t)(rt_sp - rt_stack) < size)
-            {
-                WOORT_VM_THROW(stack_overflow);
-            }
-
-            if ((int8_t)WOORT_BYTECODE(A8, c))
-
-            // 将向量的元素解包并压入栈中（保持顺序）
-            for (size_t i = 0; i < size; ++i)
-            {
-                woort_DynBox_unbox_no_check(
-                    gcvec->m_datas[size - 1 - i],
-                    &rt_sp[-(ptrdiff_t)i]);
-            }
-
-            rt_sp -= size;
-            break;
         }
-        // UNPACKVECX
+        // UNPACKVECALL
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 2):
         {
-            const int16_t vec_reg = (int16_t)WOORT_BYTECODE(BC16, c);
-
-            woort_GCVec* const gcvec = rt_sb[vec_reg].m_vec;
-            const size_t size = gcvec->m_length;
-
-            // 检查栈空间
-            if ((size_t)(rt_sp - rt_stack) < size)
-                WOORT_VM_THROW(stack_overflow);
-
-            rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer = (woort_Int)size;
-
-            // 将向量的元素作为 DynBox 压入栈中（保持顺序）
-            for (size_t i = 0; i < size; ++i)
-                rt_sp[-(ptrdiff_t)i].m_dynamic = gcvec->m_datas[size - 1 - i];
-
-            rt_sp -= size;
-            break;
         }
-        // PUSHIDXSTRUCT
+        // UNPACKVECXALL
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_UNPACK, 3):
+        {
+        }
+        // PUSHIDXSTBOXX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 0):
         {
             if (rt_sp > rt_stack)
             {
-                const size_t index = (size_t)WOORT_BYTECODE(A8, c);
+                const size_t index = WOORT_BYTECODE(A8, c);
                 woort_GCStruct* const gcstruct =
                     rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct;
 
@@ -3233,23 +3182,6 @@ _label_continue_execution:
             WOORT_VM_THROW(stack_overflow);
         }
         // PUSHIDXSTBOXI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 0):
-        {
-            if (rt_sp > rt_stack)
-            {
-                const size_t index = WOORT_BYTECODE(A8, c);
-                woort_GCStruct* const gcstruct =
-                    rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct;
-
-                assert(index < gcstruct->m_size);
-
-                rt_sp->m_dynamic = woort_DynBox_box_int(
-                    gcstruct->m_datas[index].m_integer);
-                break;
-            }
-            WOORT_VM_THROW(stack_overflow);
-        }
-        // PUSHIDXSTBOXR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 1):
         {
             if (rt_sp > rt_stack)
@@ -3260,13 +3192,13 @@ _label_continue_execution:
 
                 assert(index < gcstruct->m_size);
 
-                rt_sp->m_dynamic = woort_DynBox_box_real(
-                    gcstruct->m_datas[index].m_real);
+                (rt_sp--)->m_dynamic = woort_DynBox_box_int(
+                    gcstruct->m_datas[index].m_integer);
                 break;
             }
             WOORT_VM_THROW(stack_overflow);
         }
-        // PUSHIDXSTBOXB
+        // PUSHIDXSTBOXR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 2):
         {
             if (rt_sp > rt_stack)
@@ -3277,13 +3209,13 @@ _label_continue_execution:
 
                 assert(index < gcstruct->m_size);
 
-                rt_sp->m_dynamic = woort_DynBox_box_bool(
-                    gcstruct->m_datas[index].m_integer);
+                (rt_sp--)->m_dynamic = woort_DynBox_box_real(
+                    gcstruct->m_datas[index].m_real);
                 break;
             }
             WOORT_VM_THROW(stack_overflow);
         }
-        // PUSHIDXSTBOXX
+        // PUSHIDXSTBOXB
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 3):
         {
             if (rt_sp > rt_stack)
@@ -3294,7 +3226,8 @@ _label_continue_execution:
 
                 assert(index < gcstruct->m_size);
 
-                rt_sp->m_dynamic = gcstruct->m_datas[index].m_dynamic;
+                (rt_sp--)->m_dynamic = woort_DynBox_box_bool(
+                    gcstruct->m_datas[index].m_integer);
                 break;
             }
             WOORT_VM_THROW(stack_overflow);
