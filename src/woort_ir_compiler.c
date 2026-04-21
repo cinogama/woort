@@ -1246,15 +1246,6 @@ static bool _emit_op(
         assert(op->m_index <= WOORT_UINT8_MAX_VAL);
         return _emit_bc(blk, woort_OpCode_PUSHIDXSTBOXB((uint8_t)op->m_index, r));
     }
-    case WOORT_IROP_KIND_PUSHIDXSTBOXX:
-    {
-        (void)c;
-        int16_t r;
-        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
-            return false;
-        assert(op->m_index <= WOORT_UINT8_MAX_VAL);
-        return _emit_bc(blk, woort_OpCode_PUSHIDXSTBOXX((uint8_t)op->m_index, r));
-    }
 
     /* ============ 返回 ============ */
     case WOORT_IROP_KIND_RET:

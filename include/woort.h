@@ -1361,12 +1361,6 @@ WOORT_API WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXB(
     const woort_IRValue* src,
     uint32_t idx);
 
-/** @brief Push boxed (dynamic) struct field at index onto stack. */
-WOORT_API WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXX(
-    woort_IRFunction* f,
-    const woort_IRValue* src,
-    uint32_t idx);
-
 /**
  * @brief Atomic store operation (release semantics).
  * @param f    The IR function. Must not be NULL.

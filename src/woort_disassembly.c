@@ -1320,24 +1320,30 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
 
     case WOORT_OPCODE_UNPACK:
     {
-        const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
         switch (m2)
         {
         case 0:
-            printf("UNPACKSTRUCT [SB %+d]\n", src);
+            printf("UNPACKVEC   %u in [SB %+d]\n",
+                (uint8_t)WOORT_BYTECODE(A8, bc),
+                (int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
         case 1:
-            printf("UNPACKVEC    [SB %+d]\n", src);
+            printf("UNPACKVECX  %u in [SB %+d]\n", 
+                (uint8_t)WOORT_BYTECODE(A8, bc),
+                (int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
         case 2:
-            printf("UNPACKVECX   [SB %+d]\n", src);
+            printf("UNPACKVECALL %u in [SB %+d] -> [SB %+d]\n", 
+                (uint8_t)WOORT_BYTECODE(A8, bc),
+                (int8_t)WOORT_BYTECODE(B8, bc),
+                (int8_t)WOORT_BYTECODE(C8, bc));
             return c + 1;
         case 3:
-        {
-            const uint8_t n = (uint8_t)WOORT_BYTECODE(A8, bc);
-            printf("PUSHIDXSTRUCT %u, [SB %+d]\n", n, src);
+            printf("UNPACKVECXALL %u in [SB %+d] -> [SB %+d]\n", 
+                (uint8_t)WOORT_BYTECODE(A8, bc),
+                (int8_t)WOORT_BYTECODE(B8, bc),
+                (int8_t)WOORT_BYTECODE(C8, bc));
             return c + 1;
-        }
         }
         break;
     }
@@ -1350,16 +1356,16 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
         switch (m2)
         {
         case 0:
-            printf("PUSHIDXSTBOXI %u, [SB %+d]\n", n, src);
+            printf("PUSHIDXSTRUCT %u, [SB %+d]\n", n, src);
             return c + 1;
         case 1:
-            printf("PUSHIDXSTBOXR %u, [SB %+d]\n", n, src);
+            printf("PUSHIDXSTBOXI %u, [SB %+d]\n", n, src);
             return c + 1;
         case 2:
-            printf("PUSHIDXSTBOXB %u, [SB %+d]\n", n, src);
+            printf("PUSHIDXSTBOXR %u, [SB %+d]\n", n, src);
             return c + 1;
         case 3:
-            printf("PUSHIDXSTBOXX %u, [SB %+d]\n", n, src);
+            printf("PUSHIDXSTBOXB %u, [SB %+d]\n", n, src);
             return c + 1;
         }
         break;

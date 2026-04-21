@@ -760,9 +760,9 @@
  * UNPACKVECXALL    (mode=3)：解包数组 [SB + b8] 到栈上，至少展开 N8 个元素，若数组元素数量不满足则 panic，将实际展开的参数数量写入到 c8中
  */
 #define woort_OpCode_UNPACKVEC(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B16, WOORT_OPCODE_UNPACK, 0, n8, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_UNPACK, 0, n8, bc16)
 #define woort_OpCode_UNPACKVECX(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B16, WOORT_OPCODE_UNPACK, 1, n8, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_UNPACK, 1, n8, bc16)
 #define woort_OpCode_UNPACKVECALL(n8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_UNPACK, 2, n8, b8, c8)
 #define woort_OpCode_UNPACKVECXALL(n8, b8, c8) \

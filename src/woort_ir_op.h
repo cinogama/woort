@@ -175,7 +175,6 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_PUSHIDXSTBOXI,
     WOORT_IROP_KIND_PUSHIDXSTBOXR,
     WOORT_IROP_KIND_PUSHIDXSTBOXB,
-    WOORT_IROP_KIND_PUSHIDXSTBOXX,
 
     /* ============ 控制流 ============ */
     WOORT_IROP_KIND_JMP,            /* goto label */
