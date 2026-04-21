@@ -1350,22 +1350,21 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
 
     case WOORT_OPCODE_PUSHIDXSTBOX:
     {
-        const uint16_t ma = (uint16_t)WOORT_BYTECODE(MA10, bc);
-        const uint8_t n = (uint8_t)(ma >> 8);
+        const uint16_t n = (uint16_t)WOORT_BYTECODE(A8, bc);
         const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
         switch (m2)
         {
         case 0:
-            printf("PUSHIDXSTRUCT %u, [SB %+d]\n", n, src);
+            printf("PUSHIDXSTRUCT [SB %+d].%u\n", src, n);
             return c + 1;
         case 1:
-            printf("PUSHIDXSTBOXI %u, [SB %+d]\n", n, src);
+            printf("PUSHIDXSTBOXI [SB %+d].%u\n", src, n);
             return c + 1;
         case 2:
-            printf("PUSHIDXSTBOXR %u, [SB %+d]\n", n, src);
+            printf("PUSHIDXSTBOXR [SB %+d].%u\n", src, n);
             return c + 1;
         case 3:
-            printf("PUSHIDXSTBOXB %u, [SB %+d]\n", n, src);
+            printf("PUSHIDXSTBOXB [SB %+d].%u\n", src, n);
             return c + 1;
         }
         break;
