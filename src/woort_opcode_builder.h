@@ -754,10 +754,10 @@
 
 /*
  * UNPACK - 解包操作，将指定的数组中的元素展开到栈上
- * UNPACKVEC        (mode=0): 解包数组 [SB + bc16] 到栈上，展开 N8 个元素，若数组元素数量不满足则 panic
+ * UNPACKVEC        (mode=0): 解包并 unbox 数组 [SB + bc16] 到栈上，展开 N8 个元素，若数组元素数量不满足则 panic
  * UNPACKXVEC       (mode=1): 解包数组 [SB + bc16] 到栈上，展开 N8 个元素，若数组元素数量不满足则 panic
- * UNPACKVECALL     (mode=2): 解包向量（动态）到 [SB + bc16]，展开数量写入 [SB + a8]
- * UNPACKVECXALL    (mode=3)
+ * UNPACKVECALL     (mode=2): 解包数组 [SB + b8] 到栈上，至少展开并 unbox N8 个元素，剩余元素原样展开，若数组元素数量不满足则 panic，将实际展开的参数数量写入到 c8中
+ * UNPACKVECXALL    (mode=3)：解包数组 [SB + b8] 到栈上，至少展开 N8 个元素，若数组元素数量不满足则 panic，将实际展开的参数数量写入到 c8中
  */
 #define woort_OpCode_UNPACKVEC(n8, bc16) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B16, WOORT_OPCODE_UNPACK, 0, n8, bc16)
