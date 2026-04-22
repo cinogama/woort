@@ -532,6 +532,14 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
             printf("MKSTRUCT    %u -> [SB %+d]\n", n, dst);
             return c + 1;
         }
+        case 3:
+        {
+            const uint8_t idx = (uint8_t)WOORT_BYTECODE(A8, bc);
+            const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
+            const int8_t dst2 = (int8_t)WOORT_BYTECODE(C8, bc);
+            printf("MKUNION     %u, [SB %+d] -> [SB %+d]\n", idx, src, dst2);
+            return c + 1;
+        }
         }
         break;
     }
@@ -550,6 +558,9 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
             return c + 2;
         case 2:
             printf("MKSTRUCTEXT %u -> [SB %+d]\n", n, dst);
+            return c + 2;
+        case 3:
+            printf("MKUNIONEXT  %u, [SB %+d] -> [SB %+d]\n", n, (int8_t)WOORT_BYTECODE(A8, bc), dst);
             return c + 2;
         }
         break;
