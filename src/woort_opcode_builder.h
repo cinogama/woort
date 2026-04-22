@@ -260,6 +260,7 @@
  * MKVEC    (mode=0): 构造向量，n8 个元素 -> [SB + bc16]
  * MKMAP    (mode=1): 构造字典，n8 个键值对 -> [SB + bc16]
  * MKSTRUCT (mode=2): 构造结构体，n8 个字段 -> [SB + bc16]
+ * MKUNION  (mode=3): 构造结构体，但是是为 Union 特化的处理，((woort_Int)n8, [SB + b8]) -> [SB + c8]
  */
 #define woort_OpCode_MKVEC(n8, bc16) \
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONS, 0, n8, bc16)
@@ -267,6 +268,8 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONS, 1, n8, bc16)
 #define woort_OpCode_MKSTRUCT(n8, bc16) \
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONS, 2, n8, bc16)
+#define woort_OpCode_MKUNION(n8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_CONS, 3, n8, b8, c8)
 
 /*
  * MKCLOSURE - 闭包创建
@@ -721,6 +724,7 @@
  * MKVECEXT    (mode=0): 构造向量，n32 个元素 -> [SB + bc16]
  * MKMAPEXT    (mode=1): 构造字典，n32 个键值对 -> [SB + bc16]
  * MKSTRUCTEXT (mode=2): 构造结构体，n32 个字段 -> [SB + bc16]
+ * MKUNIONEXT  (mode=3): 构造结构体，但是是为 Union 特化的处理，((woort_Int)n32, [SB + a8]) -> [SB + bc16]
  */
 #define woort_OpCode_MKVECEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CONSEX, 0, bc16)
@@ -728,6 +732,8 @@
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CONSEX, 1, bc16)
 #define woort_OpCode_MKSTRUCTEXT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CONSEX, 2, bc16)
+#define woort_OpCode_MKUNIONEXT(a8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONSEX, 3, a8, bc16)
 
 /*
  * PUSHCEXT/POPCEXT/PUSHCCHKEXT - 扩展常量操作

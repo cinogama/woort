@@ -1264,7 +1264,20 @@ _label_continue_execution:
             rt_sp += size;
             break;
         }
+        // MKUNION
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONS, 3):
+        {
+            const woort_Int idx = (woort_Int)WOORT_BYTECODE(A8, c);
 
+            woort_GCStruct* const gcstruct = woort_GCStruct_new(2);
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_struct = gcstruct;
+
+            gcstruct->m_datas[0].m_integer = idx;
+            woort_GC_mixed_write_barrier_value(
+                &gcstruct->m_datas[1], rt_sb[(int8_t)WOORT_BYTECODE(B8, c)]);
+                
+            break;
+        }
         // MKVECEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSEX, 0):
         {
@@ -1317,6 +1330,21 @@ _label_continue_execution:
                     &gcstruct->m_datas[size - i], rt_sp[i]);
 
             rt_sp += size;
+            rt_ip += 2;
+            continue;
+        }
+        // MKUNIONEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSEX, 3):
+        {
+            const woort_Int idx = (woort_Int)rt_ip[1];
+
+            woort_GCStruct* const gcstruct = woort_GCStruct_new(2);
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
+
+            gcstruct->m_datas[0].m_integer = idx;
+            woort_GC_mixed_write_barrier_value(
+                &gcstruct->m_datas[1], rt_sb[(int8_t)WOORT_BYTECODE(A8, c)]);
+
             rt_ip += 2;
             continue;
         }
