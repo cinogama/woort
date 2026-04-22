@@ -652,6 +652,19 @@ WOORT_API WOORT_NODISCARD bool woort_IR_MKSTRUCT(
     woort_IRValue* dst,
     uint32_t elem_count);
 
+/**
+ * @brief Create a tagged union: dst = new Union(union_id, src).
+ * @param f         The IR function being compiled.
+ * @param dst       Destination register for the new union value.
+ * @param src       Source register holding the union payload value.
+ * @param union_id  Variant tag identifying which union case this is.
+ */
+WOORT_API WOORT_NODISCARD bool woort_IR_MKUNION(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* src,
+    uint32_t union_id);
+
 /**@}*/
 
 /** @name Dynamic Typing (Boxing / Unboxing) */

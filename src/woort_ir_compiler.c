@@ -816,6 +816,33 @@ static bool _emit_op(
         return _apply_store(blk, op->m_dst, w16);
     }
 
+    /* ============ MKUNION ============ */
+    case WOORT_IROP_KIND_MKUNION:
+    {
+        (void)c;
+        assert(op->m_dst != NULL);
+        assert(op->m_src[0] != NULL);
+
+        int8_t r;
+        if (!_load_to_s8(blk, op->m_src[0], -128, &r))
+            return false;
+
+        if (op->m_index <= WOORT_UINT8_MAX_VAL)
+        {
+            const int8_t w = _get_store_s8(op->m_dst, -127);
+            if (!_emit_bc(blk, woort_OpCode_MKUNION(op->m_index, r, w)))
+                return false;
+            return _apply_store(blk, op->m_dst, w);
+        }
+        else
+        {
+            const int16_t w16 = _get_store_s16(op->m_dst, -127);
+            if (!_emit_bc_ex32(blk, woort_OpCode_MKUNIONEXT(r, w16), op->m_index))
+                return false;
+            return _apply_store(blk, op->m_dst, w16);
+        }
+    }
+
     /* ============ 动态类型 ============ */
     case WOORT_IROP_KIND_BOXDYN:
     {

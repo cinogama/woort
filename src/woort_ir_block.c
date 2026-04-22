@@ -322,6 +322,20 @@ _DEFINE_MKCONT(woort_IR_MKVEC,    WOORT_IROP_KIND_MKVEC)
 _DEFINE_MKCONT(woort_IR_MKMAP,    WOORT_IROP_KIND_MKMAP)
 _DEFINE_MKCONT(woort_IR_MKSTRUCT, WOORT_IROP_KIND_MKSTRUCT)
 
+/* MKUNION: dst = new Union(union_id, src) */
+WOORT_NODISCARD bool woort_IR_MKUNION(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* src,
+    uint32_t union_id)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_MKUNION);
+    op_->m_dst = dst;
+    op_->m_src[0] = src;
+    op_->m_index = union_id;
+    _EMIT_END();
+}
+
 /* ========== 动态类型 ========== */
 
 _DEFINE_DYNBOX(woort_IR_BOXDYN,   WOORT_IROP_KIND_BOXDYN)

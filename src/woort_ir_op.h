@@ -49,6 +49,7 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_MKVEC,
     WOORT_IROP_KIND_MKMAP,
     WOORT_IROP_KIND_MKSTRUCT,
+    WOORT_IROP_KIND_MKUNION,
 
     /* ============ 动态类型 ============ */
     WOORT_IROP_KIND_BOXDYN,
