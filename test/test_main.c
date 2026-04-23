@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
     woort_CodeEnv_set_const_int(cenv, c_35, 40);
     woort_CodeEnv_unlock(cenv);
 
-    woort_dump_codes(cenv);
+    woort_CodeEnv_dumps(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
