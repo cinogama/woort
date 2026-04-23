@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "woort_util.h"
 
@@ -43,4 +44,19 @@ WOORT_NODISCARD size_t woort_hash_string(const char* str, size_t len)
     }
 
     return hash;
+}
+
+WOORT_NODISCARD size_t woort_util_cstr_hash(const void* key)
+{
+    const char* str = *(const char* const*)key;
+    return woort_hash_string(str, strlen(str));
+}
+
+WOORT_NODISCARD bool woort_util_cstr_equal(
+    const void* key1,
+    const void* key2)
+{
+    const char* s1 = *(const char* const*)key1;
+    const char* s2 = *(const char* const*)key2;
+    return strcmp(s1, s2) == 0;
 }

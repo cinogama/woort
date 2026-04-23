@@ -34,6 +34,15 @@ struct woort_CodeEnv {
     woort_HashMap /* woort_Bytecode*, woort_Bytecode */
         m_trap_records;
 
+    /* === 外部常量注册表 === */
+    /*
+     * 名称字符串 -> woort_IRConstantIndex 的映射表。
+     * key 是 malloc 分配的字符串副本（由 register 拥有，destroy 时释放）。
+     * value 是 woort_IRConstantIndex（按值存储）。
+     */
+    woort_HashMap /* char* -> woort_IRConstantIndex */
+        m_extern_constants;
+
     /* === 源码映射 === */
     /*
      * 合并的源码映射表，覆盖所有函数。

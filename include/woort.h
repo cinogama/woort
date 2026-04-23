@@ -311,6 +311,16 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
 WOORT_API void woort_CodeEnv_dumps(
     const woort_CodeEnv* env);
 
+WOORT_API WOORT_NODISCARD bool woort_CodeEnv_register_extern_constant(
+    woort_CodeEnv* env, 
+    const char* name,
+    woort_IRConstantIndex cidx);
+
+WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_extern_constant(
+    woort_CodeEnv* env,
+    const char* name,
+    woort_IRConstantIndex* out_cidx);
+
 /* ========== IR Compiler ========== */
 
 /**

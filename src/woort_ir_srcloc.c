@@ -7,6 +7,8 @@
 
 #include "woort_ir_srcloc.h"
 
+#include "woort_util.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -31,38 +33,14 @@ WOORT_NODISCARD bool woort_SourceLocation_equal(
  * woort_StringPool
  * ======================================================================== */
 
-/* 哈希函数：对 C 字符串内容做哈希。
- * key 是 const char**（指向存储的字符串指针的地址）。 */
-static size_t _string_pool_hash(const void* key)
-{
-    const char* str = *(const char* const*)key;
-    /* djb2 hash */
-    size_t hash = 5381;
-    while (*str)
-    {
-        hash = ((hash << 5) + hash) + (unsigned char)(*str);
-        str++;
-    }
-    return hash;
-}
-
-/* 相等比较：对 C 字符串内容做 strcmp。
- * key 是 const char**（指向存储的字符串指针的地址）。 */
-static bool _string_pool_equal(const void* key1, const void* key2)
-{
-    const char* s1 = *(const char* const*)key1;
-    const char* s2 = *(const char* const*)key2;
-    return strcmp(s1, s2) == 0;
-}
-
 void woort_StringPool_init(woort_StringPool* pool)
 {
     woort_hashmap_init(
         &pool->m_map,
         sizeof(const char*),   /* key: const char* */
         sizeof(const char*),   /* value: const char* (same pointer) */
-        &_string_pool_hash,
-        &_string_pool_equal);
+        &woort_util_cstr_hash,
+        &woort_util_cstr_equal);
     woort_vector_init(&pool->m_strings, sizeof(char*));
 }
 

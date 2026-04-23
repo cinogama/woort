@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <memory.h>
 
 #include "woort_codeenv.h"
@@ -24,6 +25,18 @@ static struct _woort_CodeEnv_GlobalCtx
     woort_GCUnitProxy   m_proxy;
 
 } *_codeenv_global_ctx = NULL;
+
+static bool _extern_constants_free_key(
+    const void* key,
+    void* value,
+    void* user_data)
+{
+    (void)value;
+    (void)user_data;
+    char* str = *(char**)key;
+    free(str);
+    return true;
+}
 
 void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 {
@@ -51,6 +64,12 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
         &_codeenv_global_ctx->m_codeenvs_lock);
 
     woort_hashmap_deinit(&code_env->m_trap_records);
+
+    woort_hashmap_foreach(
+        &code_env->m_extern_constants,
+        &_extern_constants_free_key,
+        NULL);
+    woort_hashmap_deinit(&code_env->m_extern_constants);
 
     if (code_env->m_mutex != NULL)
         woort_mutex_destroy(code_env->m_mutex);
@@ -186,6 +205,13 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         sizeof(woort_Bytecode),
         &woort_util_ptr_hash,
         &woort_util_ptr_equal);
+
+    woort_hashmap_init(
+        &code_env_instance->m_extern_constants,
+        sizeof(const char*),
+        sizeof(woort_IRConstantIndex),
+        &woort_util_cstr_hash,
+        &woort_util_cstr_equal);
 
     if (!woort_mutex_create(&code_env_instance->m_mutex))
         return false;
@@ -436,4 +462,49 @@ WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
 
     return woort_SourceMap_find_by_line(
         &env->m_source_map, interned_path, line, out_bytecode_offset);
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_register_extern_constant(
+    woort_CodeEnv* env,
+    const char* name,
+    woort_IRConstantIndex cidx)
+{
+    assert(env != NULL);
+    assert(name != NULL);
+
+    size_t name_len = strlen(name);
+    char* name_copy = (char*)malloc(name_len + 1);
+    if (name_copy == NULL)
+        return false;
+
+    memcpy(name_copy, name, name_len + 1);
+
+    woort_hashmap_Result result = woort_hashmap_insert(
+        &env->m_extern_constants, &name_copy, &cidx);
+
+    if (result == WOORT_HASHMAP_RESULT_ALREADY_EXIST
+        || result == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
+    {
+        free(name_copy);
+        return result == WOORT_HASHMAP_RESULT_ALREADY_EXIST ? false : false;
+    }
+
+    return true;
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_find_extern_constant(
+    woort_CodeEnv* env,
+    const char* name,
+    woort_IRConstantIndex* out_cidx)
+{
+    assert(env != NULL);
+    assert(name != NULL);
+    assert(out_cidx != NULL);
+
+    void* value_addr;
+    if (!woort_hashmap_find(&env->m_extern_constants, &name, &value_addr))
+        return false;
+
+    *out_cidx = *(woort_IRConstantIndex*)value_addr;
+    return true;
 }
