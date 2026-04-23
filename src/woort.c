@@ -187,6 +187,18 @@ void woort_CodeEnv_set_const_box_real(
     woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
 }
 
+void woort_CodeEnv_set_const_box_bool(
+    woort_CodeEnv* code_env,
+    woort_IRConstantIndex cidx,
+    bool val)
+{
+    assert(code_env != NULL);
+    assert((size_t)cidx < code_env->m_data_count);
+
+    woort_DynBox boxed = woort_DynBox_box_bool(val);
+    woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
+}
+
 void woort_CodeEnv_set_const_struct(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
