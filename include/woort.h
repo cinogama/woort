@@ -331,7 +331,7 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_register_extern_constant(
  * @return true if the extern constant was found, false otherwise.
  */
 WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_extern_constant(
-    woort_CodeEnv* env,
+    const woort_CodeEnv* env,
     const char* name,
     woort_IRConstantIndex* out_cidx);
 
@@ -1890,7 +1890,7 @@ WOORT_API void woort_CodeEnv_set_const_struct(
  * @param cidx      The constant pool index to load.
  */
 WOORT_API void woort_load_const(
-    woort_StackValue dst, woort_CodeEnv* code_env, woort_IRConstantIndex cidx);
+    woort_StackValue dst, const woort_CodeEnv* code_env, woort_IRConstantIndex cidx);
 
 /**
  * @name Stack Value Setters

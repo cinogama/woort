@@ -250,7 +250,7 @@ SB+2，储存函数的返回状态）。当前栈帧自 -3 开始，向负数方
 /* Write */
 
 void woort_load_const(
-    woort_StackValue dst, woort_CodeEnv* code_env, woort_IRConstantIndex cidx)
+    woort_StackValue dst, const woort_CodeEnv* code_env, woort_IRConstantIndex cidx)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);

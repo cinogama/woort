@@ -1713,7 +1713,8 @@ static bool _patch_jumps(
 
         for (uint32_t bi = 0; bi < block_count; ++bi)
         {
-            block_starts[bi] = offset;
+            block_starts[bi] = (uint32_t)f->m_code_offset + offset;
+
             woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, bi);
             offset += (uint32_t)blk->m_bytecodes.m_size;
         }
@@ -1958,6 +1959,9 @@ static bool _compile_function(
     woort_IRCompiler* c,
     woort_Vector* source_map_entries)
 {
+    /* 第 0 步：记录当前函数的起始偏移位置 */
+    f->m_code_offset = c->m_commited_codes.m_size;
+
     /* 第 1 步：分析 + 栈槽分配 */
     size_t stack_space;
     if (!_woort_IRFunction_analyze_and_allocate(f, &stack_space))
@@ -1984,7 +1988,6 @@ static bool _compile_function(
 
     /* 第 4 步：将 block 字节码拼接到 compiler 的 m_commited_codes */
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
-    f->m_code_offset = c->m_commited_codes.m_size;
 
     /*
      * PUSHRCHK 预留在函数入口处单独发射，不放在任何 block 内，
@@ -1999,9 +2002,6 @@ static bool _compile_function(
         if (!woort_vector_push_back(&c->m_commited_codes, 1, &bc))
             return false;
     }
-
-    /* 更新 m_code_offset 以反映 PUSHRCHK 的大小 */
-    f->m_code_offset = c->m_commited_codes.m_size - (stack_space > 0 ? 1 : 0);
 
     for (uint32_t bi = 0; bi < block_count; ++bi)
     {

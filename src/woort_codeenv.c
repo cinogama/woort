@@ -493,7 +493,7 @@ WOORT_NODISCARD bool woort_CodeEnv_register_extern_constant(
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_find_extern_constant(
-    woort_CodeEnv* env,
+    const woort_CodeEnv* env,
     const char* name,
     woort_IRConstantIndex* out_cidx)
 {
@@ -502,7 +502,7 @@ WOORT_NODISCARD bool woort_CodeEnv_find_extern_constant(
     assert(out_cidx != NULL);
 
     void* value_addr;
-    if (!woort_hashmap_find(&env->m_extern_constants, &name, &value_addr))
+    if (!woort_hashmap_find((woort_HashMap*)&env->m_extern_constants, &name, &value_addr))
         return false;
 
     *out_cidx = *(woort_IRConstantIndex*)value_addr;
