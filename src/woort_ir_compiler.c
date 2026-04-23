@@ -622,6 +622,9 @@ static bool _emit_op(
     /* ============ POPR ============ */
     case WOORT_IROP_KIND_POPR:
     {
+        if (op->m_pop_count == 0)
+            return true;
+
         assert(op->m_pop_count <= WOORT_UINT24_MAX_VAL);
         return _emit_bc(blk, woort_OpCode_POPR(op->m_pop_count));
     }

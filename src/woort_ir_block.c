@@ -261,6 +261,9 @@ WOORT_NODISCARD bool woort_IR_POP(
 WOORT_NODISCARD bool woort_IR_POPR(
     woort_IRFunction* f, uint32_t count)
 {
+    if (count == 0)
+        return true;
+
     _EMIT_BEGIN(f, WOORT_IROP_KIND_POPR);
     op_->m_dst = NULL;
     op_->m_pop_count = count;
