@@ -183,6 +183,9 @@ typedef woort_api(*woort_NativeFunction)(void);
 /** @brief Opaque handle to a compiled code environment containing bytecode and constants. */
 typedef struct woort_CodeEnv woort_CodeEnv;
 
+/** @brief Opaque handle to a loaded dynamic library. */
+typedef struct woort_Dylib woort_Dylib;
+
 /** @brief Opaque handle to an IR compiler used to build CodeEnv objects. */
 typedef struct woort_IRCompiler woort_IRCompiler;
 
@@ -374,6 +377,22 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_extern_constant(
     const woort_CodeEnv* env,
     const char* name,
     woort_IRConstantIndex* out_cidx);
+
+/**
+ * @brief Associate a dynamic library handle with a CodeEnv.
+ *
+ * The library's reference count is incremented.  When the CodeEnv is
+ * garbage-collected, woort_unload_lib(WOORT_DYLIB_UNREF) is called on
+ * every associated library, ensuring the library outlives the CodeEnv
+ * but is released when the CodeEnv is no longer needed.
+ *
+ * @param env  The code environment. Must not be NULL.
+ * @param lib  The library handle to associate. Must not be NULL.
+ * @return true on success, false on out-of-memory.
+ */
+WOORT_API WOORT_NODISCARD bool woort_CodeEnv_add_extern_lib(
+    woort_CodeEnv* env,
+    woort_Dylib* lib);
 
 /* ========== IR Compiler ========== */
 

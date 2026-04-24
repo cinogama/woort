@@ -58,6 +58,16 @@ struct woort_CodeEnv {
      */
     woort_StringPool m_srcloc_string_pool;
 
+    /* === 外部库句柄跟踪 === */
+    /*
+     * 与 CodeEnv 关联的外部动态库句柄列表。
+     * 当 CodeEnv 被 GC 销毁时，所有关联库会被解除引用。
+     * m_extern_libs 为 NULL 表示无关联库。
+     */
+    /* OPTIONAL */ woort_Dylib** m_extern_libs;
+    size_t m_extern_libs_count;
+    size_t m_extern_libs_capacity;
+
     size_t m_data_count;
     woort_Value m_data_begin[];
 };
@@ -86,3 +96,14 @@ void woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
     const woort_Vector* per_func_entries,
     uint32_t func_count);
+
+/*
+ * 将外部库句柄关联到 CodeEnv。
+ * 当 CodeEnv 被 GC 销毁时，关联的库将自动被 woort_unload_lib(WOORT_DYLIB_UNREF) 解除引用。
+ * lib 的引用计数会被增加。
+ *
+ * @return true on success, false on out-of-memory.
+ */
+WOORT_NODISCARD bool woort_CodeEnv_add_extern_lib(
+    woort_CodeEnv* env,
+    woort_Dylib* lib);

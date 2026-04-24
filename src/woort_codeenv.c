@@ -5,6 +5,7 @@
 #include <memory.h>
 
 #include "woort_codeenv.h"
+#include "woort_dylib.h"
 #include "woort_ir_function.h"
 #include "woort_ir_srcloc.h"
 #include "woort_opcode.h"
@@ -79,6 +80,19 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     code_env->m_source_map.m_entries = NULL;
     code_env->m_source_map.m_entry_count = 0;
     woort_StringPool_deinit(&code_env->m_srcloc_string_pool);
+
+    /* 释放关联的外部库 */
+    if (code_env->m_extern_libs != NULL)
+    {
+        for (size_t i = 0; i < code_env->m_extern_libs_count; ++i)
+        {
+            woort_unload_lib(code_env->m_extern_libs[i], WOORT_DYLIB_UNREF);
+        }
+        free(code_env->m_extern_libs);
+        code_env->m_extern_libs = NULL;
+        code_env->m_extern_libs_count = 0;
+        code_env->m_extern_libs_capacity = 0;
+    }
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
@@ -171,6 +185,10 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         woort_StringPool_init(&code_env_instance->m_srcloc_string_pool);
 
         code_env_instance->m_data_count = constant_and_static_storage_count;
+
+        code_env_instance->m_extern_libs = NULL;
+        code_env_instance->m_extern_libs_count = 0;
+        code_env_instance->m_extern_libs_capacity = 0;
 
         // Fill 0 for static storage:
         memset(
@@ -506,5 +524,33 @@ WOORT_NODISCARD bool woort_CodeEnv_find_extern_constant(
         return false;
 
     *out_cidx = *(woort_IRConstantIndex*)value_addr;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_add_extern_lib(
+    woort_CodeEnv* env,
+    woort_Dylib* lib)
+{
+    assert(env != NULL);
+    assert(lib != NULL);
+
+    if (env->m_extern_libs_count == env->m_extern_libs_capacity)
+    {
+        size_t new_capacity = env->m_extern_libs_capacity == 0
+            ? 4
+            : env->m_extern_libs_capacity * 2;
+        woort_Dylib** new_array = (woort_Dylib**)realloc(
+            env->m_extern_libs, new_capacity * sizeof(woort_Dylib*));
+        if (new_array == NULL)
+            return false;
+        env->m_extern_libs = new_array;
+        env->m_extern_libs_capacity = new_capacity;
+    }
+
+    env->m_extern_libs[env->m_extern_libs_count++] = lib;
+
+    /* 增加库的引用计数，确保在 CodeEnv 生命期内库不被释放 */
+    lib->m_use_count++;
+
     return true;
 }
