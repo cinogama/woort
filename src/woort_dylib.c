@@ -125,6 +125,8 @@ static void* _try_open_lib(const char* path)
     return NULL;
 }
 
+#endif /* WOORT_DYLIB_DISABLED */
+
 /* ================================================================
  * Global named library registry
  * ================================================================ */
@@ -210,7 +212,6 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_fake_lib(
     }
 
     dylib->m_native_handle = NULL;
-    dylib->m_fake_funcs = funcs;
     dylib->m_dependenced = dependence_dylib;
     dylib->m_name = (char*)malloc(strlen(libname) + 1);
     if (dylib->m_name == NULL)
@@ -221,6 +222,51 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_fake_lib(
     }
     strcpy(dylib->m_name, libname);
     dylib->m_use_count = 1;
+
+    /* Deep copy the funcs array */
+    {
+        size_t count = 0;
+        const woort_ExternLibFunc* f = funcs;
+        while (f->m_name != NULL)
+        {
+            ++count;
+            ++f;
+        }
+
+        woort_ExternLibFunc* copy = (woort_ExternLibFunc*)malloc(
+            (count + 1) * sizeof(woort_ExternLibFunc));
+        if (copy == NULL)
+        {
+            free(dylib->m_name);
+            free(dylib);
+            woort_recursive_mutex_unlock(g_named_libs_mx);
+            return NULL;
+        }
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            size_t name_len = strlen(funcs[i].m_name);
+            copy[i].m_name = (const char*)malloc(name_len + 1);
+            if (copy[i].m_name == NULL)
+            {
+                for (size_t j = 0; j < i; ++j)
+                    free((void*)copy[j].m_name);
+                free(copy);
+                free(dylib->m_name);
+                free(dylib);
+                woort_recursive_mutex_unlock(g_named_libs_mx);
+                return NULL;
+            }
+            memcpy((void*)copy[i].m_name, funcs[i].m_name, name_len + 1);
+            copy[i].m_func_addr = funcs[i].m_func_addr;
+        }
+
+        /* Sentinel */
+        copy[count].m_name = NULL;
+        copy[count].m_func_addr = NULL;
+
+        dylib->m_fake_funcs = copy;
+    }
 
     if (dependence_dylib != NULL)
     {
@@ -239,6 +285,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_load_lib(
     /* OPTIONAL */ const char* script_path,
     bool panic_when_fail)
 {
+#ifndef WOORT_DYLIB_DISABLED
     if (libname == NULL)
     {
         if (panic_when_fail)
@@ -379,6 +426,14 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_load_lib(
 
     woort_recursive_mutex_unlock(g_named_libs_mx);
     return dylib;
+#else /* WOORT_DYLIB_DISABLED */
+    (void)libname;
+    (void)path;
+    (void)script_path;
+    if (panic_when_fail)
+        woort_panic(WOORT_PANIC_USER, "Dynamic library loading not supported on this platform.");
+    return NULL;
+#endif
 }
 
 WOORT_NODISCARD /* OPTIONAL */ void* woort_load_func(
@@ -400,8 +455,10 @@ WOORT_NODISCARD /* OPTIONAL */ void* woort_load_func(
         return NULL;
     }
 
+#ifndef WOORT_DYLIB_DISABLED
     if (lib->m_native_handle != NULL)
         return _os_loadfunc(lib->m_native_handle, funcname);
+#endif
 
     return NULL;
 }
@@ -433,65 +490,29 @@ void woort_unload_lib(woort_Dylib* lib, woort_DylibUnloadMethod method)
 
     if (should_free)
     {
+#ifndef WOORT_DYLIB_DISABLED
         /* Release OS handle */
         if (lib->m_native_handle != NULL)
             _os_freelib(lib->m_native_handle);
+#endif
 
         /* Release dependency */
         if (lib->m_dependenced != NULL)
             woort_unload_lib(lib->m_dependenced, WOORT_DYLIB_UNREF);
 
+        /* Release the deep-copied fake function table (NULL for native libs). */
+        if (lib->m_fake_funcs != NULL)
+        {
+            woort_ExternLibFunc* f = lib->m_fake_funcs;
+            while (f->m_name != NULL)
+            {
+                free((void*)f->m_name);
+                ++f;
+            }
+            free(lib->m_fake_funcs);
+        }
+
         free(lib->m_name);
         free(lib);
     }
 }
-
-#else /* WOORT_DYLIB_DISABLED */
-
-/* Stub implementations for unsupported platforms */
-
-void _woort_dylib_bootup(void) {}
-
-void _woort_dylib_shutdown(void) {}
-
-WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_fake_lib(
-    const char* libname,
-    const woort_ExternLibFunc* funcs,
-    /* OPTIONAL */ woort_Dylib* dependence_dylib)
-{
-    (void)libname;
-    (void)funcs;
-    (void)dependence_dylib;
-    return NULL;
-}
-
-WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_load_lib(
-    const char* libname,
-    /* OPTIONAL */ const char* path,
-    /* OPTIONAL */ const char* script_path,
-    bool panic_when_fail)
-{
-    (void)libname;
-    (void)path;
-    (void)script_path;
-    if (panic_when_fail)
-        woort_panic(WOORT_PANIC_USER, "Dynamic library loading not supported on this platform.");
-    return NULL;
-}
-
-WOORT_NODISCARD /* OPTIONAL */ void* woort_load_func(
-    /* OPTIONAL */ woort_Dylib* lib,
-    const char* funcname)
-{
-    (void)lib;
-    (void)funcname;
-    return NULL;
-}
-
-void woort_unload_lib(woort_Dylib* lib, woort_DylibUnloadMethod method)
-{
-    (void)lib;
-    (void)method;
-}
-
-#endif /* WOORT_DYLIB_DISABLED */
