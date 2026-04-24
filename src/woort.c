@@ -13,6 +13,8 @@
 #include "woort_gc_gchandle.h"
 #include "woort_gc_closure.h"
 #include "woort_disassembly.h"
+#include "woort_path.h"
+#include "woort_dylib.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +22,8 @@
 
 void woort_init(void)
 {
+    _woort_path_bootup();
+
     if (!woort_CodeEnv_bootup())
     {
         WOORT_DEBUG("Failed to bootup code env.");
@@ -27,12 +31,18 @@ void woort_init(void)
     }
 
     woort_GC_bootup();
+
+    _woort_dylib_bootup();
 }
 void woort_shutdown(void)
 {
+    _woort_dylib_shutdown();
+
     woort_GC_shutdown();
 
     woort_CodeEnv_shutdown();
+
+    _woort_path_shutdown();
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void)

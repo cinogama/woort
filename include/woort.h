@@ -1897,6 +1897,7 @@ WOORT_API WOORT_NODISCARD
 
 #define woort_vm_close woort_VMRuntime_destroy
 #define woort_vm_swap woort_VMRuntime_swap
+#define woort_codeenv_drop woort_CodeEnv_drop
 
 /**
  * @brief Reserve space on the VM evaluation stack.
@@ -2942,6 +2943,164 @@ WOORT_API void woort_struct_set(
     woort_StackValue val);
 
 /**@}*/
+
+/* ================================================================
+ * Path utilities
+ * ================================================================ */
+
+/**
+ * @brief Get the directory containing the executable.
+ *
+ * The result is cached after the first call. Returns a malloc'd string
+ * that the caller must free. Never returns NULL under normal operation.
+ */
+WOORT_API WOORT_NODISCARD char* woort_exe_path(void);
+
+/**
+ * @brief Get the current working directory.
+ *
+ * Returns a malloc'd string that the caller must free.
+ */
+WOORT_API WOORT_NODISCARD char* woort_work_path(void);
+
+/**
+ * @brief Set the current working directory.
+ * @param path  The new working directory path.
+ * @return true on success, false on failure.
+ */
+WOORT_API bool woort_set_work_path(const char* path);
+
+/**
+ * @brief Get the directory part of a file path.
+ *
+ * Returns everything before the last '/' (after normalization).
+ * Returns an empty string if there is no directory separator.
+ * The returned string is malloc'd; the caller must free it.
+ *
+ * @param path  The file path to extract the directory from.
+ * @return A malloc'd directory path, or NULL if path is NULL.
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_get_file_loc(
+    /* OPTIONAL */ const char* path);
+
+/**
+ * @brief Normalize path separators in-place.
+ *
+ * On Windows: replaces '\\' with '/' and uppercases the drive letter.
+ * On other platforms: no-op.
+ *
+ * @param path  The path string to normalize in-place. May be NULL (no-op).
+ */
+WOORT_API void woort_normalize_path(/* OPTIONAL */ char* path);
+
+/* ================================================================
+ * Dynamic library loading
+ * ================================================================ */
+
+/**
+ * @brief Opaque handle to a loaded dynamic library (native or fake).
+ */
+typedef struct woort_Dylib woort_Dylib;
+
+/**
+ * @brief Unload method flags for woort_unload_lib.
+ */
+typedef enum woort_DylibUnloadMethod
+{
+    WOORT_DYLIB_NONE           = 0,
+    /** Decrement reference count; free when it reaches zero. */
+    WOORT_DYLIB_UNREF          = 1 << 0,
+    /** Remove from the named library registry. */
+    WOORT_DYLIB_BURY           = 1 << 1,
+    /** Combination: unref + bury. */
+    WOORT_DYLIB_UNREF_AND_BURY = WOORT_DYLIB_UNREF | WOORT_DYLIB_BURY,
+} woort_DylibUnloadMethod;
+
+/**
+ * @brief Entry in a fake-library function table.
+ */
+typedef struct woort_ExternLibFunc
+{
+    const char* m_name;          /**< Function name (NULL = end of table). */
+    /* OPTIONAL */ void* m_func_addr;  /**< Function pointer (NULL = end of table). */
+} woort_ExternLibFunc;
+
+/** Sentinel to terminate a woort_ExternLibFunc array. */
+#define WOORT_EXTERN_LIB_FUNC_END { NULL, NULL }
+
+/**
+ * @brief Register a "fake" library backed by a user-supplied function table.
+ *
+ * The library is registered under the given name in the global library
+ * registry.  Subsequent lookups with woort_load_func will search the
+ * function table linearly.
+ *
+ * @param libname           Unique name for this library.
+ * @param funcs             NULL-terminated array of name/function pairs.
+ * @param dependence_dylib  Optional library that this fake lib depends on.
+ *                          Its reference count is incremented.
+ * @return A handle to the fake library, or NULL if the name is already taken
+ *         or memory allocation fails.
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_fake_lib(
+    const char* libname,
+    const woort_ExternLibFunc* funcs,
+    /* OPTIONAL */ woort_Dylib* dependence_dylib);
+
+/**
+ * @brief Load a native dynamic library.
+ *
+ * The library is searched for in this order:
+ *   1. Relative to script_path (if provided)
+ *   2. Relative to the current working directory
+ *   3. Relative to the executable directory
+ *   4. The given path exactly as-is
+ *   5. OS default library search path (only if script_path is NULL)
+ *
+ * A platform-specific extension (.dll/.so/.dylib) is appended in steps 1-3.
+ *
+ * @param libname          Unique name under which to register the library.
+ * @param path             Library file path or base name (NULL = load self).
+ * @param script_path      Optional script path for relative resolution.
+ * @param panic_when_fail  If true, panics on failure instead of returning NULL.
+ * @return A handle to the loaded library, or NULL on failure.
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_load_lib(
+    const char* libname,
+    /* OPTIONAL */ const char* path,
+    /* OPTIONAL */ const char* script_path,
+    bool panic_when_fail);
+
+/**
+ * @brief Look up a function by name in a loaded library.
+ *
+ * For native libraries, this uses the platform's symbol lookup
+ * (GetProcAddress / dlsym).  For fake libraries, the function table
+ * is searched linearly.
+ *
+ * @param lib       Library handle obtained from woort_load_lib or woort_fake_lib.
+ * @param funcname  Name of the function to look up.
+ * @return The function pointer, or NULL if not found.
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ void* woort_load_func(
+    /* OPTIONAL */ woort_Dylib* lib,
+    const char* funcname);
+
+/**
+ * @brief Unload a dynamic library.
+ *
+ * Reference counting and registry removal are controlled by the method flags:
+ *   - WOORT_DYLIB_UNREF: decrements the reference count; the library is
+ *     actually freed when the count reaches zero.
+ *   - WOORT_DYLIB_BURY: removes the library from the global name registry
+ *     without changing the reference count.
+ *
+ * @param lib     The library handle to unload.
+ * @param method  Bitmask of WOORT_DYLIB_UNREF and/or WOORT_DYLIB_BURY.
+ */
+WOORT_API void woort_unload_lib(
+    woort_Dylib* lib,
+    woort_DylibUnloadMethod method);
 
 /* ---------------------------- */
 
