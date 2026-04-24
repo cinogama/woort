@@ -12,7 +12,7 @@
 #elif defined(__APPLE__)
 #   include <mach-o/dyld.h>
 #   include <sys/param.h>
-#   include <stdlib.h>
+#   include <unistd.h>
 #elif defined(__unix__) || defined(__unix)
 #   include <unistd.h>
 #endif
