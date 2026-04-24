@@ -28,6 +28,7 @@ set_target_properties(
 
 target_link_libraries(woort 
     PRIVATE woort_options
+    PRIVATE ${CMAKE_DL_LIBS}
     PUBLIC woomem)
 
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)

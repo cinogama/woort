@@ -134,7 +134,7 @@ static woort_RecursiveMutex*  g_named_libs_mx = NULL;
 
 void _woort_dylib_bootup(void)
 {
-    woort_recursive_mutex_create(&g_named_libs_mx);
+    (void)woort_recursive_mutex_create(&g_named_libs_mx);
     woort_hashmap_init(
         &g_named_libs,
         sizeof(const char*),
@@ -172,14 +172,14 @@ static woort_Dylib* _registry_find(const char* name)
 static void _registry_insert(woort_Dylib* dylib)
 {
     woort_Dylib* ptr = dylib;
-    woort_hashmap_insert(&g_named_libs, (const void*)&dylib->m_name, &ptr);
+    (void)woort_hashmap_insert(
+        &g_named_libs, (const void*)&dylib->m_name, &ptr);
 }
 
 static void _registry_remove(woort_Dylib* dylib)
 {
-    /* The hashmap key is &dylib->m_name, so we pass that for removal.
-     * woort_hashmap_remove uses m_equal_fn internally to match keys. */
-    woort_hashmap_remove(&g_named_libs, (const void*)&dylib->m_name);
+    (void)woort_hashmap_remove(
+        &g_named_libs, (const void*)&dylib->m_name);
 }
 
 /* ================================================================
