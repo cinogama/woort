@@ -10,15 +10,47 @@ extern "C" {
 #   include <stdint.h>
 #endif // __cplusplus
 
-#if defined(_MSC_VER)
-#define WOORT_NODISCARD _Check_return_
-#define WOORT_DEPRECATED __declspec(deprecated)
-#elif defined(__clang__) || defined(__GNUC__)
-#define WOORT_NODISCARD __attribute__((warn_unused_result))
-#define WOORT_DEPRECATED __attribute__((deprecated))
+#ifdef __cplusplus
+#   if __has_cpp_attribute(nodiscard)
+#       define WOORT_NODISCARD [[nodiscard]]
+#   endif
+#   if __has_cpp_attribute(deprecated)
+#       define WOORT_DEPRECATED [[deprecated]]
+#   endif
 #else
-#define WOORT_NODISCARD
-#define WOORT_DEPRECATED
+#   if __has_c_attribute(nodiscard)
+#       define WOORT_NODISCARD [[nodiscard]]
+#   endif
+#   if __has_c_attribute(deprecated)
+#       define WOORT_DEPRECATED [[deprecated]]
+#   endif
+#endif
+
+#if defined(_MSC_VER)
+#   ifndef WOORT_NODISCARD
+#       define WOORT_NODISCARD _Check_return_
+#   endif
+#   ifndef WOORT_DEPRECATED
+#       define WOORT_DEPRECATED __declspec(deprecated)
+#   endif
+#elif defined(__clang__) || defined(__GNUC__)
+#   ifndef WOORT_NODISCARD
+#       ifdef __GNUC__
+#           define WOORT_NODISCARD /* GCC cannot suppress warnings, ignore. */
+#       else
+#           define WOORT_NODISCARD __attribute__((warn_unused_result))
+#       endif
+#   endif
+#   ifndef WOORT_DEPRECATED
+#       define WOORT_DEPRECATED __attribute__((deprecated))
+#   endif
+#else
+#   ifndef WOORT_NODISCARD
+#       define WOORT_NODISCARD
+#   endif
+#   ifndef WOORT_DEPRECATED
+#       define WOORT_DEPRECATED
+#   endif
 #endif
 
 #ifdef _WIN32
@@ -1656,60 +1688,6 @@ WOORT_API WOORT_NODISCARD bool woort_IR_ret(woort_IRFunction* f, const woort_IRV
  */
 WOORT_API WOORT_NODISCARD bool woort_IR_ret_void(woort_IRFunction* f);
 
-/* ============ Runtime API ============ */
-
-/**
- * @brief Reserve space on the VM evaluation stack.
- * @param count      Number of stack slots to reserve.
- * @param[out] out_stack  Pointer to receive the base stack index of the reserved region.
- * @return true on success, false on stack overflow.
- */
-WOORT_API WOORT_NODISCARD bool woort_push_reserve(
-    size_t count, woort_StackValue* out_stack);
-
-/**
- * @brief Pop (discard) the top count values from the VM evaluation stack.
- * @param count  Number of values to pop.
- */
-WOORT_API void woort_pop(size_t count);
-
-/**
- * @brief Import (copy) a value from another VM's stack into the current VM.
- * @param dst        Destination stack slot in the current VM.
- * @param src_vm     Source VM instance.
- * @param src_in_vm  Source stack slot in the source VM.
- */
-WOORT_API void woort_import_value(
-    woort_StackValue dst,
-    woort_VMRuntime* src_vm,
-    woort_StackValue src_in_vm);
-
-/**
- * @brief Invoke a function value and wait for completion.
- * @param dst  Stack slot for the return value.
- * @param f    Stack slot holding the callable value.
- * @return The call status (NORMAL, YIELD, ABORTED, or RESYNC).
- */
-WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_invoke(
-    woort_StackValue dst, woort_StackValue f);
-
-/**
- * @brief Spawn a new coroutine from a function value.
- * @param dst  Stack slot for the return value (when coroutine completes).
- * @param f    Stack slot holding the callable value.
- * @return The call status.
- */
-WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_spawn(
-    woort_StackValue dst, woort_StackValue f);
-
-/**
- * @brief Resume a previously yielded coroutine.
- * @param dst  Stack slot for the return value.
- * @return The call status.
- */
-WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
-    woort_StackValue dst);
-
 /**
  * @name CodeEnv Constant Pool Setters
  * @brief Set the value of a constant pool entry in a locked CodeEnv.
@@ -1882,6 +1860,60 @@ WOORT_API void woort_CodeEnv_set_const_struct(
     size_t member_count);
 
 /** @} */ /* end CodeEnv Constant Pool Setters */
+
+/* ============ Runtime API ============ */
+
+/**
+ * @brief Reserve space on the VM evaluation stack.
+ * @param count      Number of stack slots to reserve.
+ * @param[out] out_stack  Pointer to receive the base stack index of the reserved region.
+ * @return true on success, false on stack overflow.
+ */
+WOORT_API WOORT_NODISCARD bool woort_push_reserve(
+    size_t count, woort_StackValue* out_stack);
+
+/**
+ * @brief Pop (discard) the top count values from the VM evaluation stack.
+ * @param count  Number of values to pop.
+ */
+WOORT_API void woort_pop(size_t count);
+
+/**
+ * @brief Import (copy) a value from another VM's stack into the current VM.
+ * @param dst        Destination stack slot in the current VM.
+ * @param src_vm     Source VM instance.
+ * @param src_in_vm  Source stack slot in the source VM.
+ */
+WOORT_API void woort_import_value(
+    woort_StackValue dst,
+    woort_VMRuntime* src_vm,
+    woort_StackValue src_in_vm);
+
+/**
+ * @brief Invoke a function value and wait for completion.
+ * @param dst  Stack slot for the return value.
+ * @param f    Stack slot holding the callable value.
+ * @return The call status (NORMAL, YIELD, ABORTED, or RESYNC).
+ */
+WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_invoke(
+    woort_StackValue dst, woort_StackValue f);
+
+/**
+ * @brief Spawn a new coroutine from a function value.
+ * @param dst  Stack slot for the return value (when coroutine completes).
+ * @param f    Stack slot holding the callable value.
+ * @return The call status.
+ */
+WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_spawn(
+    woort_StackValue dst, woort_StackValue f);
+
+/**
+ * @brief Resume a previously yielded coroutine.
+ * @param dst  Stack slot for the return value.
+ * @return The call status.
+ */
+WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
+    woort_StackValue dst);
 
 /**
  * @brief Load a constant from a CodeEnv into a stack slot.
