@@ -830,7 +830,8 @@ WOORT_NODISCARD woort_VmCallStatus woort_resume(
     {
     case WOORT_VM_CALL_STATUS_NORMAL:
         // Fetch return value.
-        _WOORT_API_STACK(dst) = *vm->m_sp;
+        if (dst != WOORT_IGNORE)
+            _WOORT_API_STACK(dst) = *vm->m_sp;
         return WOORT_VM_CALL_STATUS_NORMAL;
     case WOORT_VM_CALL_STATUS_YIELD:
         /*
@@ -864,7 +865,8 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
         {
             if (target->m_jit_function(vm, vm->m_sb) == WOORT_VM_CALL_STATUS_NORMAL)
             {
-                _WOORT_API_STACK(dst) = *vm->m_sp;
+                if (dst != WOORT_IGNORE)
+                    _WOORT_API_STACK(dst) = *vm->m_sp;
                 return WOORT_VM_CALL_STATUS_NORMAL;
             }
             /* else, WOORT_VM_CALL_STATUS_RESYNC, need vm to rehandle. */
@@ -909,7 +911,8 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
         {
         case WOORT_VM_CALL_STATUS_NORMAL:
             // Fetch return value.
-            _WOORT_API_STACK(dst) = *vm->m_sp;
+            if (dst != WOORT_IGNORE)
+                _WOORT_API_STACK(dst) = *vm->m_sp;
             return WOORT_VM_CALL_STATUS_NORMAL;
         case WOORT_VM_CALL_STATUS_RESYNC:
             /*

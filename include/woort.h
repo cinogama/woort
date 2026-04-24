@@ -169,6 +169,14 @@ typedef struct woort_VMRuntime woort_VMRuntime;
 /** @brief Index into the VM evaluation stack. Negative values are relative to the current frame base. */
 typedef int32_t woort_StackValue;
 
+/**
+ * @brief Sentinel value for ignoring a return value.
+ *
+ * Pass as `dst` to woort_invoke, woort_spawn, or woort_resume
+ * when the return value is not needed.
+ */
+#define WOORT_IGNORE ((woort_StackValue)0)
+
 /** @brief Signature for native (C) functions callable from Woolang. */
 typedef woort_api(*woort_NativeFunction)(void);
 
@@ -1918,7 +1926,7 @@ WOORT_API void woort_import_value(
 
 /**
  * @brief Invoke a function value and wait for completion.
- * @param dst  Stack slot for the return value.
+ * @param dst  Stack slot for the return value, or WOORT_IGNORE to discard.
  * @param f    Stack slot holding the callable value.
  * @return The call status (NORMAL, YIELD, ABORTED, or RESYNC).
  */
@@ -1927,7 +1935,7 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_invoke(
 
 /**
  * @brief Spawn a new coroutine from a function value.
- * @param dst  Stack slot for the return value (when coroutine completes).
+ * @param dst  Stack slot for the return value, or WOORT_IGNORE to discard.
  * @param f    Stack slot holding the callable value.
  * @return The call status.
  */
@@ -1936,7 +1944,7 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_spawn(
 
 /**
  * @brief Resume a previously yielded coroutine.
- * @param dst  Stack slot for the return value.
+ * @param dst  Stack slot for the return value, or WOORT_IGNORE to discard.
  * @return The call status.
  */
 WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
