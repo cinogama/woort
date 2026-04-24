@@ -260,6 +260,23 @@ void woort_load_const(
     _WOORT_API_STACK(dst) = code_env->m_data_begin[cidx];
 }
 
+WOORT_NODISCARD bool woort_load_extern_const(
+    woort_StackValue dst, const woort_CodeEnv* code_env, const char* name)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+    assert(code_env != NULL);
+    assert(name != NULL);
+
+    woort_IRConstantIndex cidx;
+    if (!woort_CodeEnv_find_extern_constant(code_env, name, &cidx))
+        return false;
+
+    assert((size_t)cidx < code_env->m_data_count);
+    _WOORT_API_STACK(dst) = code_env->m_data_begin[cidx];
+    return true;
+}
+
 void woort_set_value(
     woort_StackValue dst, woort_StackValue src)
 {

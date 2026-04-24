@@ -1863,6 +1863,13 @@ WOORT_API void woort_CodeEnv_set_const_struct(
 
 /* ============ Runtime API ============ */
 
+/* For ease of writing, aliases for types/methods are provided here. */
+
+typedef woort_VMRuntime woort_vm;
+typedef woort_StackValue woort_value;
+typedef woort_CodeEnv woort_codeenv;
+typedef woort_IRConstantIndex woort_constidx;
+
 /**
  * @brief Reserve space on the VM evaluation stack.
  * @param count      Number of stack slots to reserve.
@@ -1923,6 +1930,22 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
  */
 WOORT_API void woort_load_const(
     woort_StackValue dst, const woort_CodeEnv* code_env, woort_IRConstantIndex cidx);
+
+/**
+ * @brief Load an extern constant from a CodeEnv into a stack slot by name.
+ *
+ * Looks up the extern constant with the given name in the code environment,
+ * then copies its value into the destination stack slot.
+ *
+ * @param dst       Destination stack slot.
+ * @param code_env  The code environment holding the constant pool. Must not be NULL.
+ * @param name      The name of the extern constant to look up. Must not be NULL.
+ * @return true if the extern constant was found and loaded, false otherwise.
+ */
+WOORT_API WOORT_NODISCARD bool woort_load_extern_const(
+    woort_StackValue dst,
+    const woort_CodeEnv* code_env,
+    const char* name);
 
 /**
  * @name Stack Value Setters
