@@ -1583,3 +1583,11 @@ void woort_CodeEnv_dumps(
 {
     woort_dump_codes(env);
 }
+
+WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_vm_create(void)
+{
+    woort_VMRuntime* vm;
+    if (!woort_VMRuntime_create(&vm))
+        return NULL;
+    return vm;
+}

@@ -1869,6 +1869,26 @@ typedef woort_VMRuntime woort_vm;
 typedef woort_StackValue woort_value;
 typedef woort_CodeEnv woort_codeenv;
 typedef woort_IRConstantIndex woort_constidx;
+typedef woort_VmCallStatus woort_callstatus;
+
+/**
+ * @brief Create a new VM runtime instance (convenience wrapper).
+ *
+ * This is a simplified alternative to woort_VMRuntime_create().
+ * Instead of using an output-parameter pattern, it returns the new
+ * VM handle directly, or NULL on failure.
+ *
+ * Internally delegates to woort_VMRuntime_create().
+ * The caller must destroy the VM with woort_vm_close (alias for
+ * woort_VMRuntime_destroy) when done.
+ *
+ * @return Pointer to the new VM runtime, or NULL on out-of-memory.
+ */
+WOORT_API WOORT_NODISCARD 
+/* OPTIONAL */ woort_VMRuntime* woort_vm_create(void);
+
+#define woort_vm_close woort_VMRuntime_destroy
+#define woort_vm_swap woort_VMRuntime_swap
 
 /**
  * @brief Reserve space on the VM evaluation stack.
