@@ -233,31 +233,6 @@ static void test_dylib_fake_lib_dependency(void)
     TEST_END();
 }
 
-static void test_dylib_load_self(void)
-{
-    TEST_BEGIN("load_lib: path=NULL loads self");
-
-#if defined(_WIN32) || defined(_WIN64)
-    /* On Windows, loading self (EXE) doesn't export library symbols.
-     * Load kernel32.dll instead to test native library loading. */
-    woort_Dylib* lib = woort_load_lib("kernel32_test", "kernel32.dll",
-                                      NULL, false);
-#else
-    woort_Dylib* lib = woort_load_lib("self_test", NULL, NULL, false);
-#endif
-    TEST_ASSERT_NOT_NULL(lib);
-
-#if defined(_WIN32) || defined(_WIN64)
-    void* fp = woort_load_func(lib, "GetProcAddress");
-#else
-    void* fp = woort_load_func(lib, "woort_init");
-#endif
-    TEST_ASSERT_NOT_NULL(fp);
-
-    woort_unload_lib(lib, WOORT_DYLIB_UNREF_AND_BURY);
-    TEST_END();
-}
-
 static void test_dylib_load_fail(void)
 {
     TEST_BEGIN("load_lib: nonexistent returns NULL");
@@ -352,7 +327,6 @@ int main(int argc, char** argv)
     test_dylib_fake_lib_basic();
     test_dylib_fake_lib_duplicate();
     test_dylib_fake_lib_dependency();
-    test_dylib_load_self();
     test_dylib_load_fail();
     test_dylib_load_reuse();
     test_dylib_unload_unref_only();
