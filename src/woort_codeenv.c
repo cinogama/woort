@@ -82,17 +82,12 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     woort_StringPool_deinit(&code_env->m_srcloc_string_pool);
 
     /* 释放关联的外部库 */
-    if (code_env->m_extern_libs != NULL)
+    for (size_t i = 0; i < code_env->m_extern_libs.m_size; ++i)
     {
-        for (size_t i = 0; i < code_env->m_extern_libs_count; ++i)
-        {
-            woort_unload_lib(code_env->m_extern_libs[i], WOORT_DYLIB_UNREF);
-        }
-        free(code_env->m_extern_libs);
-        code_env->m_extern_libs = NULL;
-        code_env->m_extern_libs_count = 0;
-        code_env->m_extern_libs_capacity = 0;
+        woort_Dylib* lib = *(woort_Dylib**)woort_vector_at(&code_env->m_extern_libs, i);
+        woort_unload_lib(lib, WOORT_DYLIB_UNREF);
     }
+    woort_vector_deinit(&code_env->m_extern_libs);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
@@ -186,9 +181,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
         code_env_instance->m_data_count = constant_and_static_storage_count;
 
-        code_env_instance->m_extern_libs = NULL;
-        code_env_instance->m_extern_libs_count = 0;
-        code_env_instance->m_extern_libs_capacity = 0;
+        woort_vector_init(&code_env_instance->m_extern_libs, sizeof(woort_Dylib*));
 
         // Fill 0 for static storage:
         memset(
@@ -534,20 +527,8 @@ WOORT_NODISCARD bool woort_CodeEnv_add_extern_lib(
     assert(env != NULL);
     assert(lib != NULL);
 
-    if (env->m_extern_libs_count == env->m_extern_libs_capacity)
-    {
-        size_t new_capacity = env->m_extern_libs_capacity == 0
-            ? 4
-            : env->m_extern_libs_capacity * 2;
-        woort_Dylib** new_array = (woort_Dylib**)realloc(
-            env->m_extern_libs, new_capacity * sizeof(woort_Dylib*));
-        if (new_array == NULL)
-            return false;
-        env->m_extern_libs = new_array;
-        env->m_extern_libs_capacity = new_capacity;
-    }
-
-    env->m_extern_libs[env->m_extern_libs_count++] = lib;
+    if (!woort_vector_push_back(&env->m_extern_libs, 1, &lib))
+        return false;
 
     /* 增加库的引用计数，确保在 CodeEnv 生命期内库不被释放 */
     lib->m_use_count++;

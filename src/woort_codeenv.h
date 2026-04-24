@@ -62,11 +62,8 @@ struct woort_CodeEnv {
     /*
      * 与 CodeEnv 关联的外部动态库句柄列表。
      * 当 CodeEnv 被 GC 销毁时，所有关联库会被解除引用。
-     * m_extern_libs 为 NULL 表示无关联库。
      */
-    /* OPTIONAL */ woort_Dylib** m_extern_libs;
-    size_t m_extern_libs_count;
-    size_t m_extern_libs_capacity;
+    woort_Vector /* woort_Dylib* */ m_extern_libs;
 
     size_t m_data_count;
     woort_Value m_data_begin[];
