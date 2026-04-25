@@ -1948,7 +1948,7 @@ WOORT_API void woort_import_value(
  * @brief Invoke a function value and wait for completion.
  * @param dst  Stack slot for the return value, or WOORT_IGNORE to discard.
  * @param f    Stack slot holding the callable value.
- * @return The call status (NORMAL, YIELD, ABORTED, or RESYNC).
+ * @return The call status (NORMAL or ABORTED).
  */
 WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_invoke(
     woort_StackValue dst, woort_StackValue f);
@@ -1957,7 +1957,7 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_invoke(
  * @brief Spawn a new coroutine from a function value.
  * @param dst  Stack slot for the return value, or WOORT_IGNORE to discard.
  * @param f    Stack slot holding the callable value.
- * @return The call status.
+ * @return The call status (NORMAL, YIELD or ABORTED).
  */
 WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_spawn(
     woort_StackValue dst, woort_StackValue f);
@@ -1965,7 +1965,7 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_spawn(
 /**
  * @brief Resume a previously yielded coroutine.
  * @param dst  Stack slot for the return value, or WOORT_IGNORE to discard.
- * @return The call status.
+ * @return The call status (NORMAL, YIELD or ABORTED).
  */
 WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
     woort_StackValue dst);
