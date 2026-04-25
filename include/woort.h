@@ -2921,6 +2921,103 @@ WOORT_API WOORT_NODISCARD bool woort_map_iter(
 
 /**@}*/
 
+/* ========== Serialize ========== */
+
+/**
+ * @brief Flags for controlling serialization behavior.
+ *
+ * Combine flags with bitwise OR. Default (0) produces compact output and
+ * represents recursive structures as placeholder literals.
+ */
+typedef enum woort_SerializeFlag
+{
+    /** No flags: compact output, recursive structures output {...} / [...]. */
+    WOORT_SERIALIZE_FLAG_NONE           = 0,
+
+    /** Pretty-print: produce indented output with newlines. */
+    WOORT_SERIALIZE_FLAG_PRETTY         = 1 << 0,
+
+    /** Report failure when a recursive (cyclic) structure is encountered. */
+    WOORT_SERIALIZE_FLAG_FAIL_ON_CYCLE  = 1 << 1,
+
+} woort_SerializeFlag;
+
+/** @name Serialize */
+/**@{*/
+
+/**
+ * @brief Serialize a boxed dynamic value to its Woolang literal string.
+ * @param dst    Destination stack slot for the string result.
+ * @param src    Source stack slot holding the boxed value.
+ * @param flags  Bitmask of woort_SerializeFlag values.
+ * @return true on success, false on failure (unsupported type, cycle, OOM).
+ */
+WOORT_API WOORT_NODISCARD bool woort_serialize_dynbox(
+    woort_StackValue dst, woort_StackValue src, uint32_t flags);
+
+/**
+ * @brief Serialize a map to its Woolang literal string.
+ * @param dst    Destination stack slot for the string result.
+ * @param src    Source stack slot holding the map.
+ * @param flags  Bitmask of woort_SerializeFlag values.
+ * @return true on success, false on failure (cycle, OOM).
+ */
+WOORT_API WOORT_NODISCARD bool woort_serialize_map(
+    woort_StackValue dst, woort_StackValue src, uint32_t flags);
+
+/**
+ * @brief Serialize a vec to its Woolang literal string.
+ * @param dst    Destination stack slot for the string result.
+ * @param src    Source stack slot holding the vec.
+ * @param flags  Bitmask of woort_SerializeFlag values.
+ * @return true on success, false on failure (cycle, OOM).
+ */
+WOORT_API WOORT_NODISCARD bool woort_serialize_vec(
+    woort_StackValue dst, woort_StackValue src, uint32_t flags);
+
+/**@}*/
+
+/** @name Deserialize */
+/**@{*/
+
+/**
+ * @brief Parse a Woolang literal string into a boxed dynamic value.
+ *
+ * Supports nil/null, true/false, integers, reals, strings, arrays, and maps.
+ *
+ * @param dst  Destination stack slot for the boxed value.
+ * @param str  NUL-terminated Woolang literal string.
+ * @return true on success, false on parse error or OOM.
+ */
+WOORT_API WOORT_NODISCARD bool woort_deserialize_dynbox(
+    woort_StackValue dst, const char* str);
+
+/**
+ * @brief Parse a Woolang literal string into a map.
+ *
+ * The input must be a valid map literal `{...}`.
+ *
+ * @param dst  Destination stack slot for the map.
+ * @param str  NUL-terminated Woolang literal string.
+ * @return true on success, false on parse error, wrong type, or OOM.
+ */
+WOORT_API WOORT_NODISCARD bool woort_deserialize_map(
+    woort_StackValue dst, const char* str);
+
+/**
+ * @brief Parse a Woolang literal string into a vec.
+ *
+ * The input must be a valid array literal `[...]`.
+ *
+ * @param dst  Destination stack slot for the vec.
+ * @param str  NUL-terminated Woolang literal string.
+ * @return true on success, false on parse error, wrong type, or OOM.
+ */
+WOORT_API WOORT_NODISCARD bool woort_deserialize_vec(
+    woort_StackValue dst, const char* str);
+
+/**@}*/
+
 /* ========== Struct ========== */
 
 /** @name Struct Capacity */

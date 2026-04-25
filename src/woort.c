@@ -15,6 +15,7 @@
 #include "woort_disassembly.h"
 #include "woort_path.h"
 #include "woort_dylib.h"
+#include "woort_serialize.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -1603,4 +1604,182 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_vm_create(void)
     if (!woort_VMRuntime_create(&vm))
         return NULL;
     return vm;
+}
+
+/* ========== Serialize / Deserialize ========== */
+
+WOORT_NODISCARD bool woort_serialize_dynbox(
+    woort_StackValue dst, woort_StackValue src, uint32_t flags)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    const woort_DynBox src_box = _WOORT_API_STACK(src).m_dynamic;
+
+    woort_Vector buf;
+    woort_vector_init(&buf, 1);
+
+    const woort_GCUnit* visited[256];
+    size_t visited_count = 0;
+
+    if (!_woort_serialize_dynbox_to_buf(
+            &src_box, &buf,
+            visited, &visited_count, 256,
+            0, flags))
+    {
+        woort_vector_deinit(&buf);
+        return false;
+    }
+
+    const woort_GCString* const gcstr = woort_GCString_make_string(
+        buf.m_data, buf.m_size);
+    woort_vector_deinit(&buf);
+
+    if (gcstr == NULL)
+        return false;
+
+    _WOORT_API_STACK(dst).m_string = gcstr;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_serialize_map(
+    woort_StackValue dst, woort_StackValue src, uint32_t flags)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    const woort_GCMap* const gcmap = _WOORT_API_STACK(src).m_map;
+    assert(gcmap != NULL);
+
+    woort_DynBox box;
+    memset(&box, 0, sizeof(box));
+    box.m_boxed_gc_unit = (woort_GCUnit*)gcmap;
+
+    woort_Vector buf;
+    woort_vector_init(&buf, 1);
+
+    const woort_GCUnit* visited[256];
+    size_t visited_count = 0;
+
+    if (!_woort_serialize_dynbox_to_buf(
+            &box, &buf,
+            visited, &visited_count, 256,
+            0, flags))
+    {
+        woort_vector_deinit(&buf);
+        return false;
+    }
+
+    const woort_GCString* const gcstr = woort_GCString_make_string(
+        buf.m_data, buf.m_size);
+    woort_vector_deinit(&buf);
+
+    if (gcstr == NULL)
+        return false;
+
+    _WOORT_API_STACK(dst).m_string = gcstr;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_serialize_vec(
+    woort_StackValue dst, woort_StackValue src, uint32_t flags)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    const woort_GCVec* const gcvec = _WOORT_API_STACK(src).m_vec;
+    assert(gcvec != NULL);
+
+    woort_DynBox box;
+    memset(&box, 0, sizeof(box));
+    box.m_boxed_gc_unit = (woort_GCUnit*)gcvec;
+
+    woort_Vector buf;
+    woort_vector_init(&buf, 1);
+
+    const woort_GCUnit* visited[256];
+    size_t visited_count = 0;
+
+    if (!_woort_serialize_dynbox_to_buf(
+            &box, &buf,
+            visited, &visited_count, 256,
+            0, flags))
+    {
+        woort_vector_deinit(&buf);
+        return false;
+    }
+
+    const woort_GCString* const gcstr = woort_GCString_make_string(
+        buf.m_data, buf.m_size);
+    woort_vector_deinit(&buf);
+
+    if (gcstr == NULL)
+        return false;
+
+    _WOORT_API_STACK(dst).m_string = gcstr;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_deserialize_dynbox(
+    woort_StackValue dst, const char* str)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    const char* p = str;
+    woort_DynBox result;
+
+    if (!_woort_deserialize_dynbox_from_str(&p, &result))
+        return false;
+
+    _WOORT_API_STACK(dst).m_dynamic = result;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_deserialize_map(
+    woort_StackValue dst, const char* str)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    const char* p = str;
+    p = _woort_skip_whitespace(p);
+
+    if (*p != '{')
+        return false;
+
+    woort_GCMap* gcmap = NULL;
+    if (!_woort_deserialize_map_impl(&p, &gcmap))
+        return false;
+
+    p = _woort_skip_whitespace(p);
+    if (*p != '\0')
+        return false;
+
+    _WOORT_API_STACK(dst).m_map = gcmap;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_deserialize_vec(
+    woort_StackValue dst, const char* str)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    const char* p = str;
+    p = _woort_skip_whitespace(p);
+
+    if (*p != '[')
+        return false;
+
+    woort_GCVec* gcvec = NULL;
+    if (!_woort_deserialize_vec_impl(&p, &gcvec))
+        return false;
+
+    p = _woort_skip_whitespace(p);
+    if (*p != '\0')
+        return false;
+
+    _WOORT_API_STACK(dst).m_vec = gcvec;
+    return true;
 }
