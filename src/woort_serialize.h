@@ -33,7 +33,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
 /*
 内部辅助：跳过空白字符。
 */
-const char* _woort_skip_whitespace(const char* p);
+const char* _woort_deserialize_skip_whitespace(const char* p);
 
 /*
 内部辅助：从字符串解析一个 DynBox 值。

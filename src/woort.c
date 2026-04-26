@@ -16,6 +16,7 @@
 #include "woort_path.h"
 #include "woort_dylib.h"
 #include "woort_serialize.h"
+#include "woort_util.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -1622,7 +1623,7 @@ WOORT_NODISCARD bool woort_serialize_dynbox(
     woort_HashMap visited_set;
     woort_hashmap_init(&visited_set,
         sizeof(const woort_GCUnit*), sizeof(char),
-        _woort_serialize_ptr_hash, _woort_serialize_ptr_equal);
+        woort_util_ptr_hash, woort_util_ptr_equal);
 
     if (!_woort_serialize_dynbox_to_buf(
         &src_box, &buf,
@@ -1666,7 +1667,7 @@ WOORT_NODISCARD bool woort_serialize_map(
     woort_HashMap visited_set;
     woort_hashmap_init(&visited_set,
         sizeof(const woort_GCUnit*), sizeof(char),
-        _woort_serialize_ptr_hash, _woort_serialize_ptr_equal);
+        woort_util_ptr_hash, woort_util_ptr_equal);
 
     if (!_woort_serialize_dynbox_to_buf(
         &box,
@@ -1711,7 +1712,7 @@ WOORT_NODISCARD bool woort_serialize_vec(
     woort_HashMap visited_set;
     woort_hashmap_init(&visited_set,
         sizeof(const woort_GCUnit*), sizeof(char),
-        _woort_serialize_ptr_hash, _woort_serialize_ptr_equal);
+        woort_util_ptr_hash, woort_util_ptr_equal);
 
     if (!_woort_serialize_dynbox_to_buf(
         &box,
@@ -1759,7 +1760,8 @@ WOORT_NODISCARD bool woort_deserialize_map(
     assert(vm != NULL);
 
     const char* p = str;
-    p = _woort_skip_whitespace(p);
+
+    p = _woort_deserialize_skip_whitespace(p);
 
     if (*p != '{')
         return false;
@@ -1768,7 +1770,7 @@ WOORT_NODISCARD bool woort_deserialize_map(
     if (!_woort_deserialize_map_impl(&p, &gcmap))
         return false;
 
-    p = _woort_skip_whitespace(p);
+    p = _woort_deserialize_skip_whitespace(p);
     if (*p != '\0')
         return false;
 
@@ -1783,7 +1785,7 @@ WOORT_NODISCARD bool woort_deserialize_vec(
     assert(vm != NULL);
 
     const char* p = str;
-    p = _woort_skip_whitespace(p);
+    p = _woort_deserialize_skip_whitespace(p);
 
     if (*p != '[')
         return false;
@@ -1792,7 +1794,7 @@ WOORT_NODISCARD bool woort_deserialize_vec(
     if (!_woort_deserialize_vec_impl(&p, &gcvec))
         return false;
 
-    p = _woort_skip_whitespace(p);
+    p = _woort_deserialize_skip_whitespace(p);
     if (*p != '\0')
         return false;
 
