@@ -10,15 +10,21 @@ woort_serialize.h
 #include "woort_gc_string.h"
 #include "woort_value.h"
 #include "woort_vector.h"
+#include "woort_hashmap.h"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
 /*
+用于 woort_HashMap 的指针哈希与比较函数（key = const woort_GCUnit*）。
+*/
+WOORT_NODISCARD size_t _woort_serialize_ptr_hash(const void* key);
+WOORT_NODISCARD bool _woort_serialize_ptr_equal(const void* key1, const void* key2);
+
+/*
 内部辅助：将 DynBox 序列化到 woort_Vector 缓冲区。
-visited_gcunits: 已访问的 GC 单元列表，用于循环检测。
-visited_count: visited_gcunits 中的元素数量。
+visited_set: 已访问的 GC Unit 集合（woort_HashMap），用于循环检测。
 depth: 当前递归深度，用于缩进。
 flags: woort_SerializeFlag 位掩码。
 返回 true 成功，false 失败。
@@ -26,9 +32,7 @@ flags: woort_SerializeFlag 位掩码。
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
     const woort_DynBox* box,
     woort_Vector* buf,
-    const woort_GCUnit** visited_gcunits,
-    size_t* visited_count,
-    size_t visited_capacity,
+    woort_HashMap* visited_set,
     int depth,
     uint32_t flags);
 

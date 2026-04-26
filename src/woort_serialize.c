@@ -12,9 +12,6 @@
 #include <assert.h>
 #include <inttypes.h>
 
-/* 循环检测最大容量 */
-#define WOORT_VISITED_CAPACITY 256
-
 /* ========================================================================
  * 内部工具：输出字符到缓冲区
  * ======================================================================== */
@@ -80,23 +77,18 @@ static bool _woort_append_indent(woort_Vector* buf, int depth, uint32_t flags)
 }
 
 /* ========================================================================
- * 循环检测
+ * 循环检测（woort_HashMap 辅助函数）
  * ======================================================================== */
 
-/*
-检查 gcunit 是否已经在 visited_gcunits 中。
-*/
-static bool _woort_is_visited(
-    const woort_GCUnit** visited,
-    size_t count,
-    const woort_GCUnit* gcunit)
+WOORT_NODISCARD size_t _woort_serialize_ptr_hash(const void* key)
 {
-    for (size_t i = 0; i < count; ++i)
-    {
-        if (visited[i] == gcunit)
-            return true;
-    }
-    return false;
+    return *(const size_t*)key;
+}
+
+WOORT_NODISCARD bool _woort_serialize_ptr_equal(
+    const void* key1, const void* key2)
+{
+    return *(const size_t*)key1 == *(const size_t*)key2;
 }
 
 /* ========================================================================
@@ -106,9 +98,7 @@ static bool _woort_is_visited(
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
     const woort_DynBox* box,
     woort_Vector* buf,
-    const woort_GCUnit** visited_gcunits,
-    size_t* visited_count,
-    size_t visited_capacity,
+    woort_HashMap* visited_set,
     int depth,
     uint32_t flags)
 {
@@ -171,17 +161,17 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         if (vec->m_length == 0)
             return _woort_append_str(buf, "[]");
 
-        if (_woort_is_visited(
-            visited_gcunits, *visited_count, &vec->m_gc_unit))
+        void* _unused;
+        woort_hashmap_Result _hr = woort_hashmap_get_or_emplace(
+            visited_set, &vec->m_gc_unit, &_unused);
+        if (_hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
         {
             if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_CYCLE)
                 return false;
             return _woort_append_str(buf, "[...]");
         }
-
-        if (*visited_count >= visited_capacity)
+        if (_hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
             return false;
-        visited_gcunits[(*visited_count)++] = &vec->m_gc_unit;
 
         if (!_woort_append_char(buf, '['))
             return false;
@@ -210,7 +200,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
 
             if (!_woort_serialize_dynbox_to_buf(
                     &vec->m_datas[i], buf,
-                    visited_gcunits, visited_count, visited_capacity,
+                    visited_set,
                     depth + 1, flags))
             {
                 return false;
@@ -223,7 +213,8 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
                 return false;
         }
 
-        (*visited_count)--;
+        if (!woort_hashmap_remove(visited_set, &vec->m_gc_unit))
+            return false;
         return _woort_append_char(buf, ']');
     }
 
@@ -236,17 +227,17 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         if (gcmap->m_size == 0)
             return _woort_append_str(buf, "{}");
 
-        if (_woort_is_visited(
-            visited_gcunits, *visited_count, &gcmap->m_gc_unit))
+        void* _unused;
+        woort_hashmap_Result _hr = woort_hashmap_get_or_emplace(
+            visited_set, &gcmap->m_gc_unit, &_unused);
+        if (_hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
         {
             if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_CYCLE)
                 return false;
             return _woort_append_str(buf, "{...}");
         }
-
-        if (*visited_count >= visited_capacity)
+        if (_hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
             return false;
-        visited_gcunits[(*visited_count)++] = &gcmap->m_gc_unit;
 
         if (!_woort_append_char(buf, '{'))
             return false;
@@ -278,7 +269,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
 
             if (!_woort_serialize_dynbox_to_buf(
                     &bucket->m_key, buf,
-                    visited_gcunits, visited_count, visited_capacity,
+                    visited_set,
                     depth + 1, flags))
             {
                 return false;
@@ -289,7 +280,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
 
             if (!_woort_serialize_dynbox_to_buf(
                     &bucket->m_val, buf,
-                    visited_gcunits, visited_count, visited_capacity,
+                    visited_set,
                     depth + 1, flags))
             {
                 return false;
@@ -302,7 +293,8 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
                 return false;
         }
 
-        (*visited_count)--;
+        if (!woort_hashmap_remove(visited_set, &gcmap->m_gc_unit))
+            return false;
         return _woort_append_char(buf, '}');
     }
 

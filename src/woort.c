@@ -1619,17 +1619,22 @@ WOORT_NODISCARD bool woort_serialize_dynbox(
     woort_Vector buf;
     woort_vector_init(&buf, 1);
 
-    const woort_GCUnit* visited[256];
-    size_t visited_count = 0;
+    woort_HashMap visited_set;
+    woort_hashmap_init(&visited_set,
+        sizeof(const woort_GCUnit*), sizeof(char),
+        _woort_serialize_ptr_hash, _woort_serialize_ptr_equal);
 
     if (!_woort_serialize_dynbox_to_buf(
-            &src_box, &buf,
-            visited, &visited_count, 256,
-            0, flags))
+        &src_box, &buf,
+        &visited_set,
+        0, flags))
     {
+        woort_hashmap_deinit(&visited_set);
         woort_vector_deinit(&buf);
         return false;
     }
+
+    woort_hashmap_deinit(&visited_set);
 
     const woort_GCString* const gcstr = woort_GCString_make_string(
         buf.m_data, buf.m_size);
@@ -1658,17 +1663,23 @@ WOORT_NODISCARD bool woort_serialize_map(
     woort_Vector buf;
     woort_vector_init(&buf, 1);
 
-    const woort_GCUnit* visited[256];
-    size_t visited_count = 0;
+    woort_HashMap visited_set;
+    woort_hashmap_init(&visited_set,
+        sizeof(const woort_GCUnit*), sizeof(char),
+        _woort_serialize_ptr_hash, _woort_serialize_ptr_equal);
 
     if (!_woort_serialize_dynbox_to_buf(
-            &box, &buf,
-            visited, &visited_count, 256,
-            0, flags))
+        &box,
+        &buf,
+        &visited_set,
+        0, flags))
     {
+        woort_hashmap_deinit(&visited_set);
         woort_vector_deinit(&buf);
         return false;
     }
+
+    woort_hashmap_deinit(&visited_set);
 
     const woort_GCString* const gcstr = woort_GCString_make_string(
         buf.m_data, buf.m_size);
@@ -1697,17 +1708,24 @@ WOORT_NODISCARD bool woort_serialize_vec(
     woort_Vector buf;
     woort_vector_init(&buf, 1);
 
-    const woort_GCUnit* visited[256];
-    size_t visited_count = 0;
+    woort_HashMap visited_set;
+    woort_hashmap_init(&visited_set,
+        sizeof(const woort_GCUnit*), sizeof(char),
+        _woort_serialize_ptr_hash, _woort_serialize_ptr_equal);
 
     if (!_woort_serialize_dynbox_to_buf(
-            &box, &buf,
-            visited, &visited_count, 256,
-            0, flags))
+        &box,
+        &buf,
+        &visited_set,
+        0,
+        flags))
     {
+        woort_hashmap_deinit(&visited_set);
         woort_vector_deinit(&buf);
         return false;
     }
+
+    woort_hashmap_deinit(&visited_set);
 
     const woort_GCString* const gcstr = woort_GCString_make_string(
         buf.m_data, buf.m_size);
