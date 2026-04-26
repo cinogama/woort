@@ -53,11 +53,11 @@ WOORT_NODISCARD bool _woort_deserialize_dynbox_from_str(
 */
 WOORT_NODISCARD bool _woort_deserialize_map_impl(
     const char** p,
-    woort_GCMap** out_gcmap);
+    woort_DynBox* out_gcmap);
 
 /*
 内部辅助：解析数组字面量 [ ... ]。
 */
 WOORT_NODISCARD bool _woort_deserialize_vec_impl(
     const char** p,
-    woort_GCVec** out_gcvec);
+    woort_DynBox* out_gcvec);

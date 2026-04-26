@@ -1745,12 +1745,10 @@ WOORT_NODISCARD bool woort_deserialize_dynbox(
     assert(vm != NULL);
 
     const char* p = str;
-    woort_DynBox result;
 
-    if (!_woort_deserialize_dynbox_from_str(&p, &result))
+    if (!_woort_deserialize_dynbox_from_str(&p, &_WOORT_API_STACK(dst).m_dynamic))
         return false;
 
-    _WOORT_API_STACK(dst).m_dynamic = result;
     return true;
 }
 

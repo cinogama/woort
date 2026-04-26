@@ -199,9 +199,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             }
 
             if (!_woort_serialize_dynbox_to_buf(
-                    &vec->m_datas[i], buf,
-                    visited_set,
-                    depth + 1, flags))
+                &vec->m_datas[i], buf, visited_set, depth + 1, flags))
             {
                 return false;
             }
@@ -268,9 +266,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             }
 
             if (!_woort_serialize_dynbox_to_buf(
-                    &bucket->m_key, buf,
-                    visited_set,
-                    depth + 1, flags))
+                &bucket->m_key, buf, visited_set, depth + 1, flags))
             {
                 return false;
             }
@@ -279,9 +275,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
                 return false;
 
             if (!_woort_serialize_dynbox_to_buf(
-                    &bucket->m_val, buf,
-                    visited_set,
-                    depth + 1, flags))
+                &bucket->m_val, buf, visited_set, depth + 1, flags))
             {
                 return false;
             }
@@ -439,7 +433,7 @@ WOORT_NODISCARD static bool _woort_deserialize_string(
 */
 WOORT_NODISCARD bool _woort_deserialize_map_impl(
     const char** p,
-    woort_GCMap** out_gcmap)
+    woort_DynBox* out_gcmap)
 {
     const char* pp = *p;
     assert(pp != NULL);
@@ -447,8 +441,8 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
     ++pp;
 
     woort_GCMap* const gcmap = woort_GCMap_new();
-    if (gcmap == NULL)
-        return false;
+    woort_GC_mixed_write_barrier_gcaddr(
+        &out_gcmap->m_boxed_gc_unit, gcmap);
 
     pp = _woort_skip_whitespace(pp);
 
@@ -456,7 +450,6 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
     {
         ++pp;
         *p = pp;
-        *out_gcmap = gcmap;
         return true;
     }
 
@@ -506,7 +499,6 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
     }
 
     *p = pp;
-    *out_gcmap = gcmap;
     return true;
 }
 
@@ -515,7 +507,7 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
 */
 WOORT_NODISCARD bool _woort_deserialize_vec_impl(
     const char** p,
-    woort_GCVec** out_gcvec)
+    woort_DynBox* out_gcvec)
 {
     const char* pp = *p;
     assert(pp != NULL);
@@ -523,8 +515,8 @@ WOORT_NODISCARD bool _woort_deserialize_vec_impl(
     ++pp;
 
     woort_GCVec* const gcvec = woort_GCVec_new();
-    if (gcvec == NULL)
-        return false;
+    woort_GC_mixed_write_barrier_gcaddr(
+        &out_gcvec->m_boxed_gc_unit, gcvec);
 
     pp = _woort_skip_whitespace(pp);
 
@@ -532,7 +524,6 @@ WOORT_NODISCARD bool _woort_deserialize_vec_impl(
     {
         ++pp;
         *p = pp;
-        *out_gcvec = gcvec;
         return true;
     }
 
@@ -570,7 +561,6 @@ WOORT_NODISCARD bool _woort_deserialize_vec_impl(
     }
 
     *p = pp;
-    *out_gcvec = gcvec;
     return true;
 }
 
@@ -696,14 +686,12 @@ WOORT_NODISCARD bool _woort_deserialize_dynbox_from_str(
     woort_DynBox* out_box)
 {
     const char* pp = *p;
-    woort_DynBox result;
 
-    if (!_woort_deserialize_value(&pp, &result))
+    if (!_woort_deserialize_value(&pp, out_box))
         return false;
 
     pp = _woort_skip_whitespace(pp);
 
     *p = pp;
-    *out_box = result;
     return true;
 }
