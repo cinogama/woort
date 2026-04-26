@@ -56,6 +56,16 @@ void woort_GCVec_push_back(woort_GCVec* vec, woort_DynBox boxed_value)
         &vec->m_datas[vec->m_length++], boxed_value);
 }
 
+WOORT_NODISCARD woort_DynBox* woort_GCVec_emplace_back(woort_GCVec* vec, size_t count)
+{
+    _woort_GCVec_assure_vec_space(vec, vec->m_length + count);
+
+    woort_DynBox* const result = &vec->m_datas[vec->m_length];
+    vec->m_length += count;
+
+    return result;
+}
+
 woort_DynBox woort_GCVec_get(const woort_GCVec* vec, size_t index)
 {
     if (index >= vec->m_length)

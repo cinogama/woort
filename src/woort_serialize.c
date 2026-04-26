@@ -417,14 +417,14 @@ WOORT_NODISCARD static bool _woort_deserialize_string(
         return false;
 
     const size_t unescaped_len = strlen(unescaped);
+
     const woort_GCString* const gcstr = woort_GCString_make_string(
         unescaped, unescaped_len);
+    woort_GC_mixed_write_barrier_gcaddr(
+        &out_box->m_boxed_gc_unit, gcstr);
+
     free(unescaped);
 
-    if (gcstr == NULL)
-        return false;
-
-    out_box->m_boxed_gc_unit = (woort_GCUnit*)gcstr;
     return true;
 }
 
@@ -531,11 +531,10 @@ WOORT_NODISCARD bool _woort_deserialize_vec_impl(
     {
         pp = _woort_skip_whitespace(pp);
 
-        woort_DynBox elem;
-        if (!_woort_deserialize_value(&pp, &elem))
-            return false;
+        woort_DynBox* elem = woort_GCVec_emplace_back(gcvec, 1);
 
-        woort_GCVec_push_back(gcvec, elem);
+        if (!_woort_deserialize_value(&pp, elem))
+            return false;
 
         pp = _woort_skip_whitespace(pp);
 
