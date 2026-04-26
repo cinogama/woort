@@ -63,3 +63,14 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
     woort_GCMap* gcmap, woort_DynBox key);
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_string(
     woort_GCMap* gcmap, const char* key, size_t len);
+
+/*
+Emplace API: 将新键值对直接写入 bucket（先入桶再入链）。
+
+  woort_GCMap_Bucket* bucket = woort_GCMap_emplace_prepare(gcmap);
+  bucket->m_key = ...;   // 直接写入
+  bucket->m_val = ...;   // 直接写入
+  woort_GCMap_emplace_commit(gcmap);  // 入桶
+*/
+WOORT_NODISCARD woort_GCMap_Bucket* woort_GCMap_emplace_prepare(woort_GCMap* gcmap);
+void woort_GCMap_emplace_commit(woort_GCMap* gcmap);

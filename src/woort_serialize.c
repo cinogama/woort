@@ -457,8 +457,9 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
     {
         pp = _woort_skip_whitespace(pp);
 
-        woort_DynBox key;
-        if (!_woort_deserialize_value(&pp, &key))
+        woort_GCMap_Bucket* const bucket = woort_GCMap_emplace_prepare(gcmap);
+
+        if (!_woort_deserialize_value(&pp, &bucket->m_key))
             return false;
 
         pp = _woort_skip_whitespace(pp);
@@ -469,11 +470,10 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
 
         pp = _woort_skip_whitespace(pp);
 
-        woort_DynBox val;
-        if (!_woort_deserialize_value(&pp, &val))
+        if (!_woort_deserialize_value(&pp, &bucket->m_val))
             return false;
 
-        woort_GCMap_set_or_insert(gcmap, key, val);
+        woort_GCMap_emplace_commit(gcmap);
 
         pp = _woort_skip_whitespace(pp);
 

@@ -555,3 +555,37 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
     ++gcmap->m_size;
     return &new_bucket->m_val;
 }
+
+WOORT_NODISCARD woort_GCMap_Bucket* woort_GCMap_emplace_prepare(woort_GCMap* gcmap)
+{
+    if (gcmap->m_size >= gcmap->m_mask)
+        woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
+
+    return &gcmap->m_buckets[gcmap->m_size];
+}
+
+void woort_GCMap_emplace_commit(woort_GCMap* gcmap)
+{
+    const uint32_t idx = (uint32_t)gcmap->m_size;
+    woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[idx];
+
+    const size_t hash = woort_DynBox_hash(bucket->m_key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    bucket->m_next = NULL_BUCKET_INDEX;
+    bucket->m_prev = NULL_BUCKET_INDEX;
+
+    const uint32_t head_idx = gcmap->m_entries[entry_idx];
+    if (head_idx == NULL_BUCKET_INDEX)
+    {
+        gcmap->m_entries[entry_idx] = idx;
+    }
+    else
+    {
+        bucket->m_next = head_idx;
+        gcmap->m_buckets[head_idx].m_prev = idx;
+        gcmap->m_entries[entry_idx] = idx;
+    }
+
+    ++gcmap->m_size;
+}
