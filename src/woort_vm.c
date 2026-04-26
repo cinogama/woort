@@ -19,6 +19,7 @@
 #include "woort_utf8.h"
 #include "woort_vm_debugger.h"
 #include "woort_disassembly.h"
+#include "woort_serialize.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -631,12 +632,22 @@ _label_continue_execution:
                     rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string;
                 break;
             case WOORT_BOX_VALUE_TYPE_VEC:
-                // TODO;
-                abort();
+                if (!_woort_serialize_vec_impl(
+                    &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)],
+                    &rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
+                    0))
+                {
+                    WOORT_VM_THROW(bad_cast);
+                }
                 break;
             case WOORT_BOX_VALUE_TYPE_MAP:
-                // TODO;
-
+                if (!_woort_serialize_map_impl(
+                    &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)],
+                    &rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
+                    0))
+                {
+                    WOORT_VM_THROW(bad_cast);
+                }
                 break;
             case WOORT_BOX_VALUE_TYPE_STRUCT:
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
@@ -651,12 +662,6 @@ _label_continue_execution:
                     woort_GCString_make_string("<function>", 10);
                 break;
             }
-
-            (void)WOORT_BYTECODE(A8, c);
-            (void)rt_sb[(int8_t)WOORT_BYTECODE(B8, c)];
-            (void)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)];
-            abort();
-            break;
         }
         // CASTDYN
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 2):

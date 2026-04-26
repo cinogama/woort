@@ -1654,43 +1654,10 @@ WOORT_NODISCARD bool woort_serialize_map(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    const woort_GCMap* const gcmap = _WOORT_API_STACK(src).m_map;
-    assert(gcmap != NULL);
-
-    woort_DynBox box;
-    memset(&box, 0, sizeof(box));
-    box.m_boxed_gc_unit = (woort_GCUnit*)gcmap;
-
-    woort_Vector buf;
-    woort_vector_init(&buf, 1);
-
-    woort_HashMap visited_set;
-    woort_hashmap_init(&visited_set,
-        sizeof(const woort_GCUnit*), sizeof(char),
-        woort_util_ptr_hash, woort_util_ptr_equal);
-
-    if (!_woort_serialize_dynbox_to_buf(
-        &box,
-        &buf,
-        &visited_set,
-        0, flags))
-    {
-        woort_hashmap_deinit(&visited_set);
-        woort_vector_deinit(&buf);
-        return false;
-    }
-
-    woort_hashmap_deinit(&visited_set);
-
-    const woort_GCString* const gcstr = woort_GCString_make_string(
-        buf.m_data, buf.m_size);
-    woort_vector_deinit(&buf);
-
-    if (gcstr == NULL)
-        return false;
-
-    _WOORT_API_STACK(dst).m_string = gcstr;
-    return true;
+    return _woort_serialize_map_impl(
+        &_WOORT_API_STACK(dst),
+        &_WOORT_API_STACK(src),
+        flags);
 }
 
 WOORT_NODISCARD bool woort_serialize_vec(
@@ -1699,44 +1666,10 @@ WOORT_NODISCARD bool woort_serialize_vec(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    const woort_GCVec* const gcvec = _WOORT_API_STACK(src).m_vec;
-    assert(gcvec != NULL);
-
-    woort_DynBox box;
-    memset(&box, 0, sizeof(box));
-    box.m_boxed_gc_unit = (woort_GCUnit*)gcvec;
-
-    woort_Vector buf;
-    woort_vector_init(&buf, 1);
-
-    woort_HashMap visited_set;
-    woort_hashmap_init(&visited_set,
-        sizeof(const woort_GCUnit*), sizeof(char),
-        woort_util_ptr_hash, woort_util_ptr_equal);
-
-    if (!_woort_serialize_dynbox_to_buf(
-        &box,
-        &buf,
-        &visited_set,
-        0,
-        flags))
-    {
-        woort_hashmap_deinit(&visited_set);
-        woort_vector_deinit(&buf);
-        return false;
-    }
-
-    woort_hashmap_deinit(&visited_set);
-
-    const woort_GCString* const gcstr = woort_GCString_make_string(
-        buf.m_data, buf.m_size);
-    woort_vector_deinit(&buf);
-
-    if (gcstr == NULL)
-        return false;
-
-    _WOORT_API_STACK(dst).m_string = gcstr;
-    return true;
+    return _woort_serialize_vec_impl(
+        &_WOORT_API_STACK(dst),
+        &_WOORT_API_STACK(src),
+        flags);
 }
 
 WOORT_NODISCARD bool woort_deserialize_dynbox(

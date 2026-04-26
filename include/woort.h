@@ -2937,8 +2937,9 @@ typedef enum woort_SerializeFlag
     /** Pretty-print: produce indented output with newlines. */
     WOORT_SERIALIZE_FLAG_PRETTY         = 1 << 0,
 
-    /** Report failure when a recursive (cyclic) structure is encountered. */
-    WOORT_SERIALIZE_FLAG_FAIL_ON_CYCLE  = 1 << 1,
+    WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE  = 1 << 1,
+
+    WOORT_SERIALIZE_FLAG_USE_NULL_INSTEAD_OF_NIL = 1 << 2,
 
 } woort_SerializeFlag;
 

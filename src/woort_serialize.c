@@ -129,7 +129,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             visited_set, &vec->m_gc_unit, &_unused);
         if (_hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
         {
-            if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_CYCLE)
+            if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE)
                 return false;
             return _woort_serialize_append_str(buf, "[...]");
         }
@@ -192,7 +192,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             visited_set, &gcmap->m_gc_unit, &_unused);
         if (_hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
         {
-            if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_CYCLE)
+            if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE)
                 return false;
             return _woort_serialize_append_str(buf, "{...}");
         }
@@ -255,14 +255,106 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
     }
 
     case WOORT_BOX_VALUE_TYPE_STRUCT:
+        if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE)
+            return false;
         return _woort_serialize_append_str(buf, "<struct>");
     case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+        if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE)
+            return false;
         return _woort_serialize_append_str(buf, "<gchandle>");
     case WOORT_BOX_VALUE_TYPE_CLOSURE:
+        if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE)
+            return false;
         return _woort_serialize_append_str(buf, "<function>");
     }
 
     return false;
+}
+
+/* ========================================================================
+ * 公开 impl：woort_Value* 版本的序列化入口
+ * ======================================================================== */
+
+WOORT_NODISCARD bool _woort_serialize_map_impl(
+    woort_Value* dst,
+    const woort_Value* src_val,
+    uint32_t flags)
+{
+    const woort_GCMap* const gcmap = src_val->m_map;
+    assert(gcmap != NULL);
+
+    woort_DynBox box;
+    memset(&box, 0, sizeof(box));
+    box.m_boxed_gc_unit = (woort_GCUnit*)gcmap;
+
+    woort_Vector buf;
+    woort_vector_init(&buf, 1);
+
+    woort_HashMap visited_set;
+    woort_hashmap_init(&visited_set,
+        sizeof(const woort_GCUnit*), sizeof(char),
+        woort_util_ptr_hash, woort_util_ptr_equal);
+
+    if (!_woort_serialize_dynbox_to_buf(
+        &box, &buf, &visited_set, 0, flags))
+    {
+        woort_hashmap_deinit(&visited_set);
+        woort_vector_deinit(&buf);
+        return false;
+    }
+
+    woort_hashmap_deinit(&visited_set);
+
+    const woort_GCString* const gcstr = woort_GCString_make_string(
+        buf.m_data, buf.m_size);
+    woort_vector_deinit(&buf);
+
+    if (gcstr == NULL)
+        return false;
+
+    dst->m_string = gcstr;
+    return true;
+}
+
+WOORT_NODISCARD bool _woort_serialize_vec_impl(
+    woort_Value* dst,
+    const woort_Value* src_val,
+    uint32_t flags)
+{
+    const woort_GCVec* const gcvec = src_val->m_vec;
+    assert(gcvec != NULL);
+
+    woort_DynBox box;
+    memset(&box, 0, sizeof(box));
+    box.m_boxed_gc_unit = (woort_GCUnit*)gcvec;
+
+    woort_Vector buf;
+    woort_vector_init(&buf, 1);
+
+    woort_HashMap visited_set;
+    woort_hashmap_init(&visited_set,
+        sizeof(const woort_GCUnit*), sizeof(char),
+        woort_util_ptr_hash, woort_util_ptr_equal);
+
+    if (!_woort_serialize_dynbox_to_buf(
+        &box, &buf, &visited_set, 0, flags))
+    {
+        woort_hashmap_deinit(&visited_set);
+        woort_vector_deinit(&buf);
+        return false;
+    }
+
+    woort_hashmap_deinit(&visited_set);
+
+    const woort_GCString* const gcstr = woort_GCString_make_string(
+        buf.m_data, buf.m_size);
+    woort_vector_deinit(&buf);
+
+    if (gcstr == NULL)
+        return false;
+
+    dst->m_string = gcstr;
+    return true;
 }
 
 /* ========================================================================

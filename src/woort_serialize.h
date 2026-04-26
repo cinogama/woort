@@ -31,6 +31,24 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
     uint32_t flags);
 
 /*
+内部 impl：将 GCMap 序列化为字符串，写入 *dst。
+src_val->m_map 作为源。
+*/
+WOORT_NODISCARD bool _woort_serialize_map_impl(
+    woort_Value* dst,
+    const woort_Value* src_val,
+    uint32_t flags);
+
+/*
+内部 impl：将 GCVec 序列化为字符串，写入 *dst。
+src_val->m_vec 作为源。
+*/
+WOORT_NODISCARD bool _woort_serialize_vec_impl(
+    woort_Value* dst,
+    const woort_Value* src_val,
+    uint32_t flags);
+
+/*
 内部辅助：跳过空白字符。
 */
 const char* _woort_deserialize_skip_whitespace(const char* p);
