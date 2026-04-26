@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <inttypes.h>
+#include <math.h>
 
 /* ========================================================================
  * 内部工具：输出字符到缓冲区
@@ -51,9 +52,36 @@ static bool _woort_serialize_append_int(woort_Vector* buf, woort_Int val)
 static bool _woort_serialize_append_real(woort_Vector* buf, woort_Real val)
 {
     char tmp[64];
-    const int n = snprintf(tmp, sizeof(tmp), "%.17g", val);
+    const int n = snprintf(tmp, sizeof(tmp), "%.16g", val);
     if (n < 0 || (size_t)n >= sizeof(tmp))
         return false;
+
+    /* For non-finite values (NaN, Inf), output as-is */
+    if (!isfinite(val))
+        return woort_vector_push_back(buf, (size_t)n, tmp);
+
+    /* Check if the formatted result already contains '.' or 'e'/'E'.
+     * If it does, the number already has a decimal point or uses scientific
+     * notation, so output as-is. Otherwise (e.g. "1"), append ".0". */
+    bool needs_dot = true;
+    for (int i = 0; i < n; ++i)
+    {
+        if (tmp[i] == '.' || tmp[i] == 'e' || tmp[i] == 'E')
+        {
+            needs_dot = false;
+            break;
+        }
+    }
+
+    if (needs_dot)
+    {
+        char augmented[64];
+        memcpy(augmented, tmp, n);
+        augmented[n] = '.';
+        augmented[n + 1] = '0';
+        return woort_vector_push_back(buf, (size_t)(n + 2), augmented);
+    }
+
     return woort_vector_push_back(buf, (size_t)n, tmp);
 }
 
