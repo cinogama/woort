@@ -636,15 +636,15 @@ _label_continue_execution:
                 break;
             case WOORT_BOX_VALUE_TYPE_MAP:
                 // TODO;
-                abort();
+
                 break;
             case WOORT_BOX_VALUE_TYPE_STRUCT:
-                // TODO;
-                abort();
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
+                    woort_GCString_make_string("<struct>", 10);
                 break;
             case WOORT_BOX_VALUE_TYPE_GCHANDLE:
-                // TODO;
-                abort();
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
+                    woort_GCString_make_string("<gchandle>", 10);
                 break;
             case WOORT_BOX_VALUE_TYPE_CLOSURE:
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =

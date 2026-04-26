@@ -6,6 +6,7 @@ woort_gc_string.h
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdarg.h>
 
 #include "woort_gc_units.h"
 #include "woort_value.h"
@@ -21,6 +22,8 @@ struct woort_GCString
 extern const woort_GCUnitProxy WOORT_GCSTRING_UNIT_PROXY;
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str, size_t len);
+WOORT_NODISCARD const woort_GCString* woort_GCString_make_format(const char* fmt, ...);
+WOORT_NODISCARD const woort_GCString* woort_GCString_make_format_va(const char* fmt, va_list args);
 WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b);
 
 /**

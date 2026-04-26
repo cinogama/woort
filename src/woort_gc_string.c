@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <stdarg.h>
 
 #include "woomem.h"
 #include "woort_gc_string.h"
@@ -26,6 +27,35 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str
     gcstr->m_content[len] = '\0';
 
     return gcstr;
+}
+
+WOORT_NODISCARD const woort_GCString* woort_GCString_make_format_va(const char* fmt, va_list args)
+{
+    va_list args_copy;
+    va_copy(args_copy, args);
+    const int len = vsnprintf(NULL, 0, fmt, args_copy);
+    va_end(args_copy);
+    if (len < 0)
+        return NULL;
+
+    woort_GCString* const gcstr =
+        woort_GCUnit_alloc_attrib(O, sizeof(woort_GCString) + (size_t)len + 1);
+
+    gcstr->m_gc_unit.m_proxy = &WOORT_GCSTRING_UNIT_PROXY;
+    gcstr->m_length = (size_t)len;
+
+    vsnprintf(gcstr->m_content, (size_t)len + 1, fmt, args);
+
+    return gcstr;
+}
+
+WOORT_NODISCARD const woort_GCString* woort_GCString_make_format(const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    const woort_GCString* const result = woort_GCString_make_format_va(fmt, args);
+    va_end(args);
+    return result;
 }
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b)
