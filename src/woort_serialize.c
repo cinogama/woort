@@ -102,46 +102,25 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
     int depth,
     uint32_t flags)
 {
-    /* 检查是否是内联装箱类型（低 3 位非零） */
-    if (box->m_boxed & 0b0111)
+    woort_Value temp_val;
+    switch (woort_DynBox_unbox_no_check_and_get_type(*box, &temp_val))
     {
-        if (0b01 & box->m_boxed)
-        {
-            const double val = _woort_unbox_float64(box->m_boxed);
-            return _woort_append_real(buf, val);
-        }
+    case WOORT_BOX_VALUE_TYPE_INT:
+        return _woort_append_int(buf, temp_val.m_integer);
 
-        if (0 == (0b011 & (box->m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
-        {
-            const woort_Int val = _woort_unbox_int64(box->m_boxed);
-            return _woort_append_int(buf, val);
-        }
+    case WOORT_BOX_VALUE_TYPE_REAL:
+        return _woort_append_real(buf, temp_val.m_real);
 
-        const bool val = _woort_unbox_bool(box->m_boxed);
-        return _woort_append_str(buf, val ? "true" : "false");
-    }
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+        return _woort_append_str(buf, temp_val.m_integer ? "true" : "false");
 
-    /* NIL */
-    if (box->m_boxed_gc_unit == NULL)
+    case WOORT_BOX_VALUE_TYPE_NIL:
         return _woort_append_str(buf, "nil");
 
-    const woort_GCUnitProxy* const proxy = box->m_boxed_gc_unit->m_proxy;
-
-    /* 扩展装箱类型 */
-    if (proxy == &WOORT_EX_BOX_PROXY)
-    {
-        const woort_BoxedExValue* const ex = box->m_boxed_ex;
-        if (ex->m_is_int)
-            return _woort_append_int(buf, ex->m_int);
-        else
-            return _woort_append_real(buf, ex->m_real);
-    }
-
-    /* GC 字符串 */
-    if (proxy == &WOORT_GCSTRING_UNIT_PROXY)
+    case WOORT_BOX_VALUE_TYPE_STRING:
     {
         const woort_GCString* const str =
-            (const woort_GCString*)box->m_boxed_gc_unit;
+            (const woort_GCString*)temp_val.m_gcinstance;
         char* const escaped = woort_u8enstring(
             str->m_content, str->m_length, true);
         if (escaped == NULL)
@@ -152,11 +131,10 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         return ok;
     }
 
-    /* GC 数组（vec） */
-    if (proxy == &WOORT_GCVEC_UNIT_PROXY)
+    case WOORT_BOX_VALUE_TYPE_VEC:
     {
         const woort_GCVec* const vec =
-            (const woort_GCVec*)box->m_boxed_gc_unit;
+            (const woort_GCVec*)temp_val.m_gcinstance;
 
         if (vec->m_length == 0)
             return _woort_append_str(buf, "[]");
@@ -216,11 +194,10 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         return _woort_append_char(buf, ']');
     }
 
-    /* GC 映射（map） */
-    if (proxy == &WOORT_GCMAP_UNIT_PROXY)
+    case WOORT_BOX_VALUE_TYPE_MAP:
     {
         const woort_GCMap* const gcmap =
-            (const woort_GCMap*)box->m_boxed_gc_unit;
+            (const woort_GCMap*)temp_val.m_gcinstance;
 
         if (gcmap->m_size == 0)
             return _woort_append_str(buf, "{}");
@@ -292,7 +269,14 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         return _woort_append_char(buf, '}');
     }
 
-    /* 不支持的类型 */
+    case WOORT_BOX_VALUE_TYPE_STRUCT:
+        return _woort_append_str(buf, "<struct>");
+    case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+        return _woort_append_str(buf, "<gchandle>");
+    case WOORT_BOX_VALUE_TYPE_CLOSURE:
+        return _woort_append_str(buf, "<function>");
+    }
+
     return false;
 }
 
