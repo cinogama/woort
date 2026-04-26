@@ -17,12 +17,6 @@ woort_serialize.h
 #include <stdbool.h>
 
 /*
-用于 woort_HashMap 的指针哈希与比较函数（key = const woort_GCUnit*）。
-*/
-WOORT_NODISCARD size_t _woort_serialize_ptr_hash(const void* key);
-WOORT_NODISCARD bool _woort_serialize_ptr_equal(const void* key1, const void* key2);
-
-/*
 内部辅助：将 DynBox 序列化到 woort_Vector 缓冲区。
 visited_set: 已访问的 GC Unit 集合（woort_HashMap），用于循环检测。
 depth: 当前递归深度，用于缩进。

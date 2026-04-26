@@ -16,19 +16,19 @@
  * 内部工具：输出字符到缓冲区
  * ======================================================================== */
 
-static bool _woort_append_char(woort_Vector* buf, char ch)
+static bool _woort_serialize_append_char(woort_Vector* buf, char ch)
 {
     return woort_vector_push_back(buf, 1, &ch);
 }
 
-static bool _woort_append_str(woort_Vector* buf, const char* str)
+static bool _woort_serialize_append_str(woort_Vector* buf, const char* str)
 {
     const size_t len = strlen(str);
     return woort_vector_push_back(buf, len, str);
 }
 
 /* 前向声明 */
-static bool _woort_append_cstr(woort_Vector* buf, const char* str, size_t len)
+static bool _woort_serialize_append_cstr(woort_Vector* buf, const char* str, size_t len)
 {
     return woort_vector_push_back(buf, len, str);
 }
@@ -36,7 +36,7 @@ static bool _woort_append_cstr(woort_Vector* buf, const char* str, size_t len)
 /*
 将整数写入缓冲区（使用 snprintf）。
 */
-static bool _woort_append_int(woort_Vector* buf, woort_Int val)
+static bool _woort_serialize_append_int(woort_Vector* buf, woort_Int val)
 {
     char tmp[32];
     const int n = snprintf(tmp, sizeof(tmp), "%" PRId64, (int64_t)val);
@@ -48,7 +48,7 @@ static bool _woort_append_int(woort_Vector* buf, woort_Int val)
 /*
 将实数写入缓冲区（使用 snprintf）。
 */
-static bool _woort_append_real(woort_Vector* buf, woort_Real val)
+static bool _woort_serialize_append_real(woort_Vector* buf, woort_Real val)
 {
     char tmp[64];
     const int n = snprintf(tmp, sizeof(tmp), "%.17g", val);
@@ -60,35 +60,20 @@ static bool _woort_append_real(woort_Vector* buf, woort_Real val)
 /*
 写入缩进（仅 PRETTY 模式）。
 */
-static bool _woort_append_indent(woort_Vector* buf, int depth, uint32_t flags)
+static bool _woort_serialize_append_indent(woort_Vector* buf, int depth, uint32_t flags)
 {
     if (!(flags & WOORT_SERIALIZE_FLAG_PRETTY))
         return true;
 
-    if (!_woort_append_char(buf, '\n'))
+    if (!_woort_serialize_append_char(buf, '\n'))
         return false;
 
     for (int i = 0; i <= depth; ++i)
     {
-        if (!_woort_append_cstr(buf, "    ", 4))
+        if (!_woort_serialize_append_cstr(buf, "    ", 4))
             return false;
     }
     return true;
-}
-
-/* ========================================================================
- * 循环检测（woort_HashMap 辅助函数）
- * ======================================================================== */
-
-WOORT_NODISCARD size_t _woort_serialize_ptr_hash(const void* key)
-{
-    return *(const size_t*)key;
-}
-
-WOORT_NODISCARD bool _woort_serialize_ptr_equal(
-    const void* key1, const void* key2)
-{
-    return *(const size_t*)key1 == *(const size_t*)key2;
 }
 
 /* ========================================================================
@@ -106,16 +91,16 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
     switch (woort_DynBox_unbox_no_check_and_get_type(*box, &temp_val))
     {
     case WOORT_BOX_VALUE_TYPE_INT:
-        return _woort_append_int(buf, temp_val.m_integer);
+        return _woort_serialize_append_int(buf, temp_val.m_integer);
 
     case WOORT_BOX_VALUE_TYPE_REAL:
-        return _woort_append_real(buf, temp_val.m_real);
+        return _woort_serialize_append_real(buf, temp_val.m_real);
 
     case WOORT_BOX_VALUE_TYPE_BOOL:
-        return _woort_append_str(buf, temp_val.m_integer ? "true" : "false");
+        return _woort_serialize_append_str(buf, temp_val.m_integer ? "true" : "false");
 
     case WOORT_BOX_VALUE_TYPE_NIL:
-        return _woort_append_str(buf, "nil");
+        return _woort_serialize_append_str(buf, "nil");
 
     case WOORT_BOX_VALUE_TYPE_STRING:
     {
@@ -126,7 +111,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         if (escaped == NULL)
             return false;
 
-        const bool ok = _woort_append_str(buf, escaped);
+        const bool ok = _woort_serialize_append_str(buf, escaped);
         free(escaped);
         return ok;
     }
@@ -137,7 +122,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             (const woort_GCVec*)temp_val.m_gcinstance;
 
         if (vec->m_length == 0)
-            return _woort_append_str(buf, "[]");
+            return _woort_serialize_append_str(buf, "[]");
 
         void* _unused;
         woort_hashmap_Result _hr = woort_hashmap_get_or_emplace(
@@ -146,12 +131,12 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         {
             if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_CYCLE)
                 return false;
-            return _woort_append_str(buf, "[...]");
+            return _woort_serialize_append_str(buf, "[...]");
         }
         if (_hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
             return false;
 
-        if (!_woort_append_char(buf, '['))
+        if (!_woort_serialize_append_char(buf, '['))
             return false;
 
         for (size_t i = 0; i < vec->m_length; ++i)
@@ -160,19 +145,19 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             {
                 if (flags & WOORT_SERIALIZE_FLAG_PRETTY)
                 {
-                    if (!_woort_append_str(buf, ",\n"))
+                    if (!_woort_serialize_append_str(buf, ",\n"))
                         return false;
                 }
                 else
                 {
-                    if (!_woort_append_str(buf, ", "))
+                    if (!_woort_serialize_append_str(buf, ", "))
                         return false;
                 }
             }
 
             if (flags & WOORT_SERIALIZE_FLAG_PRETTY)
             {
-                if (!_woort_append_indent(buf, depth, flags))
+                if (!_woort_serialize_append_indent(buf, depth, flags))
                     return false;
             }
 
@@ -185,13 +170,13 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
 
         if (flags & WOORT_SERIALIZE_FLAG_PRETTY)
         {
-            if (!_woort_append_indent(buf, depth - 1, flags))
+            if (!_woort_serialize_append_indent(buf, depth - 1, flags))
                 return false;
         }
 
         if (!woort_hashmap_remove(visited_set, &vec->m_gc_unit))
             return false;
-        return _woort_append_char(buf, ']');
+        return _woort_serialize_append_char(buf, ']');
     }
 
     case WOORT_BOX_VALUE_TYPE_MAP:
@@ -200,7 +185,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             (const woort_GCMap*)temp_val.m_gcinstance;
 
         if (gcmap->m_size == 0)
-            return _woort_append_str(buf, "{}");
+            return _woort_serialize_append_str(buf, "{}");
 
         void* _unused;
         woort_hashmap_Result _hr = woort_hashmap_get_or_emplace(
@@ -209,12 +194,12 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         {
             if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_CYCLE)
                 return false;
-            return _woort_append_str(buf, "{...}");
+            return _woort_serialize_append_str(buf, "{...}");
         }
         if (_hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
             return false;
 
-        if (!_woort_append_char(buf, '{'))
+        if (!_woort_serialize_append_char(buf, '{'))
             return false;
 
         for (size_t i = 0; i < gcmap->m_size; ++i)
@@ -226,19 +211,19 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             {
                 if (flags & WOORT_SERIALIZE_FLAG_PRETTY)
                 {
-                    if (!_woort_append_str(buf, ",\n"))
+                    if (!_woort_serialize_append_str(buf, ",\n"))
                         return false;
                 }
                 else
                 {
-                    if (!_woort_append_str(buf, ", "))
+                    if (!_woort_serialize_append_str(buf, ", "))
                         return false;
                 }
             }
 
             if (flags & WOORT_SERIALIZE_FLAG_PRETTY)
             {
-                if (!_woort_append_indent(buf, depth, flags))
+                if (!_woort_serialize_append_indent(buf, depth, flags))
                     return false;
             }
 
@@ -248,7 +233,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
                 return false;
             }
 
-            if (!_woort_append_str(buf, ": "))
+            if (!_woort_serialize_append_str(buf, ": "))
                 return false;
 
             if (!_woort_serialize_dynbox_to_buf(
@@ -260,21 +245,21 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
 
         if (flags & WOORT_SERIALIZE_FLAG_PRETTY)
         {
-            if (!_woort_append_indent(buf, depth - 1, flags))
+            if (!_woort_serialize_append_indent(buf, depth - 1, flags))
                 return false;
         }
 
         if (!woort_hashmap_remove(visited_set, &gcmap->m_gc_unit))
             return false;
-        return _woort_append_char(buf, '}');
+        return _woort_serialize_append_char(buf, '}');
     }
 
     case WOORT_BOX_VALUE_TYPE_STRUCT:
-        return _woort_append_str(buf, "<struct>");
+        return _woort_serialize_append_str(buf, "<struct>");
     case WOORT_BOX_VALUE_TYPE_GCHANDLE:
-        return _woort_append_str(buf, "<gchandle>");
+        return _woort_serialize_append_str(buf, "<gchandle>");
     case WOORT_BOX_VALUE_TYPE_CLOSURE:
-        return _woort_append_str(buf, "<function>");
+        return _woort_serialize_append_str(buf, "<function>");
     }
 
     return false;
@@ -284,7 +269,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
  * 内部反序列化：字符串 -> DynBox
  * ======================================================================== */
 
-const char* _woort_skip_whitespace(const char* p)
+const char* _woort_deserialize_skip_whitespace(const char* p)
 {
     while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
         ++p;
@@ -428,7 +413,7 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
     woort_GC_mixed_write_barrier_gcaddr(
         &out_gcmap->m_boxed_gc_unit, gcmap);
 
-    pp = _woort_skip_whitespace(pp);
+    pp = _woort_deserialize_skip_whitespace(pp);
 
     if (*pp == '}')
     {
@@ -439,27 +424,27 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
 
     for (;;)
     {
-        pp = _woort_skip_whitespace(pp);
+        pp = _woort_deserialize_skip_whitespace(pp);
 
         woort_GCMap_Bucket* const bucket = woort_GCMap_emplace_prepare(gcmap);
 
         if (!_woort_deserialize_value(&pp, &bucket->m_key))
             return false;
 
-        pp = _woort_skip_whitespace(pp);
+        pp = _woort_deserialize_skip_whitespace(pp);
 
         if (*pp != ':')
             return false;
         ++pp;
 
-        pp = _woort_skip_whitespace(pp);
+        pp = _woort_deserialize_skip_whitespace(pp);
 
         if (!_woort_deserialize_value(&pp, &bucket->m_val))
             return false;
 
         woort_GCMap_emplace_commit(gcmap);
 
-        pp = _woort_skip_whitespace(pp);
+        pp = _woort_deserialize_skip_whitespace(pp);
 
         if (*pp == '}')
         {
@@ -469,7 +454,7 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
         else if (*pp == ',')
         {
             ++pp;
-            pp = _woort_skip_whitespace(pp);
+            pp = _woort_deserialize_skip_whitespace(pp);
             if (*pp == '}')
             {
                 ++pp;
@@ -502,7 +487,7 @@ WOORT_NODISCARD bool _woort_deserialize_vec_impl(
     woort_GC_mixed_write_barrier_gcaddr(
         &out_gcvec->m_boxed_gc_unit, gcvec);
 
-    pp = _woort_skip_whitespace(pp);
+    pp = _woort_deserialize_skip_whitespace(pp);
 
     if (*pp == ']')
     {
@@ -513,14 +498,14 @@ WOORT_NODISCARD bool _woort_deserialize_vec_impl(
 
     for (;;)
     {
-        pp = _woort_skip_whitespace(pp);
+        pp = _woort_deserialize_skip_whitespace(pp);
 
         woort_DynBox* elem = woort_GCVec_emplace_back(gcvec, 1);
 
         if (!_woort_deserialize_value(&pp, elem))
             return false;
 
-        pp = _woort_skip_whitespace(pp);
+        pp = _woort_deserialize_skip_whitespace(pp);
 
         if (*pp == ']')
         {
@@ -530,7 +515,7 @@ WOORT_NODISCARD bool _woort_deserialize_vec_impl(
         else if (*pp == ',')
         {
             ++pp;
-            pp = _woort_skip_whitespace(pp);
+            pp = _woort_deserialize_skip_whitespace(pp);
             if (*pp == ']')
             {
                 ++pp;
@@ -554,7 +539,7 @@ WOORT_NODISCARD static bool _woort_deserialize_value(
     const char** p,
     woort_DynBox* out_box)
 {
-    const char* pp = _woort_skip_whitespace(*p);
+    const char* pp = _woort_deserialize_skip_whitespace(*p);
 
     if (*pp == '\0')
         return false;
@@ -673,7 +658,7 @@ WOORT_NODISCARD bool _woort_deserialize_dynbox_from_str(
     if (!_woort_deserialize_value(&pp, out_box))
         return false;
 
-    pp = _woort_skip_whitespace(pp);
+    pp = _woort_deserialize_skip_whitespace(pp);
 
     *p = pp;
     return true;
