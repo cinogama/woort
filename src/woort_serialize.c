@@ -100,6 +100,8 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         return _woort_serialize_append_str(buf, temp_val.m_integer ? "true" : "false");
 
     case WOORT_BOX_VALUE_TYPE_NIL:
+        if (flags & WOORT_SERIALIZE_FLAG_USE_NULL)
+            return _woort_serialize_append_str(buf, "null");
         return _woort_serialize_append_str(buf, "nil");
 
     case WOORT_BOX_VALUE_TYPE_STRING:
@@ -129,7 +131,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             visited_set, &vec->m_gc_unit, &_unused);
         if (_hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
         {
-            if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE)
+            if (flags & WOORT_SERIALIZE_FLAG_STRICT)
                 return false;
             return _woort_serialize_append_str(buf, "[...]");
         }
@@ -192,7 +194,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             visited_set, &gcmap->m_gc_unit, &_unused);
         if (_hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
         {
-            if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE)
+            if (flags & WOORT_SERIALIZE_FLAG_STRICT)
                 return false;
             return _woort_serialize_append_str(buf, "{...}");
         }
@@ -255,15 +257,15 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
     }
 
     case WOORT_BOX_VALUE_TYPE_STRUCT:
-        if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE)
+        if (flags & WOORT_SERIALIZE_FLAG_STRICT)
             return false;
         return _woort_serialize_append_str(buf, "<struct>");
     case WOORT_BOX_VALUE_TYPE_GCHANDLE:
-        if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE)
+        if (flags & WOORT_SERIALIZE_FLAG_STRICT)
             return false;
         return _woort_serialize_append_str(buf, "<gchandle>");
     case WOORT_BOX_VALUE_TYPE_CLOSURE:
-        if (flags & WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE)
+        if (flags & WOORT_SERIALIZE_FLAG_STRICT)
             return false;
         return _woort_serialize_append_str(buf, "<function>");
     }

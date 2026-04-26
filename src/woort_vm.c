@@ -635,7 +635,7 @@ _label_continue_execution:
                 if (!_woort_serialize_vec_impl(
                     &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)],
                     &rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
-                    0))
+                    WOORT_SERIALIZE_FLAG_NONE))
                 {
                     WOORT_VM_THROW(bad_cast);
                 }
@@ -644,7 +644,7 @@ _label_continue_execution:
                 if (!_woort_serialize_map_impl(
                     &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)],
                     &rt_sb[(int8_t)WOORT_BYTECODE(B8, c)],
-                    0))
+                    WOORT_SERIALIZE_FLAG_NONE))
                 {
                     WOORT_VM_THROW(bad_cast);
                 }

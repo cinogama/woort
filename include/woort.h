@@ -2932,14 +2932,16 @@ WOORT_API WOORT_NODISCARD bool woort_map_iter(
 typedef enum woort_SerializeFlag
 {
     /** No flags: compact output, recursive structures output {...} / [...]. */
-    WOORT_SERIALIZE_FLAG_NONE           = 0,
+    WOORT_SERIALIZE_FLAG_NONE = 0,
 
     /** Pretty-print: produce indented output with newlines. */
-    WOORT_SERIALIZE_FLAG_PRETTY         = 1 << 0,
+    WOORT_SERIALIZE_FLAG_PRETTY = 1 << 0,
 
-    WOORT_SERIALIZE_FLAG_FAIL_ON_NOT_DESERIALIZEABLE  = 1 << 1,
+    /** Fail with error instead of outputting placeholder literals for non-deserializeable types. */
+    WOORT_SERIALIZE_FLAG_STRICT = 1 << 1,
 
-    WOORT_SERIALIZE_FLAG_USE_NULL_INSTEAD_OF_NIL = 1 << 2,
+    /** Emit "null" instead of "nil" for NIL values. */
+    WOORT_SERIALIZE_FLAG_USE_NULL = 1 << 2,
 
 } woort_SerializeFlag;
 
