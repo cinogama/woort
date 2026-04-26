@@ -311,9 +311,6 @@ WOORT_NODISCARD bool _woort_serialize_map_impl(
         buf.m_data, buf.m_size);
     woort_vector_deinit(&buf);
 
-    if (gcstr == NULL)
-        return false;
-
     dst->m_string = gcstr;
     return true;
 }
@@ -351,9 +348,6 @@ WOORT_NODISCARD bool _woort_serialize_vec_impl(
     const woort_GCString* const gcstr = woort_GCString_make_string(
         buf.m_data, buf.m_size);
     woort_vector_deinit(&buf);
-
-    if (gcstr == NULL)
-        return false;
 
     dst->m_string = gcstr;
     return true;

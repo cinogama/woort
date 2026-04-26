@@ -1641,9 +1641,6 @@ WOORT_NODISCARD bool woort_serialize_dynbox(
         buf.m_data, buf.m_size);
     woort_vector_deinit(&buf);
 
-    if (gcstr == NULL)
-        return false;
-
     _WOORT_API_STACK(dst).m_string = gcstr;
     return true;
 }
@@ -1699,15 +1696,13 @@ WOORT_NODISCARD bool woort_deserialize_map(
     if (*p != '{')
         return false;
 
-    woort_GCMap* gcmap = NULL;
-    if (!_woort_deserialize_map_impl(&p, &gcmap))
+    if (!_woort_deserialize_map_impl(&p, &_WOORT_API_STACK(dst).m_dynamic))
         return false;
 
     p = _woort_deserialize_skip_whitespace(p);
     if (*p != '\0')
         return false;
 
-    _WOORT_API_STACK(dst).m_map = gcmap;
     return true;
 }
 
@@ -1723,14 +1718,12 @@ WOORT_NODISCARD bool woort_deserialize_vec(
     if (*p != '[')
         return false;
 
-    woort_GCVec* gcvec = NULL;
-    if (!_woort_deserialize_vec_impl(&p, &gcvec))
+    if (!_woort_deserialize_vec_impl(&p, &_WOORT_API_STACK(dst).m_dynamic))
         return false;
 
     p = _woort_deserialize_skip_whitespace(p);
     if (*p != '\0')
         return false;
 
-    _WOORT_API_STACK(dst).m_vec = gcvec;
     return true;
 }

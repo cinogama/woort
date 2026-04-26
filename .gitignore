@@ -356,4 +356,6 @@ _deps
 
 /out/
 /build/
+/build2/
+/build_ninja/
 .opencode/
