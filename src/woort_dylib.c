@@ -118,7 +118,7 @@ static void* _try_open_lib(const char* path)
         if (handle == NULL)
         {
             WOORT_DEBUG("Failed to load library '%s', broken file or "
-                        "failed to load dependence?", path);
+                "failed to load dependence?", path);
         }
         return handle;
     }
@@ -132,7 +132,7 @@ static void* _try_open_lib(const char* path)
  * ================================================================ */
 
 static woort_HashMap          g_named_libs;
-static woort_RecursiveMutex*  g_named_libs_mx = NULL;
+static woort_RecursiveMutex* g_named_libs_mx = NULL;
 
 void _woort_dylib_bootup(void)
 {
@@ -152,8 +152,8 @@ void _woort_dylib_shutdown(void)
     if (g_named_libs.m_size > 0)
     {
         woort_log("WOORT: %zu library(s) loaded by 'woort_load_lib' "
-                  "not been unloaded after shutdown.\n",
-                  g_named_libs.m_size);
+            "not been unloaded after shutdown.\n",
+            g_named_libs.m_size);
     }
 
     woort_recursive_mutex_unlock(g_named_libs_mx);
@@ -425,6 +425,13 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_load_lib(
     _registry_insert(dylib);
 
     woort_recursive_mutex_unlock(g_named_libs_mx);
+
+    woort_DylibEntryFunc const entry = 
+        woort_load_func(dylib, "woort_lib_entry");
+
+    if (entry != NULL)
+        entry(dylib);
+
     return dylib;
 #else /* WOORT_DYLIB_DISABLED */
     (void)libname;
@@ -490,6 +497,12 @@ void woort_unload_lib(woort_Dylib* lib, woort_DylibUnloadMethod method)
 
     if (should_free)
     {
+        woort_DylibLeaveFunc const leave =
+            woort_load_func(lib, "woort_lib_leave");
+
+        if (leave != NULL)
+            leave();
+
 #ifndef WOORT_DYLIB_DISABLED
         /* Release OS handle */
         if (lib->m_native_handle != NULL)

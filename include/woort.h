@@ -3135,6 +3135,9 @@ typedef enum woort_DylibUnloadMethod
     WOORT_DYLIB_UNREF_AND_BURY = WOORT_DYLIB_UNREF | WOORT_DYLIB_BURY,
 } woort_DylibUnloadMethod;
 
+typedef void (*woort_DylibEntryFunc)(woort_Dylib*);
+typedef void (*woort_DylibLeaveFunc)(void);
+
 /**
  * @brief Entry in a fake-library function table.
  */
