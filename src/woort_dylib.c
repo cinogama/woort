@@ -137,13 +137,13 @@ static void* _try_open_lib(const char* path)
  * ================================================================ */
 
 static woort_HashMap/* const char*, woort_Dylib* */          g_named_libs;
-static woort_RecursiveMutex*  g_named_libs_mx;
+static woort_RecursiveMutex* g_named_libs_mx;
 
 bool _woort_dylib_bootup(void)
 {
     if (!woort_recursive_mutex_create(&g_named_libs_mx))
         return false;
-    
+
     woort_hashmap_init(
         &g_named_libs,
         sizeof(const char*),
@@ -154,15 +154,70 @@ bool _woort_dylib_bootup(void)
     return true;
 }
 
+static void _registry_remove(woort_Dylib* dylib);
+
+static void _woort_dylib_free_fake_function_list(woort_ExternLibFunc* fake_libs)
+{
+    woort_ExternLibFunc* f = fake_libs;
+    while (f->m_name != NULL)
+    {
+        free((void*)f->m_name);
+        ++f;
+    }
+    free(fake_libs);
+}
+
+static void _woort_dylib_close(woort_Dylib* dylib)
+{
+#ifndef WOORT_DYLIB_DISABLED
+    if (dylib->m_native_handle != NULL)
+        _os_freelib(dylib->m_native_handle);
+#endif
+
+    if (dylib->m_fake_funcs != NULL)
+    {
+        _woort_dylib_free_fake_function_list(dylib->m_fake_funcs);
+    }
+
+    free(dylib->m_name);
+    free(dylib);
+}
+
+static bool _woort_dylib_shutdown_foreach_callback(
+    const void* key,
+    void* value,
+    /* OPTIONAL */ void* user_data)
+{
+    const char* name = *(const char**)key;
+
+    woort_log("WOORT: Unloading library '%s' during shutdown.\n", name);
+    woort_Dylib* const dylib = *(woort_Dylib**)value;
+
+    woort_DylibLeaveFunc const leave =
+        woort_load_func(dylib, "woort_lib_leave");
+    if (leave != NULL)
+        leave();
+
+    _woort_dylib_close(dylib);
+
+    return true;
+}
+
 void _woort_dylib_shutdown(void)
 {
     woort_recursive_mutex_lock(g_named_libs_mx);
 
     if (g_named_libs.m_size > 0)
     {
+        const size_t remaining = g_named_libs.m_size;
+
+        /* Collect dylib pointers safely via foreach
+           (no removal during iteration avoids corrupting the linked list). */
+        woort_hashmap_foreach(&g_named_libs,
+            _woort_dylib_shutdown_foreach_callback, NULL);
+
         woort_log("WOORT: %zu library(s) loaded by 'woort_load_lib' "
-            "have not been unloaded after shutdown.\n",
-            g_named_libs.m_size);
+            "unloaded during shutdown.\n", remaining);
     }
 
     woort_recursive_mutex_unlock(g_named_libs_mx);
@@ -516,29 +571,10 @@ void woort_unload_lib(woort_Dylib* lib, woort_DylibUnloadMethod method)
 
     if (should_free)
     {
-#ifndef WOORT_DYLIB_DISABLED
-        /* Release OS handle */
-        if (lib->m_native_handle != NULL)
-            _os_freelib(lib->m_native_handle);
-#endif
-
         /* Release dependency */
         if (lib->m_dependenced != NULL)
             woort_unload_lib(lib->m_dependenced, WOORT_DYLIB_UNREF);
 
-        /* Release the deep-copied fake function table (NULL for native libs). */
-        if (lib->m_fake_funcs != NULL)
-        {
-            woort_ExternLibFunc* f = lib->m_fake_funcs;
-            while (f->m_name != NULL)
-            {
-                free((void*)f->m_name);
-                ++f;
-            }
-            free(lib->m_fake_funcs);
-        }
-
-        free(lib->m_name);
-        free(lib);
+        _woort_dylib_close(lib);
     }
 }
