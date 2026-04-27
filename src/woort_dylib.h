@@ -5,6 +5,9 @@ woort_dylib.h
 */
 
 #include "woort.h"
+#include "woort_atomic.h"
+
+#include <stdbool.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #   include <windows.h>
@@ -20,8 +23,8 @@ struct woort_Dylib
     /* OPTIONAL */ woort_ExternLibFunc*          m_fake_funcs;
     /* OPTIONAL */ woort_Dylib*                  m_dependenced;
     char*                                       m_name;
-    size_t                                      m_use_count;
+    woort_AtomicUInt64                          m_use_count;
 };
 
-void _woort_dylib_bootup(void);
+bool _woort_dylib_bootup(void);
 void _woort_dylib_shutdown(void);

@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <stdbool.h>
+#include <assert.h>
 
 /* ================================================================
  * Platform abstraction
@@ -24,8 +26,7 @@
 
 static void* _os_loadlib(const char* path)
 {
-    if (path == NULL)
-        return (void*)GetModuleHandleW(NULL);
+    assert(path == NULL);
 
     size_t wlen;
     char16_t* wpath = woort_u8strtou16(path, strlen(path), &wlen);
@@ -58,6 +59,8 @@ static void _os_freelib(void* handle)
 
 static void* _os_loadlib(const char* path)
 {
+    assert(path == NULL);
+
     return dlopen(path, RTLD_LAZY);
 }
 
@@ -79,6 +82,8 @@ static void _os_freelib(void* handle)
 
 static bool _file_exists(const char* path)
 {
+    assert(path == NULL);
+
     struct stat st;
     return stat(path, &st) == 0;
 }
@@ -131,18 +136,22 @@ static void* _try_open_lib(const char* path)
  * Global named library registry
  * ================================================================ */
 
-static woort_HashMap          g_named_libs;
-static woort_RecursiveMutex* g_named_libs_mx = NULL;
+static woort_HashMap/* const char*, woort_Dylib* */          g_named_libs;
+static woort_RecursiveMutex*  g_named_libs_mx;
 
-void _woort_dylib_bootup(void)
+bool _woort_dylib_bootup(void)
 {
-    (void)woort_recursive_mutex_create(&g_named_libs_mx);
+    if (!woort_recursive_mutex_create(&g_named_libs_mx))
+        return false;
+    
     woort_hashmap_init(
         &g_named_libs,
         sizeof(const char*),
         sizeof(woort_Dylib*),
         woort_util_cstr_hash,
         woort_util_cstr_equal);
+
+    return true;
 }
 
 void _woort_dylib_shutdown(void)
@@ -152,7 +161,7 @@ void _woort_dylib_shutdown(void)
     if (g_named_libs.m_size > 0)
     {
         woort_log("WOORT: %zu library(s) loaded by 'woort_load_lib' "
-            "not been unloaded after shutdown.\n",
+            "have not been unloaded after shutdown.\n",
             g_named_libs.m_size);
     }
 
@@ -176,6 +185,12 @@ static void _registry_insert(woort_Dylib* dylib)
     woort_Dylib* ptr = dylib;
     (void)woort_hashmap_insert(
         &g_named_libs, (const void*)&dylib->m_name, &ptr);
+
+    woort_DylibEntryFunc const entry =
+        woort_load_func(dylib, "woort_lib_entry");
+
+    if (entry != NULL)
+        entry(dylib);
 }
 
 static void _registry_remove(woort_Dylib* dylib)
@@ -221,7 +236,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_fake_lib(
         return NULL;
     }
     strcpy(dylib->m_name, libname);
-    dylib->m_use_count = 1;
+    woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
     /* Deep copy the funcs array */
     {
@@ -270,7 +285,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_fake_lib(
 
     if (dependence_dylib != NULL)
     {
-        ++dependence_dylib->m_use_count;
+        woort_atomic_fetch_add_explicit(
+            &dependence_dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
     }
 
     _registry_insert(dylib);
@@ -299,7 +315,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_load_lib(
     woort_Dylib* existing = _registry_find(libname);
     if (existing != NULL)
     {
-        ++existing->m_use_count;
+        woort_atomic_fetch_add_explicit(&existing->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
         woort_recursive_mutex_unlock(g_named_libs_mx);
         return existing;
     }
@@ -420,17 +436,11 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_load_lib(
         return NULL;
     }
     strcpy(dylib->m_name, libname);
-    dylib->m_use_count = 1;
+    woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
     _registry_insert(dylib);
 
     woort_recursive_mutex_unlock(g_named_libs_mx);
-
-    woort_DylibEntryFunc const entry = 
-        woort_load_func(dylib, "woort_lib_entry");
-
-    if (entry != NULL)
-        entry(dylib);
 
     return dylib;
 #else /* WOORT_DYLIB_DISABLED */
@@ -475,34 +485,37 @@ void woort_unload_lib(woort_Dylib* lib, woort_DylibUnloadMethod method)
     if (lib == NULL)
         return;
 
-    woort_recursive_mutex_lock(g_named_libs_mx);
-
     bool should_free = false;
 
     if ((method & WOORT_DYLIB_UNREF) != 0)
     {
-        if (lib->m_use_count > 0)
-            --lib->m_use_count;
-        if (lib->m_use_count == 0)
+        if (woort_atomic_fetch_sub_explicit(
+            &lib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED) == 1)
+        {
             should_free = true;
+        }
     }
 
     if ((method & WOORT_DYLIB_BURY) != 0
         || should_free)
     {
-        _registry_remove(lib);
-    }
+        woort_recursive_mutex_lock(g_named_libs_mx);
 
-    woort_recursive_mutex_unlock(g_named_libs_mx);
+        _registry_remove(lib);
+        if (should_free)
+        {
+            woort_DylibLeaveFunc const leave =
+                woort_load_func(lib, "woort_lib_leave");
+
+            if (leave != NULL)
+                leave();
+        }
+
+        woort_recursive_mutex_unlock(g_named_libs_mx);
+    }
 
     if (should_free)
     {
-        woort_DylibLeaveFunc const leave =
-            woort_load_func(lib, "woort_lib_leave");
-
-        if (leave != NULL)
-            leave();
-
 #ifndef WOORT_DYLIB_DISABLED
         /* Release OS handle */
         if (lib->m_native_handle != NULL)

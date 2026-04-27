@@ -28,13 +28,17 @@ void woort_init(void)
 
     if (!woort_CodeEnv_bootup())
     {
-        WOORT_DEBUG("Failed to bootup code env.");
+        WOORT_DEBUG("Failed to bootup code env manager.");
         abort();
     }
 
     woort_GC_bootup();
 
-    _woort_dylib_bootup();
+    if (!_woort_dylib_bootup())
+    {
+        WOORT_DEBUG("Failed to bootup dylib manager.");
+        abort();
+    }
 }
 void woort_shutdown(void)
 {
