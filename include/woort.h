@@ -382,7 +382,7 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_extern_constant(
  * @brief Associate a dynamic library handle with a CodeEnv.
  *
  * The library's reference count is incremented.  When the CodeEnv is
- * garbage-collected, woort_unload_lib(WOORT_DYLIB_UNREF) is called on
+ * garbage-collected, woort_dylib_unload(WOORT_DYLIB_UNREF) is called on
  * every associated library, ensuring the library outlives the CodeEnv
  * but is released when the CodeEnv is no longer needed.
  *
@@ -3122,7 +3122,7 @@ WOORT_API void woort_normalize_path(/* OPTIONAL */ char* path);
 typedef struct woort_Dylib woort_Dylib;
 
 /**
- * @brief Unload method flags for woort_unload_lib.
+ * @brief Unload method flags for woort_dylib_unload.
  */
 typedef enum woort_DylibUnloadMethod
 {
@@ -3154,7 +3154,7 @@ typedef struct woort_ExternLibFunc
  * @brief Register a "fake" library backed by a user-supplied function table.
  *
  * The library is registered under the given name in the global library
- * registry.  Subsequent lookups with woort_load_func will search the
+ * registry.  Subsequent lookups with woort_dylib_load_func will search the
  * function table linearly.
  *
  * @param libname           Unique name for this library.
@@ -3164,7 +3164,7 @@ typedef struct woort_ExternLibFunc
  * @return A handle to the fake library, or NULL if the name is already taken
  *         or memory allocation fails.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_fake_lib(
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
     const char* libname,
     const woort_ExternLibFunc* funcs,
     /* OPTIONAL */ woort_Dylib* dependence_dylib);
@@ -3182,14 +3182,14 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_fake_lib(
  * A platform-specific extension (.dll/.so/.dylib) is appended in steps 1-3.
  *
  * @param libname          Unique name under which to register the library.
- * @param path             Library file path or base name (NULL = load self).
+ * @param path             Library file path or base name.
  * @param script_path      Optional script path for relative resolution.
  * @param panic_when_fail  If true, panics on failure instead of returning NULL.
  * @return A handle to the loaded library, or NULL on failure.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_load_lib(
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     const char* libname,
-    /* OPTIONAL */ const char* path,
+    const char* path,
     /* OPTIONAL */ const char* script_path,
     bool panic_when_fail);
 
@@ -3200,12 +3200,12 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_load_lib(
  * (GetProcAddress / dlsym).  For fake libraries, the function table
  * is searched linearly.
  *
- * @param lib       Library handle obtained from woort_load_lib or woort_fake_lib.
+ * @param lib       Library handle obtained from woort_dylib_load or woort_dylib_fake.
  * @param funcname  Name of the function to look up.
  * @return The function pointer, or NULL if not found.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ void* woort_load_func(
-    /* OPTIONAL */ woort_Dylib* lib,
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ void* woort_dylib_load_func(
+    woort_Dylib* lib,
     const char* funcname);
 
 /**
@@ -3220,9 +3220,21 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ void* woort_load_func(
  * @param lib     The library handle to unload.
  * @param method  Bitmask of WOORT_DYLIB_UNREF and/or WOORT_DYLIB_BURY.
  */
-WOORT_API void woort_unload_lib(
+WOORT_API void woort_dylib_unload(
     woort_Dylib* lib,
     woort_DylibUnloadMethod method);
+
+/**
+ * @brief Increase the reference count of a dynamic library.
+ *
+ * Keeps the library alive even after callers that previously loaded it
+ * call woort_dylib_unload with WOORT_DYLIB_UNREF.  Each call to
+ * woort_dylib_keep must be matched by a corresponding
+ * woort_dylib_unload(..., WOORT_DYLIB_UNREF) to eventually release the library.
+ *
+ * @param lib  The library handle to retain.
+ */
+WOORT_API void woort_dylib_keep(woort_Dylib* lib);
 
 /* ---------------------------- */
 

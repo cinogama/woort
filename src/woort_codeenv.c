@@ -85,7 +85,7 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     for (size_t i = 0; i < code_env->m_extern_libs.m_size; ++i)
     {
         woort_Dylib* lib = *(woort_Dylib**)woort_vector_at(&code_env->m_extern_libs, i);
-        woort_unload_lib(lib, WOORT_DYLIB_UNREF);
+        woort_dylib_unload(lib, WOORT_DYLIB_UNREF);
     }
     woort_vector_deinit(&code_env->m_extern_libs);
 }
@@ -531,7 +531,7 @@ WOORT_NODISCARD bool woort_CodeEnv_add_extern_lib(
         return false;
 
     /* 增加库的引用计数，确保在 CodeEnv 生命期内库不被释放 */
-    lib->m_use_count++;
+    woort_dylib_keep(lib);
 
     return true;
 }

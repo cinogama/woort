@@ -96,7 +96,7 @@ void woort_CodeEnv_set_source_maps(
 
 /*
  * 将外部库句柄关联到 CodeEnv。
- * 当 CodeEnv 被 GC 销毁时，关联的库将自动被 woort_unload_lib(WOORT_DYLIB_UNREF) 解除引用。
+ * 当 CodeEnv 被 GC 销毁时，关联的库将自动被 woort_dylib_unload(WOORT_DYLIB_UNREF) 解除引用。
  * lib 的引用计数会被增加。
  *
  * @return true on success, false on out-of-memory.

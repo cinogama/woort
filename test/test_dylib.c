@@ -166,10 +166,10 @@ static void test_dylib_fake_lib_basic(void)
         WOORT_EXTERN_LIB_FUNC_END
     };
 
-    woort_Dylib* lib = woort_fake_lib("fake_test_basic", funcs, NULL);
+    woort_Dylib* lib = woort_dylib_fake("fake_test_basic", funcs, NULL);
     TEST_ASSERT_NOT_NULL(lib);
 
-    void* fp = woort_load_func(lib, "my_double");
+    void* fp = woort_dylib_load_func(lib, "my_double");
     TEST_ASSERT_NOT_NULL(fp);
 
     /* Verify the function pointer resolves to our function */
@@ -179,14 +179,14 @@ static void test_dylib_fake_lib_basic(void)
     TEST_ASSERT(result == 42);
 
     /* Lookup non-existent */
-    void* np = woort_load_func(lib, "nonexistent");
+    void* np = woort_dylib_load_func(lib, "nonexistent");
     TEST_ASSERT_NULL(np);
 
     /* Lookup NULL lib */
-    np = woort_load_func(NULL, "my_double");
+    np = woort_dylib_load_func(NULL, "my_double");
     TEST_ASSERT_NULL(np);
 
-    woort_unload_lib(lib, WOORT_DYLIB_UNREF_AND_BURY);
+    woort_dylib_unload(lib, WOORT_DYLIB_UNREF_AND_BURY);
     TEST_END();
 }
 
@@ -198,13 +198,13 @@ static void test_dylib_fake_lib_duplicate(void)
         WOORT_EXTERN_LIB_FUNC_END
     };
 
-    woort_Dylib* lib1 = woort_fake_lib("fake_dup", funcs, NULL);
+    woort_Dylib* lib1 = woort_dylib_fake("fake_dup", funcs, NULL);
     TEST_ASSERT_NOT_NULL(lib1);
 
-    woort_Dylib* lib2 = woort_fake_lib("fake_dup", funcs, NULL);
+    woort_Dylib* lib2 = woort_dylib_fake("fake_dup", funcs, NULL);
     TEST_ASSERT_NULL(lib2);
 
-    woort_unload_lib(lib1, WOORT_DYLIB_UNREF_AND_BURY);
+    woort_dylib_unload(lib1, WOORT_DYLIB_UNREF_AND_BURY);
     TEST_END();
 }
 
@@ -216,20 +216,20 @@ static void test_dylib_fake_lib_dependency(void)
         WOORT_EXTERN_LIB_FUNC_END
     };
 
-    woort_Dylib* dep = woort_fake_lib("fake_dep", funcs, NULL);
+    woort_Dylib* dep = woort_dylib_fake("fake_dep", funcs, NULL);
     TEST_ASSERT_NOT_NULL(dep);
 
-    woort_Dylib* lib = woort_fake_lib("fake_main", funcs, dep);
+    woort_Dylib* lib = woort_dylib_fake("fake_main", funcs, dep);
     TEST_ASSERT_NOT_NULL(lib);
 
     /* Unref main lib — it should be freed but dep lives on */
-    woort_unload_lib(lib, WOORT_DYLIB_UNREF_AND_BURY);
+    woort_dylib_unload(lib, WOORT_DYLIB_UNREF_AND_BURY);
 
     /* dep should still be accessible */
-    void* np = woort_load_func(dep, "nonexistent");
+    void* np = woort_dylib_load_func(dep, "nonexistent");
     TEST_ASSERT_NULL(np);
 
-    woort_unload_lib(dep, WOORT_DYLIB_UNREF_AND_BURY);
+    woort_dylib_unload(dep, WOORT_DYLIB_UNREF_AND_BURY);
     TEST_END();
 }
 
@@ -237,7 +237,7 @@ static void test_dylib_load_fail(void)
 {
     TEST_BEGIN("load_lib: nonexistent returns NULL");
 
-    woort_Dylib* lib = woort_load_lib(
+    woort_Dylib* lib = woort_dylib_load(
         "no_such_lib_xyzzy",
         "nonexistent_library_xyzzy",
         NULL,
@@ -250,19 +250,19 @@ static void test_dylib_load_reuse(void)
 {
     TEST_BEGIN("load_lib: same name returns existing handle");
 
-    woort_Dylib* lib1 = woort_load_lib("reuse_test", NULL, NULL, false);
+    woort_Dylib* lib1 = woort_dylib_load("reuse_test", NULL, NULL, false);
     TEST_ASSERT_NOT_NULL(lib1);
 
-    woort_Dylib* lib2 = woort_load_lib("reuse_test", NULL, NULL, false);
+    woort_Dylib* lib2 = woort_dylib_load("reuse_test", NULL, NULL, false);
     TEST_ASSERT_NOT_NULL(lib2);
 
     /* Should be same pointer */
     TEST_ASSERT(lib1 == lib2);
 
     /* Need two unrefs to fully release */
-    woort_unload_lib(lib1, WOORT_DYLIB_UNREF_AND_BURY);
+    woort_dylib_unload(lib1, WOORT_DYLIB_UNREF_AND_BURY);
     /* Second unref — bury already done, just unref the remaining count */
-    woort_unload_lib(lib2, WOORT_DYLIB_UNREF);
+    woort_dylib_unload(lib2, WOORT_DYLIB_UNREF);
     TEST_END();
 }
 
@@ -272,11 +272,11 @@ static void test_dylib_unload_unref_only(void)
 
     woort_ExternLibFunc funcs[] = { WOORT_EXTERN_LIB_FUNC_END };
 
-    woort_Dylib* lib = woort_fake_lib("unref_test", funcs, NULL);
+    woort_Dylib* lib = woort_dylib_fake("unref_test", funcs, NULL);
     TEST_ASSERT_NOT_NULL(lib);
 
     /* UNREF only — should still be in registry */
-    woort_unload_lib(lib, WOORT_DYLIB_UNREF);
+    woort_dylib_unload(lib, WOORT_DYLIB_UNREF);
 
     /* Can't test it's gone from registry without internal access,
      * but we can verify no crash on double unload attempt.
@@ -297,10 +297,10 @@ static void test_dylib_load_func_null_params(void)
 {
     TEST_BEGIN("load_func: handles NULL params");
 
-    void* fp = woort_load_func(NULL, NULL);
+    void* fp = woort_dylib_load_func(NULL, NULL);
     TEST_ASSERT_NULL(fp);
 
-    fp = woort_load_func(NULL, "test");
+    fp = woort_dylib_load_func(NULL, "test");
     TEST_ASSERT_NULL(fp);
 
     TEST_END();
