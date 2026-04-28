@@ -15,6 +15,8 @@ void _woort_GCHandle_destructor(woort_GCUnit* unit)
 {
     woort_GCHandle* const gcstruct = (woort_GCHandle*)unit;
     gcstruct->m_user_destruct_callback(gcstruct->m_user_handle);
+    if (gcstruct->m_dylib != NULL)
+        woort_dylib_unload(gcstruct->m_dylib, WOORT_DYLIB_UNREF);
 }
 
 const woort_GCUnitProxy WOORT_GCHANDLE_UNIT_PROXY = {
@@ -25,7 +27,8 @@ const woort_GCUnitProxy WOORT_GCHANDLE_UNIT_PROXY = {
 const woort_GCHandle* woort_GCHandle_new(
     void* addr,
     /* OPTIONAL */woort_Value* holding,
-    woort_GCHandle_UserDestructFunction destructor)
+    woort_GCHandle_UserDestructFunction destructor,
+    /* OPTIONAL */ woort_Dylib* dylib)
 {
     woort_GCHandle* const gchandle = woort_GCUnit_alloc_attrib(
         AF,
@@ -40,6 +43,9 @@ const woort_GCHandle* woort_GCHandle_new(
 
     gchandle->m_user_destruct_callback = destructor;
     gchandle->m_user_handle = addr;
+    if (dylib != NULL)
+        woort_dylib_keep(dylib);
+    gchandle->m_dylib = dylib;
 
     return gchandle;
 }
@@ -47,7 +53,8 @@ const woort_GCHandle* woort_GCHandle_new(
 const woort_GCHandle* woort_GCHandle_new_with_marker(
     void* addr,
     woort_GCHandle_UserMarkFunction marker,
-    woort_GCHandle_UserDestructFunction destructor)
+    woort_GCHandle_UserDestructFunction destructor,
+    /* OPTIONAL */ woort_Dylib* dylib)
 {
     woort_GCHandle* const gcstruct = woort_GCUnit_alloc_attrib(
         MF,
@@ -58,6 +65,9 @@ const woort_GCHandle* woort_GCHandle_new_with_marker(
     gcstruct->m_user_mark_callback = marker;
     gcstruct->m_user_destruct_callback = destructor;
     gcstruct->m_user_handle = addr;
+    if (dylib != NULL)
+        woort_dylib_keep(dylib);
+    gcstruct->m_dylib = dylib;
 
     return gcstruct;
 }

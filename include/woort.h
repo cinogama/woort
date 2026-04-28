@@ -183,8 +183,40 @@ typedef woort_api(*woort_NativeFunction)(void);
 /** @brief Opaque handle to a compiled code environment containing bytecode and constants. */
 typedef struct woort_CodeEnv woort_CodeEnv;
 
-/** @brief Opaque handle to a loaded dynamic library. */
+/**
+ * @brief Opaque handle to a loaded dynamic library (native or fake).
+ */
 typedef struct woort_Dylib woort_Dylib;
+
+
+/**
+ * @brief Unload method flags for woort_dylib_unload.
+ */
+typedef enum woort_DylibUnloadMethod
+{
+    WOORT_DYLIB_NONE = 0,
+    /** Decrement reference count; free when it reaches zero. */
+    WOORT_DYLIB_UNREF = 1 << 0,
+    /** Remove from the named library registry. */
+    WOORT_DYLIB_BURY = 1 << 1,
+    /** Combination: unref + bury. */
+    WOORT_DYLIB_UNREF_AND_BURY = WOORT_DYLIB_UNREF | WOORT_DYLIB_BURY,
+} woort_DylibUnloadMethod;
+
+typedef void (*woort_DylibEntryFunc)(woort_Dylib*);
+typedef void (*woort_DylibLeaveFunc)(void);
+
+/**
+ * @brief Entry in a fake-library function table.
+ */
+typedef struct woort_ExternLibFunc
+{
+    const char* m_name;          /**< Function name (NULL = end of table). */
+    /* OPTIONAL */ void* m_func_addr;  /**< Function pointer (NULL = end of table). */
+} woort_ExternLibFunc;
+
+/** Sentinel to terminate a woort_ExternLibFunc array. */
+#define WOORT_EXTERN_LIB_FUNC_END { NULL, NULL }
 
 /** @brief Opaque handle to an IR compiler used to build CodeEnv objects. */
 typedef struct woort_IRCompiler woort_IRCompiler;
@@ -2062,7 +2094,8 @@ WOORT_API void woort_set_gchandle(
     woort_StackValue dst,
     void* addr,
     woort_StackValue hold,
-    woort_GCHandle_UserDestructFunction close);
+    woort_GCHandle_UserDestructFunction close,
+    /* OPTIONAL */ woort_Dylib* dylib);
 
 /**
  * @brief Set a stack slot to a GC-managed struct (external object with mark callback).
@@ -2075,7 +2108,8 @@ WOORT_API void woort_set_gcstruct(
     woort_StackValue dst,
     void* addr,
     woort_GCHandle_UserMarkFunction mark,
-    woort_GCHandle_UserDestructFunction close);
+    woort_GCHandle_UserDestructFunction close,
+    /* OPTIONAL */ woort_Dylib* dylib);
 
 /** @brief Set a stack slot to a boxed integer. */
 WOORT_API void woort_set_box_int(
@@ -2153,7 +2187,8 @@ WOORT_API void woort_set_union_gchandle(
     woort_Int id,
     void* addr,
     woort_StackValue hold,
-    woort_GCHandle_UserDestructFunction close);
+    woort_GCHandle_UserDestructFunction close,
+    /* OPTIONAL */ woort_Dylib* dylib);
 
 /**
  * @brief Set union to a GC struct variant.
@@ -2168,7 +2203,8 @@ WOORT_API void woort_set_union_gcstruct(
     woort_Int id,
     void* addr,
     woort_GCHandle_UserMarkFunction mark,
-    woort_GCHandle_UserDestructFunction close);
+    woort_GCHandle_UserDestructFunction close,
+    /* OPTIONAL */ woort_Dylib* dylib);
 
 /** @brief Set union to a boxed integer variant. */
 WOORT_API void woort_set_union_box_int(
@@ -2219,11 +2255,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Set option::value(box_bool). */
 #define woort_set_option_box_bool(dst, src) woort_set_union_box_bool(dst, 0, src)
 /** @brief Set option::value(gchandle). */
-#define woort_set_option_gchandle(dst, addr, hold, close) \
-    woort_set_union_gchandle(dst, 0, addr, hold, close)
+#define woort_set_option_gchandle(dst, addr, hold, close, dylib) \
+    woort_set_union_gchandle(dst, 0, addr, hold, close, dylib)
 /** @brief Set option::value(gcstruct). */
-#define woort_set_option_gcstruct(dst, addr, mark, close) \
-    woort_set_union_gcstruct(dst, 0, addr, mark, close)
+#define woort_set_option_gcstruct(dst, addr, mark, close, dylib) \
+    woort_set_union_gcstruct(dst, 0, addr, mark, close, dylib)
 
 /** @} */ /* end Option Setters */
 
@@ -2296,11 +2332,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Set Result::Err(box_bool). */
 #define woort_set_result_err_box_bool(dst, src) woort_set_union_box_bool(dst, 1, src)
 /** @brief Set Result::Err(gchandle). */
-#define woort_set_result_err_gchandle(dst, addr, hold, close) \
-    woort_set_union_gchandle(dst, 1, addr, hold, close)
+#define woort_set_result_err_gchandle(dst, addr, hold, close, dylib) \
+    woort_set_union_gchandle(dst, 1, addr, hold, close, dylib)
 /** @brief Set Result::Err(gcstruct). */
-#define woort_set_result_err_gcstruct(dst, addr, mark, close) \
-    woort_set_union_gcstruct(dst, 1, addr, mark, close)
+#define woort_set_result_err_gcstruct(dst, addr, mark, close, dylib) \
+    woort_set_union_gcstruct(dst, 1, addr, mark, close, dylib)
 
 /** @} */ /* end Result Err Setters */
 
@@ -2339,11 +2375,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Return a boxed boolean. */
 #define woort_ret_box_bool(src) (woort_set_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return a GC handle. */
-#define woort_ret_gchandle(addr, hold, close) \
-    (woort_set_gchandle(-1, addr, hold, close), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_gchandle(addr, hold, close, dylib) \
+    (woort_set_gchandle(-1, addr, hold, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return a GC struct. */
-#define woort_ret_gcstruct(addr, mark, close) \
-    (woort_set_gcstruct(-1, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_gcstruct(addr, mark, close, dylib) \
+    (woort_set_gcstruct(-1, addr, mark, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
 
 /** @} */ /* end Return Macros (Plain) */
 
@@ -2380,11 +2416,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Return a union with boxed bool payload. */
 #define woort_ret_union_box_bool(id, src) (woort_set_union_box_bool(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return a union with GC handle payload. */
-#define woort_ret_union_gchandle(id, addr, hold, close) \
-    (woort_set_union_gchandle(-1, id, addr, hold, close), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_gchandle(id, addr, hold, close, dylib) \
+    (woort_set_union_gchandle(-1, id, addr, hold, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return a union with GC struct payload. */
-#define woort_ret_union_gcstruct(id, addr, mark, close) \
-    (woort_set_union_gcstruct(-1, id, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_gcstruct(id, addr, mark, close, dylib) \
+    (woort_set_union_gcstruct(-1, id, addr, mark, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
 
 /** @} */ /* end Return Union Macros */
 
@@ -2421,11 +2457,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Return option::value(box_bool). */
 #define woort_ret_option_box_bool(src) (woort_set_option_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return option::value(gchandle). */
-#define woort_ret_option_gchandle(addr, hold, close) \
-    (woort_set_option_gchandle(-1, addr, hold, close), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_gchandle(addr, hold, close, dylib) \
+    (woort_set_option_gchandle(-1, addr, hold, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return option::value(gcstruct). */
-#define woort_ret_option_gcstruct(addr, mark, close) \
-    (woort_set_option_gcstruct(-1, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_gcstruct(addr, mark, close, dylib) \
+    (woort_set_option_gcstruct(-1, addr, mark, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
 
 /** @} */ /* end Return Option Macros */
 
@@ -2461,11 +2497,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Return Result::Ok(box_bool). */
 #define woort_ret_result_ok_box_bool(src) (woort_set_result_ok_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return Result::Ok(gchandle). */
-#define woort_ret_result_ok_gchandle(addr, hold, close) \
-    (woort_set_result_ok_gchandle(-1, addr, hold, close), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_gchandle(addr, hold, close, dylib) \
+    (woort_set_result_ok_gchandle(-1, addr, hold, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return Result::Ok(gcstruct). */
-#define woort_ret_result_ok_gcstruct(addr, mark, close) \
-    (woort_set_result_ok_gcstruct(-1, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_gcstruct(addr, mark, close, dylib) \
+    (woort_set_result_ok_gcstruct(-1, addr, mark, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
 
 /** @} */ /* end Return Result::Ok Macros */
 
@@ -2500,11 +2536,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Return Result::Err(box_bool). */
 #define woort_ret_result_err_box_bool(src) (woort_set_result_err_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return Result::Err(gchandle). */
-#define woort_ret_result_err_gchandle(addr, hold, close) \
-    (woort_set_result_err_gchandle(-1, addr, hold, close), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_gchandle(addr, hold, close, dylib) \
+    (woort_set_result_err_gchandle(-1, addr, hold, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
 /** @brief Return Result::Err(gcstruct). */
-#define woort_ret_result_err_gcstruct(addr, mark, close) \
-    (woort_set_result_err_gcstruct(-1, addr, mark, close), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_gcstruct(addr, mark, close, dylib) \
+    (woort_set_result_err_gcstruct(-1, addr, mark, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
 
 /** @} */ /* end Return Result::Err Macros */
 
@@ -3115,40 +3151,6 @@ WOORT_API void woort_normalize_path(/* OPTIONAL */ char* path);
 /* ================================================================
  * Dynamic library loading
  * ================================================================ */
-
-/**
- * @brief Opaque handle to a loaded dynamic library (native or fake).
- */
-typedef struct woort_Dylib woort_Dylib;
-
-/**
- * @brief Unload method flags for woort_dylib_unload.
- */
-typedef enum woort_DylibUnloadMethod
-{
-    WOORT_DYLIB_NONE           = 0,
-    /** Decrement reference count; free when it reaches zero. */
-    WOORT_DYLIB_UNREF          = 1 << 0,
-    /** Remove from the named library registry. */
-    WOORT_DYLIB_BURY           = 1 << 1,
-    /** Combination: unref + bury. */
-    WOORT_DYLIB_UNREF_AND_BURY = WOORT_DYLIB_UNREF | WOORT_DYLIB_BURY,
-} woort_DylibUnloadMethod;
-
-typedef void (*woort_DylibEntryFunc)(woort_Dylib*);
-typedef void (*woort_DylibLeaveFunc)(void);
-
-/**
- * @brief Entry in a fake-library function table.
- */
-typedef struct woort_ExternLibFunc
-{
-    const char* m_name;          /**< Function name (NULL = end of table). */
-    /* OPTIONAL */ void* m_func_addr;  /**< Function pointer (NULL = end of table). */
-} woort_ExternLibFunc;
-
-/** Sentinel to terminate a woort_ExternLibFunc array. */
-#define WOORT_EXTERN_LIB_FUNC_END { NULL, NULL }
 
 /**
  * @brief Register a "fake" library backed by a user-supplied function table.

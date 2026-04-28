@@ -20,6 +20,7 @@ struct woort_GCHandle
     };
     void* m_user_handle;
     woort_GCHandle_UserDestructFunction m_user_destruct_callback;
+    /* OPTIONAL */ woort_Dylib* m_dylib;
 
 };
 
@@ -28,9 +29,11 @@ extern const woort_GCUnitProxy WOORT_GCHANDLE_UNIT_PROXY;
 const woort_GCHandle* woort_GCHandle_new(
     void* addr, 
     /* OPTIONAL */woort_Value* holding,  
-    woort_GCHandle_UserDestructFunction destructor);
+    woort_GCHandle_UserDestructFunction destructor,
+    /* OPTIONAL */ woort_Dylib* dylib);
 
 const woort_GCHandle* woort_GCHandle_new_with_marker(
     void* addr,
     woort_GCHandle_UserMarkFunction marker,
-    woort_GCHandle_UserDestructFunction destructor);
+    woort_GCHandle_UserDestructFunction destructor,
+    /* OPTIONAL */ woort_Dylib* dylib);

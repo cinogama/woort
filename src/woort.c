@@ -442,12 +442,13 @@ void woort_set_gchandle(
     woort_StackValue dst,
     void* addr,
     woort_StackValue hold,
-    woort_GCHandle_UserDestructFunction close)
+    woort_GCHandle_UserDestructFunction close,
+    /* OPTIONAL */ woort_Dylib* dylib)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    const woort_GCHandle* const handle = woort_GCHandle_new(addr, &_WOORT_API_STACK(hold), close);
+    const woort_GCHandle* const handle = woort_GCHandle_new(addr, &_WOORT_API_STACK(hold), close, dylib);
     assert(handle != NULL);
 
     _WOORT_API_STACK(dst).m_gchandle = handle;
@@ -457,12 +458,13 @@ void woort_set_gcstruct(
     woort_StackValue dst,
     void* addr,
     woort_GCHandle_UserMarkFunction mark,
-    woort_GCHandle_UserDestructFunction close)
+    woort_GCHandle_UserDestructFunction close,
+    /* OPTIONAL */ woort_Dylib* dylib)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    const woort_GCHandle* const handle = woort_GCHandle_new_with_marker(addr, mark, close);
+    const woort_GCHandle* const handle = woort_GCHandle_new_with_marker(addr, mark, close, dylib);
     assert(handle != NULL);
 
     _WOORT_API_STACK(dst).m_gchandle = handle;
@@ -617,14 +619,15 @@ void woort_set_union_gchandle(
     woort_Int id,
     void* addr,
     woort_StackValue hold,
-    woort_GCHandle_UserDestructFunction close)
+    woort_GCHandle_UserDestructFunction close,
+    /* OPTIONAL */ woort_Dylib* dylib)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
     const woort_GCHandle* const handle = 
-        woort_GCHandle_new(addr, &_WOORT_API_STACK(hold), close);
+        woort_GCHandle_new(addr, &_WOORT_API_STACK(hold), close, dylib);
     assert(handle != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
@@ -636,14 +639,15 @@ void woort_set_union_gcstruct(
     woort_Int id,
     void* addr,
     woort_GCHandle_UserMarkFunction mark,
-    woort_GCHandle_UserDestructFunction close)
+    woort_GCHandle_UserDestructFunction close,
+    /* OPTIONAL */ woort_Dylib* dylib)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
     const woort_GCHandle* const handle = 
-        woort_GCHandle_new_with_marker(addr, mark, close);
+        woort_GCHandle_new_with_marker(addr, mark, close, dylib);
     assert(handle != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
