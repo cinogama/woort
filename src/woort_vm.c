@@ -664,96 +664,98 @@ _label_continue_execution:
             }
         }
         // CASTDYN
+        // CASTDYN: boxed -> unboxed
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CASTX, 2):
         {
             const woort_BoxValueType target_type = (woort_BoxValueType)WOORT_BYTECODE(A8, c);
             const woort_DynBox src = rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic;
 
-            if (woort_DynBox_check(src, target_type))
-            {
-                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = src;
-                break;
-            }
-
             woort_Value unboxed;
             const woort_BoxValueType src_type =
                 woort_DynBox_unbox_no_check_and_get_type(src, &unboxed);
+
+            /* Same type: direct unbox */
+            if (src_type == target_type)
+            {
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)] = unboxed;
+                break;
+            }
 
             switch (target_type)
             {
             case WOORT_BOX_VALUE_TYPE_REAL:
             {
-                woort_Real result_val;
                 switch (src_type)
                 {
                 case WOORT_BOX_VALUE_TYPE_INT:
-                    result_val = (woort_Real)unboxed.m_integer;
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_real =
+                        (woort_Real)unboxed.m_integer;
                     break;
                 case WOORT_BOX_VALUE_TYPE_BOOL:
-                    result_val = unboxed.m_integer ? 1.0 : 0.0;
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_real =
+                        unboxed.m_integer ? 1.0 : 0.0;
                     break;
                 case WOORT_BOX_VALUE_TYPE_NIL:
-                    result_val = 0.0;
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_real = 0.0;
                     break;
                 case WOORT_BOX_VALUE_TYPE_STRING:
-                    result_val = woort_GCString_to_real(
-                        (const woort_GCString*)unboxed.m_gcinstance);
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_real =
+                        woort_GCString_to_real(
+                            (const woort_GCString*)unboxed.m_gcinstance);
                     break;
                 default:
                     WOORT_VM_THROW(bad_cast);
                 }
-                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic =
-                    woort_DynBox_box_real(result_val);
                 break;
             }
             case WOORT_BOX_VALUE_TYPE_INT:
             {
-                woort_Int result_val;
                 switch (src_type)
                 {
                 case WOORT_BOX_VALUE_TYPE_REAL:
-                    result_val = (woort_Int)unboxed.m_real;
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                        (woort_Int)unboxed.m_real;
                     break;
                 case WOORT_BOX_VALUE_TYPE_BOOL:
-                    result_val = unboxed.m_integer ? 1 : 0;
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                        unboxed.m_integer ? 1 : 0;
                     break;
                 case WOORT_BOX_VALUE_TYPE_NIL:
-                    result_val = 0;
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer = 0;
                     break;
                 case WOORT_BOX_VALUE_TYPE_STRING:
-                    result_val = woort_GCString_to_integer(
-                        (const woort_GCString*)unboxed.m_gcinstance);
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                        woort_GCString_to_integer(
+                            (const woort_GCString*)unboxed.m_gcinstance);
                     break;
                 default:
                     WOORT_VM_THROW(bad_cast);
                 }
-                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic =
-                    woort_DynBox_box_int(result_val);
                 break;
             }
             case WOORT_BOX_VALUE_TYPE_BOOL:
             {
-                bool result_val;
                 switch (src_type)
                 {
                 case WOORT_BOX_VALUE_TYPE_INT:
-                    result_val = (0 != unboxed.m_integer);
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                        0 != unboxed.m_integer;
                     break;
                 case WOORT_BOX_VALUE_TYPE_REAL:
-                    result_val = (0.0 != unboxed.m_real);
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                        0.0 != unboxed.m_real;
                     break;
                 case WOORT_BOX_VALUE_TYPE_NIL:
-                    result_val = false;
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer = 0;
                     break;
                 case WOORT_BOX_VALUE_TYPE_STRING:
-                    result_val = (0 == strcmp("true",
-                        ((const woort_GCString*)unboxed.m_gcinstance)->m_content));
+                    rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
+                        0 == strcmp("true",
+                            ((const woort_GCString*)unboxed.m_gcinstance)->m_content);
                     break;
                 default:
                     WOORT_VM_THROW(bad_cast);
                 }
-                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic =
-                    woort_DynBox_box_bool(result_val);
                 break;
             }
             case WOORT_BOX_VALUE_TYPE_STRING:
