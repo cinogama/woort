@@ -1131,6 +1131,14 @@ static bool _emit_op(
         _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTB);
     case WOORT_IROP_KIND_LDIDXDICTX:
         _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTX);
+    case WOORT_IROP_KIND_LDIDXDICTIX:
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTIX);
+    case WOORT_IROP_KIND_LDIDXDICTRX:
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTRX);
+    case WOORT_IROP_KIND_LDIDXDICTBX:
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTBX);
+    case WOORT_IROP_KIND_LDIDXDICTXX:
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTXX);
 
     /* ============ 索引存储 - vec ============ */
     case WOORT_IROP_KIND_SDIDXVECI:

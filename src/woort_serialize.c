@@ -663,11 +663,9 @@ WOORT_NODISCARD static bool _woort_deserialize_value(
     /* 映射 { */
     if (*pp == '{')
     {
-        woort_GCMap* gcmap = NULL;
-        if (!_woort_deserialize_map_impl(&pp, &gcmap))
+        if (!_woort_deserialize_map_impl(&pp, out_box))
             return false;
 
-        out_box->m_boxed_gc_unit = &gcmap->m_gc_unit;
         *p = pp;
         return true;
     }
@@ -675,11 +673,9 @@ WOORT_NODISCARD static bool _woort_deserialize_value(
     /* 数组 [ */
     if (*pp == '[')
     {
-        woort_GCVec* gcvec = NULL;
-        if (!_woort_deserialize_vec_impl(&pp, &gcvec))
+        if (!_woort_deserialize_vec_impl(&pp, out_box))
             return false;
 
-        out_box->m_boxed_gc_unit = &gcvec->m_gc_unit;
         *p = pp;
         return true;
     }

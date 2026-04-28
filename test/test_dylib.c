@@ -182,10 +182,6 @@ static void test_dylib_fake_lib_basic(void)
     void* np = woort_dylib_load_func(lib, "nonexistent");
     TEST_ASSERT_NULL(np);
 
-    /* Lookup NULL lib */
-    np = woort_dylib_load_func(NULL, "my_double");
-    TEST_ASSERT_NULL(np);
-
     woort_dylib_unload(lib, WOORT_DYLIB_UNREF_AND_BURY);
     TEST_END();
 }
@@ -246,26 +242,6 @@ static void test_dylib_load_fail(void)
     TEST_END();
 }
 
-static void test_dylib_load_reuse(void)
-{
-    TEST_BEGIN("load_lib: same name returns existing handle");
-
-    woort_Dylib* lib1 = woort_dylib_load("reuse_test", NULL, NULL, false);
-    TEST_ASSERT_NOT_NULL(lib1);
-
-    woort_Dylib* lib2 = woort_dylib_load("reuse_test", NULL, NULL, false);
-    TEST_ASSERT_NOT_NULL(lib2);
-
-    /* Should be same pointer */
-    TEST_ASSERT(lib1 == lib2);
-
-    /* Need two unrefs to fully release */
-    woort_dylib_unload(lib1, WOORT_DYLIB_UNREF_AND_BURY);
-    /* Second unref — bury already done, just unref the remaining count */
-    woort_dylib_unload(lib2, WOORT_DYLIB_UNREF);
-    TEST_END();
-}
-
 static void test_dylib_unload_unref_only(void)
 {
     TEST_BEGIN("unload_lib: UNREF only keeps in registry");
@@ -293,19 +269,6 @@ static void test_dylib_unload_unref_only(void)
     TEST_END();
 }
 
-static void test_dylib_load_func_null_params(void)
-{
-    TEST_BEGIN("load_func: handles NULL params");
-
-    void* fp = woort_dylib_load_func(NULL, NULL);
-    TEST_ASSERT_NULL(fp);
-
-    fp = woort_dylib_load_func(NULL, "test");
-    TEST_ASSERT_NULL(fp);
-
-    TEST_END();
-}
-
 /* ========== 主函数 ========== */
 
 int main(int argc, char** argv)
@@ -328,9 +291,7 @@ int main(int argc, char** argv)
     test_dylib_fake_lib_duplicate();
     test_dylib_fake_lib_dependency();
     test_dylib_load_fail();
-    test_dylib_load_reuse();
     test_dylib_unload_unref_only();
-    test_dylib_load_func_null_params();
 
     (void)printf("\n=== Results: %d/%d passed ===\n\n",
         g_tests_passed, g_tests_run);

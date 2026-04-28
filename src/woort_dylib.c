@@ -24,9 +24,9 @@
 
 #   define WOORT_DYLIB_EXT ".dll"
 
-static void* _os_loadlib(const char* path)
+static void* _woort_dylib_os_loadlib(const char* path)
 {
-    assert(path == NULL);
+    assert(path != NULL);
 
     size_t wlen;
     char16_t* wpath = woort_u8strtou16(path, strlen(path), &wlen);
@@ -39,12 +39,12 @@ static void* _os_loadlib(const char* path)
     return handle;
 }
 
-static void* _os_loadfunc(void* handle, const char* name)
+static void* _woort_dylib_os_loadfunc(void* handle, const char* name)
 {
     return (void*)GetProcAddress((HMODULE)handle, name);
 }
 
-static void _os_freelib(void* handle)
+static void _woort_dylib_os_freelib(void* handle)
 {
     FreeLibrary((HMODULE)handle);
 }
@@ -57,19 +57,19 @@ static void _os_freelib(void* handle)
 #       define WOORT_DYLIB_EXT ".so"
 #   endif
 
-static void* _os_loadlib(const char* path)
+static void* _woort_dylib_os_loadlib(const char* path)
 {
     assert(path == NULL);
 
     return dlopen(path, RTLD_LAZY);
 }
 
-static void* _os_loadfunc(void* handle, const char* name)
+static void* _woort_dylib_os_loadfunc(void* handle, const char* name)
 {
     return dlsym(handle, name);
 }
 
-static void _os_freelib(void* handle)
+static void _woort_dylib_os_freelib(void* handle)
 {
     dlclose(handle);
 }
@@ -80,15 +80,15 @@ static void _os_freelib(void* handle)
  * Helpers
  * ================================================================ */
 
-static bool _file_exists(const char* path)
+static bool _woort_dylib_file_exists(const char* path)
 {
-    assert(path == NULL);
+    assert(path != NULL);
 
     struct stat st;
     return stat(path, &st) == 0;
 }
 
-static char* _build_search_path(const char* dir, const char* name)
+static char* _woort_dylib_build_search_path(const char* dir, const char* name)
 {
     size_t dir_len = strlen(dir);
     size_t name_len = strlen(name);
@@ -102,7 +102,7 @@ static char* _build_search_path(const char* dir, const char* name)
     return result;
 }
 
-static char* _append_ext(const char* name, const char* ext)
+static char* _woort_dylib_append_ext(const char* name, const char* ext)
 {
     size_t name_len = strlen(name);
     size_t ext_len = strlen(ext);
@@ -115,11 +115,11 @@ static char* _append_ext(const char* name, const char* ext)
     return result;
 }
 
-static void* _try_open_lib(const char* path)
+static void* _woort_dylib_try_open_lib(const char* path)
 {
-    if (_file_exists(path))
+    if (_woort_dylib_file_exists(path))
     {
-        void* handle = _os_loadlib(path);
+        void* handle = _woort_dylib_os_loadlib(path);
         if (handle == NULL)
         {
             WOORT_DEBUG("Failed to load library '%s', broken file or "
@@ -154,7 +154,7 @@ bool _woort_dylib_bootup(void)
     return true;
 }
 
-static void _registry_remove(woort_Dylib* dylib);
+static void _woort_dylib_registry_remove(woort_Dylib* dylib);
 
 static void _woort_dylib_free_fake_function_list(woort_ExternLibFunc* fake_libs)
 {
@@ -171,7 +171,7 @@ static void _woort_dylib_close(woort_Dylib* dylib)
 {
 #ifndef WOORT_DYLIB_DISABLED
     if (dylib->m_native_handle != NULL)
-        _os_freelib(dylib->m_native_handle);
+        _woort_dylib_os_freelib(dylib->m_native_handle);
 #endif
 
     if (dylib->m_fake_funcs != NULL)
@@ -227,7 +227,7 @@ void _woort_dylib_shutdown(void)
     g_named_libs_mx = NULL;
 }
 
-static woort_Dylib* _registry_find(const char* name)
+static woort_Dylib* _woort_dylib_registry_find(const char* name)
 {
     void* value_storage = NULL;
     if (woort_hashmap_find(&g_named_libs, (const void*)&name, &value_storage))
@@ -235,7 +235,7 @@ static woort_Dylib* _registry_find(const char* name)
     return NULL;
 }
 
-static void _registry_insert(woort_Dylib* dylib)
+static void _woort_dylib_registry_insert(woort_Dylib* dylib)
 {
     woort_Dylib* ptr = dylib;
     (void)woort_hashmap_insert(
@@ -248,7 +248,7 @@ static void _registry_insert(woort_Dylib* dylib)
         entry(dylib);
 }
 
-static void _registry_remove(woort_Dylib* dylib)
+static void _woort_dylib_registry_remove(woort_Dylib* dylib)
 {
     (void)woort_hashmap_remove(
         &g_named_libs, (const void*)&dylib->m_name);
@@ -268,7 +268,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
 
     woort_recursive_mutex_lock(g_named_libs_mx);
 
-    if (_registry_find(libname) != NULL)
+    if (_woort_dylib_registry_find(libname) != NULL)
     {
         woort_recursive_mutex_unlock(g_named_libs_mx);
         return NULL;
@@ -348,7 +348,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
             &dependence_dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
     }
 
-    _registry_insert(dylib);
+    _woort_dylib_registry_insert(dylib);
 
     woort_recursive_mutex_unlock(g_named_libs_mx);
     return dylib;
@@ -364,7 +364,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     woort_recursive_mutex_lock(g_named_libs_mx);
 
     /* Already loaded? */
-    woort_Dylib* const existing = _registry_find(libname);
+    woort_Dylib* const existing = _woort_dylib_registry_find(libname);
     if (existing != NULL)
     {
         woort_dylib_keep(existing);
@@ -374,7 +374,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
 
     void* native_handle = NULL;
 
-    char* name_with_ext = _append_ext(path, WOORT_DYLIB_EXT);
+    char* name_with_ext = _woort_dylib_append_ext(path, WOORT_DYLIB_EXT);
     if (name_with_ext == NULL)
     {
         woort_recursive_mutex_unlock(g_named_libs_mx);
@@ -390,13 +390,13 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
         if (script_dir != NULL)
         {
             char* try_path = script_dir[0] != '\0'
-                ? _build_search_path(script_dir, name_with_ext)
+                ? _woort_dylib_build_search_path(script_dir, name_with_ext)
                 : NULL;
             free(script_dir);
 
             if (try_path != NULL)
             {
-                native_handle = _try_open_lib(try_path);
+                native_handle = _woort_dylib_try_open_lib(try_path);
                 free(try_path);
             }
         }
@@ -408,10 +408,10 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
         char* wd = woort_work_path();
         if (wd != NULL)
         {
-            char* try_path = _build_search_path(wd, name_with_ext);
+            char* try_path = _woort_dylib_build_search_path(wd, name_with_ext);
             if (try_path != NULL)
             {
-                native_handle = _try_open_lib(try_path);
+                native_handle = _woort_dylib_try_open_lib(try_path);
                 free(try_path);
             }
             free(wd);
@@ -424,10 +424,10 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
         char* ed = woort_exe_path();
         if (ed != NULL)
         {
-            char* try_path = _build_search_path(ed, name_with_ext);
+            char* try_path = _woort_dylib_build_search_path(ed, name_with_ext);
             if (try_path != NULL)
             {
-                native_handle = _try_open_lib(try_path);
+                native_handle = _woort_dylib_try_open_lib(try_path);
                 free(try_path);
             }
             free(ed);
@@ -439,13 +439,13 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     /* 4) Try path as-is (without extension appended) */
     if (native_handle == NULL)
     {
-        native_handle = _try_open_lib(path);
+        native_handle = _woort_dylib_try_open_lib(path);
     }
 
     /* 5) OS default search (only if no script_path was given) */
     if (native_handle == NULL && script_path == NULL)
     {
-        native_handle = _os_loadlib(path);
+        native_handle = _woort_dylib_os_loadlib(path);
     }
 
     if (native_handle == NULL)
@@ -460,7 +460,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     woort_Dylib* dylib = (woort_Dylib*)malloc(sizeof(woort_Dylib));
     if (dylib == NULL)
     {
-        _os_freelib(native_handle);
+        _woort_dylib_os_freelib(native_handle);
         woort_recursive_mutex_unlock(g_named_libs_mx);
         if (panic_when_fail)
             woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
@@ -473,7 +473,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     dylib->m_name = (char*)malloc(strlen(libname) + 1);
     if (dylib->m_name == NULL)
     {
-        _os_freelib(native_handle);
+        _woort_dylib_os_freelib(native_handle);
         free(dylib);
         woort_recursive_mutex_unlock(g_named_libs_mx);
         if (panic_when_fail)
@@ -483,7 +483,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     strcpy(dylib->m_name, libname);
     woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
-    _registry_insert(dylib);
+    _woort_dylib_registry_insert(dylib);
 
     woort_recursive_mutex_unlock(g_named_libs_mx);
 
@@ -516,7 +516,7 @@ WOORT_NODISCARD /* OPTIONAL */ void* woort_dylib_load_func(
 
 #ifndef WOORT_DYLIB_DISABLED
     if (lib->m_native_handle != NULL)
-        return _os_loadfunc(lib->m_native_handle, funcname);
+        return _woort_dylib_os_loadfunc(lib->m_native_handle, funcname);
 #endif
 
     return NULL;
@@ -540,7 +540,7 @@ void woort_dylib_unload(woort_Dylib* lib, woort_DylibUnloadMethod method)
     {
         woort_recursive_mutex_lock(g_named_libs_mx);
 
-        _registry_remove(lib);
+        _woort_dylib_registry_remove(lib);
         if (should_free)
         {
             woort_DylibLeaveFunc const leave =

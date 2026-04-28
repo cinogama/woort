@@ -1170,6 +1170,34 @@ WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTX(
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
+/** @brief Load map element by integer key (boxed result): dst = box(container[key]). */
+WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTIX(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* container,
+    const woort_IRValue* idx);
+
+/** @brief Load map element by real key (boxed result): dst = box(container[key]). */
+WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTRX(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* container,
+    const woort_IRValue* idx);
+
+/** @brief Load map element by bool key (boxed result): dst = box(container[key]). */
+WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTBX(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* container,
+    const woort_IRValue* idx);
+
+/** @brief Load map element by dynamic key (boxed result): dst = box(container[key]). */
+WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTXX(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* container,
+    const woort_IRValue* idx);
+
 /**@}*/
 
 /** @name Index Store — Vector (container[idx] = val) */
