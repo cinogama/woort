@@ -3282,6 +3282,17 @@ WOORT_API void woort_dylib_unload(
  */
 WOORT_API void woort_dylib_keep(woort_Dylib* lib);
 
+/**
+ * @brief Get the handle of the built-in "woolang" fake library.
+ *
+ * This library is automatically registered during woort_init() and contains
+ * the core runtime native functions (return_it_self, bad_function, panic,
+ * print).  The returned handle is valid until woort_shutdown() is called.
+ *
+ * @return The library handle, or NULL if woort_init has not been called.
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_get_builtin_lib(void);
+
 /* ---------------------------- */
 
 #undef WOORT_API

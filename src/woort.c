@@ -1,5 +1,6 @@
 #include "woort.h"
 
+#include "woort_builtin.h"
 #include "woort_codeenv.h"
 #include "woort_log.h"
 #include "woort_gc.h"
@@ -39,9 +40,17 @@ void woort_init(void)
         WOORT_DEBUG("Failed to bootup dylib manager.");
         abort();
     }
+
+    if (!_woort_builtin_bootup())
+    {
+        WOORT_DEBUG("Failed to bootup builtin functions.");
+        abort();
+    }
 }
 void woort_shutdown(void)
 {
+    _woort_builtin_shutdown();
+
     _woort_dylib_shutdown();
 
     woort_GC_shutdown();
