@@ -15,6 +15,7 @@
 #include "woort_gc_closure.h"
 #include "woort_diagnosis.h"
 #include "woort_gc.h"
+#include "woort_util.h"
 
 /*
 Boxed value:    | ............................... | 3 type bits |
@@ -593,7 +594,7 @@ WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val)
         else
         {
             // Other GC types: hash the pointer address
-            return _woort_hash_int((woort_Int)(uintptr_t)gc_unit);
+            return woort_util_ptr_hash(gc_unit);
         }
     }
 }

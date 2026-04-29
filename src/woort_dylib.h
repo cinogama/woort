@@ -6,6 +6,8 @@ woort_dylib.h
 
 #include "woort.h"
 #include "woort_atomic.h"
+#include "woort_hashmap.h"
+#include "woort_spin.h"
 
 #include <stdbool.h>
 
@@ -24,6 +26,8 @@ struct woort_Dylib
     /* OPTIONAL */ woort_Dylib*                  m_dependenced;
     char*                                       m_name;
     woort_AtomicUInt64                          m_use_count;
+    woort_HashMap                               m_resolved_funcs;
+    woort_RWSpinlock                            m_resolved_lock;
 };
 
 bool _woort_dylib_bootup(void);

@@ -167,6 +167,42 @@ static void _woort_dylib_free_fake_function_list(woort_ExternLibFunc* fake_libs)
     free(fake_libs);
 }
 
+static bool _woort_dylib_resolved_funcs_foreach_free(
+    const void* key,
+    void* value,
+    /* OPTIONAL */ void* user_data)
+{
+    (void)key;
+    (void)user_data;
+    free(*(char**)value);
+    return true;
+}
+
+static void _woort_dylib_try_record_resolved(
+    woort_Dylib* lib,
+    const char* funcname,
+    void* func_addr)
+{
+    if (func_addr == NULL)
+        return;
+
+    /* Copy name outside the lock to minimize critical section */
+    size_t name_len = strlen(funcname);
+    char* name_copy = (char*)malloc(name_len + 1);
+    if (name_copy == NULL)
+        return;
+    memcpy(name_copy, funcname, name_len + 1);
+
+    woort_rwspinlock_write_lock(&lib->m_resolved_lock);
+    {
+        woort_hashmap_Result res = woort_hashmap_insert(
+            &lib->m_resolved_funcs, &func_addr, &name_copy);
+        if (res != WOORT_HASHMAP_RESULT_OK)
+            free(name_copy);
+    }
+    woort_rwspinlock_write_unlock(&lib->m_resolved_lock);
+}
+
 static void _woort_dylib_close(woort_Dylib* dylib)
 {
 #ifndef WOORT_DYLIB_DISABLED
@@ -178,6 +214,11 @@ static void _woort_dylib_close(woort_Dylib* dylib)
     {
         _woort_dylib_free_fake_function_list(dylib->m_fake_funcs);
     }
+
+    (void)woort_hashmap_foreach(&dylib->m_resolved_funcs,
+        _woort_dylib_resolved_funcs_foreach_free, NULL);
+    woort_hashmap_deinit(&dylib->m_resolved_funcs);
+    woort_rwspinlock_deinit(&dylib->m_resolved_lock);
 
     free(dylib->m_name);
     free(dylib);
@@ -296,6 +337,14 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
     }
     strcpy(dylib->m_name, libname);
     woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
+
+    woort_rwspinlock_init(&dylib->m_resolved_lock);
+    woort_hashmap_init(
+        &dylib->m_resolved_funcs,
+        sizeof(void*),
+        sizeof(const char*),
+        woort_util_ptr_hash,
+        woort_util_ptr_equal);
 
     /* Deep copy the funcs array */
     {
@@ -483,6 +532,14 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     strcpy(dylib->m_name, libname);
     woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
+    woort_rwspinlock_init(&dylib->m_resolved_lock);
+    woort_hashmap_init(
+        &dylib->m_resolved_funcs,
+        sizeof(void*),
+        sizeof(const char*),
+        woort_util_ptr_hash,
+        woort_util_ptr_equal);
+
     _woort_dylib_registry_insert(dylib);
 
     woort_recursive_mutex_unlock(g_named_libs_mx);
@@ -508,7 +565,10 @@ WOORT_NODISCARD /* OPTIONAL */ void* woort_dylib_load_func(
         while (f->m_name != NULL)
         {
             if (strcmp(f->m_name, funcname) == 0)
+            {
+                _woort_dylib_try_record_resolved(lib, funcname, f->m_func_addr);
                 return f->m_func_addr;
+            }
             f++;
         }
         return NULL;
@@ -516,10 +576,32 @@ WOORT_NODISCARD /* OPTIONAL */ void* woort_dylib_load_func(
 
 #ifndef WOORT_DYLIB_DISABLED
     if (lib->m_native_handle != NULL)
-        return _woort_dylib_os_loadfunc(lib->m_native_handle, funcname);
+    {
+        void* result = _woort_dylib_os_loadfunc(lib->m_native_handle, funcname);
+        _woort_dylib_try_record_resolved(lib, funcname, result);
+        return result;
+    }
 #endif
 
     return NULL;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ const char* woort_dylib_get_func_name(
+    woort_Dylib* lib,
+    void* func_addr)
+{
+    if (lib == NULL || func_addr == NULL)
+        return NULL;
+
+    const char* name = NULL;
+    woort_rwspinlock_read_lock(&lib->m_resolved_lock);
+    {
+        void* value_addr;
+        if (woort_hashmap_find(&lib->m_resolved_funcs, &func_addr, &value_addr))
+            name = *(const char**)value_addr;
+    }
+    woort_rwspinlock_read_unlock(&lib->m_resolved_lock);
+    return name;
 }
 
 void woort_dylib_unload(woort_Dylib* lib, woort_DylibUnloadMethod method)

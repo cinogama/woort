@@ -3239,6 +3239,22 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ void* woort_dylib_load_func(
     const char* funcname);
 
 /**
+ * @brief Reverse-lookup a function name by its address.
+ *
+ * Searches the internal resolved-function table (populated by prior
+ * woort_dylib_load_func calls on the same dylib) for an entry whose
+ * address matches @p func_addr.  The returned pointer is valid as long
+ * as the dylib is not freed; it points to internally managed memory.
+ *
+ * @param lib       Library handle obtained from woort_dylib_load or woort_dylib_fake.
+ * @param func_addr Function address to look up.
+ * @return The function name if found in the resolved table, or NULL.
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_dylib_get_func_name(
+    woort_Dylib* lib,
+    /* OPTIONAL */ void* func_addr);
+
+/**
  * @brief Unload a dynamic library.
  *
  * Reference counting and registry removal are controlled by the method flags:

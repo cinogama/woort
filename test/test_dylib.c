@@ -269,6 +269,43 @@ static void test_dylib_unload_unref_only(void)
     TEST_END();
 }
 
+static void test_dylib_get_func_name_fake(void)
+{
+    TEST_BEGIN("get_func_name: fake lib round-trip");
+
+    woort_ExternLibFunc funcs[] = {
+        { "my_double", (void*)&test_func_doubler },
+        WOORT_EXTERN_LIB_FUNC_END
+    };
+
+    woort_Dylib* lib = woort_dylib_fake("fake_getname", funcs, NULL);
+    TEST_ASSERT_NOT_NULL(lib);
+
+    /* Verify address not resolvable before load_func */
+    const char* before = woort_dylib_get_func_name(lib, (void*)&test_func_doubler);
+    TEST_ASSERT_NULL(before);
+
+    /* Resolve function */
+    void* addr = woort_dylib_load_func(lib, "my_double");
+    TEST_ASSERT_NOT_NULL(addr);
+
+    /* Reverse lookup should match */
+    const char* name = woort_dylib_get_func_name(lib, addr);
+    TEST_ASSERT_NOT_NULL(name);
+    TEST_ASSERT_STREQ("my_double", name);
+
+    /* Unresolved address returns NULL */
+    const char* bad = woort_dylib_get_func_name(lib, (void*)0xDEAD);
+    TEST_ASSERT_NULL(bad);
+
+    /* NULL lib or NULL addr returns NULL */
+    TEST_ASSERT_NULL(woort_dylib_get_func_name(NULL, addr));
+    TEST_ASSERT_NULL(woort_dylib_get_func_name(lib, NULL));
+
+    woort_dylib_unload(lib, WOORT_DYLIB_UNREF_AND_BURY);
+    TEST_END();
+}
+
 /* ========== 主函数 ========== */
 
 int main(int argc, char** argv)
@@ -292,6 +329,7 @@ int main(int argc, char** argv)
     test_dylib_fake_lib_dependency();
     test_dylib_load_fail();
     test_dylib_unload_unref_only();
+    test_dylib_get_func_name_fake();
 
     (void)printf("\n=== Results: %d/%d passed ===\n\n",
         g_tests_passed, g_tests_run);
