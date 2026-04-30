@@ -48,15 +48,51 @@ static woort_api woort_builtin_print(void)
     return woort_ret_void();
 }
 
+static woort_api woort_builtin_input_read_i(void)
+{
+    long long result;
+
+    woort_vm* this_vm = woort_vm_swap(NULL);
+    while (scanf("%lld", &result) != 1)
+    {
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF)
+            ;
+    }
+    (void)woort_vm_swap(this_vm);
+
+    return woort_ret_int((woort_Int)result);
+}
+static woort_api woort_builtin_input_read_r(void)
+{
+    double result;
+
+    woort_vm* this_vm = woort_vm_swap(NULL);
+    while (scanf("%lf", &result) != 1)
+    {
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF)
+            ;
+    }
+    (void)woort_vm_swap(this_vm);
+
+    return woort_ret_real((woort_Real)result);
+}
+
 /* ================================================================
  * Function table for the "woolang" fake library
  * ================================================================ */
 
+#define WOORT_BUILTIN_FUNC(name) \
+    {"woostd_" #name, (void*)&woort_builtin_##name}
+
 static const woort_ExternLibFunc g_woolang_funcs[] = {
-    {"woostd_return_it_self", (void*)&woort_builtin_return_it_self},
-    {"woostd_bad_function",   (void*)&woort_builtin_bad_function},
-    {"woostd_panic",           (void*)&woort_builtin_panic},
-    {"woostd_print",           (void*)&woort_builtin_print},
+    WOORT_BUILTIN_FUNC(return_it_self),
+    WOORT_BUILTIN_FUNC(bad_function),
+    WOORT_BUILTIN_FUNC(panic),
+    WOORT_BUILTIN_FUNC(print),
+    WOORT_BUILTIN_FUNC(input_read_i),
+    WOORT_BUILTIN_FUNC(input_read_r),
     WOORT_EXTERN_LIB_FUNC_END,
 };
 
