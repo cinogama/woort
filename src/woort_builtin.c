@@ -2,6 +2,8 @@
 
 #include "woort_builtin.h"
 
+#include "woort_vector.h"
+
 #include <stdio.h>
 
 /* ================================================================
@@ -78,6 +80,53 @@ static woort_api woort_builtin_input_read_r(void)
 
     return woort_ret_real((woort_Real)result);
 }
+static woort_api woort_builtin_input_read_s(void)
+{
+    woort_vm* this_vm = woort_vm_swap(NULL);
+
+    woort_Vector vec;
+    woort_vector_init(&vec, sizeof(char));
+
+    for (;;)
+    {
+        int c;
+        /* Skip leading whitespace (same semantics as scanf %s) */
+        while ((c = getchar()) != EOF
+            && (c == ' ' || c == '\t' || c == '\n' || c == '\r'))
+            ;
+        if (c == EOF)
+        {
+            woort_vector_clear(&vec);
+            continue;
+        }
+
+        /* Read non-whitespace characters */
+        do
+        {
+            const char ch = (char)c;
+            if (!woort_vector_push_back(&vec, 1, &ch))
+            {
+                woort_vector_deinit(&vec);
+                (void)woort_vm_swap(this_vm);
+                return woort_ret_panic("Out of memory.");
+            }
+        } while ((c = getchar()) != EOF
+            && c != ' ' && c != '\t' && c != '\n' && c != '\r');
+
+        /* Put back the whitespace terminator (matching scanf/std::cin>>) */
+        if (c != EOF)
+            ungetc(c, stdin);
+
+        break;
+    }
+
+    (void)woort_vm_swap(this_vm);
+
+    const woort_api r =  woort_ret_buffer(vec.m_data, vec.m_size);
+    woort_vector_deinit(&vec);
+
+    return r;
+}
 
 /* ================================================================
  * Function table for the "woolang" fake library
@@ -93,6 +142,7 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(print),
     WOORT_BUILTIN_FUNC(input_read_i),
     WOORT_BUILTIN_FUNC(input_read_r),
+    WOORT_BUILTIN_FUNC(input_read_s),
     WOORT_EXTERN_LIB_FUNC_END,
 };
 
