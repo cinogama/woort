@@ -3,8 +3,17 @@
 #include "woort_builtin.h"
 
 #include "woort_vector.h"
+#include "woort_atomic.h"
 
 #include <stdio.h>
+#include <time.h>
+
+/* ================================================================
+ * Global handle and lifecycle
+ * ================================================================ */
+
+static /* OPTIONAL */ woort_Dylib* g_builtin_lib = NULL;
+static woort_AtomicUInt64          g_random_state = { 0 };
 
 /* ================================================================
  * Built-in native function implementations
@@ -127,6 +136,73 @@ static woort_api woort_builtin_input_read_s(void)
 
     return r;
 }
+static woort_api woort_builtin_input_readline(void)
+{
+    woort_vm* this_vm = woort_vm_swap(NULL);
+
+    woort_Vector vec;
+    woort_vector_init(&vec, sizeof(char));
+
+    for (;;)
+    {
+        int c;
+        while ((c = getchar()) != EOF && c != '\n')
+        {
+            const char ch = (char)c;
+            if (!woort_vector_push_back(&vec, 1, &ch))
+            {
+                woort_vector_deinit(&vec);
+                (void)woort_vm_swap(this_vm);
+                return woort_ret_panic("Out of memory.");
+            }
+        }
+
+        if (c == EOF && vec.m_size == 0)
+        {
+            woort_vector_clear(&vec);
+            continue;
+        }
+
+        break;
+    }
+
+    (void)woort_vm_swap(this_vm);
+
+    const woort_api r = woort_ret_buffer(vec.m_data, vec.m_size);
+    woort_vector_deinit(&vec);
+    return r;
+}
+static woort_api woort_builtin_random_i(void)
+{
+    woort_Int from = woort_int(0);
+    woort_Int to   = woort_int(1);
+
+    if (to < from)
+    {
+        woort_Int tmp = from;
+        from = to;
+        to = tmp;
+    }
+
+    /* SplitMix64 PRNG — lock-free via CAS on g_random_state */
+    uint64_t z;
+    uint64_t old = woort_atomic_load(&g_random_state);
+    do
+    {
+        z = old + 0x9E3779B97F4A7C15ULL;
+    }
+    while (!woort_atomic_compare_exchange_weak(&g_random_state, &old, z));
+
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+    uint64_t r = z ^ (z >> 31);
+
+    if (from == to)
+        return woort_ret_int(from);
+
+    uint64_t range = (uint64_t)(to - from) + 1;
+    return woort_ret_int((woort_Int)(from + (woort_Int)(r % range)));
+}
 
 /* ================================================================
  * Function table for the "woolang" fake library
@@ -143,18 +219,30 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(input_read_i),
     WOORT_BUILTIN_FUNC(input_read_r),
     WOORT_BUILTIN_FUNC(input_read_s),
+    WOORT_BUILTIN_FUNC(input_readline),
+    WOORT_BUILTIN_FUNC(random_i),
     WOORT_EXTERN_LIB_FUNC_END,
 };
-
-/* ================================================================
- * Global handle and lifecycle
- * ================================================================ */
-
-static /* OPTIONAL */ woort_Dylib* g_builtin_lib = NULL;
 
 bool _woort_builtin_bootup(void)
 {
     g_builtin_lib = woort_dylib_fake("woolang", g_woolang_funcs, NULL);
+
+    /* Initialize random seed with event-based entropy */
+    {
+        uint64_t seed = ((uint64_t)(uintptr_t)&g_random_state) * 0x9E3779B97F4A7C15ULL;
+        seed ^= (uint64_t)clock();
+        seed += (uint64_t)time(NULL);
+
+        /* SplitMix64 mixing pass */
+        seed += 0x9E3779B97F4A7C15ULL;
+        seed = (seed ^ (seed >> 30)) * 0xBF58476D1CE4E5B9ULL;
+        seed = (seed ^ (seed >> 27)) * 0x94D049BB133111EBULL;
+        seed = seed ^ (seed >> 31);
+
+        woort_atomic_init(&g_random_state, seed);
+    }
+
     return g_builtin_lib != NULL;
 }
 
