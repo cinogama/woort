@@ -172,6 +172,20 @@ static woort_api woort_builtin_input_readline(void)
     woort_vector_deinit(&vec);
     return r;
 }
+static uint64_t _woort_random_u64(void)
+{
+    uint64_t z;
+    uint64_t old = woort_atomic_load(&g_random_state);
+    do
+    {
+        z = old + 0x9E3779B97F4A7C15ULL;
+    }
+    while (!woort_atomic_compare_exchange_weak(&g_random_state, &old, z));
+
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+    return z ^ (z >> 31);
+}
 static woort_api woort_builtin_random_i(void)
 {
     woort_Int from = woort_int(0);
@@ -184,24 +198,39 @@ static woort_api woort_builtin_random_i(void)
         to = tmp;
     }
 
-    /* SplitMix64 PRNG — lock-free via CAS on g_random_state */
-    uint64_t z;
-    uint64_t old = woort_atomic_load(&g_random_state);
-    do
-    {
-        z = old + 0x9E3779B97F4A7C15ULL;
-    }
-    while (!woort_atomic_compare_exchange_weak(&g_random_state, &old, z));
-
-    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
-    z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
-    uint64_t r = z ^ (z >> 31);
-
     if (from == to)
         return woort_ret_int(from);
 
-    uint64_t range = (uint64_t)(to - from) + 1;
+    const uint64_t r = _woort_random_u64();
+    const uint64_t range = (uint64_t)(to - from) + 1;
     return woort_ret_int((woort_Int)(from + (woort_Int)(r % range)));
+}
+static woort_api woort_builtin_random_r(void)
+{
+    woort_Real from = woort_real(0);
+    woort_Real to   = woort_real(1);
+
+    if (to < from)
+    {
+        woort_Real tmp = from;
+        from = to;
+        to = tmp;
+    }
+
+    if (from == to)
+        return woort_ret_real(from);
+
+    const uint64_t r = _woort_random_u64();
+    const woort_Real uniform = (woort_Real)(r >> 11) * 0x1.0p-53;
+    return woort_ret_real(from + (to - from) * uniform);
+}
+static woort_api woort_builtin_yield(void)
+{
+    return woort_ret_yield();
+}
+static woort_api woostd_sleep(void)
+{
+    return woort_ret_panic("Not impl yet.");
 }
 
 /* ================================================================
@@ -221,6 +250,8 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(input_read_s),
     WOORT_BUILTIN_FUNC(input_readline),
     WOORT_BUILTIN_FUNC(random_i),
+    WOORT_BUILTIN_FUNC(random_r),
+    WOORT_BUILTIN_FUNC(yield),
     WOORT_EXTERN_LIB_FUNC_END,
 };
 
