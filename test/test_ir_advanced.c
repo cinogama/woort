@@ -1808,7 +1808,7 @@ int main(int argc, char** argv)
     (void)argc;
     (void)argv;
 
-    woort_init();
+    woort_init(0, NULL);
 
     (void)printf("\n=== Advanced IR Tests ===\n\n");
 

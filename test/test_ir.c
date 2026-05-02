@@ -4277,7 +4277,7 @@ int main(int argc, char** argv)
     (void)argc;
     (void)argv;
 
-    woort_init();
+    woort_init(0, NULL);
 
     (void)printf("=== WooRT IR Compiler Tests ===\n\n");
 

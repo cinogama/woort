@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-WooRT (Woolang Runtime V1.0) is a C11 runtime for the Woolang scripting language: bytecode interpreter, GC-based memory manager (woomem submodule), IR compiler, and debugging support. Public API is in `include/woort.h`.
+WooRT (Woolang Runtime V1.0) is a C11 runtime for the Woolang scripting language: bytecode interpreter, GC-based memory manager (woomem submodule), IR compiler, and debugging support. The single public API header is `include/woort.h`.
 
 ## Build Commands
 
@@ -10,7 +10,7 @@ WooRT (Woolang Runtime V1.0) is a C11 runtime for the Woolang scripting language
 # Submodules (required before first build)
 git submodule sync --recursive && git submodule update --init --recursive
 
-# Configure (Windows)
+# Configure (Windows MSVC)
 cmake -B build -G "Visual Studio 17 2022" -A x64
 
 # Configure (macOS ARM64)
@@ -33,24 +33,24 @@ ctest --test-dir build -C Debug -R test_c_api --output-on-failure
 
 Test names match the source filename without extension: `test/test_c_api.c` → `-R test_c_api`.
 
+**Source auto-discovery:** `src/CMakeLists.txt` uses `GLOB_RECURSE` for `.c`/`.h` files and `test/CMakeLists.txt` uses `GLOB` for `*.c` files. Adding or removing files requires no CMakeLists changes.
+
 CI builds both Debug and Release on all platforms (see `.gitlab-ci.yml`).
 
 ## Build Quirks
 
-- The shared library outputs as `libwoort` (not `woort`): `libwoort.dll`/`libwoort.so`, with `_debug` postfix on 64-bit Debug builds, `32`/`32_debug` on 32-bit.
+- The shared library outputs as `libwoort` (not `woort`): `libwoort.dll`/`libwoort.so`, with `_debug` postfix on 64-bit Debug builds, `32`/`32_debug` on 32-bit. Use `BUILD_SHARED_LIBS=ON` to build shared.
 - MSVC builds require `/experimental:c11atomics` (auto-enabled in CMakeLists for VS 2022 v193x-195x).
 - Source builds define `WOORT_IMPL=1` privately; public consumers do not define this.
 - `/source-charset:utf-8` is forced on MSVC.
 
 ## Code Style
 
-### Language & Comments
+### Language
 - C11 only (no C++). `/* */` comments only, never `//`. Chinese comments are acceptable.
-
-### Header Guards
-```c
-#pragma once
-```
+- `#pragma once` for all headers.
+- Inline functions use `static inline`.
+- `_Static_assert` for size/alignment checks.
 
 ### Include Order
 1. `"woort.h"` (project public header)
@@ -69,11 +69,10 @@ CI builds both Debug and Release on all platforms (see `.gitlab-ci.yml`).
 | Enum values | `WOORT_ENUM_VALUE` | `WOORT_HASHMAP_RESULT_OK` |
 | Globals | `g_variable_name` | `g_gc_in_marking` |
 | Internal functions | `_woort_module_func` | `_woort_hashmap_rehash` |
-| Stack-access macros | `_WOORT_API_STACK(N)` | internal VM stack indexing |
 
 ### WOORT_NODISCARD (Required)
 
-**Every non-void function must be marked `WOORT_NODISCARD`.** This expands to `_Check_return_` on MSVC and `__attribute__((warn_unused_result))` on Clang/GCC.
+**Every non-void function must be marked `WOORT_NODISCARD`.** It expands to `[[nodiscard]]` on C23-compilers, `_Check_return_` on MSVC, `__attribute__((warn_unused_result))` on Clang, and is empty on GCC (warnings cannot be suppressed).
 
 ### `/* OPTIONAL */` Annotation (Required)
 
@@ -109,20 +108,20 @@ WOORT_NODISCARD bool woort_hashmap_get_or_emplace(
 
 1. `bool` return for success/failure (`true` = success)
 2. Output via `Type** out_result` pointer-to-pointer
-3. `woort_panic(reason, msgfmt, ...)` for unrecoverable errors
+3. `woort_panic(reason, msgfmt, ...)` for unrecoverable errors (declared in `src/woort_diagnosis.h`)
 4. Result enums for multi-outcome: `woort_hashmap_Result` with `WOORT_HASHMAP_RESULT_*`
 
-### Other Style Rules
+### Platform Detection
 
-- Inline functions use `static inline`
-- Platform detection: `#if defined(_MSC_VER)` / `#elif defined(__clang__) || defined(__GNUC__)`
-- Public headers need `extern "C"` guards
-- `_Static_assert` for size/alignment checks
+```c
+#if defined(_MSC_VER)
+#elif defined(__clang__) || defined(__GNUC__)
+```
 
-## Memory Management (woomem)
+## Memory Management (woomem submodule)
 
-- GC-managed objects inherit from `woort_GCUnit`
-- Allocate with `woort_GCUnit_alloc_attrib(ATTRIB, SIZE)` macro
+- GC-managed objects inherit from `woort_GCUnit` (first member must be `const woort_GCUnitProxy* m_proxy`)
+- Allocate with `woort_GCUnit_alloc_attrib(ATTRIB, SIZE)` macro (requires `"woomem.h"` included first)
 - Write barriers are **mandatory** when writing GC references:
   - `woort_GC_mixed_write_barrier_value()` for `woort_Value` fields
   - `woort_GC_mixed_write_barrier_dynbox()` for `woort_DynBox` fields
@@ -131,22 +130,21 @@ WOORT_NODISCARD bool woort_hashmap_get_or_emplace(
 ## Project Structure
 
 ```
-include/woort.h         # Public API (extern "C" guarded)
+include/woort.h         # Single monolithic public API header (extern "C" guarded)
 src/                    # Implementation (.h/.c), compiled into libwoort
 src/woort_vm.h          # VM internals (included by tests)
 src/woort_opcode.h      # Bytecode opcode definitions
-src/woort_opcode_builder.h
-src/woort_codeenv.h     # CodeEnv internals (needed by test_main)
+src/woort_codeenv.h     # CodeEnv internals
 src/woort_ir_compiler.h # IR compiler internals
 src/woort_value.h       # Value type internals
-src/woort_gc*.h/.c       # GC object types (string, vec, map, struct, closure, handle)
+src/woort_gc*.h/.c      # GC object types (string, vec, map, struct, closure, handle)
 test/                   # Each .c file → separate test executable + ctest entry
 3rd/woomem/             # GC allocator (git submodule)
 ```
 
 ## Testing
 
-Each `test/*.c` is compiled into its own executable and registered as a ctest. The name matches the filename (without `.c`).
+Each `test/*.c` is compiled into its own executable and registered as a ctest via `get_filename_component(name ${src} NAME_WE)`. The test name matches the filename without `.c`.
 
 ```c
 #include "woort.h"
@@ -163,7 +161,7 @@ int main(int argc, char** argv) {
 }
 ```
 
-Test sources include internal headers (`woort_vm.h`, `woort_codeenv.h`, etc.) directly from `src/`.
+Test sources include internal headers (`woort_vm.h`, `woort_codeenv.h`, etc.) directly from `src/` — the test CMakeLists adds `../src` to the include path.
 
 ## Supported Platforms
 

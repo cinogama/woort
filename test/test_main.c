@@ -32,7 +32,7 @@ woort_api bar(void)
 }
 
 int main(int argc, char** argv) {
-    woort_init();
+    woort_init(0, NULL);
 
     woort_IRCompiler* irc = woort_IRCompiler_create();
 

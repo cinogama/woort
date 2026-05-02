@@ -23,7 +23,7 @@
 #include <string.h>
 #include <assert.h>
 
-void woort_init(void)
+void woort_init(int argc, char** argv)
 {
     _woort_path_bootup();
 
@@ -41,7 +41,7 @@ void woort_init(void)
         abort();
     }
 
-    if (!_woort_builtin_bootup())
+    if (!_woort_builtin_bootup(argc, argv))
     {
         WOORT_DEBUG("Failed to bootup builtin functions.");
         abort();

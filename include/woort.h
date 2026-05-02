@@ -76,8 +76,11 @@ extern "C" {
  *
  * Must be called once before using any other woort API functions.
  * Must be paired with a corresponding woort_shutdown() call.
+ *
+ * @param argc  Command-line argument count (as passed to main).
+ * @param argv  Command-line argument vector (as passed to main).
  */
-WOORT_API void woort_init(void);
+WOORT_API void woort_init(int argc, char** argv);
 
 /**
  * @brief Shut down the Woolang runtime.

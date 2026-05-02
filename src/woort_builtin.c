@@ -15,6 +15,9 @@
 static /* OPTIONAL */ woort_Dylib* g_builtin_lib = NULL;
 static woort_AtomicUInt64          g_random_state = { 0 };
 
+static int    g_cmdlines_argc = 0;
+static char** g_cmdlines_argv = NULL;
+
 /* ================================================================
  * Built-in native function implementations
  * ================================================================ */
@@ -232,6 +235,26 @@ static woort_api woostd_sleep(void)
 {
     return woort_ret_panic("Not impl yet.");
 }
+static woort_api woort_builtin_cmdlines(void)
+{
+    woort_StackValue vec_slot;
+    if (!woort_push_reserve(1, &vec_slot))
+        return woort_ret_panic("Out of memory.");
+
+    woort_set_vec(vec_slot);
+
+    for (int i = 0; i < g_cmdlines_argc; i++)
+    {
+        woort_StackValue elem_slot;
+        if (!woort_push_reserve(1, &elem_slot))
+            return woort_ret_panic("Out of memory.");
+
+        woort_set_string(elem_slot, g_cmdlines_argv[i]);
+        woort_vec_push(vec_slot, elem_slot);
+    }
+
+    return woort_ret_value(vec_slot);
+}
 
 /* ================================================================
  * Function table for the "woolang" fake library
@@ -252,11 +275,15 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(random_i),
     WOORT_BUILTIN_FUNC(random_r),
     WOORT_BUILTIN_FUNC(yield),
+    WOORT_BUILTIN_FUNC(cmdlines),
     WOORT_EXTERN_LIB_FUNC_END,
 };
 
-bool _woort_builtin_bootup(void)
+bool _woort_builtin_bootup(int argc, char** argv)
 {
+    g_cmdlines_argc = argc;
+    g_cmdlines_argv = argv;
+
     g_builtin_lib = woort_dylib_fake("woolang", g_woolang_funcs, NULL);
 
     /* Initialize random seed with event-based entropy */
