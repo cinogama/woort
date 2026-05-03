@@ -241,6 +241,12 @@ static woort_api woort_builtin_sleep(void)
     woort_thread_sleep_ms((uint32_t)(tm * 1000.0));
     return woort_ret_void();
 }
+static woort_api woort_builtin_is_same(void)
+{
+    const woort_Int a = woort_int(0);
+    const woort_Int b = woort_int(1);
+    return woort_ret_bool(a == b);
+}
 static woort_api woort_builtin_cmdlines(void)
 {
     woort_StackValue vec_slot;
@@ -294,6 +300,7 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(cmdlines),
     WOORT_BUILTIN_FUNC(host_path),
     WOORT_BUILTIN_FUNC(sleep),
+    WOORT_BUILTIN_FUNC(is_same),
     WOORT_EXTERN_LIB_FUNC_END,
 };
 
