@@ -4,8 +4,10 @@
 
 #include "woort_vector.h"
 #include "woort_atomic.h"
+#include "woort_threads.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 /* ================================================================
@@ -231,9 +233,13 @@ static woort_api woort_builtin_yield(void)
 {
     return woort_ret_yield();
 }
-static woort_api woostd_sleep(void)
+static woort_api woort_builtin_sleep(void)
 {
-    return woort_ret_panic("Not impl yet.");
+    const woort_Real tm = woort_real(0);
+    if (tm < 0.0)
+        return woort_ret_panic("sleep duration cannot be negative");
+    woort_thread_sleep_ms((uint32_t)(tm * 1000.0));
+    return woort_ret_void();
 }
 static woort_api woort_builtin_cmdlines(void)
 {
@@ -254,6 +260,16 @@ static woort_api woort_builtin_cmdlines(void)
     }
 
     return woort_ret_value(vec_slot);
+}
+static woort_api woort_builtin_host_path(void)
+{
+    char* path = woort_exe_path();
+    if (path == NULL)
+        return woort_ret_panic("Failed to get executable path.");
+
+    woort_set_string((woort_StackValue)-1, path);
+    free(path);
+    return WOORT_VM_CALL_STATUS_NORMAL;
 }
 
 /* ================================================================
@@ -276,6 +292,8 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(random_r),
     WOORT_BUILTIN_FUNC(yield),
     WOORT_BUILTIN_FUNC(cmdlines),
+    WOORT_BUILTIN_FUNC(host_path),
+    WOORT_BUILTIN_FUNC(sleep),
     WOORT_EXTERN_LIB_FUNC_END,
 };
 
