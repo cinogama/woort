@@ -25,8 +25,6 @@ typedef struct woort_GCStruct woort_GCStruct;
 typedef struct woort_GCClosure woort_GCClosure;
 typedef struct woort_GCHandle woort_GCHandle;
 
-typedef union woort_Value woort_Value;
-
 typedef woort_api(*woort_JitFunction)(
     woort_VMRuntime* vm, const woort_Value* bp);
 

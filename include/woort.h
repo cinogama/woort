@@ -169,6 +169,8 @@ typedef enum woort_BoxValueType
 /** @brief Opaque handle to a VM runtime instance. */
 typedef struct woort_VMRuntime woort_VMRuntime;
 
+typedef union woort_Value woort_Value;
+
 /** @brief Index into the VM evaluation stack. Negative values are relative to the current frame base. */
 typedef int32_t woort_StackValue;
 
@@ -1995,6 +1997,15 @@ WOORT_API WOORT_NODISCARD bool woort_push_reserve(
  * @param count  Number of values to pop.
  */
 WOORT_API void woort_pop(size_t count);
+
+/**
+ * @brief Get a direct pointer to a value on the VM evaluation stack.
+ * @param src  Stack slot index (positive for absolute, negative for frame-relative).
+ * @return Pointer to the woort_Value at the given stack slot.
+ * @note This is an internal API. The returned pointer is valid until the
+ *       stack is resized or the VM enters a GC checkpoint.
+ */
+WOORT_API WOORT_NODISCARD woort_Value* woort_internal_value(woort_StackValue src);
 
 /**
  * @brief Import (copy) a value from another VM's stack into the current VM.

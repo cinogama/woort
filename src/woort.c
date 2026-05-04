@@ -798,6 +798,14 @@ void woort_pop(size_t count)
     vm->m_sp += count;
 }
 
+WOORT_NODISCARD woort_Value* woort_internal_value(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    return &vm->m_sb[3 + src];
+}
+
 void woort_import_value(
     woort_StackValue dst,
     woort_VMRuntime* src_vm,
