@@ -6,6 +6,11 @@
 #include "woort_atomic.h"
 #include "woort_threads.h"
 
+#include "woort_gc_vec.h"
+#include "woort_gc_map.h"
+#include "woort_gc_struct.h"
+#include "woort_gc.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -136,7 +141,7 @@ static woort_api woort_builtin_input_read_s(void)
 
     (void)woort_vm_swap(this_vm);
 
-    const woort_api r =  woort_ret_buffer(vec.m_data, vec.m_size);
+    const woort_api r = woort_ret_buffer(vec.m_data, vec.m_size);
     woort_vector_deinit(&vec);
 
     return r;
@@ -184,8 +189,7 @@ static uint64_t _woort_random_u64(void)
     do
     {
         z = old + 0x9E3779B97F4A7C15ULL;
-    }
-    while (!woort_atomic_compare_exchange_weak(&g_random_state, &old, z));
+    } while (!woort_atomic_compare_exchange_weak(&g_random_state, &old, z));
 
     z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
     z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
@@ -194,7 +198,7 @@ static uint64_t _woort_random_u64(void)
 static woort_api woort_builtin_random_i(void)
 {
     woort_Int from = woort_int(0);
-    woort_Int to   = woort_int(1);
+    woort_Int to = woort_int(1);
 
     if (to < from)
     {
@@ -213,7 +217,7 @@ static woort_api woort_builtin_random_i(void)
 static woort_api woort_builtin_random_r(void)
 {
     woort_Real from = woort_real(0);
-    woort_Real to   = woort_real(1);
+    woort_Real to = woort_real(1);
 
     if (to < from)
     {
@@ -278,6 +282,66 @@ static woort_api woort_builtin_host_path(void)
     return WOORT_VM_CALL_STATUS_NORMAL;
 }
 
+static woort_api woort_builtin_make_dup(void)
+{
+    woort_StackValue result_slot;
+    if (!woort_push_reserve(1, &result_slot))
+        return woort_ret_panic("Out of memory.");
+
+    woort_Value _unboxed;
+    const woort_DynBox box = woort_internal_value(0)->m_dynamic;
+
+    switch (woort_DynBox_unbox_no_check_and_get_type(box, &_unboxed))
+    {
+    case WOORT_BOX_VALUE_TYPE_VEC:
+    {
+        const woort_GCVec* const src = _unboxed.m_vec;
+
+        woort_set_vec(result_slot + 0);
+        woort_GCVec* const dst = woort_internal_value(result_slot + 0)->m_vec;
+
+        woort_GCVec_resize(dst, src->m_length);
+
+        for (size_t i = 0; i < src->m_length; i++)
+        {
+            woort_GC_mixed_write_barrier_dynbox(
+                &dst->m_datas[i], src->m_datas[i]);
+        }
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_MAP:
+    {
+        const woort_GCMap* const src = _unboxed.m_map;
+        
+        woort_set_map(result_slot + 0);
+        woort_GCMap* const dst = woort_internal_value(result_slot + 0)->m_map;
+
+        for (size_t i = 0; i < src->m_size; i++)
+        {
+            woort_GCMap_set_or_insert(dst, src->m_buckets[i].m_key, src->m_buckets[i].m_val);
+        }
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_STRUCT:
+    {
+        const woort_GCStruct* const src = _unboxed.m_struct;
+        
+        woort_set_struct(result_slot + 0, src->m_size);
+        woort_GCStruct* const dst = woort_internal_value(result_slot + 0)->m_struct;
+
+        for (size_t i = 0; i < src->m_size; i++)
+        {
+            woort_GC_mixed_write_barrier_value(&dst->m_datas[i], src->m_datas[i]);
+        }
+        break;
+    }
+    default:
+        return woort_ret_value(0);
+    }
+
+    return woort_ret_value(result_slot + 0);
+}
+
 /* ================================================================
  * Function table for the "woolang" fake library
  * ================================================================ */
@@ -301,6 +365,7 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(host_path),
     WOORT_BUILTIN_FUNC(sleep),
     WOORT_BUILTIN_FUNC(is_same),
+    WOORT_BUILTIN_FUNC(make_dup),
     WOORT_EXTERN_LIB_FUNC_END,
 };
 
