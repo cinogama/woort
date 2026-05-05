@@ -398,6 +398,92 @@ static woort_api woort_builtin_char_toupper(void)
             ));
 }
 
+static woort_api woort_builtin_char_tolower(void)
+{
+    const char32_t wc = (char32_t)woort_int(0);
+
+    return woort_ret_int(
+        (woort_Int)(
+            woort_u32isu16(wc)
+            ? (char32_t)towlower((wchar_t)(wc))
+            : wc
+            ));
+}
+
+static woort_api woort_builtin_char_isspace(void)
+{
+    const char32_t wc = (char32_t)woort_int(0);
+
+    return woort_ret_bool(
+        woort_u32isu16(wc) && iswspace((wchar_t)(wc)));
+}
+
+static woort_api woort_builtin_char_isalpha(void)
+{
+    const char32_t wc = (char32_t)woort_int(0);
+
+    return woort_ret_bool(
+        !woort_u32isu16(wc) || iswalpha((wchar_t)(wc)));
+}
+
+static woort_api woort_builtin_char_isalnum(void)
+{
+    const char32_t wc = (char32_t)woort_int(0);
+
+    return woort_ret_bool(
+        !woort_u32isu16(wc) || iswalnum((wchar_t)(wc)));
+}
+
+static woort_api woort_builtin_char_isnumber(void)
+{
+    const char32_t wc = (char32_t)woort_int(0);
+
+    return woort_ret_bool(
+        woort_u32isu16(wc) && iswdigit((wchar_t)(wc)));
+}
+
+static woort_api woort_builtin_char_ishex(void)
+{
+    const char32_t wc = (char32_t)woort_int(0);
+
+    return woort_ret_bool(
+        woort_u32isu16(wc) && iswxdigit((wchar_t)(wc)));
+}
+
+static woort_api woort_builtin_char_isoct(void)
+{
+    const char32_t wc = (char32_t)woort_int(0);
+
+    return woort_ret_bool(
+        wc >= (char32_t)'0' && wc <= (char32_t)'7');
+}
+
+static woort_api woort_builtin_char_hexnum(void)
+{
+    const char32_t wc = (char32_t)woort_int(0);
+    if (!woort_u32isu16(wc) || !iswxdigit((wchar_t)(wc)))
+        return woort_ret_panic("Non-hexadecimal character.");
+
+    int val;
+    if (wc >= (char32_t)'0' && wc <= (char32_t)'9')
+        val = (int)(wc - (char32_t)'0');
+    else if (wc >= (char32_t)'A' && wc <= (char32_t)'F')
+        val = 10 + (int)(wc - (char32_t)'A');
+    else
+        val = 10 + (int)(wc - (char32_t)'a');
+
+    return woort_ret_int((woort_Int)val);
+}
+
+static woort_api woort_builtin_char_octnum(void)
+{
+    const char32_t wc = (char32_t)woort_int(0);
+    if (wc < (char32_t)'0' || wc > (char32_t)'7')
+        return woort_ret_panic("Non-octal character.");
+
+    return woort_ret_int((woort_Int)(wc - (char32_t)'0'));
+}
+
 /* ================================================================
  * Function table for the "woolang" fake library
  * ================================================================ */
@@ -426,6 +512,18 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
 
     WOORT_BUILTIN_FUNC(serialize_dynamic),
     WOORT_BUILTIN_FUNC(deserialize_dynamic),
+
+    WOORT_BUILTIN_FUNC(char_tostring),
+    WOORT_BUILTIN_FUNC(char_toupper),
+    WOORT_BUILTIN_FUNC(char_tolower),
+    WOORT_BUILTIN_FUNC(char_isspace),
+    WOORT_BUILTIN_FUNC(char_isalpha),
+    WOORT_BUILTIN_FUNC(char_isalnum),
+    WOORT_BUILTIN_FUNC(char_isnumber),
+    WOORT_BUILTIN_FUNC(char_ishex),
+    WOORT_BUILTIN_FUNC(char_isoct),
+    WOORT_BUILTIN_FUNC(char_hexnum),
+    WOORT_BUILTIN_FUNC(char_octnum),
 
     WOORT_EXTERN_LIB_FUNC_END,
 };
