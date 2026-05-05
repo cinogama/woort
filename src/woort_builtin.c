@@ -46,24 +46,28 @@ static woort_api woort_builtin_panic(void)
 
 static woort_api woort_builtin_print(void)
 {
-    woort_value s;
-    if (!woort_push_reserve(1, &s))
-        return woort_ret_panic("Failed to reserve stack.");
-
     const woort_Int argn = woort_int(0);
     for (woort_Int i = 1; i <= argn; ++i)
     {
         if (i != 1)
             fputc(' ', stdout);
 
-        if (woort_unbox_type((woort_value)i) == WOORT_BOX_VALUE_TYPE_STRING)
-            fputs(woort_string((woort_value)i), stdout);
+        if (woort_unbox_type((woort_StackValue)i)
+            == WOORT_BOX_VALUE_TYPE_STRING)
+        {
+            fputs(woort_string((woort_StackValue)i), stdout);
+        }
         else
         {
-            if (!woort_serialize_dynbox(s, (woort_value)i, WOORT_SERIALIZE_FLAG_NONE))
+            char* const str =
+                woort_serialize_dynbox(
+                    (woort_StackValue)i,
+                    WOORT_SERIALIZE_FLAG_NONE);
+            if (str == NULL)
                 return woort_ret_panic("Out of memory.");
 
-            fputs(woort_string(s), stdout);
+            fputs(str, stdout);
+            free(str);
         }
     }
     return woort_ret_void();
@@ -240,9 +244,10 @@ static woort_api woort_builtin_yield(void)
 static woort_api woort_builtin_sleep(void)
 {
     const woort_Real tm = woort_real(0);
-    if (tm < 0.0)
-        return woort_ret_panic("sleep duration cannot be negative");
-    woort_thread_sleep_ms((uint32_t)(tm * 1000.0));
+
+    if (tm >= 0.0)
+        woort_thread_sleep_ms((uint32_t)(tm * 1000.0));
+
     return woort_ret_void();
 }
 static woort_api woort_builtin_is_same(void)
@@ -255,7 +260,7 @@ static woort_api woort_builtin_cmdlines(void)
 {
     woort_StackValue vec_slot;
     if (!woort_push_reserve(1, &vec_slot))
-        return woort_ret_panic("Out of memory.");
+        return woort_ret_panic("Stack overflow.");
 
     woort_set_vec(vec_slot);
 
@@ -263,7 +268,7 @@ static woort_api woort_builtin_cmdlines(void)
     {
         woort_StackValue elem_slot;
         if (!woort_push_reserve(1, &elem_slot))
-            return woort_ret_panic("Out of memory.");
+            return woort_ret_panic("Stack overflow.");
 
         woort_set_string(elem_slot, g_cmdlines_argv[i]);
         woort_vec_push(vec_slot, elem_slot);
@@ -286,7 +291,7 @@ static woort_api woort_builtin_make_dup(void)
 {
     woort_StackValue result_slot;
     if (!woort_push_reserve(1, &result_slot))
-        return woort_ret_panic("Out of memory.");
+        return woort_ret_panic("Stack overflow.");
 
     woort_Value _unboxed;
     const woort_DynBox box = woort_internal_value(0)->m_dynamic;
@@ -312,7 +317,7 @@ static woort_api woort_builtin_make_dup(void)
     case WOORT_BOX_VALUE_TYPE_MAP:
     {
         const woort_GCMap* const src = _unboxed.m_map;
-        
+
         woort_set_map(result_slot + 0);
         woort_GCMap* const dst = woort_internal_value(result_slot + 0)->m_map;
 
@@ -325,7 +330,7 @@ static woort_api woort_builtin_make_dup(void)
     case WOORT_BOX_VALUE_TYPE_STRUCT:
     {
         const woort_GCStruct* const src = _unboxed.m_struct;
-        
+
         woort_set_struct(result_slot + 0, src->m_size);
         woort_GCStruct* const dst = woort_internal_value(result_slot + 0)->m_struct;
 
@@ -342,6 +347,37 @@ static woort_api woort_builtin_make_dup(void)
     return woort_ret_value(result_slot + 0);
 }
 
+static woort_api woort_builtin_serialize_dynamic(void)
+{
+    char* const result = woort_serialize_dynbox(0, WOORT_SERIALIZE_FLAG_STRICT);
+
+    if (result != NULL)
+    {
+        const woort_api v = woort_ret_option_string(result);
+        free(result);
+
+        return v;
+    }
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_deserialize_dynamic(void)
+{
+    woort_StackValue result_slot;
+    if (!woort_push_reserve(1, &result_slot))
+        return woort_ret_panic("Stack overflow.");
+
+    if (woort_deserialize_dynbox(result_slot, woort_string(0)))
+        return woort_ret_option_value(result_slot);
+
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_char_tostring(void)
+{
+    
+}
+
 /* ================================================================
  * Function table for the "woolang" fake library
  * ================================================================ */
@@ -352,6 +388,7 @@ static woort_api woort_builtin_make_dup(void)
 static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(return_it_self),
     WOORT_BUILTIN_FUNC(bad_function),
+
     WOORT_BUILTIN_FUNC(panic),
     WOORT_BUILTIN_FUNC(print),
     WOORT_BUILTIN_FUNC(input_read_i),
@@ -366,6 +403,10 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(sleep),
     WOORT_BUILTIN_FUNC(is_same),
     WOORT_BUILTIN_FUNC(make_dup),
+
+    WOORT_BUILTIN_FUNC(serialize_dynamic),
+    WOORT_BUILTIN_FUNC(deserialize_dynamic),
+
     WOORT_EXTERN_LIB_FUNC_END,
 };
 

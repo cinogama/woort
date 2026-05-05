@@ -3028,33 +3028,39 @@ typedef enum woort_SerializeFlag
 
 /**
  * @brief Serialize a boxed dynamic value to its Woolang literal string.
- * @param dst    Destination stack slot for the string result.
+ *
+ * The returned string is heap-allocated and must be freed by the caller with free().
+ *
  * @param src    Source stack slot holding the boxed value.
  * @param flags  Bitmask of woort_SerializeFlag values.
- * @return true on success, false on failure (unsupported type, cycle, OOM).
+ * @return NUL-terminated string on success, NULL on failure (unsupported type, cycle, OOM).
  */
-WOORT_API WOORT_NODISCARD bool woort_serialize_dynbox(
-    woort_StackValue dst, woort_StackValue src, uint32_t flags);
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_dynbox(
+    woort_StackValue src, uint32_t flags);
 
 /**
  * @brief Serialize a map to its Woolang literal string.
- * @param dst    Destination stack slot for the string result.
+ *
+ * The returned string is heap-allocated and must be freed by the caller with free().
+ *
  * @param src    Source stack slot holding the map.
  * @param flags  Bitmask of woort_SerializeFlag values.
- * @return true on success, false on failure (cycle, OOM).
+ * @return NUL-terminated string on success, NULL on failure (cycle, OOM).
  */
-WOORT_API WOORT_NODISCARD bool woort_serialize_map(
-    woort_StackValue dst, woort_StackValue src, uint32_t flags);
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_map(
+    woort_StackValue src, uint32_t flags);
 
 /**
  * @brief Serialize a vec to its Woolang literal string.
- * @param dst    Destination stack slot for the string result.
+ *
+ * The returned string is heap-allocated and must be freed by the caller with free().
+ *
  * @param src    Source stack slot holding the vec.
  * @param flags  Bitmask of woort_SerializeFlag values.
- * @return true on success, false on failure (cycle, OOM).
+ * @return NUL-terminated string on success, NULL on failure (cycle, OOM).
  */
-WOORT_API WOORT_NODISCARD bool woort_serialize_vec(
-    woort_StackValue dst, woort_StackValue src, uint32_t flags);
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_vec(
+    woort_StackValue src, uint32_t flags);
 
 /**@}*/
 

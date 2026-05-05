@@ -114,7 +114,7 @@ WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index)
     vector->m_size--;
     return true;
 }
-void* woort_vector_move_out(woort_Vector* vector, size_t* out_count)
+WOORT_NODISCARD /* OPTIONAL, Null if empty. */ void* woort_vector_move_out(woort_Vector* vector, size_t* out_count)
 {
     *out_count = vector->m_size;
     void* const result = vector->m_data;

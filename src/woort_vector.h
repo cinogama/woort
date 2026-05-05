@@ -34,5 +34,5 @@ WOORT_NODISCARD void* woort_vector_at(woort_Vector* vector, size_t index);
 
 WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index);
 
-/* OPTIONAL, Null if empty. */ void* woort_vector_move_out(
+WOORT_NODISCARD /* OPTIONAL, Null if empty. */ void* woort_vector_move_out(
     woort_Vector* vector, size_t* out_count);
