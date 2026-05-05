@@ -10,6 +10,7 @@
 #include "woort_gc_map.h"
 #include "woort_gc_struct.h"
 #include "woort_gc.h"
+#include "woort_utf8.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -375,7 +376,26 @@ static woort_api woort_builtin_deserialize_dynamic(void)
 
 static woort_api woort_builtin_char_tostring(void)
 {
-    
+    const char32_t wc = (char32_t)woort_int(0);
+
+    size_t len;
+    char result[WOORT_UTF8MAXLEN];
+
+    woort_u32exractu8(wc, result, &len);
+
+    return woort_ret_buffer(result, len);
+}
+
+static woort_api woort_builtin_char_toupper(void)
+{
+    const char32_t wc = (char32_t)woort_int(0);
+
+    return woort_ret_int(
+        (woort_Int)(
+            woort_u32isu16(wc)
+            ? (char32_t)towupper((wchar_t)(wc))
+            : wc
+            ));
 }
 
 /* ================================================================
