@@ -616,7 +616,7 @@ static woort_api woort_builtin_create_wchars_from_str(void)
 
     size_t u32_len = 0;
     char32_t* buf = woort_u8strtou32(str, len, &u32_len);
-    if (buf == NULL && len > 0)
+    if (buf == NULL)
         return woort_ret_panic("Out of memory.");
 
     woort_StackValue base;
@@ -739,7 +739,7 @@ static woort_api woort_builtin_string_toupper(void)
 
     size_t u32_len = 0;
     char32_t* u32 = woort_u8strtou32((const char*)raw, len, &u32_len);
-    if (u32 == NULL && len > 0)
+    if (u32 == NULL)
         return woort_ret_panic("Out of memory.");
 
     for (size_t i = 0; i < u32_len; i++)
@@ -767,7 +767,7 @@ static woort_api woort_builtin_string_tolower(void)
 
     size_t u32_len = 0;
     char32_t* u32 = woort_u8strtou32((const char*)raw, len, &u32_len);
-    if (u32 == NULL && len > 0)
+    if (u32 == NULL)
         return woort_ret_panic("Out of memory.");
 
     for (size_t i = 0; i < u32_len; i++)
@@ -795,8 +795,8 @@ static woort_api woort_builtin_string_isspace(void)
 
     size_t u32_len = 0;
     char32_t* u32 = woort_u8strtou32((const char*)raw, len, &u32_len);
-    if (u32 == NULL && len > 0)
-        return woort_ret_bool(false);
+    if (u32 == NULL)
+        return woort_ret_panic("Out of memory.");
 
     if (u32_len == 0)
     {
@@ -824,8 +824,8 @@ static woort_api woort_builtin_string_isalpha(void)
 
     size_t u32_len = 0;
     char32_t* u32 = woort_u8strtou32((const char*)raw, len, &u32_len);
-    if (u32 == NULL && len > 0)
-        return woort_ret_bool(false);
+    if (u32 == NULL)
+        return woort_ret_panic("Out of memory.");
 
     if (u32_len == 0)
     {
@@ -853,8 +853,8 @@ static woort_api woort_builtin_string_isalnum(void)
 
     size_t u32_len = 0;
     char32_t* u32 = woort_u8strtou32((const char*)raw, len, &u32_len);
-    if (u32 == NULL && len > 0)
-        return woort_ret_bool(false);
+    if (u32 == NULL)
+        return woort_ret_panic("Out of memory.");
 
     if (u32_len == 0)
     {
@@ -882,8 +882,8 @@ static woort_api woort_builtin_string_isnumber(void)
 
     size_t u32_len = 0;
     char32_t* u32 = woort_u8strtou32((const char*)raw, len, &u32_len);
-    if (u32 == NULL && len > 0)
-        return woort_ret_bool(false);
+    if (u32 == NULL)
+        return woort_ret_panic("Out of memory.");
 
     if (u32_len == 0)
     {
@@ -911,8 +911,8 @@ static woort_api woort_builtin_string_ishex(void)
 
     size_t u32_len = 0;
     char32_t* u32 = woort_u8strtou32((const char*)raw, len, &u32_len);
-    if (u32 == NULL && len > 0)
-        return woort_ret_bool(false);
+    if (u32 == NULL)
+        return woort_ret_panic("Out of memory.");
 
     if (u32_len == 0)
     {
@@ -940,8 +940,8 @@ static woort_api woort_builtin_string_isoct(void)
 
     size_t u32_len = 0;
     char32_t* u32 = woort_u8strtou32((const char*)raw, len, &u32_len);
-    if (u32 == NULL && len > 0)
-        return woort_ret_bool(false);
+    if (u32 == NULL)
+        return woort_ret_panic("Out of memory.");
 
     if (u32_len == 0)
     {
@@ -1133,10 +1133,10 @@ static woort_api woort_builtin_string_find(void)
 
     size_t u32_match_len = 0;
     char32_t* match_u32 = woort_u8strtou32((const char*)match_raw, match_len, &u32_match_len);
-    if (match_u32 == NULL && match_len > 0)
+    if (match_u32 == NULL)
     {
         free(aim_u32);
-        return woort_ret_option_none();
+        return woort_ret_panic("Out of memory.");
     }
 
     /* Find match in aim by char32 comparison */
@@ -1178,7 +1178,7 @@ static woort_api woort_builtin_string_find_from(void)
 
     size_t u32_aim_len = 0;
     char32_t* aim_u32 = woort_u8strtou32((const char*)aim_raw, aim_len, &u32_aim_len);
-    if (aim_u32 == NULL && aim_len > 0)
+    if (aim_u32 == NULL)
         return woort_ret_panic("Out of memory.");
 
     if (match_len == 0)
@@ -1190,10 +1190,10 @@ static woort_api woort_builtin_string_find_from(void)
 
     size_t u32_match_len = 0;
     char32_t* match_u32 = woort_u8strtou32((const char*)match_raw, match_len, &u32_match_len);
-    if (match_u32 == NULL && match_len > 0)
+    if (match_u32 == NULL)
     {
         free(aim_u32);
-        return woort_ret_option_none();
+        return woort_ret_panic("Out of memory.");
     }
 
     woort_Int result = -1;
@@ -1233,15 +1233,15 @@ static woort_api woort_builtin_string_rfind(void)
 
     size_t u32_aim_len = 0;
     char32_t* aim_u32 = woort_u8strtou32((const char*)aim_raw, aim_len, &u32_aim_len);
-    if (aim_u32 == NULL && aim_len > 0)
+    if (aim_u32 == NULL)
         return woort_ret_panic("Out of memory.");
 
     size_t u32_match_len = 0;
     char32_t* match_u32 = woort_u8strtou32((const char*)match_raw, match_len, &u32_match_len);
-    if (match_u32 == NULL && match_len > 0)
+    if (match_u32 == NULL)
     {
         free(aim_u32);
-        return woort_ret_option_none();
+        return woort_ret_panic("Out of memory.");
     }
 
     woort_Int result = -1;
@@ -1291,15 +1291,15 @@ static woort_api woort_builtin_string_rfind_from(void)
 
     size_t u32_aim_len = 0;
     char32_t* aim_u32 = woort_u8strtou32((const char*)aim_raw, aim_len, &u32_aim_len);
-    if (aim_u32 == NULL && aim_len > 0)
+    if (aim_u32 == NULL)
         return woort_ret_panic("Out of memory.");
 
     size_t u32_match_len = 0;
     char32_t* match_u32 = woort_u8strtou32((const char*)match_raw, match_len, &u32_match_len);
-    if (match_u32 == NULL && match_len > 0)
+    if (match_u32 == NULL)
     {
         free(aim_u32);
-        return woort_ret_option_none();
+        return woort_ret_panic("Out of memory.");
     }
 
     woort_Int result = -1;
@@ -1345,7 +1345,7 @@ static woort_api woort_builtin_string_trim(void)
 
     size_t u32_len = 0;
     char32_t* u32 = woort_u8strtou32(str, len, &u32_len);
-    if (u32 == NULL && len > 0)
+    if (u32 == NULL)
         return woort_ret_panic("Out of memory.");
 
     size_t ibeg = 0;
