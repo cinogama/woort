@@ -37,3 +37,5 @@ const woort_GCHandle* woort_GCHandle_new_with_marker(
     woort_GCHandle_UserMarkFunction marker,
     woort_GCHandle_UserDestructFunction destructor,
     /* OPTIONAL */ woort_Dylib* dylib);
+
+WOORT_NODISCARD bool woort_GCHandle_close(woort_GCHandle* gchandle);
