@@ -3313,6 +3313,151 @@ WOORT_API void woort_dylib_keep(woort_Dylib* lib);
  */
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_get_builtin_lib(void);
 
+/* ========== String / Unicode Conversion API ========== */
+
+/*
+Ensure char16_t and char32_t are available in pure C mode.
+See also: woort_utf8.h for the same guard.
+*/
+#if !defined(__cplusplus) && !defined(_CHAR16T)
+#   if defined(_MSC_VER)
+#       ifndef _CHAR16T
+#           define _CHAR16T
+typedef uint16_t char16_t;
+#       endif
+#       ifndef _CHAR32T
+#           define _CHAR32T
+typedef uint32_t char32_t;
+#       endif
+#   elif defined(__clang__) || defined(__GNUC__)
+typedef __CHAR16_TYPE__ char16_t;
+typedef __CHAR32_TYPE__ char32_t;
+#   endif
+#endif
+
+/**
+ * @brief Get the Unicode code point at a byte index in a UTF-8 string.
+ * @param str    The UTF-8 string.
+ * @param index  Byte offset into the string.
+ * @return The Unicode code point at the given position.
+ * @note Panics if the index is out of range.
+ */
+WOORT_API WOORT_NODISCARD char32_t woort_str_get_char(
+    const char* str, size_t index);
+
+/**
+ * @brief Get the Unicode code point at a byte index in a UTF-8 string with explicit length.
+ * @param str    The UTF-8 string.
+ * @param size   Length of the string in bytes.
+ * @param index  Byte offset into the string.
+ * @return The Unicode code point at the given position.
+ * @note Panics if the index is out of range.
+ */
+WOORT_API WOORT_NODISCARD char32_t woort_strn_get_char(
+    const char* str, size_t size, size_t index);
+
+/**
+ * @brief Convert a UTF-8 string to a wide-character string.
+ * @param str  The UTF-8 input string.
+ * @return A heap-allocated wide-character string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_str_to_wstr(
+    const char* str);
+
+/**
+ * @brief Convert a UTF-8 string (with explicit length) to a wide-character string.
+ * @param str   The UTF-8 input string.
+ * @param size  Length of the string in bytes.
+ * @return A heap-allocated wide-character string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_strn_to_wstr(
+    const char* str, size_t size);
+
+/**
+ * @brief Convert a wide-character string to a UTF-8 string.
+ * @param str  The wide-character input string.
+ * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_wstr_to_str(
+    const wchar_t* str);
+
+/**
+ * @brief Convert a wide-character string (with explicit length) to a UTF-8 string.
+ * @param str   The wide-character input string.
+ * @param size  Length of the string in wide characters.
+ * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_wstrn_to_str(
+    const wchar_t* str, size_t size);
+
+/**
+ * @brief Convert a UTF-8 string to a UTF-16 string.
+ * @param str  The UTF-8 input string.
+ * @return A heap-allocated UTF-16 string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char16_t* woort_str_to_u16str(
+    const char* str);
+
+/**
+ * @brief Convert a UTF-8 string (with explicit length) to a UTF-16 string.
+ * @param str   The UTF-8 input string.
+ * @param size  Length of the string in bytes.
+ * @return A heap-allocated UTF-16 string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char16_t* woort_strn_to_u16str(
+    const char* str, size_t size);
+
+/**
+ * @brief Convert a UTF-16 string to a UTF-8 string.
+ * @param str  The UTF-16 input string.
+ * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u16str_to_str(
+    const char16_t* str);
+
+/**
+ * @brief Convert a UTF-16 string (with explicit length) to a UTF-8 string.
+ * @param str   The UTF-16 input string.
+ * @param size  Length of the string in UTF-16 code units.
+ * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u16strn_to_str(
+    const char16_t* str, size_t size);
+
+/**
+ * @brief Convert a UTF-8 string to a UTF-32 string.
+ * @param str  The UTF-8 input string.
+ * @return A heap-allocated UTF-32 string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char32_t* woort_str_to_u32str(
+    const char* str);
+
+/**
+ * @brief Convert a UTF-8 string (with explicit length) to a UTF-32 string.
+ * @param str   The UTF-8 input string.
+ * @param size  Length of the string in bytes.
+ * @return A heap-allocated UTF-32 string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char32_t* woort_strn_to_u32str(
+    const char* str, size_t size);
+
+/**
+ * @brief Convert a UTF-32 string to a UTF-8 string.
+ * @param str  The UTF-32 input string.
+ * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u32str_to_str(
+    const char32_t* str);
+
+/**
+ * @brief Convert a UTF-32 string (with explicit length) to a UTF-8 string.
+ * @param str   The UTF-32 input string.
+ * @param size  Length of the string in UTF-32 code units.
+ * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u32strn_to_str(
+    const char32_t* str, size_t size);
+
 /* ---------------------------- */
 
 #undef WOORT_API

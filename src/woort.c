@@ -18,6 +18,7 @@
 #include "woort_dylib.h"
 #include "woort_serialize.h"
 #include "woort_util.h"
+#include "woort_utf8.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -1820,4 +1821,88 @@ WOORT_NODISCARD bool woort_deserialize_vec(
         return false;
 
     return true;
+}
+
+/* ========== String / Unicode Conversion API ========== */
+
+WOORT_NODISCARD char32_t woort_str_get_char(const char* str, size_t index)
+{
+    return woort_strn_get_char(str, strlen(str), index);
+}
+
+WOORT_NODISCARD char32_t woort_strn_get_char(const char* str, size_t size, size_t index)
+{
+    return woort_u8stridx(str, size, index);
+}
+
+WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_str_to_wstr(const char* str)
+{
+    return woort_strn_to_wstr(str, strlen(str));
+}
+
+WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_strn_to_wstr(const char* str, size_t size)
+{
+#if defined(_WIN32)
+    return (wchar_t*)woort_strn_to_u16str(str, size);
+#else
+    return (wchar_t*)woort_strn_to_u32str(str, size);
+#endif
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char* woort_wstr_to_str(const wchar_t* str)
+{
+    return woort_wstrn_to_str(str, wcslen(str));
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char* woort_wstrn_to_str(const wchar_t* str, size_t size)
+{
+#if defined(_WIN32)
+    return woort_u16strn_to_str((const char16_t*)str, size);
+#else
+    return woort_u32strn_to_str((const char32_t*)str, size);
+#endif
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char16_t* woort_str_to_u16str(const char* str)
+{
+    return woort_strn_to_u16str(str, strlen(str));
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char16_t* woort_strn_to_u16str(const char* str, size_t size)
+{
+    size_t out_len;
+    return woort_u8strtou16(str, size, &out_len);
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char* woort_u16str_to_str(const char16_t* str)
+{
+    return woort_u16strn_to_str(str, woort_u16strcount(str));
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char* woort_u16strn_to_str(const char16_t* str, size_t size)
+{
+    size_t out_len;
+    return woort_u16strtou8(str, size, &out_len);
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char32_t* woort_str_to_u32str(const char* str)
+{
+    return woort_strn_to_u32str(str, strlen(str));
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char32_t* woort_strn_to_u32str(const char* str, size_t size)
+{
+    size_t out_len;
+    return woort_u8strtou32(str, size, &out_len);
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char* woort_u32str_to_str(const char32_t* str)
+{
+    return woort_u32strn_to_str(str, woort_u32strcount(str));
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char* woort_u32strn_to_str(const char32_t* str, size_t size)
+{
+    size_t out_len;
+    return woort_u32strtou8(str, size, &out_len);
 }
