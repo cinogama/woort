@@ -484,6 +484,195 @@ static woort_api woort_builtin_char_octnum(void)
     return woort_ret_int((woort_Int)(wc - (char32_t)'0'));
 }
 
+static woort_api woort_builtin_take_token(void)
+{
+    const char* input = woort_string(0);
+    const char* format = woort_string(1);
+
+    size_t format_len = 0;
+    while (format[format_len])
+        format_len++;
+
+    /* Every '%' doubles, plus trailing "%zn\0" */
+    size_t buf_size = format_len * 2 + 4;
+    char* matching_format = (char*)malloc(buf_size);
+    if (matching_format == NULL)
+        return woort_ret_panic("Out of memory.");
+
+    size_t j = 0;
+    for (size_t i = 0; format[i]; i++)
+    {
+        matching_format[j++] = format[i];
+        if (format[i] == '%')
+            matching_format[j++] = '%';
+    }
+    matching_format[j++] = '%';
+    matching_format[j++] = 'z';
+    matching_format[j++] = 'n';
+    matching_format[j] = '\0';
+
+    size_t token_length = 0;
+    int result = sscanf(input, matching_format, &token_length);
+    free(matching_format);
+
+    if (result >= 0)
+        return woort_ret_option_string(input + token_length);
+
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_take_string(void)
+{
+    const char* input = woort_string(0);
+    size_t token_length;
+    char string_buf[1024];
+
+    if (sscanf(input, "%s%zn", string_buf, &token_length) == 1)
+    {
+        woort_StackValue base;
+        if (!woort_push_reserve(2, &base))
+            return woort_ret_panic("Stack overflow.");
+
+        woort_StackValue result = base + 0;
+        woort_StackValue elem = base + 1;
+
+        woort_set_struct(result, 2);
+
+        woort_set_string(elem, input + token_length);
+        woort_struct_set(result, 0, elem);
+        woort_set_string(elem, string_buf);
+        woort_struct_set(result, 1, elem);
+
+        return woort_ret_option_value(result);
+    }
+
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_take_int(void)
+{
+    const char* input = woort_string(0);
+    size_t token_length;
+    long long integer;
+
+    if (sscanf(input, "%lld%zn", &integer, &token_length) == 1)
+    {
+        woort_StackValue base;
+        if (!woort_push_reserve(2, &base))
+            return woort_ret_panic("Stack overflow.");
+
+        woort_StackValue result = base + 0;
+        woort_StackValue elem = base + 1;
+
+        woort_set_struct(result, 2);
+
+        woort_set_string(elem, input + token_length);
+        woort_struct_set(result, 0, elem);
+        woort_set_int(elem, (woort_Int)integer);
+        woort_struct_set(result, 1, elem);
+
+        return woort_ret_option_value(result);
+    }
+
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_take_real(void)
+{
+    const char* input = woort_string(0);
+    size_t token_length;
+    double real_val;
+
+    if (sscanf(input, "%lf%zn", &real_val, &token_length) == 1)
+    {
+        woort_StackValue base;
+        if (!woort_push_reserve(2, &base))
+            return woort_ret_panic("Stack overflow.");
+
+        woort_StackValue result = base + 0;
+        woort_StackValue elem = base + 1;
+
+        woort_set_struct(result, 2);
+
+        woort_set_string(elem, input + token_length);
+        woort_struct_set(result, 0, elem);
+        woort_set_real(elem, (woort_Real)real_val);
+        woort_struct_set(result, 1, elem);
+
+        return woort_ret_option_value(result);
+    }
+
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_create_wchars_from_str(void)
+{
+    size_t len = 0;
+    const void* raw = woort_buffer(0, &len);
+    const char* str = (const char*)raw;
+
+    size_t u32_len = 0;
+    char32_t* buf = woort_u8strtou32(str, len, &u32_len);
+    if (buf == NULL && len > 0)
+        return woort_ret_panic("Out of memory.");
+
+    woort_StackValue base;
+    if (!woort_push_reserve(1, &base))
+    {
+        free(buf);
+        return woort_ret_panic("Stack overflow.");
+    }
+
+    woort_StackValue vec_slot = base + 0;
+    woort_set_vec(vec_slot);
+    woort_vec_resize(vec_slot, u32_len);
+
+    for (size_t i = 0; i < u32_len; i++)
+    {
+        woort_set_box_int(base + 0, (woort_Int)buf[i]);
+        woort_vec_set(vec_slot, i, base + 0);
+    }
+
+    free(buf);
+    return woort_ret_value(vec_slot);
+}
+
+static woort_api woort_builtin_create_chars_from_str(void)
+{
+    size_t len = 0;
+    const void* raw = woort_buffer(0, &len);
+    const char* str = (const char*)raw;
+
+    woort_StackValue base;
+    if (!woort_push_reserve(1, &base))
+        return woort_ret_panic("Stack overflow.");
+
+    woort_StackValue vec_slot = base + 0;
+    woort_set_vec(vec_slot);
+    woort_vec_resize(vec_slot, len);
+
+    for (size_t i = 0; i < len; i++)
+    {
+        woort_set_box_int(base + 0, (woort_Int)(unsigned char)str[i]);
+        woort_vec_set(vec_slot, i, base + 0);
+    }
+
+    return woort_ret_value(vec_slot);
+}
+
+static woort_api woort_builtin_get_ascii_val_from_str(void)
+{
+    size_t len = 0;
+    const void* raw = woort_buffer(0, &len);
+    const char* str = (const char*)raw;
+
+    size_t idx = (size_t)woort_int(1);
+    if (idx >= len)
+        return woort_ret_panic("Index out of range.");
+
+    return woort_ret_int((woort_Int)(unsigned char)str[idx]);
+}
+
 /* ================================================================
  * Function table for the "woolang" fake library
  * ================================================================ */
@@ -524,6 +713,14 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(char_isoct),
     WOORT_BUILTIN_FUNC(char_hexnum),
     WOORT_BUILTIN_FUNC(char_octnum),
+
+    WOORT_BUILTIN_FUNC(take_token),
+    WOORT_BUILTIN_FUNC(take_string),
+    WOORT_BUILTIN_FUNC(take_int),
+    WOORT_BUILTIN_FUNC(take_real),
+    WOORT_BUILTIN_FUNC(create_wchars_from_str),
+    WOORT_BUILTIN_FUNC(create_chars_from_str),
+    WOORT_BUILTIN_FUNC(get_ascii_val_from_str),
 
     WOORT_EXTERN_LIB_FUNC_END,
 };
