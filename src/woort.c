@@ -458,7 +458,11 @@ void woort_set_gchandle(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    const woort_GCHandle* const handle = woort_GCHandle_new(addr, &_WOORT_API_STACK(hold), close, dylib);
+    const woort_GCHandle* const handle = woort_GCHandle_new(
+        addr,
+        hold != WOORT_IGNORE ? &_WOORT_API_STACK(hold) : NULL,
+        close,
+        dylib);
     assert(handle != NULL);
 
     _WOORT_API_STACK(dst).m_gchandle = handle;
@@ -636,8 +640,12 @@ void woort_set_union_gchandle(
     assert(vm != NULL);
 
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
-    const woort_GCHandle* const handle = 
-        woort_GCHandle_new(addr, &_WOORT_API_STACK(hold), close, dylib);
+    const woort_GCHandle* const handle =
+        woort_GCHandle_new(
+            addr,
+            hold != WOORT_IGNORE ? &_WOORT_API_STACK(hold) : NULL,
+            close,
+            dylib);
     assert(handle != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(

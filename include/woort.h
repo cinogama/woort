@@ -180,7 +180,7 @@ typedef int32_t woort_StackValue;
  * Pass as `dst` to woort_invoke, woort_spawn, or woort_resume
  * when the return value is not needed.
  */
-#define WOORT_IGNORE ((woort_StackValue)0)
+#define WOORT_IGNORE ((woort_StackValue)-2)
 
 /** @brief Signature for native (C) functions callable from Woolang. */
 typedef woort_api(*woort_NativeFunction)(void);
@@ -2129,7 +2129,8 @@ WOORT_API void woort_set_struct(
  * @brief Set a stack slot to a GC handle (external resource).
  * @param dst    Target stack slot.
  * @param addr   Pointer to the external resource.
- * @param hold   Stack slot holding a reference to prevent premature collection.
+ * @param hold   Stack slot holding a reference to prevent premature collection,
+ *               or WOORT_IGNORE to not hold any value.
  * @param close  Destructor callback invoked when the handle is collected.
  */
 WOORT_API void woort_set_gchandle(
@@ -2221,7 +2222,8 @@ WOORT_API void woort_set_union_buffer(
  * @param dst    Target stack slot.
  * @param id     Variant tag.
  * @param addr   Pointer to the external resource.
- * @param hold   Stack slot holding a reference to prevent premature collection.
+ * @param hold   Stack slot holding a reference to prevent premature collection,
+ *               or WOORT_IGNORE to not hold any value.
  * @param close  Destructor callback.
  */
 WOORT_API void woort_set_union_gchandle(
