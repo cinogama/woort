@@ -1115,6 +1115,49 @@ WOORT_NODISCARD woort_Int woort_union_get(
     return s->m_datas[0].m_integer;
 }
 
+/* ========== Struct ========== */
+
+WOORT_NODISCARD size_t woort_struct_len(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+
+    return s->m_size;
+}
+
+void woort_struct_get(
+    woort_StackValue dst,
+    woort_StackValue src,
+    size_t index)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+    assert(index < s->m_size);
+
+    woort_GC_mixed_write_barrier_value(&_WOORT_API_STACK(dst), s->m_datas[index]);
+}
+
+void woort_struct_set(
+    woort_StackValue src,
+    size_t index,
+    woort_StackValue val)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+    assert(index < s->m_size);
+
+    woort_GC_mixed_write_barrier_value(&s->m_datas[index], _WOORT_API_STACK(val));
+}
+
 /* ========== Vector ========== */
 
 WOORT_NODISCARD size_t woort_vec_len(woort_StackValue src)
