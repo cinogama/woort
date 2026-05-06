@@ -1803,7 +1803,21 @@ static woort_api woort_builtin_array_iter(void)
         WOORT_VM_CALL_STATUS_NORMAL;
 }
 
-static woort_api woort_builtin_array_iter_next(void)
+static woort_api woort_builtin_array_iter_next_u(void)
+{
+    void* ptr = woort_gcpointer(0);
+    array_iter_t* iter = (array_iter_t*)ptr;
+
+    if (iter->m_index >= iter->m_length)
+        return woort_ret_option_none();
+
+    (void)woort_vec_get(WOORT_RETURN_SLOT, 0, iter->m_index);
+    iter->m_index++;
+
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    return woort_ret_option_value(WOORT_RETURN_SLOT);
+}
+static woort_api woort_builtin_array_iter_next_r(void)
 {
     void* ptr = woort_gcpointer(0);
     array_iter_t* iter = (array_iter_t*)ptr;
@@ -2622,7 +2636,8 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(array_find_r),
     WOORT_BUILTIN_FUNC(array_find_b),
     WOORT_BUILTIN_FUNC(array_iter),
-    WOORT_BUILTIN_FUNC(array_iter_next),
+    WOORT_BUILTIN_FUNC(array_iter_next_u),
+    WOORT_BUILTIN_FUNC(array_iter_next_r),
     WOORT_BUILTIN_FUNC(array_connect),
     WOORT_BUILTIN_FUNC(array_sub),
     WOORT_BUILTIN_FUNC(array_sub_to),
