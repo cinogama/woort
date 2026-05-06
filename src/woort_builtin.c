@@ -1709,7 +1709,26 @@ static woort_api woort_builtin_array_get_r(void)
     return woort_ret_option_none();
 }
 
-static woort_api woort_builtin_array_get_or_default(void)
+static woort_api woort_builtin_array_get_or_default_u(void)
+{
+    woort_StackValue base;
+    if (!woort_push_reserve(1, &base))
+        return woort_ret_panic("Stack overflow.");
+
+    woort_Int idx = woort_int(1);
+    size_t len = woort_vec_len(0);
+
+    if ((size_t)idx < len)
+    {
+        woort_vec_get(WOORT_RETURN_SLOT, 0, (size_t)idx);
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+
+        return woort_ret();
+    }
+
+    return woort_ret_value(2);
+}
+static woort_api woort_builtin_array_get_or_default_r(void)
 {
     woort_StackValue base;
     if (!woort_push_reserve(1, &base))
@@ -2715,7 +2734,8 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(array_empty),
     WOORT_BUILTIN_FUNC(array_get_u),
     WOORT_BUILTIN_FUNC(array_get_r),
-    WOORT_BUILTIN_FUNC(array_get_or_default),
+    WOORT_BUILTIN_FUNC(array_get_or_default_u),
+    WOORT_BUILTIN_FUNC(array_get_or_default_r),
     WOORT_BUILTIN_FUNC(array_find),
     WOORT_BUILTIN_FUNC(array_iter),
     WOORT_BUILTIN_FUNC(array_iter_next),
