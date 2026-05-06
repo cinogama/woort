@@ -1799,8 +1799,7 @@ static woort_api woort_builtin_array_iter(void)
     iter->m_index = 0;
     iter->m_length = woort_vec_len(0);
 
-    return woort_ret_gchandle(iter, 0, array_iter_destroy, NULL),
-        WOORT_VM_CALL_STATUS_NORMAL;
+    return woort_ret_gchandle(iter, 0, array_iter_destroy, NULL);
 }
 
 static woort_api woort_builtin_array_iter_next_u(void)
