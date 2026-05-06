@@ -267,14 +267,14 @@ static woort_api woort_builtin_cmdlines(void)
     if (!woort_push_reserve(1, &vec_slot))
         return woort_ret_panic("Stack overflow.");
 
+    woort_StackValue elem_slot;
+    if (!woort_push_reserve(1, &elem_slot))
+        return woort_ret_panic("Stack overflow.");
+
     woort_set_vec(vec_slot);
 
     for (int i = 0; i < g_cmdlines_argc; i++)
     {
-        woort_StackValue elem_slot;
-        if (!woort_push_reserve(1, &elem_slot))
-            return woort_ret_panic("Stack overflow.");
-
         woort_set_string(elem_slot, g_cmdlines_argv[i]);
         woort_vec_push(vec_slot, elem_slot);
     }
@@ -1628,17 +1628,17 @@ static woort_api woort_builtin_create_str_by_wchar(void)
     if (u32 == NULL && len > 0)
         return woort_ret_panic("Out of memory.");
 
+    woort_StackValue elem_slot;
+    if (!woort_push_reserve(1, &elem_slot))
+    {
+        free(u32);
+        return woort_ret_panic("Stack overflow.");
+    }
+
     for (size_t i = 0; i < len; i++)
     {
-        woort_StackValue elem_slot;
-        if (!woort_push_reserve(1, &elem_slot))
-        {
-            free(u32);
-            return woort_ret_panic("Stack overflow.");
-        }
         (void)woort_vec_get(elem_slot, 0, i);
         u32[i] = (char32_t)woort_int(elem_slot);
-        woort_pop(1);
     }
 
     size_t u8_len = 0;
@@ -1662,17 +1662,17 @@ static woort_api woort_builtin_create_str_by_ascii(void)
     if (buf == NULL && len > 0)
         return woort_ret_panic("Out of memory.");
 
+    woort_StackValue elem_slot;
+    if (!woort_push_reserve(1, &elem_slot))
+    {
+        free(buf);
+        return woort_ret_panic("Stack overflow.");
+    }
+
     for (size_t i = 0; i < len; i++)
     {
-        woort_StackValue elem_slot;
-        if (!woort_push_reserve(1, &elem_slot))
-        {
-            free(buf);
-            return woort_ret_panic("Stack overflow.");
-        }
         (void)woort_vec_get(elem_slot, 0, i);
         buf[i] = (char)(woort_Int)woort_int(elem_slot);
-        woort_pop(1);
     }
 
     const woort_api r = woort_ret_buffer(buf, len);
@@ -1749,12 +1749,10 @@ static woort_api woort_builtin_array_find_i(void)
         if (woort_DynBox_equal_int(
             woort_internal_value(base + 0)->m_dynamic, key))
         {
-            woort_pop(1);
             return woort_ret_option_int((woort_Int)i);
         }
     }
 
-    woort_pop(1);
     return woort_ret_option_none();
 }
 static woort_api woort_builtin_array_find_r(void)
@@ -1773,12 +1771,10 @@ static woort_api woort_builtin_array_find_r(void)
         if (woort_DynBox_equal_real(
             woort_internal_value(base + 0)->m_dynamic, key))
         {
-            woort_pop(1);
             return woort_ret_option_int((woort_Int)i);
         }
     }
 
-    woort_pop(1);
     return woort_ret_option_none();
 }
 static woort_api woort_builtin_array_find_b(void)
@@ -1797,12 +1793,10 @@ static woort_api woort_builtin_array_find_b(void)
         if (woort_DynBox_equal_bool(
             woort_internal_value(base + 0)->m_dynamic, key))
         {
-            woort_pop(1);
             return woort_ret_option_int((woort_Int)i);
         }
     }
 
-    woort_pop(1);
     return woort_ret_option_none();
 }
 static woort_api woort_builtin_array_find_x(void)
@@ -1821,12 +1815,10 @@ static woort_api woort_builtin_array_find_x(void)
         if (woort_DynBox_equal(
             woort_internal_value(base + 0)->m_dynamic, key))
         {
-            woort_pop(1);
             return woort_ret_option_int((woort_Int)i);
         }
     }
 
-    woort_pop(1);
     return woort_ret_option_none();
 }
 
@@ -2083,16 +2075,14 @@ static woort_api woort_builtin_array_copy(void)
 
     woort_vec_resize(0, vec2->m_length);
 
+    woort_StackValue base;
+    if (!woort_push_reserve(1, &base))
+        return woort_ret_panic("Stack overflow.");
+
     for (size_t i = 0; i < vec2->m_length; i++)
     {
-        woort_StackValue base;
-        if (!woort_push_reserve(1, &base))
-            return woort_ret_panic("Stack overflow.");
-
         (void)woort_vec_get(base + 0, 1, i);
         (void)woort_vec_set(0, i, base + 0);
-
-        woort_pop(1);
     }
 
     return woort_ret_void();
@@ -2336,27 +2326,6 @@ static woort_api woort_builtin_map_swap(void)
 
 static woort_api woort_builtin_map_copy(void)
 {
-    /* Clear destination by erasing all existing entries */
-    for (size_t idx = 0; ; )
-    {
-        woort_StackValue base;
-        if (!woort_push_reserve(2, &base))
-            return woort_ret_panic("Stack overflow.");
-
-        woort_StackValue key_slot = base + 0;
-        woort_StackValue val_slot = base + 1;
-
-        if (!woort_map_iter(0, idx, key_slot, val_slot))
-        {
-            woort_pop(2);
-            break;
-        }
-
-        woort_map_erase(0, key_slot);
-        woort_pop(2);
-    }
-
-    /* Copy all entries from source */
     woort_StackValue base;
     if (!woort_push_reserve(2, &base))
         return woort_ret_panic("Stack overflow.");
@@ -2364,6 +2333,16 @@ static woort_api woort_builtin_map_copy(void)
     woort_StackValue key_slot = base + 0;
     woort_StackValue val_slot = base + 1;
 
+    /* Clear destination by erasing all existing entries */
+    for (size_t idx = 0; ; )
+    {
+        if (!woort_map_iter(0, idx, key_slot, val_slot))
+            break;
+
+        woort_map_erase(0, key_slot);
+    }
+
+    /* Copy all entries from source */
     for (size_t idx = 0; ; idx++)
     {
         if (!woort_map_iter(1, idx, key_slot, val_slot))
@@ -2386,20 +2365,16 @@ static woort_api woort_builtin_map_keys(void)
 
     woort_set_vec(result);
 
+    woort_StackValue val_slot;
+    if (!woort_push_reserve(1, &val_slot))
+        return woort_ret_panic("Stack overflow.");
+
     for (size_t idx = 0; ; idx++)
     {
-        woort_StackValue val_slot;
-        if (!woort_push_reserve(1, &val_slot))
-            return woort_ret_panic("Stack overflow.");
-
         if (!woort_map_iter(0, idx, key_slot, val_slot))
-        {
-            woort_pop(1);
             break;
-        }
 
         woort_vec_push(result, key_slot);
-        woort_pop(1);
     }
 
     return woort_ret_value(result);
@@ -2416,20 +2391,16 @@ static woort_api woort_builtin_map_vals(void)
 
     woort_set_vec(result);
 
+    woort_StackValue key_slot;
+    if (!woort_push_reserve(1, &key_slot))
+        return woort_ret_panic("Stack overflow.");
+
     for (size_t idx = 0; ; idx++)
     {
-        woort_StackValue key_slot;
-        if (!woort_push_reserve(1, &key_slot))
-            return woort_ret_panic("Stack overflow.");
-
         if (!woort_map_iter(0, idx, key_slot, val_slot))
-        {
-            woort_pop(1);
             break;
-        }
 
         woort_vec_push(result, val_slot);
-        woort_pop(1);
     }
 
     return woort_ret_value(result);
@@ -2449,24 +2420,20 @@ static woort_api woort_builtin_map_remove(void)
 
 static woort_api woort_builtin_map_clear(void)
 {
+    woort_StackValue base;
+    if (!woort_push_reserve(2, &base))
+        return woort_ret_panic("Stack overflow.");
+
+    woort_StackValue key_slot = base + 0;
+    woort_StackValue val_slot = base + 1;
+
     /* Replacing with an empty map: erase all entries iteratively */
     for (;;)
     {
-        woort_StackValue base;
-        if (!woort_push_reserve(2, &base))
-            return woort_ret_panic("Stack overflow.");
-
-        woort_StackValue key_slot = base + 0;
-        woort_StackValue val_slot = base + 1;
-
         if (!woort_map_iter(0, 0, key_slot, val_slot))
-        {
-            woort_pop(2);
             break;
-        }
 
         woort_map_erase(0, key_slot);
-        woort_pop(2);
     }
 
     return woort_ret_void();
