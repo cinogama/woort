@@ -1941,7 +1941,17 @@ static woort_api woort_builtin_array_sub_range(void)
     return woort_ret();
 }
 
-static woort_api woort_builtin_array_front(void)
+static woort_api woort_builtin_array_front_u(void)
+{
+    if (woort_vec_get(WOORT_RETURN_SLOT, 0, 0))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+
+    return woort_ret_option_none();
+}
+static woort_api woort_builtin_array_front_r(void)
 {
     if (woort_vec_get(WOORT_RETURN_SLOT, 0, 0))
         return woort_ret_option_value(WOORT_RETURN_SLOT);
@@ -1949,7 +1959,17 @@ static woort_api woort_builtin_array_front(void)
     return woort_ret_option_none();
 }
 
-static woort_api woort_builtin_array_back(void)
+static woort_api woort_builtin_array_back_u(void)
+{
+    size_t len = woort_vec_len(0);
+    if (len == 0)
+        return woort_ret_option_none();
+
+    (void)woort_vec_get(WOORT_RETURN_SLOT, 0, len - 1);
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    return woort_ret_option_value(WOORT_RETURN_SLOT);
+}
+static woort_api woort_builtin_array_back_r(void)
 {
     size_t len = woort_vec_len(0);
     if (len == 0)
@@ -1959,17 +1979,34 @@ static woort_api woort_builtin_array_back(void)
     return woort_ret_option_value(WOORT_RETURN_SLOT);
 }
 
-static woort_api woort_builtin_array_front_val(void)
+static woort_api woort_builtin_array_front_val_u(void)
+{
+    if (woort_vec_get(WOORT_RETURN_SLOT, 0, 0))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    return woort_ret_panic("Index out of range.");
+}
+static woort_api woort_builtin_array_front_val_r(void)
+{
+    if (woort_vec_get(WOORT_RETURN_SLOT, 0, 0))
+        return woort_ret();
+
+    return woort_ret_panic("Index out of range.");
+}
+
+static woort_api woort_builtin_array_back_val_u(void)
 {
     size_t len = woort_vec_len(0);
     if (len == 0)
         return woort_ret_panic("Index out of range.");
 
-    (void)woort_vec_get(WOORT_RETURN_SLOT, 0, 0);
+    (void)woort_vec_get(WOORT_RETURN_SLOT, 0, len - 1);
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     return woort_ret();
 }
-
-static woort_api woort_builtin_array_back_val(void)
+static woort_api woort_builtin_array_back_val_r(void)
 {
     size_t len = woort_vec_len(0);
     if (len == 0)
@@ -2066,7 +2103,7 @@ static woort_api woort_builtin_array_pop(void)
 }
 
 static woort_api woort_builtin_array_dequeue(void)
-{   
+{
     if (woort_vec_get(WOORT_RETURN_SLOT, 0, 0))
     {
         woort_vec_erase(0, 0);
@@ -2642,10 +2679,14 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(array_sub),
     WOORT_BUILTIN_FUNC(array_sub_to),
     WOORT_BUILTIN_FUNC(array_sub_range),
-    WOORT_BUILTIN_FUNC(array_front),
-    WOORT_BUILTIN_FUNC(array_back),
-    WOORT_BUILTIN_FUNC(array_front_val),
-    WOORT_BUILTIN_FUNC(array_back_val),
+    WOORT_BUILTIN_FUNC(array_front_u),
+    WOORT_BUILTIN_FUNC(array_front_r),
+    WOORT_BUILTIN_FUNC(array_back_u),
+    WOORT_BUILTIN_FUNC(array_back_r),
+    WOORT_BUILTIN_FUNC(array_front_val_u),
+    WOORT_BUILTIN_FUNC(array_front_val_r),
+    WOORT_BUILTIN_FUNC(array_back_val_u),
+    WOORT_BUILTIN_FUNC(array_back_val_r),
     WOORT_BUILTIN_FUNC(array_resize),
     WOORT_BUILTIN_FUNC(array_shrink),
     WOORT_BUILTIN_FUNC(array_insert),
