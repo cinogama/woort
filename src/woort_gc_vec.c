@@ -66,21 +66,23 @@ WOORT_NODISCARD woort_DynBox* woort_GCVec_emplace_back(woort_GCVec* vec, size_t 
     return result;
 }
 
-woort_DynBox woort_GCVec_get(const woort_GCVec* vec, size_t index)
+WOORT_NODISCARD bool woort_GCVec_get(const woort_GCVec* vec, size_t index, woort_DynBox* out_boxval)
 {
     if (index >= vec->m_length)
-        woort_panic(WOORT_PANIC_INDEX_OUT_OF_RANGE, "vec index out of range");
+        return false;
 
-    return vec->m_datas[index];
+    *out_boxval = vec->m_datas[index];
+    return true;
 }
 
-void woort_GCVec_set(woort_GCVec* vec, size_t index, woort_DynBox boxed_value)
+WOORT_NODISCARD bool woort_GCVec_set(woort_GCVec* vec, size_t index, woort_DynBox boxed_value)
 {
     if (index >= vec->m_length)
-        woort_panic(WOORT_PANIC_INDEX_OUT_OF_RANGE, "vec index out of range");
+        return false;
 
     woort_GC_mixed_write_barrier_dynbox(
         &vec->m_datas[index], boxed_value);
+    return true;
 }
 
 void woort_GCVec_pop_back(woort_GCVec* vec)

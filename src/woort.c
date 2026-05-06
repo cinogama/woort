@@ -1196,7 +1196,7 @@ void woort_vec_resize(woort_StackValue src, size_t new_size)
     woort_GCVec_resize(vec, new_size);
 }
 
-void woort_vec_get(
+WOORT_NODISCARD bool woort_vec_get(
     woort_StackValue dst_boxed,
     woort_StackValue src,
     size_t index)
@@ -1207,10 +1207,15 @@ void woort_vec_get(
     woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
     assert(vec != NULL);
 
-    _WOORT_API_STACK(dst_boxed).m_dynamic = woort_GCVec_get(vec, index);
+    woort_DynBox boxval;
+    if (!woort_GCVec_get(vec, index, &boxval))
+        return false;
+
+    _WOORT_API_STACK(dst_boxed).m_dynamic = boxval;
+    return true;
 }
 
-void woort_vec_set(
+WOORT_NODISCARD bool woort_vec_set(
     woort_StackValue src,
     size_t index,
     woort_StackValue boxed_elem)
@@ -1221,7 +1226,7 @@ void woort_vec_set(
     woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
     assert(vec != NULL);
 
-    woort_GCVec_set(vec, index, _WOORT_API_STACK(boxed_elem).m_dynamic);
+    return woort_GCVec_set(vec, index, _WOORT_API_STACK(boxed_elem).m_dynamic);
 }
 
 void woort_vec_push(

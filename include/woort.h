@@ -2732,8 +2732,9 @@ WOORT_API void woort_vec_resize(
  * @param dst_boxed  Destination stack slot for the boxed element.
  * @param src        Stack slot holding the vector.
  * @param index      Zero-based element index.
+ * @return true if the index was in range, false if out of range.
  */
-WOORT_API void woort_vec_get(
+WOORT_API WOORT_NODISCARD bool woort_vec_get(
     woort_StackValue dst_boxed,
     woort_StackValue src,
     size_t index);
@@ -2748,8 +2749,9 @@ WOORT_API void woort_vec_get(
  * @param src        Stack slot holding the vector.
  * @param index      Zero-based element index.
  * @param boxed_elem Stack slot holding the boxed element to write.
+ * @return true if the index was in range, false if out of range.
  */
-WOORT_API void woort_vec_set(
+WOORT_API WOORT_NODISCARD bool woort_vec_set(
     woort_StackValue src,
     size_t index,
     woort_StackValue boxed_elem);
