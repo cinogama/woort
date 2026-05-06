@@ -2117,7 +2117,31 @@ static woort_api woort_builtin_array_shrink(void)
     return woort_ret_bool(false);
 }
 
-static woort_api woort_builtin_array_insert(void)
+static woort_api woort_builtin_array_insert_i(void)
+{
+    woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
+    woort_vec_insert(0, (size_t)woort_int(1), WOORT_RETURN_SLOT);
+
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_array_insert_r(void)
+{
+    woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
+    woort_vec_insert(0, (size_t)woort_int(1), WOORT_RETURN_SLOT);
+
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_array_insert_b(void)
+{
+    woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
+    woort_vec_insert(0, (size_t)woort_int(1), WOORT_RETURN_SLOT);
+
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_array_insert_x(void)
 {
     woort_vec_insert(0, (size_t)woort_int(1), 2);
     return woort_ret_void();
@@ -2166,7 +2190,31 @@ static woort_api woort_builtin_array_copy(void)
     return woort_ret_void();
 }
 
-static woort_api woort_builtin_array_add(void)
+static woort_api woort_builtin_array_add_i(void)
+{
+    woort_set_box_int(WOORT_RETURN_SLOT, woort_int(1));
+    woort_vec_push(0, WOORT_RETURN_SLOT);
+
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_array_add_r(void)
+{
+    woort_set_box_real(WOORT_RETURN_SLOT, woort_real(1));
+    woort_vec_push(0, WOORT_RETURN_SLOT);
+
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_array_add_b(void)
+{
+    woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(1));
+    woort_vec_push(0, WOORT_RETURN_SLOT);
+
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_array_add_x(void)
 {
     woort_vec_push(0, 1);
     return woort_ret_void();
@@ -2774,10 +2822,16 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(array_resize_b),
     WOORT_BUILTIN_FUNC(array_resize_x),
     WOORT_BUILTIN_FUNC(array_shrink),
-    WOORT_BUILTIN_FUNC(array_insert),
+    WOORT_BUILTIN_FUNC(array_insert_i),
+    WOORT_BUILTIN_FUNC(array_insert_r),
+    WOORT_BUILTIN_FUNC(array_insert_b),
+    WOORT_BUILTIN_FUNC(array_insert_x),
     WOORT_BUILTIN_FUNC(array_swap),
     WOORT_BUILTIN_FUNC(array_copy),
-    WOORT_BUILTIN_FUNC(array_add),
+    WOORT_BUILTIN_FUNC(array_add_i),
+    WOORT_BUILTIN_FUNC(array_add_r),
+    WOORT_BUILTIN_FUNC(array_add_b),
+    WOORT_BUILTIN_FUNC(array_add_x),
     WOORT_BUILTIN_FUNC(array_pop),
     WOORT_BUILTIN_FUNC(array_dequeue),
     WOORT_BUILTIN_FUNC(array_pop_val),
