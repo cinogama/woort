@@ -499,8 +499,14 @@ void woort_set_union_value(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
-    woort_GC_mixed_write_barrier_value(&s->m_datas[1], _WOORT_API_STACK(val));
+    // NOTE: We cannot use `_woort_set_union` here because dst and val may refer 
+    // to the same stack location; we need to handle it manually to ensure the order 
+    // of assignment.
+    woort_GCStruct* const s = woort_GCStruct_new(2);
+    s->m_datas[0].m_integer = id;
+    woort_GC_mixed_write_barrier_value(&s->m_datas[1], _WOORT_API_STACK(val));    
+
+    _WOORT_API_STACK(dst).m_struct = s;
 }
 
 void woort_set_union_nil(

@@ -1397,7 +1397,7 @@ static woort_api woort_builtin_string_split(void)
         return woort_ret_panic("Out of memory.");
 
     iter->m_str = woort_buffer(0, &iter->m_str_len);
-    iter->m_sep = woort_buffer(0, &iter->m_sep_len);
+    iter->m_sep = woort_buffer(1, &iter->m_sep_len);
     iter->m_split_from = 0;
 
     return woort_set_gchandle(-1, iter, 0, free, NULL),
@@ -1680,19 +1680,30 @@ static woort_api woort_builtin_create_str_by_ascii(void)
     return r;
 }
 
-static woort_api woort_builtin_array_get(void)
+static woort_api woort_builtin_array_get_u(void)
 {
-    woort_StackValue base;
-    if (!woort_push_reserve(1, &base))
-        return woort_ret_panic("Stack overflow.");
-
     woort_Int idx = woort_int(1);
     size_t len = woort_vec_len(0);
 
     if ((size_t)idx < len)
     {
-        woort_vec_get(base + 0, 0, (size_t)idx);
-        return woort_ret_option_value(base + 0);
+        woort_vec_get(WOORT_RETURN_SLOT, 0, (size_t)idx);
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+
+    return woort_ret_option_none();
+}
+static woort_api woort_builtin_array_get_r(void)
+{
+    woort_Int idx = woort_int(1);
+    size_t len = woort_vec_len(0);
+
+    if ((size_t)idx < len)
+    {
+        woort_vec_get(WOORT_RETURN_SLOT, 0, (size_t)idx);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
     }
 
     return woort_ret_option_none();
@@ -2702,7 +2713,8 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(create_str_by_ascii),
     WOORT_BUILTIN_FUNC(array_len),
     WOORT_BUILTIN_FUNC(array_empty),
-    WOORT_BUILTIN_FUNC(array_get),
+    WOORT_BUILTIN_FUNC(array_get_u),
+    WOORT_BUILTIN_FUNC(array_get_r),
     WOORT_BUILTIN_FUNC(array_get_or_default),
     WOORT_BUILTIN_FUNC(array_find),
     WOORT_BUILTIN_FUNC(array_iter),
