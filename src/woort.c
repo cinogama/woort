@@ -1207,7 +1207,7 @@ void woort_vec_get(
 void woort_vec_set(
     woort_StackValue src,
     size_t index,
-    woort_StackValue elem_boxed)
+    woort_StackValue boxed_elem)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
@@ -1215,12 +1215,12 @@ void woort_vec_set(
     woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
     assert(vec != NULL);
 
-    woort_GCVec_set(vec, index, _WOORT_API_STACK(elem_boxed).m_dynamic);
+    woort_GCVec_set(vec, index, _WOORT_API_STACK(boxed_elem).m_dynamic);
 }
 
 void woort_vec_push(
     woort_StackValue src,
-    woort_StackValue elem_boxed)
+    woort_StackValue boxed_elem)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
@@ -1228,7 +1228,7 @@ void woort_vec_push(
     woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
     assert(vec != NULL);
 
-    woort_GCVec_push_back(vec, _WOORT_API_STACK(elem_boxed).m_dynamic);
+    woort_GCVec_push_back(vec, _WOORT_API_STACK(boxed_elem).m_dynamic);
 }
 
 void woort_vec_pop(woort_StackValue src)
@@ -1245,7 +1245,7 @@ void woort_vec_pop(woort_StackValue src)
 void woort_vec_insert(
     woort_StackValue src,
     size_t index,
-    woort_StackValue elem_boxed)
+    woort_StackValue boxed_elem)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
@@ -1253,7 +1253,7 @@ void woort_vec_insert(
     woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
     assert(vec != NULL);
 
-    woort_GCVec_insert(vec, index, _WOORT_API_STACK(elem_boxed).m_dynamic);
+    woort_GCVec_insert(vec, index, _WOORT_API_STACK(boxed_elem).m_dynamic);
 }
 
 void woort_vec_erase(

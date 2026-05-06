@@ -14,6 +14,7 @@ if (MSVC)
             "$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
     endif()
     target_compile_options(woort_options INTERFACE "/source-charset:utf-8")
+    target_compile_definitions(woort_options INTERFACE _CRT_SECURE_NO_WARNINGS)
 endif()
 
 add_subdirectory ("3rd/woomem")

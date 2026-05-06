@@ -1383,54 +1383,24 @@ static woort_api woort_builtin_string_trim(void)
 
 typedef struct string_split_iter_t
 {
-    char* m_str;        /* heap-allocated copy of original string */
+    const char* m_str;        /* heap-allocated copy of original string */
     size_t m_str_len;
-    char* m_sep;        /* heap-allocated copy of separator */
+    const char* m_sep;            /* heap-allocated copy of separator */
     size_t m_sep_len;
     size_t m_split_from;
 } string_split_iter_t;
 
-static void string_split_iter_destroy(void* p)
-{
-    string_split_iter_t* iter = (string_split_iter_t*)p;
-    free(iter->m_str);
-    free(iter->m_sep);
-    free(iter);
-}
-
 static woort_api woort_builtin_string_split(void)
 {
-    size_t str_len = 0;
-    const void* str_raw = woort_buffer(0, &str_len);
-    const char* sep = woort_string(1);
-    size_t sep_len = strlen(sep);
-
-    string_split_iter_t* iter = (string_split_iter_t*)malloc(sizeof(string_split_iter_t));
+    string_split_iter_t* const iter = malloc(sizeof(string_split_iter_t));
     if (iter == NULL)
         return woort_ret_panic("Out of memory.");
 
-    iter->m_str = (char*)malloc(str_len + 1);
-    if (iter->m_str == NULL)
-    {
-        free(iter);
-        return woort_ret_panic("Out of memory.");
-    }
-    memcpy(iter->m_str, (const char*)str_raw, str_len);
-    iter->m_str[str_len] = '\0';
-    iter->m_str_len = str_len;
-
-    iter->m_sep = (char*)malloc(sep_len + 1);
-    if (iter->m_sep == NULL)
-    {
-        free(iter->m_str);
-        free(iter);
-        return woort_ret_panic("Out of memory.");
-    }
-    memcpy(iter->m_sep, sep, sep_len + 1);
-    iter->m_sep_len = sep_len;
+    iter->m_str = woort_buffer(0, &iter->m_str_len);
+    iter->m_sep = woort_buffer(0, &iter->m_sep_len);
     iter->m_split_from = 0;
 
-    return woort_set_gchandle(-1, iter, 0, string_split_iter_destroy, NULL),
+    return woort_set_gchandle(-1, iter, 0, free, NULL),
         WOORT_VM_CALL_STATUS_NORMAL;
 }
 
@@ -1446,7 +1416,7 @@ static woort_api woort_builtin_string_split_iter(void)
     {
         /* Split by character */
         const char* split_str_p = iter->m_str + iter->m_split_from;
-        size_t split_str_len = iter->m_str_len - iter->m_split_from;
+        const size_t split_str_len = iter->m_str_len - iter->m_split_from;
 
         if (split_str_len == 0)
         {
@@ -1454,7 +1424,7 @@ static woort_api woort_builtin_string_split_iter(void)
             return woort_ret_option_none();
         }
 
-        size_t chlen = woort_u8charnlen(split_str_p, split_str_len);
+        const size_t chlen = woort_u8charnlen(split_str_p, split_str_len);
         iter->m_split_from += chlen;
         return woort_ret_option_buffer(split_str_p, chlen);
     }
@@ -1557,22 +1527,72 @@ static woort_api woort_builtin_array_empty(void)
     return woort_ret_bool(len == 0);
 }
 
-static woort_api woort_builtin_array_create(void)
+static size_t _woort_builtin_array_create()
 {
-    woort_StackValue base;
-    if (!woort_push_reserve(1, &base))
+    woort_set_vec(WOORT_RETURN_SLOT);
+
+    const size_t arrsz = (size_t)woort_int(0);
+    woort_vec_resize(WOORT_RETURN_SLOT, arrsz);
+
+    return arrsz;
+}
+
+static woort_api woort_builtin_array_create_i(void)
+{
+    const size_t arrsz = _woort_builtin_array_create();
+
+    woort_StackValue box;
+    if (!woort_push_reserve(1, &box))
         return woort_ret_panic("Stack overflow.");
 
-    woort_StackValue newarr = base + 0;
-    woort_set_vec(newarr);
-
-    size_t arrsz = (size_t)woort_int(0);
-    woort_vec_resize(newarr, arrsz);
+    woort_set_box_int(box, woort_int(1));
 
     for (size_t i = 0; i < arrsz; i++)
-        woort_vec_set(newarr, i, 1);
+        woort_vec_set(WOORT_RETURN_SLOT, i, box);
 
-    return woort_ret_value(newarr);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_array_create_r(void)
+{
+    const size_t arrsz = _woort_builtin_array_create();
+
+    woort_StackValue box;
+    if (!woort_push_reserve(1, &box))
+        return woort_ret_panic("Stack overflow.");
+
+    woort_set_box_real(box, woort_real(1));
+
+    for (size_t i = 0; i < arrsz; i++)
+        woort_vec_set(WOORT_RETURN_SLOT, i, box);
+
+    return woort_ret();
+}
+
+static woort_api woort_builtin_array_create_b(void)
+{
+    const size_t arrsz = _woort_builtin_array_create();
+
+    woort_StackValue box;
+    if (!woort_push_reserve(1, &box))
+        return woort_ret_panic("Stack overflow.");
+
+    woort_set_box_bool(box, woort_bool(1));
+
+    for (size_t i = 0; i < arrsz; i++)
+        woort_vec_set(WOORT_RETURN_SLOT, i, box);
+
+    return woort_ret();
+}
+
+static woort_api woort_builtin_array_create_x(void)
+{
+    const size_t arrsz = _woort_builtin_array_create();
+
+    for (size_t i = 0; i < arrsz; i++)
+        woort_vec_set(WOORT_RETURN_SLOT, i, 1);
+
+    return woort_ret();
 }
 
 static woort_api woort_builtin_serialize_array(void)
@@ -2672,7 +2692,10 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(string_append_char),
     WOORT_BUILTIN_FUNC(string_append_cchar),
 
-    WOORT_BUILTIN_FUNC(array_create),
+    WOORT_BUILTIN_FUNC(array_create_i),
+    WOORT_BUILTIN_FUNC(array_create_r),
+    WOORT_BUILTIN_FUNC(array_create_b),
+    WOORT_BUILTIN_FUNC(array_create_x),
     WOORT_BUILTIN_FUNC(serialize_array),
     WOORT_BUILTIN_FUNC(deserialize_array),
     WOORT_BUILTIN_FUNC(create_str_by_wchar),

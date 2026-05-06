@@ -182,6 +182,18 @@ typedef int32_t woort_StackValue;
  */
 #define WOORT_IGNORE ((woort_StackValue)-2)
 
+/**
+ * @brief Special stack slot index for the function return value.
+ *
+ * Pass as `dst` to woort_set_* functions to write a value
+ * into the calling function's return slot.
+ *
+ * Without violating calling conventions, this slot may also be used
+ * as a temporary stack location for read/write operations, just like
+ * any woort_StackValue obtained via woort_push_reserve.
+ */
+#define WOORT_RETURN_SLOT ((woort_StackValue)-1)
+
 /** @brief Signature for native (C) functions callable from Woolang. */
 typedef woort_api(*woort_NativeFunction)(void);
 
@@ -2388,203 +2400,205 @@ WOORT_API void woort_set_union_box_bool(
 
 /**
  * @name Return Macros (Plain)
- * @brief Set the return slot (-1) and return WOORT_VM_CALL_STATUS_NORMAL.
+ * @brief Set the return slot (WOORT_RETURN_SLOT) and return WOORT_VM_CALL_STATUS_NORMAL.
  *        These macros are intended for use inside native function implementations
  *        to return a typed value to the caller.
  * @{
  */
 
- /** @brief Return a stack value: set slot -1 and return NORMAL. */
-#define woort_ret_value(src) (woort_set_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+/** Return result has been stored into WOORT_RETURN_SLOT, do nothing else. */
+#define woort_ret() WOORT_VM_CALL_STATUS_NORMAL
+/** @brief Return a stack value: set slot WOORT_RETURN_SLOT and return NORMAL. */
+#define woort_ret_value(src) (woort_set_value(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return void (no value). */
-#define woort_ret_void() WOORT_VM_CALL_STATUS_NORMAL
+#define woort_ret_void() woort_ret()
 /** @brief Return nil. */
-#define woort_ret_nil() (woort_set_nil(-1), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_nil() (woort_set_nil(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return an integer. */
-#define woort_ret_int(src) (woort_set_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_int(src) (woort_set_int(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a real. */
-#define woort_ret_real(src) (woort_set_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_real(src) (woort_set_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a float. */
-#define woort_ret_float(src) (woort_set_float(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_float(src) (woort_set_float(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a boolean. */
-#define woort_ret_bool(src) (woort_set_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_bool(src) (woort_set_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a string. */
-#define woort_ret_string(src) (woort_set_string(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_string(src) (woort_set_string(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a buffer. */
-#define woort_ret_buffer(src, len) (woort_set_buffer(-1, src, len), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_buffer(src, len) (woort_set_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return a boxed integer. */
-#define woort_ret_box_int(src) (woort_set_box_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_box_int(src) (woort_set_box_int(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a boxed real. */
-#define woort_ret_box_real(src) (woort_set_box_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_box_real(src) (woort_set_box_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a boxed boolean. */
-#define woort_ret_box_bool(src) (woort_set_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_box_bool(src) (woort_set_box_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a GC handle. */
 #define woort_ret_gchandle(addr, hold, close, dylib) \
-    (woort_set_gchandle(-1, addr, hold, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
+    (woort_set_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib), woort_ret())
 /** @brief Return a GC struct. */
 #define woort_ret_gcstruct(addr, mark, close, dylib) \
-    (woort_set_gcstruct(-1, addr, mark, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
+    (woort_set_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib), woort_ret())
 
 /** @} */ /* end Return Macros (Plain) */
 
 /**
  * @name Return Union Macros
- * @brief Set return slot (-1) to a tagged union variant and return WOORT_VM_CALL_STATUS_NORMAL.
+ * @brief Set return slot (WOORT_RETURN_SLOT) to a tagged union variant and return woort_ret().
  * @{
  */
 
  /** @brief Return a union with no inline payload. */
-#define woort_ret_union_without_value(id) (woort_set_union_without_value(-1, id), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_without_value(id) (woort_set_union_without_value(WOORT_RETURN_SLOT, id), woort_ret())
 /** @brief Return a union carrying a stack value. */
-#define woort_ret_union_value(id, src) (woort_set_union_value(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_value(id, src) (woort_set_union_value(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with nil payload. */
-#define woort_ret_union_nil(id) (woort_set_union_nil(-1, id), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_nil(id) (woort_set_union_nil(WOORT_RETURN_SLOT, id), woort_ret())
 /** @brief Alias for woort_ret_union_nil. */
 #define woort_ret_union_void woort_ret_union_nil
 /** @brief Return a union with int payload. */
-#define woort_ret_union_int(id, src) (woort_set_union_int(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_int(id, src) (woort_set_union_int(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with real payload. */
-#define woort_ret_union_real(id, src) (woort_set_union_real(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_real(id, src) (woort_set_union_real(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with float payload. */
-#define woort_ret_union_float(id, src) (woort_set_union_float(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_float(id, src) (woort_set_union_float(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with bool payload. */
-#define woort_ret_union_bool(id, src) (woort_set_union_bool(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_bool(id, src) (woort_set_union_bool(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with string payload. */
-#define woort_ret_union_string(id, src) (woort_set_union_string(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_string(id, src) (woort_set_union_string(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with buffer payload. */
-#define woort_ret_union_buffer(id, src, len) (woort_set_union_buffer(-1, id, src, len), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_buffer(id, src, len) (woort_set_union_buffer(WOORT_RETURN_SLOT, id, src, len), woort_ret())
 /** @brief Return a union with boxed int payload. */
-#define woort_ret_union_box_int(id, src) (woort_set_union_box_int(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_box_int(id, src) (woort_set_union_box_int(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with boxed real payload. */
-#define woort_ret_union_box_real(id, src) (woort_set_union_box_real(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_box_real(id, src) (woort_set_union_box_real(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with boxed bool payload. */
-#define woort_ret_union_box_bool(id, src) (woort_set_union_box_bool(-1, id, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_union_box_bool(id, src) (woort_set_union_box_bool(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with GC handle payload. */
 #define woort_ret_union_gchandle(id, addr, hold, close, dylib) \
-    (woort_set_union_gchandle(-1, id, addr, hold, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
+    (woort_set_union_gchandle(WOORT_RETURN_SLOT, id, addr, hold, close, dylib), woort_ret())
 /** @brief Return a union with GC struct payload. */
 #define woort_ret_union_gcstruct(id, addr, mark, close, dylib) \
-    (woort_set_union_gcstruct(-1, id, addr, mark, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
+    (woort_set_union_gcstruct(WOORT_RETURN_SLOT, id, addr, mark, close, dylib), woort_ret())
 
 /** @} */ /* end Return Union Macros */
 
 /**
  * @name Return Option Macros
- * @brief Set return slot (-1) to Option<T> (value=0, none=1) and return WOORT_VM_CALL_STATUS_NORMAL.
+ * @brief Set return slot (WOORT_RETURN_SLOT) to Option<T> (value=0, none=1) and return woort_ret().
  * @{
  */
 
  /** @brief Return option::none. */
-#define woort_ret_option_none() (woort_set_option_none(-1), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_none() (woort_set_option_none(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return option::value(stack_value). */
-#define woort_ret_option_value(src) (woort_set_option_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_value(src) (woort_set_option_value(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(nil). */
-#define woort_ret_option_nil() (woort_set_option_nil(-1), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_nil() (woort_set_option_nil(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return option::value(void). */
-#define woort_ret_option_void() (woort_set_option_void(-1), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_void() (woort_set_option_void(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return option::value(int). */
-#define woort_ret_option_int(src) (woort_set_option_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_int(src) (woort_set_option_int(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(real). */
-#define woort_ret_option_real(src) (woort_set_option_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_real(src) (woort_set_option_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(float). */
-#define woort_ret_option_float(src) (woort_set_option_float(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_float(src) (woort_set_option_float(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(bool). */
-#define woort_ret_option_bool(src) (woort_set_option_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_bool(src) (woort_set_option_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(string). */
-#define woort_ret_option_string(src) (woort_set_option_string(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_string(src) (woort_set_option_string(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(buffer). */
-#define woort_ret_option_buffer(src, len) (woort_set_option_buffer(-1, src, len), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_buffer(src, len) (woort_set_option_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return option::value(box_int). */
-#define woort_ret_option_box_int(src) (woort_set_option_box_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_box_int(src) (woort_set_option_box_int(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(box_real). */
-#define woort_ret_option_box_real(src) (woort_set_option_box_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_box_real(src) (woort_set_option_box_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(box_bool). */
-#define woort_ret_option_box_bool(src) (woort_set_option_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_option_box_bool(src) (woort_set_option_box_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(gchandle). */
 #define woort_ret_option_gchandle(addr, hold, close, dylib) \
-    (woort_set_option_gchandle(-1, addr, hold, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
+    (woort_set_option_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib), woort_ret())
 /** @brief Return option::value(gcstruct). */
 #define woort_ret_option_gcstruct(addr, mark, close, dylib) \
-    (woort_set_option_gcstruct(-1, addr, mark, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
+    (woort_set_option_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib), woort_ret())
 
 /** @} */ /* end Return Option Macros */
 
 /**
  * @name Return Result::Ok Macros
- * @brief Set return slot (-1) to Result<T,E>::Ok and return WOORT_VM_CALL_STATUS_NORMAL.
+ * @brief Set return slot (WOORT_RETURN_SLOT) to Result<T,E>::Ok and return woort_ret().
  *        Aliases for the corresponding woort_ret_option_* macros.
  * @{
  */
 
  /** @brief Return Result::Ok(stack_value). */
-#define woort_ret_result_ok_value(src) (woort_set_result_ok_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_value(src) (woort_set_result_ok_value(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(nil). */
-#define woort_ret_result_ok_nil() (woort_set_result_ok_nil(-1), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_nil() (woort_set_result_ok_nil(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return Result::Ok(void). */
-#define woort_ret_result_ok_void() (woort_set_result_ok_void(-1), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_void() (woort_set_result_ok_void(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return Result::Ok(int). */
-#define woort_ret_result_ok_int(src) (woort_set_result_ok_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_int(src) (woort_set_result_ok_int(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(real). */
-#define woort_ret_result_ok_real(src) (woort_set_result_ok_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_real(src) (woort_set_result_ok_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(float). */
-#define woort_ret_result_ok_float(src) (woort_set_result_ok_float(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_float(src) (woort_set_result_ok_float(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(bool). */
-#define woort_ret_result_ok_bool(src) (woort_set_result_ok_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_bool(src) (woort_set_result_ok_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(string). */
-#define woort_ret_result_ok_string(src) (woort_set_result_ok_string(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_string(src) (woort_set_result_ok_string(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(buffer). */
-#define woort_ret_result_ok_buffer(src, len) (woort_set_result_ok_buffer(-1, src, len), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_buffer(src, len) (woort_set_result_ok_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return Result::Ok(box_int). */
-#define woort_ret_result_ok_box_int(src) (woort_set_result_ok_box_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_box_int(src) (woort_set_result_ok_box_int(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(box_real). */
-#define woort_ret_result_ok_box_real(src) (woort_set_result_ok_box_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_box_real(src) (woort_set_result_ok_box_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(box_bool). */
-#define woort_ret_result_ok_box_bool(src) (woort_set_result_ok_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_ok_box_bool(src) (woort_set_result_ok_box_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(gchandle). */
 #define woort_ret_result_ok_gchandle(addr, hold, close, dylib) \
-    (woort_set_result_ok_gchandle(-1, addr, hold, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
+    (woort_set_result_ok_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib), woort_ret())
 /** @brief Return Result::Ok(gcstruct). */
 #define woort_ret_result_ok_gcstruct(addr, mark, close, dylib) \
-    (woort_set_result_ok_gcstruct(-1, addr, mark, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
+    (woort_set_result_ok_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib), woort_ret())
 
 /** @} */ /* end Return Result::Ok Macros */
 
 /**
  * @name Return Result::Err Macros
- * @brief Set return slot (-1) to Result<T,E>::Err and return WOORT_VM_CALL_STATUS_NORMAL.
+ * @brief Set return slot (WOORT_RETURN_SLOT) to Result<T,E>::Err and return woort_ret().
  * @{
  */
 
  /** @brief Return Result::Err(stack_value). */
-#define woort_ret_result_err_value(src) (woort_set_result_err_value(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_value(src) (woort_set_result_err_value(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(nil). */
-#define woort_ret_result_err_nil() (woort_set_result_err_nil(-1), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_nil() (woort_set_result_err_nil(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return Result::Err(void). */
-#define woort_ret_result_err_void() (woort_set_result_err_void(-1), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_void() (woort_set_result_err_void(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return Result::Err(int). */
-#define woort_ret_result_err_int(src) (woort_set_result_err_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_int(src) (woort_set_result_err_int(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(real). */
-#define woort_ret_result_err_real(src) (woort_set_result_err_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_real(src) (woort_set_result_err_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(float). */
-#define woort_ret_result_err_float(src) (woort_set_result_err_float(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_float(src) (woort_set_result_err_float(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(bool). */
-#define woort_ret_result_err_bool(src) (woort_set_result_err_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_bool(src) (woort_set_result_err_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(string). */
-#define woort_ret_result_err_string(src) (woort_set_result_err_string(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_string(src) (woort_set_result_err_string(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(buffer). */
-#define woort_ret_result_err_buffer(src, len) (woort_set_result_err_buffer(-1, src, len), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_buffer(src, len) (woort_set_result_err_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return Result::Err(box_int). */
-#define woort_ret_result_err_box_int(src) (woort_set_result_err_box_int(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_box_int(src) (woort_set_result_err_box_int(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(box_real). */
-#define woort_ret_result_err_box_real(src) (woort_set_result_err_box_real(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_box_real(src) (woort_set_result_err_box_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(box_bool). */
-#define woort_ret_result_err_box_bool(src) (woort_set_result_err_box_bool(-1, src), WOORT_VM_CALL_STATUS_NORMAL)
+#define woort_ret_result_err_box_bool(src) (woort_set_result_err_box_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(gchandle). */
 #define woort_ret_result_err_gchandle(addr, hold, close, dylib) \
-    (woort_set_result_err_gchandle(-1, addr, hold, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
+    (woort_set_result_err_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib), woort_ret())
 /** @brief Return Result::Err(gcstruct). */
 #define woort_ret_result_err_gcstruct(addr, mark, close, dylib) \
-    (woort_set_result_err_gcstruct(-1, addr, mark, close, dylib), WOORT_VM_CALL_STATUS_NORMAL)
+    (woort_set_result_err_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib), woort_ret())
 
 /** @} */ /* end Return Result::Err Macros */
 
@@ -2733,21 +2747,21 @@ WOORT_API void woort_vec_get(
  * @brief Write an element to a vector position.
  * @param src        Stack slot holding the vector.
  * @param index      Zero-based element index.
- * @param elem_boxed Stack slot holding the boxed element to write.
+ * @param boxed_elem Stack slot holding the boxed element to write.
  */
 WOORT_API void woort_vec_set(
     woort_StackValue src,
     size_t index,
-    woort_StackValue elem_boxed);
+    woort_StackValue boxed_elem);
 
 /**
  * @brief Append an element to the end of a vector.
  * @param src        Stack slot holding the vector.
- * @param elem_boxed Stack slot holding the boxed element to append.
+ * @param boxed_elem Stack slot holding the boxed element to append.
  */
 WOORT_API void woort_vec_push(
     woort_StackValue src,
-    woort_StackValue elem_boxed);
+    woort_StackValue boxed_elem);
 
 /**
  * @brief Remove the last element from a vector.
@@ -2759,12 +2773,12 @@ WOORT_API void woort_vec_pop(woort_StackValue src);
  * @brief Insert an element at the given index, shifting subsequent elements.
  * @param src        Stack slot holding the vector.
  * @param index      Zero-based insertion position.
- * @param elem_boxed Stack slot holding the boxed element to insert.
+ * @param boxed_elem Stack slot holding the boxed element to insert.
  */
 WOORT_API void woort_vec_insert(
     woort_StackValue src,
     size_t index,
-    woort_StackValue elem_boxed);
+    woort_StackValue boxed_elem);
 
 /**
  * @brief Remove the element at the given index, shifting subsequent elements.
