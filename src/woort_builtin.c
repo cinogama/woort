@@ -2016,9 +2016,91 @@ static woort_api woort_builtin_array_back_val_r(void)
     return woort_ret();
 }
 
-static woort_api woort_builtin_array_resize(void)
+static size_t _woort_builtin_array_resize(void)
 {
-    woort_vec_resize(0, (size_t)woort_int(1));
+    const size_t cur_len = woort_vec_len(0);
+    const size_t new_len = (size_t)woort_int(1);
+
+    woort_vec_resize(0, new_len);
+
+    return new_len > cur_len ? new_len - cur_len : 0;
+}
+
+static woort_api woort_builtin_array_resize_i(void)
+{
+    const size_t fill_count = _woort_builtin_array_resize();
+
+    if (fill_count > 0)
+    {
+        const size_t cur_len = woort_vec_len(0) - fill_count;
+
+        woort_StackValue box;
+        if (!woort_push_reserve(1, &box))
+            return woort_ret_panic("Stack overflow.");
+
+        woort_set_box_int(box, woort_int(2));
+
+        for (size_t i = cur_len; i < cur_len + fill_count; i++)
+            (void)woort_vec_set(0, i, box);
+    }
+
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_array_resize_r(void)
+{
+    const size_t fill_count = _woort_builtin_array_resize();
+
+    if (fill_count > 0)
+    {
+        const size_t cur_len = woort_vec_len(0) - fill_count;
+
+        woort_StackValue box;
+        if (!woort_push_reserve(1, &box))
+            return woort_ret_panic("Stack overflow.");
+
+        woort_set_box_real(box, woort_real(2));
+
+        for (size_t i = cur_len; i < cur_len + fill_count; i++)
+            (void)woort_vec_set(0, i, box);
+    }
+
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_array_resize_b(void)
+{
+    const size_t fill_count = _woort_builtin_array_resize();
+
+    if (fill_count > 0)
+    {
+        const size_t cur_len = woort_vec_len(0) - fill_count;
+
+        woort_StackValue box;
+        if (!woort_push_reserve(1, &box))
+            return woort_ret_panic("Stack overflow.");
+
+        woort_set_box_bool(box, woort_bool(2));
+
+        for (size_t i = cur_len; i < cur_len + fill_count; i++)
+            (void)woort_vec_set(0, i, box);
+    }
+
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_array_resize_x(void)
+{
+    const size_t fill_count = _woort_builtin_array_resize();
+
+    if (fill_count > 0)
+    {
+        const size_t cur_len = woort_vec_len(0) - fill_count;
+
+        for (size_t i = cur_len; i < cur_len + fill_count; i++)
+            (void)woort_vec_set(0, i, 2);
+    }
+
     return woort_ret_void();
 }
 
@@ -2687,7 +2769,10 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(array_front_val_r),
     WOORT_BUILTIN_FUNC(array_back_val_u),
     WOORT_BUILTIN_FUNC(array_back_val_r),
-    WOORT_BUILTIN_FUNC(array_resize),
+    WOORT_BUILTIN_FUNC(array_resize_i),
+    WOORT_BUILTIN_FUNC(array_resize_r),
+    WOORT_BUILTIN_FUNC(array_resize_b),
+    WOORT_BUILTIN_FUNC(array_resize_x),
     WOORT_BUILTIN_FUNC(array_shrink),
     WOORT_BUILTIN_FUNC(array_insert),
     WOORT_BUILTIN_FUNC(array_swap),
