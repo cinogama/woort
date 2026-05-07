@@ -31,7 +31,7 @@ const woort_GCUnitProxy WOORT_EX_BOX_PROXY = {
 };
 
 static const int64_t WOORT_BOXED_INT62_MAX = (1LL << 61) - 1;
-static const int64_t WOORT_BOXED_INT62_MIN = 1LL << 61;
+static const int64_t WOORT_BOXED_INT62_MIN = -(1LL << 61);
 
 WOORT_NODISCARD bool _woort_try_box_float63(double val, woort_BoxedFloat63* out_val)
 {

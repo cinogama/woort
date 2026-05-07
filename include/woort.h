@@ -2649,6 +2649,8 @@ WOORT_API WOORT_NODISCARD woort_api woort_ret_yield(void);
 
  /** @brief Read a raw integer from a stack slot. */
 WOORT_API WOORT_NODISCARD woort_Int woort_int(woort_StackValue src);
+/** @brief Read a raw pointer from a stack slot (integer cast to void*). */
+#define woort_pointer(src) ((void*)woort_int(src))
 /** @brief Read a raw real (double) from a stack slot. */
 WOORT_API WOORT_NODISCARD woort_Real woort_real(woort_StackValue src);
 /** @brief Read a single-precision float from a stack slot. */
