@@ -141,4 +141,31 @@ void woort_GCVec_clear(woort_GCVec* vec)
     vec->m_length = 0;
 }
 
+void woort_GCVec_copy(woort_GCVec* dst, const woort_GCVec* src)
+{
+    woort_GCVec_clear(dst);
+    woort_GCVec_resize(dst, src->m_length);
+
+    for (size_t i = 0; i < src->m_length; i++)
+    {
+        woort_GC_mixed_write_barrier_dynbox(
+            &dst->m_datas[i], src->m_datas[i]);
+    }
+}
+
+void woort_GCVec_swap(woort_GCVec* a, woort_GCVec* b)
+{
+    size_t tmp_space = a->m_space;
+    size_t tmp_length = a->m_length;
+    woort_DynBox* tmp_datas = a->m_datas;
+
+    a->m_space = b->m_space;
+    a->m_length = b->m_length;
+    woort_GC_mixed_write_barrier_gcaddr(&a->m_datas, b->m_datas);
+
+    b->m_space = tmp_space;
+    b->m_length = tmp_length;
+    woort_GC_mixed_write_barrier_gcaddr(&b->m_datas, tmp_datas);
+}
+
 

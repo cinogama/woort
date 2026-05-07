@@ -632,3 +632,33 @@ void woort_GCMap_emplace_commit(woort_GCMap* gcmap)
 
     ++gcmap->m_size;
 }
+
+void woort_GCMap_copy(woort_GCMap* dst, const woort_GCMap* src)
+{
+    woort_GCMap_clear(dst);
+    woort_GCMap_reserve(dst, src->m_size);
+
+    for (size_t i = 0; i < src->m_size; ++i)
+    {
+        woort_GCMap_set_or_insert(
+            dst, src->m_buckets[i].m_key, src->m_buckets[i].m_val);
+    }
+}
+
+void woort_GCMap_swap(woort_GCMap* a, woort_GCMap* b)
+{
+    size_t tmp_mask = a->m_mask;
+    size_t tmp_size = a->m_size;
+    uint32_t* tmp_entries = a->m_entries;
+    woort_GCMap_Bucket* tmp_buckets = a->m_buckets;
+
+    a->m_mask = b->m_mask;
+    a->m_size = b->m_size;
+    a->m_entries = b->m_entries;
+    woort_GC_mixed_write_barrier_gcaddr(&a->m_buckets, b->m_buckets);
+
+    b->m_mask = tmp_mask;
+    b->m_size = tmp_size;
+    b->m_entries = tmp_entries;
+    woort_GC_mixed_write_barrier_gcaddr(&b->m_buckets, tmp_buckets);
+}

@@ -81,3 +81,6 @@ Emplace API: 将新键值对直接写入 bucket（先入桶再入链）。
 */
 WOORT_NODISCARD woort_GCMap_Bucket* woort_GCMap_emplace_prepare(woort_GCMap* gcmap);
 void woort_GCMap_emplace_commit(woort_GCMap* gcmap);
+
+void woort_GCMap_copy(woort_GCMap* dst, const woort_GCMap* src);
+void woort_GCMap_swap(woort_GCMap* a, woort_GCMap* b);
