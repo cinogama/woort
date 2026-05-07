@@ -168,6 +168,9 @@ void woort_GCMap_clear(woort_GCMap* gcmap)
         woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[i];
         woort_GC_delete_barrier_dynbox(bucket->m_key);
         woort_GC_delete_barrier_dynbox(bucket->m_val);
+
+        bucket->m_key.m_boxed_gc_unit = NULL;
+        bucket->m_val.m_boxed_gc_unit = NULL;
     }
 
     /* 重置所有 entry 槽位 */
@@ -215,6 +218,9 @@ WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key)
         /* 通过写屏障复制 key 和 val */
         woort_GC_mixed_write_barrier_dynbox(&bucket->m_key, last_bucket->m_key);
         woort_GC_mixed_write_barrier_dynbox(&bucket->m_val, last_bucket->m_val);
+
+        last_bucket->m_key.m_boxed_gc_unit = NULL;
+        last_bucket->m_val.m_boxed_gc_unit = NULL;
 
         /* 更新最后一个 bucket 的邻居指针 */
         if (last_prev != NULL_BUCKET_INDEX)
