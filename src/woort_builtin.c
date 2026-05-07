@@ -2384,11 +2384,77 @@ static woort_api woort_builtin_map_len(void)
     return woort_ret_int((woort_Int)len);
 }
 
-static woort_api woort_builtin_map_only_get(void)
+static woort_api woort_builtin_map_only_get_iu(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_map_only_get_ir(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_map_only_get_ru(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_map_only_get_rr(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_map_only_get_bu(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_map_only_get_br(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_map_only_get_xu(void)
+{
+    if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+    return woort_ret_option_none();
+}
+
+static woort_api woort_builtin_map_only_get_xr(void)
 {
     if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
         return woort_ret_option_value(WOORT_RETURN_SLOT);
-
     return woort_ret_option_none();
 }
 
@@ -2898,7 +2964,14 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(map_reserve),
     WOORT_BUILTIN_FUNC(map_set),
     WOORT_BUILTIN_FUNC(map_len),
-    WOORT_BUILTIN_FUNC(map_only_get),
+    WOORT_BUILTIN_FUNC(map_only_get_iu),
+    WOORT_BUILTIN_FUNC(map_only_get_ir),
+    WOORT_BUILTIN_FUNC(map_only_get_ru),
+    WOORT_BUILTIN_FUNC(map_only_get_rr),
+    WOORT_BUILTIN_FUNC(map_only_get_bu),
+    WOORT_BUILTIN_FUNC(map_only_get_br),
+    WOORT_BUILTIN_FUNC(map_only_get_xu),
+    WOORT_BUILTIN_FUNC(map_only_get_xr),
     WOORT_BUILTIN_FUNC(map_find),
     WOORT_BUILTIN_FUNC(map_get_or_default),
     WOORT_BUILTIN_FUNC(map_get_or_set_default),
