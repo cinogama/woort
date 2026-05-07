@@ -297,32 +297,20 @@ static woort_api woort_builtin_make_dup(void)
     {
     case WOORT_BOX_VALUE_TYPE_VEC:
     {
-        const woort_GCVec* const src = _unboxed.m_vec;
-
         woort_set_vec(WOORT_RETURN_SLOT);
         woort_GCVec* const dst = woort_internal_value(WOORT_RETURN_SLOT)->m_vec;
+        const woort_GCVec* const src = _unboxed.m_vec;
 
-        woort_GCVec_resize(dst, src->m_length);
-
-        for (size_t i = 0; i < src->m_length; i++)
-        {
-            woort_GC_mixed_write_barrier_dynbox(
-                &dst->m_datas[i], src->m_datas[i]);
-        }
+        woort_GCVec_copy(dst, src);
         break;
     }
     case WOORT_BOX_VALUE_TYPE_MAP:
     {
-        const woort_GCMap* const src = _unboxed.m_map;
-
         woort_set_map(WOORT_RETURN_SLOT);
         woort_GCMap* const dst = woort_internal_value(WOORT_RETURN_SLOT)->m_map;
+        const woort_GCMap* const src = _unboxed.m_map;
 
-        for (size_t i = 0; i < src->m_size; i++)
-        {
-            woort_GCMap_set_or_insert(
-                dst, src->m_buckets[i].m_key, src->m_buckets[i].m_val);
-        }
+        woort_GCMap_copy(dst, src);
         break;
     }
     case WOORT_BOX_VALUE_TYPE_STRUCT:
@@ -334,7 +322,8 @@ static woort_api woort_builtin_make_dup(void)
 
         for (size_t i = 0; i < src->m_size; i++)
         {
-            woort_GC_mixed_write_barrier_value(&dst->m_datas[i], src->m_datas[i]);
+            woort_GC_mixed_write_barrier_value(
+                &dst->m_datas[i], src->m_datas[i]);
         }
         break;
     }
@@ -2148,44 +2137,13 @@ static woort_api woort_builtin_array_insert_x(void)
 
 static woort_api woort_builtin_array_swap(void)
 {
-    woort_Value* arr1_val = woort_internal_value(0);
-    woort_Value* arr2_val = woort_internal_value(1);
-
-    woort_GCVec* vec1 = arr1_val->m_vec;
-    woort_GCVec* vec2 = arr2_val->m_vec;
-
-    size_t tmp_space = vec1->m_space;
-    size_t tmp_length = vec1->m_length;
-    woort_DynBox* tmp_datas = vec1->m_datas;
-
-    vec1->m_space = vec2->m_space;
-    vec1->m_length = vec2->m_length;
-    woort_GC_mixed_write_barrier_gcaddr(
-        &vec1->m_datas, vec2->m_datas);
-
-    vec2->m_space = tmp_space;
-    vec2->m_length = tmp_length;
-    woort_GC_mixed_write_barrier_gcaddr(
-        &vec2->m_datas, tmp_datas);
-
+    woort_vec_swap(0, 1);
     return woort_ret_void();
 }
 
 static woort_api woort_builtin_array_copy(void)
 {
-    woort_Value* arr1_val = woort_internal_value(0);
-    const woort_Value* arr2_val = woort_internal_value(1);
-
-    const woort_GCVec* vec2 = arr2_val->m_vec;
-
-    woort_vec_resize(0, vec2->m_length);
-
-    for (size_t i = 0; i < vec2->m_length; i++)
-    {
-        (void)woort_vec_get(WOORT_RETURN_SLOT, 1, i);
-        (void)woort_vec_set(0, i, WOORT_RETURN_SLOT);
-    }
-
+    woort_vec_copy(0, 1);
     return woort_ret_void();
 }
 
@@ -3096,51 +3054,13 @@ static woort_api woort_builtin_map_get_or_set_default_do_xx(void)
 
 static woort_api woort_builtin_map_swap(void)
 {
-    woort_Value* map1_val = woort_internal_value(0);
-    woort_Value* map2_val = woort_internal_value(1);
-
-    woort_GCMap* map1 = map1_val->m_map;
-    woort_GCMap* map2 = map2_val->m_map;
-
-    size_t tmp_mask = map1->m_mask;
-    size_t tmp_size = map1->m_size;
-    uint32_t* tmp_entries = map1->m_entries;
-    woort_GCMap_Bucket* tmp_buckets = map1->m_buckets;
-
-    map1->m_mask = map2->m_mask;
-    map1->m_size = map2->m_size;
-    map1->m_entries = map2->m_entries;
-    // NOTE: m_entries is a part of m_buckets, so, it's enough to 
-    // write m_buckets with barrier.
-    woort_GC_mixed_write_barrier_gcaddr(
-        &map1->m_buckets, map2->m_buckets);
-
-    map2->m_mask = tmp_mask;
-    map2->m_size = tmp_size;
-    map2->m_entries = tmp_entries;
-    woort_GC_mixed_write_barrier_gcaddr(
-        &map2->m_buckets, tmp_buckets);
-
+    woort_map_swap(0, 1);
     return woort_ret_void();
 }
 
 static woort_api woort_builtin_map_copy(void)
 {
-    woort_StackValue base;
-    if (!woort_push_reserve(2, &base))
-        return woort_ret_panic("Stack overflow.");
-
-    woort_map_clear(0);
-
-    woort_StackValue key_slot = base + 0, val_slot = base + 1;
-    for (size_t idx = 0; ; idx++)
-    {
-        if (!woort_map_iter(1, idx, key_slot, val_slot))
-            break;
-
-        woort_map_set(0, key_slot, val_slot);
-    }
-
+    woort_map_copy(0, 1);
     return woort_ret_void();
 }
 
