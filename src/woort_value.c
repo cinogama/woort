@@ -35,11 +35,11 @@ static const int64_t WOORT_BOXED_INT62_MIN = 1LL << 61;
 
 WOORT_NODISCARD bool _woort_try_box_float63(double val, woort_BoxedFloat63* out_val)
 {
-    // 使用 union 进行二进制重解释
+    /* 使用 union 进行二进制重解释 */
     const union { double d; uint64_t u; } conv = { .d = val };
     const uint64_t bits = conv.u;
 
-    // 检查指数最高位(位62)和次高位(位61)是否不同
+    /* 检查指数最高位(位62)和次高位(位61)是否不同 */
     const bool exp_highest = (bits >> 62) & 1;
     const bool exp_second_highest = (bits >> 61) & 1;
 
@@ -47,10 +47,10 @@ WOORT_NODISCARD bool _woort_try_box_float63(double val, woort_BoxedFloat63* out_
         return false;
     }
 
-    // 压缩：去掉位62，将位61-0左移1位，保留符号位，设置类型标记
-    *out_val = (bits & 0x8000000000000000ULL)       // 符号位
-        | ((bits & 0x3FFFFFFFFFFFFFFFULL) << 1)     // 位61-0左移1位
-        | WOORT_BOX_VALUE_TYPE_REAL;                // 类型标记
+    /* 压缩：去掉位62，将位61-0左移1位，保留符号位，设置类型标记 */
+    *out_val = (bits & 0x8000000000000000ULL)       /* 符号位 */
+        | ((bits & 0x3FFFFFFFFFFFFFFFULL) << 1)     /* 位61-0左移1位 */
+        | WOORT_BOX_VALUE_TYPE_REAL;                /* 类型标记 */
 
     return true;
 }
@@ -73,21 +73,21 @@ WOORT_NODISCARD woort_BoxedBool _woort_box_bool(bool val)
 
 WOORT_NODISCARD double _woort_unbox_float64(woort_BoxedFloat63 val)
 {
-    // 提取符号位（位63）
+    /* 提取符号位（位63） */
     const uint64_t sign_bit = val & 0x8000000000000000ULL;
 
-    // 提取压缩后的指数次高位 E9（现在是位62）
+    /* 提取压缩后的指数次高位 E9（现在是位62） */
     const uint64_t exp_second_highest = (val >> 62) & 1;
 
-    // 恢复指数最高位 E10 = !E9
+    /* 恢复指数最高位 E10 = !E9 */
     const uint64_t exp_highest = exp_second_highest ^ 1;
 
-    // 解压：去掉类型标记，恢复 E10
-    const uint64_t result = sign_bit                        // 符号位（位63）
-        | (exp_highest << 62)                   // 恢复的 E10（位62）
-        | ((val >> 1) & 0x3FFFFFFFFFFFFFFFULL); // 数据部分（位61-0）
+    /* 解压：去掉类型标记，恢复 E10 */
+    const uint64_t result = sign_bit                        /* 符号位（位63） */
+        | (exp_highest << 62)                   /* 恢复的 E10（位62） */
+        | ((val >> 1) & 0x3FFFFFFFFFFFFFFFULL); /* 数据部分（位61-0） */
 
-    // 使用 union 进行二进制重解释
+    /* 使用 union 进行二进制重解释 */
     const union { double d; uint64_t u; } conv = { .u = result };
     return conv.d;
 }
@@ -115,7 +115,7 @@ woort_DynBox woort_DynBox_box_real(woort_Real val)
         ex_box->m_is_int = false;
         ex_box->m_real = val;
 
-        result.m_boxed_ex = ex_box;
+        result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
     }
     return result;
 }
@@ -132,7 +132,7 @@ woort_DynBox woort_DynBox_box_int(woort_Int val)
         ex_box->m_is_int = true;
         ex_box->m_int = val;
 
-        result.m_boxed_ex = ex_box;
+        result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
     }
     return result;
 }
@@ -163,21 +163,21 @@ woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
     case WOORT_BOX_VALUE_TYPE_CLOSURE:
     {
         woort_DynBox result;
-        result.m_boxed_gc_unit = val.m_gcinstance;
+        result.m_boxed = _woort_gcunit_to_boxed(val.m_gcinstance);
         return result;
     }
     default:
         woort_panic(WOORT_PANIC_BAD_TYPE, "Unexpceted box type.");
 
-        // Return NIL.
+        /* Return NIL. */
         woort_DynBox result;
-        result.m_boxed_gc_unit = NULL;
+        result.m_boxed = 0;
         return result;
     }
 }
 
 ////////////////////////////////////////////////////////////////////////
-// 带混合写屏障的装箱函数
+/* 带混合写屏障的装箱函数 */
 ////////////////////////////////////////////////////////////////////////
 
 void woort_DynBox_box_real_with_barrier(woort_DynBox* dst, woort_Real val)
@@ -193,7 +193,7 @@ void woort_DynBox_box_real_with_barrier(woort_DynBox* dst, woort_Real val)
         ex_box->m_is_int = false;
         ex_box->m_real = val;
 
-        result.m_boxed_ex = ex_box;
+        result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
     }
     woort_GC_mixed_write_barrier_dynbox(dst, result);
 }
@@ -211,7 +211,7 @@ void woort_DynBox_box_int_with_barrier(woort_DynBox* dst, woort_Int val)
         ex_box->m_is_int = true;
         ex_box->m_int = val;
 
-        result.m_boxed_ex = ex_box;
+        result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
     }
     woort_GC_mixed_write_barrier_dynbox(dst, result);
 }
@@ -246,7 +246,7 @@ void woort_DynBox_box_with_barrier(woort_DynBox* dst, woort_Value val, woort_Box
     case WOORT_BOX_VALUE_TYPE_CLOSURE:
     {
         woort_DynBox result;
-        result.m_boxed_gc_unit = val.m_gcinstance;
+        result.m_boxed = _woort_gcunit_to_boxed(val.m_gcinstance);
         woort_GC_mixed_write_barrier_dynbox(dst, result);
         break;
     }
@@ -267,55 +267,55 @@ WOORT_NODISCARD bool woort_DynBox_check(
         if (val.m_boxed & 0b0111)
             return 0b01 & val.m_boxed;
 
-        // May be ex value.
+        /* May be ex value. */
         _Static_assert(WOORT_BOX_VALUE_TYPE_REAL == 1,
             "WOORT_BOX_VALUE_TYPE_REAL should be 1");
 
-        return val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
-            && !val.m_boxed_ex->m_is_int;
+        return val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_EX_BOX_PROXY
+            && !_woort_boxed_to_exvalue(val.m_boxed)->m_is_int;
     case WOORT_BOX_VALUE_TYPE_INT:
         if (val.m_boxed & 0b0111)
             return 0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT));
 
-        return val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
-            && val.m_boxed_ex->m_is_int;
+        return val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_EX_BOX_PROXY
+            && _woort_boxed_to_exvalue(val.m_boxed)->m_is_int;
     case WOORT_BOX_VALUE_TYPE_BOOL:
         return 0 == (0b0111 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_BOOL));
         break;
     case WOORT_BOX_VALUE_TYPE_STRING:
         if (val.m_boxed & 0b0111)
             return false;
-        return val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCSTRING_UNIT_PROXY;
+        return val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCSTRING_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_VEC:
         if (val.m_boxed & 0b0111)
             return false;
-        return val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCVEC_UNIT_PROXY;
+        return val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCVEC_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_MAP:
         if (val.m_boxed & 0b0111)
             return false;
-        return val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCMAP_UNIT_PROXY;
+        return val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCMAP_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_STRUCT:
         if (val.m_boxed & 0b0111)
             return false;
-        return val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCSTRUCT_UNIT_PROXY;
+        return val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCSTRUCT_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_GCHANDLE:
         if (val.m_boxed & 0b0111)
             return false;
-        return val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCHANDLE_UNIT_PROXY;
+        return val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCHANDLE_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_CLOSURE:
         if (val.m_boxed & 0b0111)
             return false;
-        return val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY;
+        return val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY;
     case WOORT_BOX_VALUE_TYPE_NIL:
-        return val.m_boxed_gc_unit == NULL;
+        return val.m_boxed == 0;
     default:
         woort_panic(WOORT_PANIC_BAD_TYPE, "Unexpceted box type.");
         return false;
@@ -340,11 +340,11 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
                 return true;
             }
         }
-        else if (val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
-            && !val.m_boxed_ex->m_is_int)
+        else if (val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_EX_BOX_PROXY
+            && !_woort_boxed_to_exvalue(val.m_boxed)->m_is_int)
         {
-            out_val->m_real = val.m_boxed_ex->m_real;
+            out_val->m_real = _woort_boxed_to_exvalue(val.m_boxed)->m_real;
             return true;
         }
         break;
@@ -357,11 +357,11 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
                 return true;
             }
         }
-        else if (val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
-            && val.m_boxed_ex->m_is_int)
+        else if (val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_EX_BOX_PROXY
+            && _woort_boxed_to_exvalue(val.m_boxed)->m_is_int)
         {
-            out_val->m_integer = val.m_boxed_ex->m_int;
+            out_val->m_integer = _woort_boxed_to_exvalue(val.m_boxed)->m_int;
             return true;
         }
         break;
@@ -373,60 +373,60 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
         break;
     case WOORT_BOX_VALUE_TYPE_STRING:
         if (!(val.m_boxed & 0b0111)
-            && val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCSTRING_UNIT_PROXY)
+            && val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCSTRING_UNIT_PROXY)
         {
-            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            out_val->m_gcinstance = _woort_boxed_to_gcunit(val.m_boxed);
             return true;
         }
         break;
     case WOORT_BOX_VALUE_TYPE_VEC:
         if (!(val.m_boxed & 0b0111)
-            && val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCVEC_UNIT_PROXY)
+            && val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCVEC_UNIT_PROXY)
         {
-            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            out_val->m_gcinstance = _woort_boxed_to_gcunit(val.m_boxed);
             return true;
         }
         break;
     case WOORT_BOX_VALUE_TYPE_MAP:
         if (!(val.m_boxed & 0b0111)
-            && val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCMAP_UNIT_PROXY)
+            && val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCMAP_UNIT_PROXY)
         {
-            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            out_val->m_gcinstance = _woort_boxed_to_gcunit(val.m_boxed);
             return true;
         }
         break;
     case WOORT_BOX_VALUE_TYPE_STRUCT:
         if (!(val.m_boxed & 0b0111)
-            && val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCSTRUCT_UNIT_PROXY)
+            && val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCSTRUCT_UNIT_PROXY)
         {
-            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            out_val->m_gcinstance = _woort_boxed_to_gcunit(val.m_boxed);
             return true;
         }
         break;
     case WOORT_BOX_VALUE_TYPE_GCHANDLE:
         if (!(val.m_boxed & 0b0111)
-            && val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCHANDLE_UNIT_PROXY)
+            && val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCHANDLE_UNIT_PROXY)
         {
-            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            out_val->m_gcinstance = _woort_boxed_to_gcunit(val.m_boxed);
             return true;
         }
         break;
     case WOORT_BOX_VALUE_TYPE_CLOSURE:
         if (!(val.m_boxed & 0b0111)
-            && val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
+            && val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
         {
-            out_val->m_gcinstance = val.m_boxed_gc_unit;
+            out_val->m_gcinstance = _woort_boxed_to_gcunit(val.m_boxed);
             return true;
         }
         break;
     case WOORT_BOX_VALUE_TYPE_NIL:
-        if (val.m_boxed_gc_unit == NULL)
+        if (val.m_boxed == 0)
         {
             out_val->m_gcinstance = NULL;
             return true;
@@ -440,30 +440,30 @@ void woort_DynBox_unbox_no_check(
     woort_DynBox val,
     woort_Value* out_val)
 {
-    // Detect type from the value's tag bits and unbox accordingly
+    /* Detect type from the value's tag bits and unbox accordingly */
     if (val.m_boxed & 0b0111)
     {
         if (0b01 & val.m_boxed)
-            // REAL (tagged double)
+            /* REAL (tagged double) */
             out_val->m_real = _woort_unbox_float64(val.m_boxed);
         else if (0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
-            // INT
+            /* INT */
             out_val->m_integer = _woort_unbox_int64(val.m_boxed);
         else /* if (0 == (0b0111 & (val.m_boxed_bool ^ WOORT_BOX_VALUE_TYPE_BOOL))) */
             out_val->m_integer = _woort_unbox_bool(val.m_boxed) ? 1 : 0;
     }
     else
     {
-        if (val.m_boxed_gc_unit != NULL
-            && val.m_boxed_gc_unit->m_proxy == &WOORT_EX_BOX_PROXY)
+        if (val.m_boxed != 0
+            && _woort_boxed_to_gcunit(val.m_boxed)->m_proxy == &WOORT_EX_BOX_PROXY)
         {
-            if (val.m_boxed_ex->m_is_int)
-                out_val->m_integer = val.m_boxed_ex->m_int;
+            if (_woort_boxed_to_exvalue(val.m_boxed)->m_is_int)
+                out_val->m_integer = _woort_boxed_to_exvalue(val.m_boxed)->m_int;
             else
-                out_val->m_real = val.m_boxed_ex->m_real;
+                out_val->m_real = _woort_boxed_to_exvalue(val.m_boxed)->m_real;
         }
         else
-            out_val->m_gcinstance = val.m_boxed_gc_unit;        
+            out_val->m_gcinstance = _woort_boxed_to_gcunit(val.m_boxed);
     }
 }
 
@@ -490,26 +490,26 @@ woort_DynBox_unbox_no_check_and_get_type(
         return WOORT_BOX_VALUE_TYPE_BOOL;
     }
 
-    if (val.m_boxed_gc_unit == NULL)
+    if (val.m_boxed == 0)
     {
         out_val->m_gcinstance = NULL;
         return WOORT_BOX_VALUE_TYPE_NIL;
     }
 
-    const woort_GCUnitProxy* const proxy = val.m_boxed_gc_unit->m_proxy;
+    const woort_GCUnitProxy* const proxy = _woort_boxed_to_gcunit(val.m_boxed)->m_proxy;
 
     if (proxy == &WOORT_EX_BOX_PROXY)
     {
-        if (val.m_boxed_ex->m_is_int)
+        if (_woort_boxed_to_exvalue(val.m_boxed)->m_is_int)
         {
-            out_val->m_integer = val.m_boxed_ex->m_int;
+            out_val->m_integer = _woort_boxed_to_exvalue(val.m_boxed)->m_int;
             return WOORT_BOX_VALUE_TYPE_INT;
         }
-        out_val->m_real = val.m_boxed_ex->m_real;
+        out_val->m_real = _woort_boxed_to_exvalue(val.m_boxed)->m_real;
         return WOORT_BOX_VALUE_TYPE_REAL;
     }
 
-    out_val->m_gcinstance = val.m_boxed_gc_unit;
+    out_val->m_gcinstance = _woort_boxed_to_gcunit(val.m_boxed);
 
     if (proxy == &WOORT_GCSTRING_UNIT_PROXY)
         return WOORT_BOX_VALUE_TYPE_STRING;
@@ -562,30 +562,30 @@ WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val)
     if (val.m_boxed & 0b0111)
     {
         if (0b01 & val.m_boxed)
-            // REAL: unbox and hash
+            /* REAL: unbox and hash */
             return _woort_hash_real(_woort_unbox_float64(val.m_boxed));
         else if (0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
-            // INT: unbox and hash
+            /* INT: unbox and hash */
             return _woort_hash_int(_woort_unbox_int64(val.m_boxed));
         else
-            // BOOL: hash 0 or 1
+            /* BOOL: hash 0 or 1 */
             return _woort_unbox_bool(val.m_boxed) ? 1 : 0;
     }
     else
     {
-        // GC allocated value
-        woort_GCUnit* const gc_unit = val.m_boxed_gc_unit;
+        /* GC allocated value */
+        woort_GCUnit* const gc_unit = _woort_boxed_to_gcunit(val.m_boxed);
 
         if (gc_unit == NULL)
             return 0;
 
         if (gc_unit->m_proxy == &WOORT_GCSTRING_UNIT_PROXY)
-            // String: use string-specific hash
+            /* String: use string-specific hash */
             return woort_GCString_hash((const woort_GCString*)gc_unit);
         else if (gc_unit->m_proxy == &WOORT_EX_BOX_PROXY)
         {
-            // Ex value: hash the internal int or real
-            woort_BoxedExValue* const ex_box = val.m_boxed_ex;
+            /* Ex value: hash the internal int or real */
+            woort_BoxedExValue* const ex_box = _woort_boxed_to_exvalue(val.m_boxed);
             if (ex_box->m_is_int)
                 return _woort_hash_int(ex_box->m_int);
             else
@@ -593,7 +593,7 @@ WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val)
         }
         else
         {
-            // Other GC types: hash the pointer address
+            /* Other GC types: hash the pointer address */
             return woort_util_ptr_hash(gc_unit);
         }
     }
@@ -601,17 +601,17 @@ WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val)
 
 WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b)
 {
-    // Fast path: compare raw boxed values directly
+    /* Fast path: compare raw boxed values directly */
     if (a.m_boxed == b.m_boxed)
         return true;
 
-    // NOTE: 如果其中之一是 boxed，另一个是 boxed_ex/unit，或者俩都是 boxed，说明必然不相同
+    /* NOTE: 如果其中之一是 boxed，另一个是 boxed_ex/unit，或者俩都是 boxed，说明必然不相同 */
     if ((a.m_boxed & 0b0111) || (b.m_boxed & 0b0111))
         return false;
 
-    // Both are GC-allocated values
-    woort_GCUnit* const gc_unit_a = a.m_boxed_gc_unit;
-    woort_GCUnit* const gc_unit_b = b.m_boxed_gc_unit;
+    /* Both are GC-allocated values */
+    woort_GCUnit* const gc_unit_a = _woort_boxed_to_gcunit(a.m_boxed);
+    woort_GCUnit* const gc_unit_b = _woort_boxed_to_gcunit(b.m_boxed);
 
     if (gc_unit_a == gc_unit_b)
         return true;
@@ -619,22 +619,22 @@ WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b)
     if (gc_unit_a == NULL || gc_unit_b == NULL)
         return false;
 
-    // Compare proxy pointers first for type discrimination
+    /* Compare proxy pointers first for type discrimination */
     if (gc_unit_a->m_proxy != gc_unit_b->m_proxy)
         return false;
 
-    // Same proxy type
+    /* Same proxy type */
     if (gc_unit_a->m_proxy == &WOORT_GCSTRING_UNIT_PROXY)
     {
-        // Extra check for string.
+        /* Extra check for string. */
         return woort_GCString_compare(
             (const woort_GCString*)gc_unit_a,
             (const woort_GCString*)gc_unit_b) == 0;
     }
     else if (gc_unit_a->m_proxy == &WOORT_EX_BOX_PROXY)
     {
-        woort_BoxedExValue* const ex_a = a.m_boxed_ex;
-        woort_BoxedExValue* const ex_b = b.m_boxed_ex;
+        woort_BoxedExValue* const ex_a = _woort_boxed_to_exvalue(a.m_boxed);
+        woort_BoxedExValue* const ex_b = _woort_boxed_to_exvalue(b.m_boxed);
 
         if (ex_a->m_is_int != ex_b->m_is_int)
             return false;
@@ -644,17 +644,17 @@ WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b)
             : ex_a->m_real == ex_b->m_real;
     }
 
-    // Other GC types: pointer equality (already checked above if m_boxed == b.m_boxed)
+    /* Other GC types: pointer equality (already checked above if m_boxed == b.m_boxed) */
     return false;
 }
 
 ////////////////////////////////////////////////////////////////////////
-// 类型特化的比较函数：避免装箱分配
+/* 类型特化的比较函数：避免装箱分配 */
 ////////////////////////////////////////////////////////////////////////
 
 WOORT_NODISCARD bool woort_DynBox_equal_int(woort_DynBox boxed_key, woort_Int int_key)
 {
-    // 检查内联 int62
+    /* 检查内联 int62 */
     if (boxed_key.m_boxed & 0b0111)
     {
         if (0 == (0b011 & (boxed_key.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
@@ -662,14 +662,14 @@ WOORT_NODISCARD bool woort_DynBox_equal_int(woort_DynBox boxed_key, woort_Int in
         return false;
     }
 
-    // 检查 ex value
-    woort_GCUnit* const gc_unit = boxed_key.m_boxed_gc_unit;
+    /* 检查 ex value */
+    woort_GCUnit* const gc_unit = _woort_boxed_to_gcunit(boxed_key.m_boxed);
 
     if (gc_unit != NULL
         && gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
-        && boxed_key.m_boxed_ex->m_is_int)
+        && _woort_boxed_to_exvalue(boxed_key.m_boxed)->m_is_int)
     {
-        return boxed_key.m_boxed_ex->m_int == int_key;
+        return _woort_boxed_to_exvalue(boxed_key.m_boxed)->m_int == int_key;
     }
 
     return false;
@@ -677,7 +677,7 @@ WOORT_NODISCARD bool woort_DynBox_equal_int(woort_DynBox boxed_key, woort_Int in
 
 WOORT_NODISCARD bool woort_DynBox_equal_real(woort_DynBox boxed_key, woort_Real real_key)
 {
-    // 检查内联 float63
+    /* 检查内联 float63 */
     if (boxed_key.m_boxed & 0b0111)
     {
         if (0b01 & boxed_key.m_boxed)
@@ -685,14 +685,14 @@ WOORT_NODISCARD bool woort_DynBox_equal_real(woort_DynBox boxed_key, woort_Real 
         return false;
     }
 
-    // 检查 ex value
-    woort_GCUnit* const gc_unit = boxed_key.m_boxed_gc_unit;
+    /* 检查 ex value */
+    woort_GCUnit* const gc_unit = _woort_boxed_to_gcunit(boxed_key.m_boxed);
 
     if (gc_unit != NULL
         && gc_unit->m_proxy == &WOORT_EX_BOX_PROXY
-        && !boxed_key.m_boxed_ex->m_is_int)
+        && !_woort_boxed_to_exvalue(boxed_key.m_boxed)->m_is_int)
     {
-        return boxed_key.m_boxed_ex->m_real == real_key;
+        return _woort_boxed_to_exvalue(boxed_key.m_boxed)->m_real == real_key;
     }
 
     return false;
@@ -710,7 +710,7 @@ WOORT_NODISCARD bool woort_DynBox_equal_gcunit(woort_DynBox boxed_key, /* OPTION
     if (boxed_key.m_boxed & 0b0111)
         return false;
 
-    return boxed_key.m_boxed_gc_unit == gcunit_key;
+    return _woort_boxed_to_gcunit(boxed_key.m_boxed) == gcunit_key;
 }
 
 WOORT_NODISCARD bool woort_DynBox_equal_string(woort_DynBox boxed_key, const char* str, size_t len)
@@ -718,7 +718,7 @@ WOORT_NODISCARD bool woort_DynBox_equal_string(woort_DynBox boxed_key, const cha
     if (boxed_key.m_boxed & 0b0111)
         return false;
 
-    woort_GCUnit* const gc_unit = boxed_key.m_boxed_gc_unit;
+    woort_GCUnit* const gc_unit = _woort_boxed_to_gcunit(boxed_key.m_boxed);
     if (gc_unit == NULL || gc_unit->m_proxy != &WOORT_GCSTRING_UNIT_PROXY)
         return false;
 

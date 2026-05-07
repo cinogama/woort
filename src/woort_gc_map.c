@@ -169,8 +169,8 @@ void woort_GCMap_clear(woort_GCMap* gcmap)
         woort_GC_delete_barrier_dynbox(bucket->m_key);
         woort_GC_delete_barrier_dynbox(bucket->m_val);
 
-        bucket->m_key.m_boxed_gc_unit = NULL;
-        bucket->m_val.m_boxed_gc_unit = NULL;
+        bucket->m_key.m_boxed = 0;
+        bucket->m_val.m_boxed = 0;
     }
 
     /* 重置所有 entry 槽位 */
@@ -219,8 +219,8 @@ WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key)
         woort_GC_mixed_write_barrier_dynbox(&bucket->m_key, last_bucket->m_key);
         woort_GC_mixed_write_barrier_dynbox(&bucket->m_val, last_bucket->m_val);
 
-        last_bucket->m_key.m_boxed_gc_unit = NULL;
-        last_bucket->m_val.m_boxed_gc_unit = NULL;
+        last_bucket->m_key.m_boxed = 0;
+        last_bucket->m_val.m_boxed = 0;
 
         /* 更新最后一个 bucket 的邻居指针 */
         if (last_prev != NULL_BUCKET_INDEX)
@@ -560,7 +560,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
     woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
     {
         woort_DynBox boxed;
-        boxed.m_boxed_gc_unit = (woort_GCUnit*)str;
+        boxed.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)str);
         woort_GC_mixed_write_barrier_dynbox(&new_bucket->m_key, boxed);
     }
     new_bucket->m_next = NULL_BUCKET_INDEX;

@@ -2086,10 +2086,6 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_dynamic;
 
             // NOTE: LDIDXDICTX 用于索引类型为 dynamic 或者 gcunit 的情况
-            //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
-            //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
-            // 
-            // TODO: 需要额外的断言检查
 
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
@@ -2162,10 +2158,6 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_dynamic;
 
             // NOTE: LDIDXDICTXX 用于索引类型为 dynamic 或者 gcunit 的情况
-            //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
-            //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
-            // 
-            // TODO: 需要额外的断言检查
 
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
@@ -2491,10 +2483,6 @@ _label_continue_execution:
                 WOORT_VM_THROW(index_out_of_range);
 
             // NOTE: STIDXVECX 用于索引类型为 dynamic 或者 gcunit 的情况
-            //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
-            //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
-            // 
-            // TODO: 需要额外的断言检查
 
             woort_GC_mixed_write_barrier_dynbox(
                 &gcvec->m_datas[index],
@@ -2586,10 +2574,6 @@ _label_continue_execution:
             }
 
             // NOTE: STIDXDICTIX 用于值类型为 dynamic 或者 gcunit 的情况
-            //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
-            //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
-            //
-            // TODO: 需要额外的断言检查
             woort_GC_mixed_write_barrier_dynbox(
                 val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
 
@@ -2918,10 +2902,6 @@ _label_continue_execution:
                 woort_GCMap_get_or_create_bucket_val_by_int(gcmap, key);
 
             // NOTE: STIDXMAPIX 用于值类型为 dynamic 或者 gcunit 的情况
-            //      考虑到 m_boxed_gc_unit 和 m_gcinstance 应当使用了相同
-            //      的存储方式，所以此处直接传入 gc_unit 应当也能够正确工作
-            //
-            // TODO: 需要额外的断言检查
             woort_GC_mixed_write_barrier_dynbox(
                 val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
 

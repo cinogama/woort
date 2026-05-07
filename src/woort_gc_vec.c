@@ -127,7 +127,7 @@ void woort_GCVec_erase(woort_GCVec* vec, size_t index)
     }
 
     vec->m_length--;
-    vec->m_datas[vec->m_length].m_boxed_gc_unit = NULL;
+    vec->m_datas[vec->m_length].m_boxed = 0;
 }
 
 void woort_GCVec_clear(woort_GCVec* vec)
@@ -135,7 +135,7 @@ void woort_GCVec_clear(woort_GCVec* vec)
     for (size_t i = 0; i < vec->m_length; i++)
     {
         woort_GC_delete_barrier_dynbox(vec->m_datas[i]);
-        vec->m_datas[i].m_boxed_gc_unit = NULL;
+        vec->m_datas[i].m_boxed = 0;
     }
 
     vec->m_length = 0;

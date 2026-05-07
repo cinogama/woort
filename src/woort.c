@@ -1069,14 +1069,14 @@ WOORT_NODISCARD woort_BoxValueType woort_unbox_type(woort_StackValue src)
         return WOORT_BOX_VALUE_TYPE_BOOL;
     }
 
-    if (val.m_boxed_gc_unit == NULL)
+    if (val.m_boxed == 0)
         return WOORT_BOX_VALUE_TYPE_NIL;
 
-    const woort_GCUnitProxy* const proxy = val.m_boxed_gc_unit->m_proxy;
+    const woort_GCUnitProxy* const proxy = _woort_boxed_to_gcunit(val.m_boxed)->m_proxy;
 
     if (proxy == &WOORT_EX_BOX_PROXY)
     {
-        return val.m_boxed_ex->m_is_int
+        return _woort_boxed_to_exvalue(val.m_boxed)->m_is_int
             ? WOORT_BOX_VALUE_TYPE_INT
             : WOORT_BOX_VALUE_TYPE_REAL;
     }
@@ -1598,7 +1598,7 @@ WOORT_NODISCARD bool woort_map_erase_by_string(
     assert(str != NULL);
 
     woort_DynBox boxed_key;
-    boxed_key.m_boxed_gc_unit = (woort_GCUnit*)str;
+    boxed_key.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)str);
 
     return woort_GCMap_erase(gcmap, boxed_key);
 }
@@ -1758,7 +1758,7 @@ WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_map(
 
     woort_DynBox box;
     memset(&box, 0, sizeof(box));
-    box.m_boxed_gc_unit = (woort_GCUnit*)src_val.m_map;
+    box.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)src_val.m_map);
 
     woort_Vector buf;
     woort_vector_init(&buf, 1);
@@ -1802,7 +1802,7 @@ WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_vec(
 
     woort_DynBox box;
     memset(&box, 0, sizeof(box));
-    box.m_boxed_gc_unit = (woort_GCUnit*)src_val.m_vec;
+    box.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)src_val.m_vec);
 
     woort_Vector buf;
     woort_vector_init(&buf, 1);

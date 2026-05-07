@@ -315,7 +315,7 @@ WOORT_NODISCARD bool _woort_serialize_map_impl(
 
     woort_DynBox box;
     memset(&box, 0, sizeof(box));
-    box.m_boxed_gc_unit = (woort_GCUnit*)gcmap;
+    box.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)gcmap);
 
     woort_Vector buf;
     woort_vector_init(&buf, 1);
@@ -353,7 +353,7 @@ WOORT_NODISCARD bool _woort_serialize_vec_impl(
 
     woort_DynBox box;
     memset(&box, 0, sizeof(box));
-    box.m_boxed_gc_unit = (woort_GCUnit*)gcvec;
+    box.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)gcvec);
 
     woort_Vector buf;
     woort_vector_init(&buf, 1);
@@ -505,8 +505,11 @@ WOORT_NODISCARD static bool _woort_deserialize_string(
 
     const woort_GCString* const gcstr = woort_GCString_make_string(
         unescaped, unescaped_len);
-    woort_GC_mixed_write_barrier_gcaddr(
-        &out_box->m_boxed_gc_unit, gcstr);
+    {
+        woort_DynBox tmp;
+        tmp.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)gcstr);
+        woort_GC_mixed_write_barrier_dynbox(out_box, tmp);
+    }
 
     free(unescaped);
 
@@ -526,8 +529,11 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
     ++pp;
 
     woort_GCMap* const gcmap = woort_GCMap_new();
-    woort_GC_mixed_write_barrier_gcaddr(
-        &out_gcmap->m_boxed_gc_unit, gcmap);
+    {
+        woort_DynBox tmp;
+        tmp.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)gcmap);
+        woort_GC_mixed_write_barrier_dynbox(out_gcmap, tmp);
+    }
 
     pp = _woort_deserialize_skip_whitespace(pp);
 
@@ -600,8 +606,11 @@ WOORT_NODISCARD bool _woort_deserialize_vec_impl(
     ++pp;
 
     woort_GCVec* const gcvec = woort_GCVec_new();
-    woort_GC_mixed_write_barrier_gcaddr(
-        &out_gcvec->m_boxed_gc_unit, gcvec);
+    {
+        woort_DynBox tmp;
+        tmp.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)gcvec);
+        woort_GC_mixed_write_barrier_dynbox(out_gcvec, tmp);
+    }
 
     pp = _woort_deserialize_skip_whitespace(pp);
 
@@ -696,7 +705,6 @@ WOORT_NODISCARD static bool _woort_deserialize_value(
             || next == '\n' || next == '\r' || next == ':')
         {
             pp += 3;
-            out_box->m_boxed_gc_unit = NULL;
             out_box->m_boxed = 0;
             *p = pp;
             return true;
@@ -712,7 +720,6 @@ WOORT_NODISCARD static bool _woort_deserialize_value(
             || next == '\n' || next == '\r' || next == ':')
         {
             pp += 4;
-            out_box->m_boxed_gc_unit = NULL;
             out_box->m_boxed = 0;
             *p = pp;
             return true;

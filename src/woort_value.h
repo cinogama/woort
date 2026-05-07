@@ -31,10 +31,29 @@ typedef woort_api(*woort_JitFunction)(
 typedef union woort_DynBox
 {
     woort_BoxedValue m_boxed;
-    struct woort_BoxedExValue* m_boxed_ex;
-    /* OPTIONAL, NULL if NIL */ woort_GCUnit* m_boxed_gc_unit;
 
 }woort_DynBox;
+
+_Static_assert(sizeof(woort_DynBox) == sizeof(woort_BoxedValue),
+    "woort_DynBox must have same size as woort_BoxedValue");
+
+static inline woort_BoxedValue _woort_gcunit_to_boxed(
+    /* OPTIONAL */ woort_GCUnit* ptr)
+{
+    return (woort_BoxedValue)(uintptr_t)ptr;
+}
+
+static inline /* OPTIONAL */ woort_GCUnit* _woort_boxed_to_gcunit(
+    woort_BoxedValue val)
+{
+    return (woort_GCUnit*)(uintptr_t)val;
+}
+
+static inline struct woort_BoxedExValue* _woort_boxed_to_exvalue(
+    woort_BoxedValue val)
+{
+    return (struct woort_BoxedExValue*)(uintptr_t)val;
+}
 
 typedef enum woort_CallWay
 {
