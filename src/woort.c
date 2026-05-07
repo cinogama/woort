@@ -1517,6 +1517,17 @@ WOORT_NODISCARD bool woort_map_set_by_string(
 
 /* --- Mapping Erase --- */
 
+void woort_map_clear(woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCMap* const gcmap = _WOORT_API_STACK(src).m_map;
+    assert(gcmap != NULL);
+
+    woort_GCMap_clear(gcmap);
+}
+
 WOORT_NODISCARD bool woort_map_erase(
     woort_StackValue src,
     woort_StackValue key_boxed)

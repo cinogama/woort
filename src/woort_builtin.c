@@ -2763,17 +2763,16 @@ static woort_api woort_builtin_map_copy(void)
 static woort_api woort_builtin_map_keys(void)
 {
     woort_StackValue base;
-    if (!woort_push_reserve(2, &base))
+    if (!woort_push_reserve(1, &base))
         return woort_ret_panic("Stack overflow.");
 
     woort_StackValue key_slot = base + 0;
-    woort_StackValue val_slot = base + 1;
 
     woort_set_vec(WOORT_RETURN_SLOT);
 
     for (size_t idx = 0; ; idx++)
     {
-        if (!woort_map_iter(0, idx, key_slot, val_slot))
+        if (!woort_map_iter(0, idx, key_slot, WOORT_IGNORE))
             break;
 
         woort_vec_push(WOORT_RETURN_SLOT, key_slot);
@@ -2785,20 +2784,19 @@ static woort_api woort_builtin_map_keys(void)
 static woort_api woort_builtin_map_vals(void)
 {
     woort_StackValue base;
-    if (!woort_push_reserve(2, &base))
+    if (!woort_push_reserve(1, &base))
         return woort_ret_panic("Stack overflow.");
 
-    woort_StackValue key_slot = base + 0;
-    woort_StackValue val_slot = base + 1;
+    woort_StackValue val_slot = base + 0;
 
     woort_set_vec(WOORT_RETURN_SLOT);
 
     for (size_t idx = 0; ; idx++)
     {
-        if (!woort_map_iter(0, idx, key_slot, val_slot))
+        if (!woort_map_iter(0, idx, WOORT_IGNORE, val_slot))
             break;
 
-        woort_vec_push(WOORT_RETURN_SLOT, val_slot);
+        woort_vec_push(WOORT_RETURN_SLOT, base);
     }
 
     return woort_ret();
@@ -2818,25 +2816,14 @@ static woort_api woort_builtin_map_remove(void)
 
 static woort_api woort_builtin_map_clear(void)
 {
-    woort_StackValue key_slot;
-    if (!woort_push_reserve(1, &key_slot))
-        return woort_ret_panic("Stack overflow.");
-
-    for (;;)
-    {
-        if (!woort_map_iter(0, 0, key_slot, WOORT_RETURN_SLOT))
-            break;
-
-        woort_map_erase(0, key_slot);
-    }
-
+    woort_map_clear(0);
     return woort_ret_void();
 }
 
 typedef struct map_iter_t
 {
+    const woort_GCMap* m_map;
     size_t m_index;
-    size_t m_length;
 } map_iter_t;
 
 static void map_iter_destroy(void* p)
@@ -2846,12 +2833,12 @@ static void map_iter_destroy(void* p)
 
 static woort_api woort_builtin_map_iter(void)
 {
-    map_iter_t* iter = (map_iter_t*)malloc(sizeof(map_iter_t));
+    map_iter_t* const iter = malloc(sizeof(map_iter_t));
     if (iter == NULL)
         return woort_ret_panic("Out of memory.");
 
+    iter->m_map = woort_internal_value(0)->m_map;
     iter->m_index = 0;
-    iter->m_length = woort_map_len(0);
 
     return woort_set_gchandle(-1, iter, 0, map_iter_destroy, NULL),
         WOORT_VM_CALL_STATUS_NORMAL;
@@ -2862,29 +2849,27 @@ static woort_api woort_builtin_map_iter_next_uu(void)
     void* ptr = woort_gcpointer(0);
     map_iter_t* iter = (map_iter_t*)ptr;
 
-    if (iter->m_index >= iter->m_length)
-        return woort_ret_option_none();
+    woort_DynBox key, val;
 
-    woort_StackValue base;
-    if (!woort_push_reserve(2, &base))
-        return woort_ret_panic("Stack overflow.");
+    if (woort_GCMap_get_key_value_by_index(iter->m_map, iter->m_index, &key, &val))
+    {
+        ++iter->m_index;
 
-    woort_StackValue key_slot = base + 0;
-    woort_StackValue val_slot = base + 1;
+        woort_set_struct(WOORT_RETURN_SLOT, 2);
 
-    if (!woort_map_iter(0, iter->m_index, key_slot, val_slot))
-        return woort_ret_option_none();
+        woort_GCStruct* result = woort_internal_value(WOORT_RETURN_SLOT)->m_struct;
 
-    (void)woort_unbox(key_slot, key_slot);
-    (void)woort_unbox(val_slot, val_slot);
+        woort_Value temp;
 
-    woort_set_struct(WOORT_RETURN_SLOT, 2);
-    woort_struct_set(WOORT_RETURN_SLOT, 0, key_slot);
-    woort_struct_set(WOORT_RETURN_SLOT, 1, val_slot);
+        woort_DynBox_unbox_no_check(key, &temp);
+        woort_GC_mixed_write_barrier_value(&result->m_datas[0], temp);
 
-    iter->m_index++;
+        woort_DynBox_unbox_no_check(val, &temp);
+        woort_GC_mixed_write_barrier_value(&result->m_datas[1], temp);
 
-    return woort_ret_option_value(WOORT_RETURN_SLOT);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+    return woort_ret_option_none();
 }
 
 static woort_api woort_builtin_map_iter_next_ur(void)
@@ -2892,28 +2877,26 @@ static woort_api woort_builtin_map_iter_next_ur(void)
     void* ptr = woort_gcpointer(0);
     map_iter_t* iter = (map_iter_t*)ptr;
 
-    if (iter->m_index >= iter->m_length)
-        return woort_ret_option_none();
+    woort_DynBox key, val;
 
-    woort_StackValue base;
-    if (!woort_push_reserve(2, &base))
-        return woort_ret_panic("Stack overflow.");
+    if (woort_GCMap_get_key_value_by_index(iter->m_map, iter->m_index, &key, &val))
+    {
+        ++iter->m_index;
 
-    woort_StackValue key_slot = base + 0;
-    woort_StackValue val_slot = base + 1;
+        woort_set_struct(WOORT_RETURN_SLOT, 2);
 
-    if (!woort_map_iter(0, iter->m_index, key_slot, val_slot))
-        return woort_ret_option_none();
+        woort_GCStruct* result = woort_internal_value(WOORT_RETURN_SLOT)->m_struct;
 
-    (void)woort_unbox(key_slot, key_slot);
+        woort_Value temp;
 
-    woort_set_struct(WOORT_RETURN_SLOT, 2);
-    woort_struct_set(WOORT_RETURN_SLOT, 0, key_slot);
-    woort_struct_set(WOORT_RETURN_SLOT, 1, val_slot);
+        woort_DynBox_unbox_no_check(key, &temp);
+        woort_GC_mixed_write_barrier_value(&result->m_datas[0], temp);
 
-    iter->m_index++;
+        woort_GC_mixed_write_barrier_dynbox(&result->m_datas[1].m_dynamic, val);
 
-    return woort_ret_option_value(WOORT_RETURN_SLOT);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+    return woort_ret_option_none();
 }
 
 static woort_api woort_builtin_map_iter_next_ru(void)
@@ -2921,28 +2904,26 @@ static woort_api woort_builtin_map_iter_next_ru(void)
     void* ptr = woort_gcpointer(0);
     map_iter_t* iter = (map_iter_t*)ptr;
 
-    if (iter->m_index >= iter->m_length)
-        return woort_ret_option_none();
+    woort_DynBox key, val;
 
-    woort_StackValue base;
-    if (!woort_push_reserve(2, &base))
-        return woort_ret_panic("Stack overflow.");
+    if (woort_GCMap_get_key_value_by_index(iter->m_map, iter->m_index, &key, &val))
+    {
+        ++iter->m_index;
 
-    woort_StackValue key_slot = base + 0;
-    woort_StackValue val_slot = base + 1;
+        woort_set_struct(WOORT_RETURN_SLOT, 2);
 
-    if (!woort_map_iter(0, iter->m_index, key_slot, val_slot))
-        return woort_ret_option_none();
+        woort_GCStruct* result = woort_internal_value(WOORT_RETURN_SLOT)->m_struct;
 
-    (void)woort_unbox(val_slot, val_slot);
+        woort_Value temp;
 
-    woort_set_struct(WOORT_RETURN_SLOT, 2);
-    woort_struct_set(WOORT_RETURN_SLOT, 0, key_slot);
-    woort_struct_set(WOORT_RETURN_SLOT, 1, val_slot);
+        woort_GC_mixed_write_barrier_dynbox(&result->m_datas[0].m_dynamic, key);
 
-    iter->m_index++;
+        woort_DynBox_unbox_no_check(val, &temp);
+        woort_GC_mixed_write_barrier_value(&result->m_datas[1], temp);
 
-    return woort_ret_option_value(WOORT_RETURN_SLOT);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+    return woort_ret_option_none();
 }
 
 static woort_api woort_builtin_map_iter_next_rr(void)
@@ -2950,26 +2931,22 @@ static woort_api woort_builtin_map_iter_next_rr(void)
     void* ptr = woort_gcpointer(0);
     map_iter_t* iter = (map_iter_t*)ptr;
 
-    if (iter->m_index >= iter->m_length)
-        return woort_ret_option_none();
+    woort_DynBox key, val;
 
-    woort_StackValue base;
-    if (!woort_push_reserve(2, &base))
-        return woort_ret_panic("Stack overflow.");
+    if (woort_GCMap_get_key_value_by_index(iter->m_map, iter->m_index, &key, &val))
+    {
+        ++iter->m_index;
 
-    woort_StackValue key_slot = base + 0;
-    woort_StackValue val_slot = base + 1;
+        woort_set_struct(WOORT_RETURN_SLOT, 2);
 
-    if (!woort_map_iter(0, iter->m_index, key_slot, val_slot))
-        return woort_ret_option_none();
+        woort_GCStruct* result = woort_internal_value(WOORT_RETURN_SLOT)->m_struct;
 
-    woort_set_struct(WOORT_RETURN_SLOT, 2);
-    woort_struct_set(WOORT_RETURN_SLOT, 0, key_slot);
-    woort_struct_set(WOORT_RETURN_SLOT, 1, val_slot);
+        woort_GC_mixed_write_barrier_dynbox(&result->m_datas[0].m_dynamic, key);
+        woort_GC_mixed_write_barrier_dynbox(&result->m_datas[1].m_dynamic, val);
 
-    iter->m_index++;
-
-    return woort_ret_option_value(WOORT_RETURN_SLOT);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+    return woort_ret_option_none();
 }
 
 /* ================================================================

@@ -157,6 +157,26 @@ void woort_GCMap_set_or_insert(woort_GCMap* gcmap, woort_DynBox key, woort_DynBo
     woort_GC_mixed_write_barrier_dynbox(&bucket->m_val, val);
 }
 
+void woort_GCMap_clear(woort_GCMap* gcmap)
+{
+    if (gcmap->m_size == 0)
+        return;
+
+    /* 删除屏障：标记所有被清除的 key 和 val */
+    for (size_t i = 0; i < gcmap->m_size; ++i)
+    {
+        woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[i];
+        woort_GC_delete_barrier_dynbox(bucket->m_key);
+        woort_GC_delete_barrier_dynbox(bucket->m_val);
+    }
+
+    /* 重置所有 entry 槽位 */
+    for (size_t i = 0; i <= gcmap->m_mask; ++i)
+        gcmap->m_entries[i] = NULL_BUCKET_INDEX;
+
+    gcmap->m_size = 0;
+}
+
 WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key)
 {
     const uint32_t idx = _woort_GCMap_find_bucket(gcmap, key);

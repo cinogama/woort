@@ -2968,6 +2968,9 @@ WOORT_API WOORT_NODISCARD bool woort_map_erase_by_string(
     woort_StackValue src,
     woort_U8CString key);
 
+/** @brief Clear all key-value pairs from the map. */
+WOORT_API void woort_map_clear(woort_StackValue src);
+
 /**@}*/
 
 /** @name Mapping Contains */

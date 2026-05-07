@@ -127,6 +127,7 @@ void woort_GCVec_erase(woort_GCVec* vec, size_t index)
     }
 
     vec->m_length--;
+    vec->m_datas[vec->m_length].m_boxed_gc_unit = NULL;
 }
 
 void woort_GCVec_clear(woort_GCVec* vec)
