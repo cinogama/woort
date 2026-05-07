@@ -320,7 +320,8 @@ static woort_api woort_builtin_make_dup(void)
 
         for (size_t i = 0; i < src->m_size; i++)
         {
-            woort_GCMap_set_or_insert(dst, src->m_buckets[i].m_key, src->m_buckets[i].m_val);
+            woort_GCMap_set_or_insert(
+                dst, src->m_buckets[i].m_key, src->m_buckets[i].m_val);
         }
         break;
     }
@@ -2861,14 +2862,234 @@ static woort_api woort_builtin_map_get_or_set_default_xx(void)
     return woort_ret_value(2);
 }
 
-static woort_api woort_builtin_map_get_or_set_default_do(void)
+static woort_api woort_builtin_map_get_or_set_default_do_ii(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
+    (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_ir(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
+    (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_ib(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
+    (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_ix(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+        return woort_ret();
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_ri(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
+    (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_rr(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
+    (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_rb(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
+    (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_rx(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+        return woort_ret();
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_bi(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
+    (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_br(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
+    (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_bb(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
+    (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_bx(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+        return woort_ret();
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_xi(void)
+{
+    if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
+    (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_xr(void)
+{
+    if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
+    (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_xb(void)
+{
+    if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+    woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
+    (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
+    return woort_ret();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_xx(void)
 {
     if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
         return woort_ret();
-
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
         return woort_ret_abort();
-
     (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
     return woort_ret();
 }
@@ -2889,54 +3110,35 @@ static woort_api woort_builtin_map_swap(void)
     map1->m_mask = map2->m_mask;
     map1->m_size = map2->m_size;
     map1->m_entries = map2->m_entries;
-    map1->m_buckets = map2->m_buckets;
+    // NOTE: m_entries is a part of m_buckets, so, it's enough to 
+    // write m_buckets with barrier.
+    woort_GC_mixed_write_barrier_gcaddr(
+        &map1->m_buckets, map2->m_buckets);
 
     map2->m_mask = tmp_mask;
     map2->m_size = tmp_size;
     map2->m_entries = tmp_entries;
-    map2->m_buckets = tmp_buckets;
-
-    if (g_gc_in_marking)
-    {
-        for (size_t i = 0; i < map1->m_size; i++)
-        {
-            woort_GC_mixed_write_barrier_dynbox(
-                &map1->m_buckets[i].m_key, map1->m_buckets[i].m_key);
-            woort_GC_mixed_write_barrier_dynbox(
-                &map1->m_buckets[i].m_val, map1->m_buckets[i].m_val);
-        }
-        for (size_t i = 0; i < map2->m_size; i++)
-        {
-            woort_GC_mixed_write_barrier_dynbox(
-                &map2->m_buckets[i].m_key, map2->m_buckets[i].m_key);
-            woort_GC_mixed_write_barrier_dynbox(
-                &map2->m_buckets[i].m_val, map2->m_buckets[i].m_val);
-        }
-    }
+    woort_GC_mixed_write_barrier_gcaddr(
+        &map2->m_buckets, tmp_buckets);
 
     return woort_ret_void();
 }
 
 static woort_api woort_builtin_map_copy(void)
 {
-    woort_StackValue key_slot;
-    if (!woort_push_reserve(1, &key_slot))
+    woort_StackValue base;
+    if (!woort_push_reserve(2, &base))
         return woort_ret_panic("Stack overflow.");
 
-    for (size_t idx = 0; ; )
-    {
-        if (!woort_map_iter(0, idx, key_slot, WOORT_RETURN_SLOT))
-            break;
+    woort_map_clear(0);
 
-        woort_map_erase(0, key_slot);
-    }
-
+    woort_StackValue key_slot = base + 0, val_slot = base + 1;
     for (size_t idx = 0; ; idx++)
     {
-        if (!woort_map_iter(1, idx, key_slot, WOORT_RETURN_SLOT))
+        if (!woort_map_iter(1, idx, key_slot, val_slot))
             break;
 
-        woort_map_set(0, key_slot, WOORT_RETURN_SLOT);
+        woort_map_set(0, key_slot, val_slot);
     }
 
     return woort_ret_void();
@@ -2944,11 +3146,9 @@ static woort_api woort_builtin_map_copy(void)
 
 static woort_api woort_builtin_map_keys(void)
 {
-    woort_StackValue base;
-    if (!woort_push_reserve(1, &base))
+    woort_StackValue key_slot;
+    if (!woort_push_reserve(1, &key_slot))
         return woort_ret_panic("Stack overflow.");
-
-    woort_StackValue key_slot = base + 0;
 
     woort_set_vec(WOORT_RETURN_SLOT);
 
@@ -2965,11 +3165,9 @@ static woort_api woort_builtin_map_keys(void)
 
 static woort_api woort_builtin_map_vals(void)
 {
-    woort_StackValue base;
-    if (!woort_push_reserve(1, &base))
+    woort_StackValue val_slot;
+    if (!woort_push_reserve(1, &val_slot))
         return woort_ret_panic("Stack overflow.");
-
-    woort_StackValue val_slot = base + 0;
 
     woort_set_vec(WOORT_RETURN_SLOT);
 
@@ -2978,7 +3176,7 @@ static woort_api woort_builtin_map_vals(void)
         if (!woort_map_iter(0, idx, WOORT_IGNORE, val_slot))
             break;
 
-        woort_vec_push(WOORT_RETURN_SLOT, base);
+        woort_vec_push(WOORT_RETURN_SLOT, val_slot);
     }
 
     return woort_ret();
@@ -3463,7 +3661,22 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(map_get_or_set_default_xr),
     WOORT_BUILTIN_FUNC(map_get_or_set_default_xb),
     WOORT_BUILTIN_FUNC(map_get_or_set_default_xx),
-    WOORT_BUILTIN_FUNC(map_get_or_set_default_do),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_ii),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_ir),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_ib),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_ix),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_ri),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_rr),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_rb),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_rx),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_bi),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_br),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_bb),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_bx),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_xi),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_xr),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_xb),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_xx),
     WOORT_BUILTIN_FUNC(map_swap),
     WOORT_BUILTIN_FUNC(map_copy),
     WOORT_BUILTIN_FUNC(map_keys),
