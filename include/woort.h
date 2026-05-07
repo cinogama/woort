@@ -175,10 +175,16 @@ typedef union woort_Value woort_Value;
 typedef int32_t woort_StackValue;
 
 /**
- * @brief Sentinel value for ignoring a return value.
+ * @brief Sentinel value for ignoring an output parameter.
  *
- * Pass as `dst` to woort_invoke, woort_spawn, or woort_resume
- * when the return value is not needed.
+ * Can be passed in the following contexts:
+ *
+ * - As `dst` to woort_invoke / woort_spawn / woort_resume to discard
+ *   the return value.
+ * - As `hold` to woort_set_gchandle / woort_set_union_gchandle (and
+ *   their option/result macro aliases) to not hold any GC unit.
+ * - As `out_key_boxed` or `out_val_boxed` to woort_map_iter to
+ *   discard the key or value output.
  */
 #define WOORT_IGNORE ((woort_StackValue)-2)
 
@@ -3005,8 +3011,8 @@ WOORT_API WOORT_NODISCARD bool woort_map_contains_string(
  *
  * @param src            Stack slot holding the map.
  * @param index          Zero-based iterator index.
- * @param out_key_boxed  Destination for the boxed key.
- * @param out_val_boxed  Destination for the boxed value.
+ * @param out_key_boxed  Destination for the boxed key, or WOORT_IGNORE to discard.
+ * @param out_val_boxed  Destination for the boxed value, or WOORT_IGNORE to discard.
  * @return true if a valid entry was found at the given index.
  */
 WOORT_API WOORT_NODISCARD bool woort_map_iter(

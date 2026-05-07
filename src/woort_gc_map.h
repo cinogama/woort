@@ -64,6 +64,12 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_string(
     woort_GCMap* gcmap, const char* key, size_t len);
 
+WOORT_NODISCARD bool woort_GCMap_get_key_value_by_index(
+    const woort_GCMap* gcmap,
+    size_t index,
+    /* OPTIONAL */ woort_DynBox* out_key,
+    /* OPTIONAL */ woort_DynBox* out_val);
+
 /*
 Emplace API: 将新键值对直接写入 bucket（先入桶再入链）。
 

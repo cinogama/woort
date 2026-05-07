@@ -504,7 +504,7 @@ void woort_set_union_value(
     // of assignment.
     woort_GCStruct* const s = woort_GCStruct_new(2);
     s->m_datas[0].m_integer = id;
-    woort_GC_mixed_write_barrier_value(&s->m_datas[1], _WOORT_API_STACK(val));    
+    woort_GC_mixed_write_barrier_value(&s->m_datas[1], _WOORT_API_STACK(val));
 
     _WOORT_API_STACK(dst).m_struct = s;
 }
@@ -670,7 +670,7 @@ void woort_set_union_gcstruct(
     assert(vm != NULL);
 
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
-    const woort_GCHandle* const handle = 
+    const woort_GCHandle* const handle =
         woort_GCHandle_new_with_marker(addr, mark, close, dylib);
     assert(handle != NULL);
 
@@ -1674,13 +1674,11 @@ WOORT_NODISCARD bool woort_map_iter(
     woort_GCMap* const gcmap = _WOORT_API_STACK(src).m_map;
     assert(gcmap != NULL);
 
-    if (index >= gcmap->m_size)
-        return false;
-
-    woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[index];
-    _WOORT_API_STACK(out_key_boxed).m_dynamic = bucket->m_key;
-    _WOORT_API_STACK(out_val_boxed).m_dynamic = bucket->m_val;
-    return true;
+    return woort_GCMap_get_key_value_by_index(
+        gcmap,
+        index,
+        out_key_boxed != WOORT_IGNORE ? &_WOORT_API_STACK(out_key_boxed).m_dynamic : NULL,
+        out_val_boxed != WOORT_IGNORE ? &_WOORT_API_STACK(out_val_boxed).m_dynamic : NULL);
 }
 
 void woort_CodeEnv_dumps(

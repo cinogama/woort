@@ -556,6 +556,23 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
     return &new_bucket->m_val;
 }
 
+WOORT_NODISCARD bool woort_GCMap_get_key_value_by_index(
+    const woort_GCMap* gcmap,
+    size_t index,
+    /* OPTIONAL */ woort_DynBox* out_key,
+    /* OPTIONAL */ woort_DynBox* out_val)
+{
+    if (index >= gcmap->m_size)
+        return false;
+
+    const woort_GCMap_Bucket* const bucket = &gcmap->m_buckets[index];
+    if (out_key != NULL)
+        *out_key = bucket->m_key;
+    if (out_val != NULL)
+        *out_val = bucket->m_val;
+    return true;
+}
+
 WOORT_NODISCARD woort_GCMap_Bucket* woort_GCMap_emplace_prepare(woort_GCMap* gcmap)
 {
     if (gcmap->m_size >= gcmap->m_mask)
