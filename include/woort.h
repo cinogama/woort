@@ -179,8 +179,8 @@ typedef int32_t woort_StackValue;
  *
  * Can be passed in the following contexts:
  *
- * - As `dst` to woort_invoke / woort_spawn / woort_resume to discard
- *   the return value.
+ * - As `dst` to woort_bootup_codeenv / woort_invoke / woort_spawn /
+ *   woort_resume to discard the return value.
  * - As `hold` to woort_set_gchandle / woort_set_union_gchandle (and
  *   their option/result macro aliases) to not hold any GC unit.
  * - As `out_key_boxed` or `out_val_boxed` to woort_map_iter to
@@ -199,6 +199,9 @@ typedef int32_t woort_StackValue;
  * any woort_StackValue obtained via woort_push_reserve.
  */
 #define WOORT_RETURN_SLOT ((woort_StackValue)-1)
+
+ /** @brief Default entry point function name. */
+#define WOORT_DEFAULT_ENTRY "@entry"
 
 /** @brief Signature for native (C) functions callable from Woolang. */
 typedef woort_api(*woort_NativeFunction)(void);
@@ -2037,6 +2040,21 @@ WOORT_API void woort_import_value(
     woort_StackValue src_in_vm);
 
 /**
+ * @brief Load the default entry function from a CodeEnv and invoke it.
+ *
+ * Reserves a stack slot, loads the extern constant named WOORT_DEFAULT_ENTRY
+ * ("@entry") from the given code environment, then invokes it as a function.
+ * Equivalent to calling woort_load_extern_const() with WOORT_DEFAULT_ENTRY
+ * followed by woort_invoke().
+ *
+ * @param dst   Stack slot for the return value, or WOORT_IGNORE to discard.
+ * @param cenv  The code environment holding the compiled bytecode. Must not be NULL.
+ * @return The call status (NORMAL or ABORTED).
+ */
+WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_bootup_codeenv(
+    woort_StackValue dst, woort_CodeEnv* cenv);
+
+/**
  * @brief Invoke a function value and wait for completion.
  * @param dst  Stack slot for the return value, or WOORT_IGNORE to discard.
  * @param f    Stack slot holding the callable value.
@@ -2110,6 +2128,9 @@ WOORT_API void woort_set_nil(
 /** @brief Set a stack slot to an integer value. */
 WOORT_API void woort_set_int(
     woort_StackValue dst, woort_Int src);
+
+/** @brief Set a stack slot to an pointer (cast to integer). */
+#define woort_set_pointer(dst, src) (woort_set_int(dst, (woort_Int)(src)))
 
 /** @brief Set a stack slot to a real (double) value. */
 WOORT_API void woort_set_real(
