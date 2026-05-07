@@ -1291,6 +1291,36 @@ void woort_vec_clear(woort_StackValue src)
     woort_GCVec_clear(vec);
 }
 
+void woort_vec_copy(
+    woort_StackValue dst,
+    woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const dst_vec = _WOORT_API_STACK(dst).m_vec;
+    const woort_GCVec* const src_vec = _WOORT_API_STACK(src).m_vec;
+    assert(dst_vec != NULL);
+    assert(src_vec != NULL);
+
+    woort_GCVec_copy(dst_vec, src_vec);
+}
+
+void woort_vec_swap(
+    woort_StackValue a,
+    woort_StackValue b)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec_a = _WOORT_API_STACK(a).m_vec;
+    woort_GCVec* const vec_b = _WOORT_API_STACK(b).m_vec;
+    assert(vec_a != NULL);
+    assert(vec_b != NULL);
+
+    woort_GCVec_swap(vec_a, vec_b);
+}
+
 /* ========== Mapping ========== */
 
 /* --- Mapping Capacity --- */
@@ -1526,6 +1556,36 @@ void woort_map_clear(woort_StackValue src)
     assert(gcmap != NULL);
 
     woort_GCMap_clear(gcmap);
+}
+
+void woort_map_copy(
+    woort_StackValue dst,
+    woort_StackValue src)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCMap* const dst_map = _WOORT_API_STACK(dst).m_map;
+    const woort_GCMap* const src_map = _WOORT_API_STACK(src).m_map;
+    assert(dst_map != NULL);
+    assert(src_map != NULL);
+
+    woort_GCMap_copy(dst_map, src_map);
+}
+
+void woort_map_swap(
+    woort_StackValue a,
+    woort_StackValue b)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCMap* const map_a = _WOORT_API_STACK(a).m_map;
+    woort_GCMap* const map_b = _WOORT_API_STACK(b).m_map;
+    assert(map_a != NULL);
+    assert(map_b != NULL);
+
+    woort_GCMap_swap(map_a, map_b);
 }
 
 WOORT_NODISCARD bool woort_map_erase(

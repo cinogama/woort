@@ -2803,6 +2803,26 @@ WOORT_API void woort_vec_erase(
  */
 WOORT_API void woort_vec_clear(woort_StackValue src);
 
+/**
+ * @brief Copy all elements from src vector into dst vector.
+ *
+ * dst is cleared first, then all elements from src are copied.
+ * @param dst  Stack slot holding the destination vector.
+ * @param src  Stack slot holding the source vector.
+ */
+WOORT_API void woort_vec_copy(
+    woort_StackValue dst,
+    woort_StackValue src);
+
+/**
+ * @brief Swap the contents of two vectors.
+ * @param a  Stack slot holding the first vector.
+ * @param b  Stack slot holding the second vector.
+ */
+WOORT_API void woort_vec_swap(
+    woort_StackValue a,
+    woort_StackValue b);
+
 /**@}*/
 
 /* ========== Mapping ========== */
@@ -2970,6 +2990,26 @@ WOORT_API WOORT_NODISCARD bool woort_map_erase_by_string(
 
 /** @brief Clear all key-value pairs from the map. */
 WOORT_API void woort_map_clear(woort_StackValue src);
+
+/**
+ * @brief Copy all key-value pairs from src map into dst map.
+ *
+ * dst is cleared first, then all entries from src are copied.
+ * @param dst  Stack slot holding the destination map.
+ * @param src  Stack slot holding the source map.
+ */
+WOORT_API void woort_map_copy(
+    woort_StackValue dst,
+    woort_StackValue src);
+
+/**
+ * @brief Swap the contents of two maps.
+ * @param a  Stack slot holding the first map.
+ * @param b  Stack slot holding the second map.
+ */
+WOORT_API void woort_map_swap(
+    woort_StackValue a,
+    woort_StackValue b);
 
 /**@}*/
 
