@@ -228,12 +228,12 @@ void woort_CodeEnv_set_const_box_bool(
 void woort_CodeEnv_set_const_struct(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
-    const woort_IRConstantIndex* members,
+    /* OPTIONAL if member_count == 0 */ const woort_IRConstantIndex* members,
     size_t member_count)
 {
     assert(code_env != NULL);
     assert((size_t)cidx < code_env->m_data_count);
-    assert(members != NULL);
+    assert(member_count == 0 || members != NULL);
 
     woort_GCStruct* const s = woort_GCStruct_new(member_count);
     assert(s != NULL);

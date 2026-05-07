@@ -1781,14 +1781,10 @@ static woort_api woort_builtin_array_find_x(void)
 
 typedef struct array_iter_t
 {
+    const woort_GCVec* m_vec;
     size_t m_index;
-    size_t m_length;
-} array_iter_t;
 
-static void array_iter_destroy(void* p)
-{
-    free(p);
-}
+} array_iter_t;
 
 static woort_api woort_builtin_array_iter(void)
 {
@@ -1796,10 +1792,10 @@ static woort_api woort_builtin_array_iter(void)
     if (iter == NULL)
         return woort_ret_panic("Out of memory.");
 
+    iter->m_vec = woort_internal_value(0)->m_vec;
     iter->m_index = 0;
-    iter->m_length = woort_vec_len(0);
 
-    return woort_ret_gchandle(iter, 0, array_iter_destroy, NULL);
+    return woort_ret_gchandle(iter, 0, free, NULL);
 }
 
 static woort_api woort_builtin_array_iter_next_u(void)
@@ -1807,27 +1803,30 @@ static woort_api woort_builtin_array_iter_next_u(void)
     void* ptr = woort_gcpointer(0);
     array_iter_t* iter = (array_iter_t*)ptr;
 
-    if (iter->m_index >= iter->m_length)
-        return woort_ret_option_none();
+    woort_Value* dst = woort_internal_value(WOORT_RETURN_SLOT);
 
-    (void)woort_vec_get(WOORT_RETURN_SLOT, 0, iter->m_index);
-    iter->m_index++;
+    if (woort_GCVec_get(iter->m_vec, iter->m_index, &dst->m_dynamic))
+    {
+        iter->m_index++;
 
-    (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
-    return woort_ret_option_value(WOORT_RETURN_SLOT);
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+    return woort_ret_option_none();
 }
 static woort_api woort_builtin_array_iter_next_r(void)
 {
     void* ptr = woort_gcpointer(0);
     array_iter_t* iter = (array_iter_t*)ptr;
 
-    if (iter->m_index >= iter->m_length)
-        return woort_ret_option_none();
+    woort_Value* dst = woort_internal_value(WOORT_RETURN_SLOT);
 
-    (void)woort_vec_get(WOORT_RETURN_SLOT, 0, iter->m_index);
-    iter->m_index++;
-
-    return woort_ret_option_value(WOORT_RETURN_SLOT);
+    if (woort_GCVec_get(iter->m_vec, iter->m_index, &dst->m_dynamic))
+    {
+        iter->m_index++;
+        return woort_ret_option_value(WOORT_RETURN_SLOT);
+    }
+    return woort_ret_option_none();
 }
 
 static woort_api woort_builtin_array_connect(void)

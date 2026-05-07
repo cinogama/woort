@@ -1960,7 +1960,7 @@ WOORT_API void woort_CodeEnv_set_const_box_bool(
 WOORT_API void woort_CodeEnv_set_const_struct(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
-    const woort_IRConstantIndex* members,
+    /* OPTIONAL if member_count == 0 */ const woort_IRConstantIndex* members,
     size_t member_count);
 
 /** @} */ /* end CodeEnv Constant Pool Setters */
