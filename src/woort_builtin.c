@@ -2673,11 +2673,190 @@ static woort_api woort_builtin_map_get_or_default_xr(void)
     return woort_ret_value(2);
 }
 
-static woort_api woort_builtin_map_get_or_set_default(void)
+static woort_api woort_builtin_map_get_or_set_default_ii(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
+    (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_ir(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
+    (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_ib(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
+    (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_ix(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+        return woort_ret();
+    (void)woort_map_set_by_int(0, key, 2);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_ri(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
+    (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_rr(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
+    (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_rb(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
+    (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_rx(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+        return woort_ret();
+    (void)woort_map_set_by_real(0, key, 2);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_bi(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
+    (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_br(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
+    (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_bb(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
+    (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_bx(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+        return woort_ret();
+    (void)woort_map_set_by_bool(0, key, 2);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_xi(void)
+{
+    if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
+    (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_xr(void)
+{
+    if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
+    (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_xb(void)
+{
+    if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
+    (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
+    return woort_ret_value(2);
+}
+
+static woort_api woort_builtin_map_get_or_set_default_xx(void)
 {
     if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
         return woort_ret();
-
     (void)woort_map_set(0, 1, 2);
     return woort_ret_value(2);
 }
@@ -2687,8 +2866,11 @@ static woort_api woort_builtin_map_get_or_set_default_do(void)
     if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
         return woort_ret();
 
-    (void)woort_map_set(0, 1, 2);
-    return woort_ret_value(2);
+    if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_abort();
+
+    (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
+    return woort_ret();
 }
 
 static woort_api woort_builtin_map_swap(void)
@@ -3265,7 +3447,22 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(map_get_or_default_br),
     WOORT_BUILTIN_FUNC(map_get_or_default_xu),
     WOORT_BUILTIN_FUNC(map_get_or_default_xr),
-    WOORT_BUILTIN_FUNC(map_get_or_set_default),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_ii),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_ir),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_ib),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_ix),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_ri),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_rr),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_rb),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_rx),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_bi),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_br),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_bb),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_bx),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_xi),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_xr),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_xb),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_xx),
     WOORT_BUILTIN_FUNC(map_get_or_set_default_do),
     WOORT_BUILTIN_FUNC(map_swap),
     WOORT_BUILTIN_FUNC(map_copy),
