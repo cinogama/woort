@@ -66,7 +66,7 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 
     woort_hashmap_deinit(&code_env->m_trap_records);
 
-    woort_hashmap_foreach(
+    (void)woort_hashmap_foreach(
         &code_env->m_extern_constants,
         &_extern_constants_free_key,
         NULL);
@@ -383,7 +383,7 @@ WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
     woort_CodeEnv_lock(env);
     {
         woort_Bytecode* value_addr;
-        if (woort_hashmap_find(&env->m_trap_records, &code, &value_addr))
+        if (woort_hashmap_find(&env->m_trap_records, &code, (void**)&value_addr))
         {
             /* value_addr 指向哈希表中保存的原始指令值，将其写回 *code */
             *code = *value_addr;
@@ -418,7 +418,7 @@ WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
     woort_CodeEnv_lock(env);
     {
         woort_Bytecode* value_addr;
-        if (woort_hashmap_find(&env->m_trap_records, &code, &value_addr))
+        if (woort_hashmap_find(&env->m_trap_records, &code, (void**)&value_addr))
         {
             /* 找到 trap 记录，取出保存的原始指令 */
             r = *value_addr;

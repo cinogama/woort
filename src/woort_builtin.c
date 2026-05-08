@@ -25,7 +25,7 @@
  * ================================================================ */
 
 static /* OPTIONAL */ woort_Dylib* g_builtin_lib = NULL;
-static woort_AtomicUInt64          g_random_state = { 0 };
+static woort_AtomicUInt64          g_random_state;
 
 static int    g_cmdlines_argc = 0;
 static char** g_cmdlines_argv = NULL;

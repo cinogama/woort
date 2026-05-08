@@ -254,7 +254,7 @@ void _woort_dylib_shutdown(void)
 
         /* Collect dylib pointers safely via foreach
            (no removal during iteration avoids corrupting the linked list). */
-        woort_hashmap_foreach(&g_named_libs,
+        (void)woort_hashmap_foreach(&g_named_libs,
             _woort_dylib_shutdown_foreach_callback, NULL);
 
         woort_log("WOORT: %zu library(s) loaded by 'woort_dylib_load' "
