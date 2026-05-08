@@ -38,7 +38,7 @@ void _woort_GCVec_assure_vec_space(woort_GCVec* vec, size_t size)
         ? woort_GCUnit_alloc_attrib(A, new_space * sizeof(woort_DynBox))
         : woomem_realloc(vec->m_datas, new_space * sizeof(woort_DynBox));
 
-    woort_GC_mixed_write_barrier_gcaddr(&vec->m_datas, new_datas);
+    woort_GC_mixed_write_barrier_gcaddr((const void**)&vec->m_datas, new_datas);
     vec->m_space = new_space;
 }
 
@@ -161,11 +161,11 @@ void woort_GCVec_swap(woort_GCVec* a, woort_GCVec* b)
 
     a->m_space = b->m_space;
     a->m_length = b->m_length;
-    woort_GC_mixed_write_barrier_gcaddr(&a->m_datas, b->m_datas);
+    woort_GC_mixed_write_barrier_gcaddr((const void**)&a->m_datas, b->m_datas);
 
     b->m_space = tmp_space;
     b->m_length = tmp_length;
-    woort_GC_mixed_write_barrier_gcaddr(&b->m_datas, tmp_datas);
+    woort_GC_mixed_write_barrier_gcaddr((const void**)&b->m_datas, tmp_datas);
 }
 
 

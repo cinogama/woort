@@ -571,7 +571,7 @@ void woort_set_union_string(
     assert(str != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
-        &s->m_datas[1].m_string, str);
+        (const void**)&s->m_datas[1].m_string, str);
 }
 
 void woort_set_union_buffer(
@@ -585,7 +585,7 @@ void woort_set_union_buffer(
     assert(buf != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
-        &s->m_datas[1].m_string, buf);
+        (const void**)&s->m_datas[1].m_string, buf);
 }
 
 void woort_set_union_vec(
@@ -601,7 +601,7 @@ void woort_set_union_vec(
         woort_GCVec_resize(vec, cap);
 
     woort_GC_mixed_write_barrier_gcunit(
-        &s->m_datas[1].m_vec, vec);
+        (const void**)&s->m_datas[1].m_vec, vec);
 }
 
 void woort_set_union_map(
@@ -617,7 +617,7 @@ void woort_set_union_map(
         woort_GCMap_reserve(map, reserve);
 
     woort_GC_mixed_write_barrier_gcunit(
-        &s->m_datas[1].m_map, map);
+        (const void**)&s->m_datas[1].m_map, map);
 }
 
 void woort_set_union_struct(
@@ -631,7 +631,7 @@ void woort_set_union_struct(
     assert(inner != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
-        &s->m_datas[1].m_struct, inner);
+        (const void**)&s->m_datas[1].m_struct, inner);
 }
 
 void woort_set_union_gchandle(
@@ -655,7 +655,7 @@ void woort_set_union_gchandle(
     assert(handle != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
-        &s->m_datas[1].m_gchandle, handle);
+        (const void**)&s->m_datas[1].m_gchandle, handle);
 }
 
 void woort_set_union_gcstruct(
@@ -675,7 +675,7 @@ void woort_set_union_gcstruct(
     assert(handle != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
-        &s->m_datas[1].m_gchandle, handle);
+        (const void**)&s->m_datas[1].m_gchandle, handle);
 }
 
 void woort_set_union_box_int(

@@ -432,6 +432,9 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
             return true;
         }
         break;
+    default:
+        // Should not been here.
+        abort();
     }
     return false;
 }

@@ -10,7 +10,7 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
 {
     woort_Bytecode bc = c[0];
 
-label_reentry_for_debug_trap:
+label_reentry_for_debug_trap:;
     const uint8_t op6 = (uint8_t)WOORT_BYTECODE(OP6, bc);
     const uint8_t m2 = (uint8_t)WOORT_BYTECODE(M2, bc);
 

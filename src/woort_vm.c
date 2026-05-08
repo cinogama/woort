@@ -3778,7 +3778,7 @@ void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
     woomem_mark_unit_head(vm->m_env);
 
     // TODO: Optimize for fast marking.
-    for (const void** p = (void**)vm->m_sp; p != (void**)vm->m_stack_end; ++p)
+    for (void** p = (void**)vm->m_sp; p != (void**)vm->m_stack_end; ++p)
         woomem_try_mark_unit((intptr_t)*p);
 }
 
@@ -3889,7 +3889,7 @@ void woort_VMRuntime_trace_begin(
         (size_t)(vm->m_stack_end - vm->m_sb);
 }
 
-static WOORT_NODISCARD bool _woort_VMRuntime_trace_addr(
+WOORT_NODISCARD static bool _woort_VMRuntime_trace_addr(
     const woort_Bytecode* code, intptr_t code_shift, woort_VMRuntime_TraceCallstack* out_result)
 {
     assert(code != NULL);
