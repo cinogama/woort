@@ -121,43 +121,61 @@ void woort_VMRuntime_destroy(woort_VMRuntime* vm)
 
 WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
 {
-    const size_t current_stack_size = vm->m_stack_end - vm->m_stack;
-    if (current_stack_size >= WOORT_VM_MAX_STACK_SIZE)
+    while (woort_VMRuntime_request_set(
+        vm,
+        WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING))
+        ; /* Wait until occupying finished. */
+
+    bool extern_ok = true;
+    do
     {
-        // Too big...
-        WOORT_DEBUG("Cannot extern stack, too big.");
-        return false;
-    }
+        const size_t current_stack_size = vm->m_stack_end - vm->m_stack;
+        if (current_stack_size < WOORT_VM_MAX_STACK_SIZE)
+        {
+            // Too big...
+            WOORT_DEBUG("Cannot extern stack, too big.");
 
-    const size_t new_stack_size = current_stack_size * 2;
-    woort_Value* const new_stack =
-        malloc(new_stack_size * sizeof(woort_Value));
+            extern_ok = false;
+            break;
+        }
 
-    if (new_stack == NULL)
-    {
-        WOORT_DEBUG("Out of memory.");
-        return false;
-    }
+        const size_t new_stack_size = current_stack_size * 2;
+        woort_Value* const new_stack =
+            malloc(new_stack_size * sizeof(woort_Value));
 
-    // Move stack data from head to tail.
-    memcpy(
-        new_stack + current_stack_size,
-        vm->m_stack,
-        current_stack_size * sizeof(woort_Value));
+        if (new_stack == NULL)
+        {
+            WOORT_DEBUG("Out of memory.");
 
-    free(vm->m_stack);
+            extern_ok = false;
+            break;
+        }
 
-    // Update vm state.
-    woort_Value* const new_stack_end = new_stack + new_stack_size;
-    vm->m_sp = new_stack_end - (vm->m_stack_end - vm->m_sp);
-    vm->m_sb = new_stack_end - (vm->m_stack_end - vm->m_sb);
-    vm->m_stack = new_stack;
-    vm->m_stack_end = new_stack_end;
+        // Move stack data from head to tail.
+        memcpy(
+            new_stack + current_stack_size,
+            vm->m_stack,
+            current_stack_size * sizeof(woort_Value));
 
-    // Update stack version.
-    ++vm->m_stack_realloc_version;
+        free(vm->m_stack);
 
-    return true;
+        // Update vm state.
+        woort_Value* const new_stack_end = new_stack + new_stack_size;
+        vm->m_sp = new_stack_end - (vm->m_stack_end - vm->m_sp);
+        vm->m_sb = new_stack_end - (vm->m_stack_end - vm->m_sb);
+        vm->m_stack = new_stack;
+        vm->m_stack_end = new_stack_end;
+
+        // Update stack version.
+        ++vm->m_stack_realloc_version;
+
+    } while (0);
+
+    (void)woort_VMRuntime_request_accept(
+        vm,
+        WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING);
+
+    return extern_ok;
 }
 
 void woort_VMRuntime_hangup(woort_VMRuntime* vm)
