@@ -334,13 +334,26 @@ void woort_CodeEnv_GC_mark_all_envs(void)
         &_codeenv_global_ctx->m_codeenvs_lock);
 }
 
+/*
+ * woort_CodeEnv_set_trap
+ *
+ * 将指定位置的字节码替换为 DEBUGTRAP 指令，同时将原始指令保存到
+ * m_trap_records 哈希表中（key = 字节码地址, value = 原始指令值）。
+ * 若该地址已被 trap，则不做任何操作并返回 false。
+ */
 WOORT_NODISCARD bool woort_CodeEnv_set_trap(
     woort_CodeEnv* env,
     woort_Bytecode* code)
 {
+    assert(code >= env->m_code_begin && code < env->m_code_end);
+
+    if (*code == woort_OpCode_DEBUGTRAP())
+        return false;
+
     bool r = false;
     woort_CodeEnv_lock(env);
     {
+        /* 插入前 *code 仍为原始指令，hashmap 会按值拷贝保存 */
         if (WOORT_HASHMAP_RESULT_OK == woort_hashmap_insert(&env->m_trap_records, &code, code))
         {
             *code = woort_OpCode_DEBUGTRAP();
@@ -351,16 +364,28 @@ WOORT_NODISCARD bool woort_CodeEnv_set_trap(
     return r;
 }
 
+/*
+ * woort_CodeEnv_clear_trap
+ *
+ * 从 m_trap_records 中查找指定地址的 trap 记录，将原始指令写回
+ * 字节码位置，然后移除该记录。若该地址未被 trap，返回 false。
+ */
 WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
     woort_CodeEnv* env,
     woort_Bytecode* code)
 {
+    assert(code >= env->m_code_begin && code < env->m_code_end);
+
+    if (*code != woort_OpCode_DEBUGTRAP())
+        return false;
+
     bool r = false;
     woort_CodeEnv_lock(env);
     {
         woort_Bytecode* value_addr;
         if (woort_hashmap_find(&env->m_trap_records, &code, &value_addr))
         {
+            /* value_addr 指向哈希表中保存的原始指令值，将其写回 *code */
             *code = *value_addr;
             (void)woort_hashmap_remove(&env->m_trap_records, &code);
             r = true;
@@ -370,10 +395,22 @@ WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
     return r;
 }
 
+/*
+ * woort_CodeEnv_raw_trap
+ *
+ * 读取指定位置的字节码指令，若该位置已被 trap（即当前指令为
+ * DEBUGTRAP），则从 m_trap_records 查找并返回原始指令；否则直接
+ * 返回 *code。适用于反汇编或检查可能存在断点的字节码。
+ *
+ * 无锁快速路径：若 *code 不是 DEBUGTRAP，直接返回，无需加锁。
+ */
 WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
     woort_CodeEnv* env,
     const woort_Bytecode* code)
 {
+    assert(code >= env->m_code_begin && code < env->m_code_end);
+
+    /* 无锁快速路径：不是 DEBUGTRAP 说明没有 trap，直接返回 */
     if (*code != woort_OpCode_DEBUGTRAP())
         return *code;
 
@@ -383,9 +420,18 @@ WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
         woort_Bytecode* value_addr;
         if (woort_hashmap_find(&env->m_trap_records, &code, &value_addr))
         {
+            /* 找到 trap 记录，取出保存的原始指令 */
             r = *value_addr;
         }
     }
+
+    /*
+     * 若在无锁检查与加锁之间，另一个线程刚好清除了该 trap，
+     * 则 *code 已被恢复为原始指令，此时应重新读取 *code。
+     */
+    if (r != woort_OpCode_DEBUGTRAP())
+        r = *code;
+
     woort_CodeEnv_unlock(env);
     return r;
 }

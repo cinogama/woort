@@ -8,7 +8,9 @@
 
 const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
 {
-    const woort_Bytecode bc = c[0];
+    woort_Bytecode bc = c[0];
+
+label_reentry_for_debug_trap:
     const uint8_t op6 = (uint8_t)WOORT_BYTECODE(OP6, bc);
     const uint8_t m2 = (uint8_t)WOORT_BYTECODE(M2, bc);
 
@@ -1339,18 +1341,18 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
                 (int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
         case 1:
-            printf("UNPACKVECX  %u in [SB %+d]\n", 
+            printf("UNPACKVECX  %u in [SB %+d]\n",
                 (uint8_t)WOORT_BYTECODE(A8, bc),
                 (int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
         case 2:
-            printf("UNPACKVECALL %u in [SB %+d] -> [SB %+d]\n", 
+            printf("UNPACKVECALL %u in [SB %+d] -> [SB %+d]\n",
                 (uint8_t)WOORT_BYTECODE(A8, bc),
                 (int8_t)WOORT_BYTECODE(B8, bc),
                 (int8_t)WOORT_BYTECODE(C8, bc));
             return c + 1;
         case 3:
-            printf("UNPACKVECXALL %u in [SB %+d] -> [SB %+d]\n", 
+            printf("UNPACKVECXALL %u in [SB %+d] -> [SB %+d]\n",
                 (uint8_t)WOORT_BYTECODE(A8, bc),
                 (int8_t)WOORT_BYTECODE(B8, bc),
                 (int8_t)WOORT_BYTECODE(C8, bc));
@@ -1432,8 +1434,19 @@ const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
         switch (m2)
         {
         case 0:
-            printf("DEBUGTRAP\n");
-            return c + 1;
+        {
+            woort_CodeEnv* cenv;
+            if (woort_CodeEnv_find(c, &cenv))
+            {
+                bc = woort_CodeEnv_raw_trap(cenv, c);
+                goto label_reentry_for_debug_trap;
+            }
+            else
+            {
+                printf("DEBUGTRAP\n");
+                return c + 1;
+            }
+        }
         case 1:
         {
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);

@@ -476,23 +476,61 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function
     uint32_t bytecode_offset);
 
 /**
- * @brief Set a breakpoint trap at the given bytecode address.
- * @param code  Pointer to the bytecode instruction to trap.
- * @return true on success, false if the address is invalid/already traped/out of memory.
+ * @brief Set a breakpoint (trap) at the given bytecode address.
+ *
+ * Replaces the bytecode instruction at @p code with the DEBUGTRAP opcode,
+ * saving the original instruction in an internal lookup table so it can be
+ * restored later by woort_CodeEnv_clear_trap().  Thread-safe: acquires the
+ * CodeEnv mutex internally.
+ *
+ * @param env   The code environment. Must not be NULL.
+ * @param code  Pointer to the bytecode instruction to trap.  Must point into
+ *              the range [env->m_code_begin, env->m_code_end).
+ * @return true  if the trap was set successfully (the address was not already
+ *               trapped).
+ * @return false if the address was already trapped or the internal hashmap
+ *               ran out of memory.
  */
 WOORT_API WOORT_NODISCARD bool woort_CodeEnv_set_trap(
     woort_CodeEnv* env,
     woort_Bytecode* code);
 
 /**
- * @brief Clear a breakpoint trap at the given bytecode address, restoring the original instruction.
- * @param code  Pointer to the bytecode instruction whose trap should be cleared.
- * @return true on success, false if the address is invalid or not trapped.
+ * @brief Clear a breakpoint (trap) at the given bytecode address.
+ *
+ * Restores the original bytecode instruction that was overwritten by
+ * woort_CodeEnv_set_trap() and removes the trap record.  Thread-safe:
+ * acquires the CodeEnv mutex internally.
+ *
+ * @param env   The code environment. Must not be NULL.
+ * @param code  Pointer to the bytecode instruction whose trap should be
+ *              cleared.  Must point into the range
+ *              [env->m_code_begin, env->m_code_end).
+ * @return true  if the trap was found and cleared successfully.
+ * @return false if no trap was set at the given address.
  */
 WOORT_API WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
     woort_CodeEnv* env,
     woort_Bytecode* code);
 
+/**
+ * @brief Retrieve the original (pre-trap) bytecode instruction at the given
+ *        address.
+ *
+ * If the instruction at @p code has been replaced by a DEBUGTRAP opcode
+ * (i.e. a breakpoint is active), this function looks up and returns the
+ * original instruction from the internal trap record.  If no trap is set,
+ * the bytecode is returned as-is.  Thread-safe: acquires the CodeEnv mutex
+ * internally when a trap lookup is needed.
+ *
+ * This is primarily useful for disassembly or inspection of bytecode that
+ * may have active breakpoint traps.
+ *
+ * @param env   The code environment. Must not be NULL.
+ * @param code  Pointer to the bytecode instruction to read.  Must point into
+ *              the range [env->m_code_begin, env->m_code_end).
+ * @return The original bytecode instruction at the given address.
+ */
 WOORT_API WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
     woort_CodeEnv* env,
     const woort_Bytecode* code);
