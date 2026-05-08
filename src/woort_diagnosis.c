@@ -11,7 +11,7 @@ WOORT_NODISCARD bool woort_vpanic(
     const char* msgfmt,
     va_list args)
 {
-    bool vm_has_been_aborted = false;
+    bool vm_has_been_aborted = true;
     woort_VMRuntime* const panic_vm = WOORT_t_this_thread_vm;
     {
         if (panic_vm == NULL
@@ -23,8 +23,6 @@ WOORT_NODISCARD bool woort_vpanic(
 
             if (panic_vm != NULL)
             {
-                vm_has_been_aborted = true;
-
                 va_list args_copy;
                 va_copy(args_copy, args);
                 const woort_GCString* panic_str =

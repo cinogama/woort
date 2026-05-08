@@ -3656,13 +3656,7 @@ _label_continue_execution:
             else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING)
             {
-                // TODO: 栈占用的等待机制需要重做，用 hangup 不大合适
-                if (woort_VMRuntime_request_accept(
-                    vm,
-                    WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING))
-                {
-                    woort_VMRuntime_hangup(vm);
-                }
+                // Just ignore.
             }
             else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK)
@@ -3956,36 +3950,59 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
     woort_VMRuntime_TraceCallstack_Iter* modify_trace_iter,
     woort_VMRuntime_TraceCallstack* out_result)
 {
+    bool traced = false;
+
     out_result->m_callstack_depth = modify_trace_iter->m_next_tracing_depth++;
     if (out_result->m_callstack_depth == 0)
     {
         (void)_woort_VMRuntime_trace_addr(
             modify_trace_iter->m_vm->m_ip, out_result);
+
+        traced = true;
     }
     else
     {
-        const woort_Value* const sb_addr =
-            modify_trace_iter->m_vm->m_stack_end -
-            modify_trace_iter->m_next_tracing_offset_of_base;
-
-        if (sb_addr + 2 >= modify_trace_iter->m_vm->m_stack_end)
-            // Trace end.
-            return false;
-
-        // Should be CALLWAY & BPOFFSET.
-        modify_trace_iter->m_next_tracing_offset_of_base = 
-            sb_addr[1].m_ret_bp.m_bp_offset;
-
-        if (!_woort_VMRuntime_trace_addr(
-            sb_addr[2].m_ret_addr, out_result))
+        if (modify_trace_iter->m_next_tracing_offset_of_base >= 3)
         {
-            // Failed to trace the function, this is not a valid function address.
-            // TODO: Trying to find next valid call stack place ?
+            while (woort_VMRuntime_request_set(
+                modify_trace_iter->m_vm,
+                WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING))
+                ; /* Wait until occupying finished. */
 
-            return false;
-        }
+            do
+            {
+                const woort_Value* const sb_addr =
+                    modify_trace_iter->m_vm->m_stack_end -
+                    modify_trace_iter->m_next_tracing_offset_of_base;
+
+                if (sb_addr[2].m_ret_addr == NULL)
+                {
+                    // Trace end.
+                    break;
+                }
+
+                // Should be CALLWAY & BPOFFSET.
+                modify_trace_iter->m_next_tracing_offset_of_base =
+                    sb_addr[1].m_ret_bp.m_bp_offset;
+
+                if (!_woort_VMRuntime_trace_addr(
+                    sb_addr[2].m_ret_addr, out_result))
+                {
+                    // Failed to trace the function, this is not a valid function address.
+                    // TODO: Trying to find next valid call stack place ?
+                    break;
+                }
+
+                traced = true;
+
+            } while (0);
+
+            (void)woort_VMRuntime_request_accept(
+                modify_trace_iter->m_vm,
+                WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING);
+        }      
     }
-    return true;
+    return traced;
 }
 
 void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace)
@@ -3993,7 +4010,7 @@ void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace)
     const char* const func = trace->m_function_name;
     const char* const file = trace->m_file_or_lib_name;
     const size_t line = trace->m_location_begin[0];
-    const size_t col  = trace->m_location_begin[1];
+    const size_t col = trace->m_location_begin[1];
 
     if (func != NULL && file != NULL)
     {
