@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "woomem.h"
 #include "woort_value.h"
