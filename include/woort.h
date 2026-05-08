@@ -2634,7 +2634,7 @@ WOORT_API void woort_set_union_box_bool(
  *        severe enough that continuing execution may lead to a crash. Panic blocks the current thread and awaits
  *        further instructions from the user, which may include:
  *          1) abort the entire program,
- *          2) treat as Abort (equivalent to woort_ret_abort), or
+ *          2) treat as Abort, or
  *          3) attach a debugger and break immediately at the current location.
  *
  * @param fmt  Printf-style format string for the panic message.
@@ -2644,14 +2644,6 @@ WOORT_API void woort_set_union_box_bool(
  *       The program may crash even after the user makes a selection.
  */
 WOORT_API WOORT_NODISCARD woort_api woort_ret_panic(const char* fmt, ...);
-
-/**
- * @brief Request to abort further VM execution. Use this when the VM has entered an unrecoverable state where
- *        continuing execution in the current context would lead to unpredictable results. For example, when
- *        woort_invoke returns WOORT_VM_CALL_STATUS_ABORTED, the call stack may be corrupted, requiring
- *        woort_ret_abort to abort the current Native-function call and prevent the VM from continuing.
- */
-WOORT_API WOORT_NODISCARD woort_api woort_ret_abort(void);
 
 /**
  * @brief Request to pause VM execution, preserving the state after the current Native-function call completes.

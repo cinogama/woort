@@ -2829,7 +2829,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_ii(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
     (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
@@ -2845,7 +2845,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_ir(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
     (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
@@ -2861,7 +2861,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_ib(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
     (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
@@ -2874,7 +2874,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_ix(void)
     if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
         return woort_ret();
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
     return woort_ret();
 }
@@ -2888,7 +2888,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_ri(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
     (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
@@ -2904,7 +2904,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_rr(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
     (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
@@ -2920,7 +2920,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_rb(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
     (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
@@ -2933,7 +2933,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_rx(void)
     if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
         return woort_ret();
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
     return woort_ret();
 }
@@ -2947,7 +2947,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_bi(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
     (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
@@ -2963,7 +2963,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_br(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
     (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
@@ -2979,7 +2979,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_bb(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
     (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
@@ -2992,7 +2992,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_bx(void)
     if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
         return woort_ret();
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
     return woort_ret();
 }
@@ -3005,7 +3005,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_xi(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
     (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
@@ -3020,7 +3020,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_xr(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
     (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
@@ -3035,7 +3035,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_xb(void)
         return woort_ret();
     }
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
     woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
     (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
@@ -3047,7 +3047,7 @@ static woort_api woort_builtin_map_get_or_set_default_do_xx(void)
     if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
         return woort_ret();
     if (woort_invoke(WOORT_RETURN_SLOT, 2) == WOORT_VM_CALL_STATUS_ABORTED)
-        return woort_ret_abort();
+        return woort_ret_panic("Failed to invoke callback function.");
     (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
     return woort_ret();
 }
