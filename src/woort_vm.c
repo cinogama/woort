@@ -3872,7 +3872,7 @@ void woort_VMRuntime_trace_begin(
 }
 
 static WOORT_NODISCARD bool _woort_VMRuntime_trace_addr(
-    const woort_Bytecode* code, woort_VMRuntime_TraceCallstack* out_result)
+    const woort_Bytecode* code, intptr_t code_shift, woort_VMRuntime_TraceCallstack* out_result)
 {
     assert(code != NULL);
 
@@ -3883,7 +3883,7 @@ static WOORT_NODISCARD bool _woort_VMRuntime_trace_addr(
         woort_SourceLocation src_loc;
 
         // Found, trace it.
-        const uint32_t code_offset = (uint32_t)(code - cenv->m_code_begin);
+        const uint32_t code_offset = (uint32_t)((code - cenv->m_code_begin) + code_shift);
         if (woort_CodeEnv_find_srcloc_by_offset(
             cenv, code_offset, &src_loc))
         {
@@ -3956,7 +3956,7 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
     if (out_result->m_callstack_depth == 0)
     {
         (void)_woort_VMRuntime_trace_addr(
-            modify_trace_iter->m_vm->m_ip, out_result);
+            modify_trace_iter->m_vm->m_ip, 0, out_result);
 
         traced = true;
     }
@@ -3986,7 +3986,7 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
                     sb_addr[1].m_ret_bp.m_bp_offset;
 
                 if (!_woort_VMRuntime_trace_addr(
-                    sb_addr[2].m_ret_addr, out_result))
+                    sb_addr[2].m_ret_addr, -1, out_result))
                 {
                     // Failed to trace the function, this is not a valid function address.
                     // TODO: Trying to find next valid call stack place ?
@@ -4000,7 +4000,7 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
             (void)woort_VMRuntime_request_accept(
                 modify_trace_iter->m_vm,
                 WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING);
-        }      
+        }
     }
     return traced;
 }
