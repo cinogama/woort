@@ -20,7 +20,9 @@ typedef enum woort_VMRuntime_CheckRequestMask
 {
     /*
     ABORT
-    虚拟机状态发生错误而无法继续
+    虚拟机状态发生错误而无法继续，此请求在 Panic 发出后决定。
+    设置此请求时，**必须** 在当前虚拟机的 m_sp 处立即写入一个
+    GCString 用以描述 panic 信息。
         * JIT 运行时：
         * 解释执行运行时：
             以 WOORT_VM_CALL_STATUS_ABORTED 结束调用

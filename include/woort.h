@@ -322,6 +322,11 @@ WOORT_API void woort_VMRuntime_destroy(
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     /* OPTIONAL */ woort_VMRuntime* vm);
 
+/**
+ * @brief Get the runtime error message if the VM has aborted.
+ * @param vm  The VM instance. Must not be NULL.
+ * @return The error message string, or NULL if the VM has not aborted.
+ */
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_VMRuntime_get_runtime_error_msg(
     woort_VMRuntime* vm);
 
@@ -2005,6 +2010,7 @@ WOORT_API WOORT_NODISCARD
 
 #define woort_vm_close woort_VMRuntime_destroy
 #define woort_vm_swap woort_VMRuntime_swap
+#define woort_vm_get_runtime_error woort_VMRuntime_get_runtime_error_msg
 #define woort_codeenv_drop woort_CodeEnv_drop
 
 /**
