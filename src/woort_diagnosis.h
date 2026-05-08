@@ -7,6 +7,7 @@ woort_diagnosis.h
 #include "woort.h"
 
 #include <stdarg.h>
+#include <stdbool.h>
 
 typedef enum woort_PanicReason
 {
@@ -22,7 +23,7 @@ typedef enum woort_PanicReason
     WOORT_PANIC_USER = 0xD00A,
 } woort_PanicReason;
 
-void woort_vpanic(
+WOORT_NODISCARD bool woort_vpanic(
     woort_PanicReason reason, const char* msgfmt, va_list va_list);
 
 void woort_panic(

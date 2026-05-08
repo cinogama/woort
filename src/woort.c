@@ -2056,3 +2056,41 @@ WOORT_NODISCARD /* OPTIONAL */ char* woort_u32strn_to_str(const char32_t* str, s
     size_t out_len;
     return woort_u32strtou8(str, size, &out_len);
 }
+
+WOORT_NODISCARD woort_VmCallStatus woort_ret_panic(const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    const bool vm_has_been_aborted = 
+        woort_vpanic(WOORT_PANIC_ABORTED, fmt, args);
+
+    va_end(args);
+
+    if (vm_has_been_aborted)
+    {
+        // NOTE: 考虑到外部函数以 RESYNC 返回虚拟机时，虚拟机实现会将
+        // 栈拉平到调用发生前，为了确保异常信息能被正确记录到拉平之后
+        // 的 m_sp，此处做一次额外的转移.
+
+        woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+        assert(vm != NULL);
+
+        _WOORT_API_STACK(WOORT_RETURN_SLOT).m_string =
+            vm->m_sp->m_string;
+    }
+
+    return WOORT_VM_CALL_STATUS_RESYNC;
+}
+
+WOORT_NODISCARD woort_VmCallStatus woort_ret_yield(void)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    if (vm != NULL)
+    {
+        (void)woort_VMRuntime_request_set(
+            vm,
+            WOORT_VMRUNTIME_CHECK_REQUEST_YIELD);
+    }
+    return WOORT_VM_CALL_STATUS_RESYNC;
+}
