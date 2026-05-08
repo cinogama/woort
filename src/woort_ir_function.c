@@ -180,6 +180,7 @@ void woort_IRFunction_init(woort_IRFunction* f, uint32_t param_count, uint32_t c
     woort_vector_init(&f->m_instructions, sizeof(woort_IROp));
     woort_vector_init(&f->m_blocks, sizeof(woort_IRBlock));
 
+    f->m_name = NULL;
     f->m_code_offset = 0;
     f->m_code_length = 0;
 

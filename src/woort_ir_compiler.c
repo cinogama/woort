@@ -2096,6 +2096,14 @@ WOORT_NODISCARD bool woort_IRCompiler_add_function(
     return true;
 }
 
+void woort_IRFunction_set_name(
+    woort_IRFunction* f,
+    /* OPTIONAL */ const char* name)
+{
+    assert(f != NULL);
+    f->m_name = name;
+}
+
 WOORT_NODISCARD woort_IRConstantIndex woort_IRCompiler_add_constant(woort_IRCompiler* c)
 {
     return c->m_constant_alloc_count++;
@@ -2125,12 +2133,32 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
 
     /* 为每个函数分配临时的映射条目收集器 */
     woort_Vector* per_func_entries = NULL;
+    const char** per_func_names = NULL;
+    uint32_t* per_func_code_offsets = NULL;
+    uint32_t* per_func_code_lengths = NULL;
+
     if (func_count > 0)
     {
         per_func_entries = (woort_Vector*)malloc(
             sizeof(woort_Vector) * func_count);
-        if (per_func_entries == NULL)
+        per_func_names = (const char**)malloc(
+            sizeof(const char*) * func_count);
+        per_func_code_offsets = (uint32_t*)malloc(
+            sizeof(uint32_t) * func_count);
+        per_func_code_lengths = (uint32_t*)malloc(
+            sizeof(uint32_t) * func_count);
+
+        if (per_func_entries == NULL
+            || per_func_names == NULL
+            || per_func_code_offsets == NULL
+            || per_func_code_lengths == NULL)
+        {
+            free(per_func_entries);
+            free(per_func_names);
+            free(per_func_code_offsets);
+            free(per_func_code_lengths);
             return false;
+        }
 
         for (uint32_t i = 0; i < func_count; ++i)
             woort_vector_init(&per_func_entries[i], sizeof(woort_SourceMap_Entry));
@@ -2149,6 +2177,9 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
                 for (uint32_t j = 0; j < func_count; ++j)
                     woort_vector_deinit(&per_func_entries[j]);
                 free(per_func_entries);
+                free(per_func_names);
+                free(per_func_code_offsets);
+                free(per_func_code_lengths);
                 return false;
             }
 
@@ -2163,6 +2194,11 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
                         &per_func_entries[fi], ei);
                 entry->m_bytecode_offset += (uint32_t)f->m_code_offset;
             }
+
+            /* 收集函数边界信息 */
+            per_func_names[fi] = f->m_name;
+            per_func_code_offsets[fi] = (uint32_t)f->m_code_offset;
+            per_func_code_lengths[fi] = (uint32_t)f->m_code_length;
         }
     }
 
@@ -2186,7 +2222,10 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
         woort_CodeEnv_set_source_maps(
             *out_cenv,
             per_func_entries,
-            func_count);
+            func_count,
+            per_func_names,
+            per_func_code_offsets,
+            per_func_code_lengths);
     }
 
     /* 清理临时数据 */
@@ -2195,6 +2234,9 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
         for (uint32_t i = 0; i < func_count; ++i)
             woort_vector_deinit(&per_func_entries[i]);
         free(per_func_entries);
+        free(per_func_names);
+        free(per_func_code_offsets);
+        free(per_func_code_lengths);
     }
     return result;
 }

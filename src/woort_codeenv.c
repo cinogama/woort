@@ -81,6 +81,11 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     code_env->m_source_map.m_entry_count = 0;
     woort_StringPool_deinit(&code_env->m_srcloc_string_pool);
 
+    /* 释放函数边界数据 */
+    free(code_env->m_function_boundaries);
+    code_env->m_function_boundaries = NULL;
+    code_env->m_function_boundary_count = 0;
+
     /* 释放关联的外部库 */
     for (size_t i = 0; i < code_env->m_extern_libs.m_size; ++i)
     {
@@ -178,6 +183,10 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         code_env_instance->m_source_map.m_entries = NULL;
         code_env_instance->m_source_map.m_entry_count = 0;
         woort_StringPool_init(&code_env_instance->m_srcloc_string_pool);
+
+        /* 初始化函数边界为空 */
+        code_env_instance->m_function_boundaries = NULL;
+        code_env_instance->m_function_boundary_count = 0;
 
         code_env_instance->m_data_count = constant_and_static_storage_count;
 
@@ -381,7 +390,10 @@ WOORT_NODISCARD bool woort_CodeEnv_clear_trap(woort_Bytecode* code)
 void woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
     const woort_Vector* per_func_entries,
-    uint32_t func_count)
+    uint32_t func_count,
+    /* OPTIONAL */ const char** per_func_names,
+    const uint32_t* per_func_code_offsets,
+    const uint32_t* per_func_code_lengths)
 {
     /* 计算总条目数 */
     uint32_t total_entries = 0;
@@ -389,14 +401,17 @@ void woort_CodeEnv_set_source_maps(
         total_entries += (uint32_t)per_func_entries[i].m_size;
 
     if (total_entries == 0)
-        return;
+    {
+        /* 即使没有源码映射条目，仍然记录函数边界 */
+        goto build_function_boundaries;
+    }
 
     /* 分配合并的条目数组 */
     woort_SourceMap_Entry* entries = (woort_SourceMap_Entry*)malloc(
         sizeof(woort_SourceMap_Entry) * total_entries);
 
     if (entries == NULL)
-        return; /* OOM: 映射丢失不影响正确性 */
+        goto build_function_boundaries; /* OOM: 映射丢失不影响正确性 */
 
     /* 合并所有函数的条目 */
     uint32_t offset = 0;
@@ -431,6 +446,42 @@ void woort_CodeEnv_set_source_maps(
 
     env->m_source_map.m_entries = entries;
     env->m_source_map.m_entry_count = total_entries;
+
+build_function_boundaries:
+
+    /*
+     * 构建函数边界表。
+     * 即使没有源码映射条目，函数边界信息仍然有用。
+     */
+    if (func_count == 0 || per_func_code_offsets == NULL || per_func_code_lengths == NULL)
+        return;
+
+    woort_FunctionBoundary* boundaries = (woort_FunctionBoundary*)malloc(
+        sizeof(woort_FunctionBoundary) * func_count);
+
+    if (boundaries == NULL)
+        return; /* OOM: 边界信息丢失不影响正确性 */
+
+    for (uint32_t i = 0; i < func_count; ++i)
+    {
+        boundaries[i].m_offset_begin = per_func_code_offsets[i];
+        boundaries[i].m_code_length = per_func_code_lengths[i];
+
+        if (per_func_names != NULL && per_func_names[i] != NULL)
+        {
+            const char* interned = woort_StringPool_intern(
+                &env->m_srcloc_string_pool,
+                per_func_names[i]);
+            boundaries[i].m_name = interned;
+        }
+        else
+        {
+            boundaries[i].m_name = NULL;
+        }
+    }
+
+    env->m_function_boundaries = boundaries;
+    env->m_function_boundary_count = func_count;
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_find_srcloc_by_offset(
@@ -440,6 +491,45 @@ WOORT_NODISCARD bool woort_CodeEnv_find_srcloc_by_offset(
 {
     return woort_SourceMap_find_by_offset(
         &env->m_source_map, bytecode_offset, out_location);
+}
+
+WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_offset(
+    const woort_CodeEnv* env,
+    uint32_t bytecode_offset)
+{
+    const woort_FunctionBoundary* boundaries = env->m_function_boundaries;
+    const uint32_t count = env->m_function_boundary_count;
+
+    if (boundaries == NULL || count == 0)
+        return NULL;
+
+    /*
+     * 二分查找：找到最后一个 m_offset_begin <= bytecode_offset 的条目。
+     * 由于条目按 m_offset_begin 升序排列且函数区间不重叠，
+     * 该条目即为目标函数。
+     */
+    uint32_t lo = 0;
+    uint32_t hi = count;
+
+    while (lo < hi)
+    {
+        uint32_t mid = lo + (hi - lo) / 2;
+        if (boundaries[mid].m_offset_begin <= bytecode_offset)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+
+    if (lo == 0)
+        return NULL;
+
+    const woort_FunctionBoundary* found = &boundaries[lo - 1];
+
+    /* 验证偏移量在函数范围内 */
+    if (bytecode_offset >= found->m_offset_begin + found->m_code_length)
+        return NULL;
+
+    return found->m_name;
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(

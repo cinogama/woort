@@ -38,6 +38,9 @@ struct woort_IRFunction
     /* finish 阶段生成的基本块 */
     woort_Vector /* woort_IRBlock */ m_blocks;
 
+    /* 函数名称（编译期设置，finish 阶段转移到 CodeEnv 的字符串池） */
+    /* OPTIONAL */ const char* m_name;
+
     /* finish 阶段：函数字节码的起始偏移 (在 compiler 的总代码中) */
     size_t m_code_offset;
     size_t m_code_length;

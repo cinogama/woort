@@ -58,6 +58,17 @@ struct woort_CodeEnv {
      */
     woort_StringPool m_srcloc_string_pool;
 
+    /* === 函数边界表 === */
+    /*
+     * 字节码偏移 -> 函数名 的映射表。
+     * 按 m_offset_begin 升序排列，使用二分查找查询。
+     * 由 woort_CodeEnv_set_source_maps() 设置。
+     * CodeEnv 拥有所有权（m_name 指针指向 m_srcloc_string_pool 中的字符串）。
+     * 如果无函数边界信息，m_function_boundaries 为 NULL 且 m_function_boundary_count 为 0。
+     */
+    /* OPTIONAL */ woort_FunctionBoundary* m_function_boundaries;
+    uint32_t m_function_boundary_count;
+
     /* === 外部库句柄跟踪 === */
     /*
      * 与 CodeEnv 关联的外部动态库句柄列表。
@@ -88,11 +99,17 @@ void woort_CodeEnv_GC_mark_all_envs(void);
  *
  * per_func_entries: 每个函数对应一个 woort_Vector<woort_SourceMap_Entry>
  * func_count: 函数数量
+ * per_func_names: 每个函数的名称（可能为 NULL，表示匿名函数）
+ * per_func_code_offsets: 每个函数字节码的起始偏移
+ * per_func_code_lengths: 每个函数字节码的长度
  */
 void woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
     const woort_Vector* per_func_entries,
-    uint32_t func_count);
+    uint32_t func_count,
+    /* OPTIONAL */ const char** per_func_names,
+    const uint32_t* per_func_code_offsets,
+    const uint32_t* per_func_code_lengths);
 
 /*
  * 将外部库句柄关联到 CodeEnv。

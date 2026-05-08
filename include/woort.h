@@ -297,6 +297,21 @@ typedef struct woort_SourceLocation
 
 } woort_SourceLocation;
 
+/**
+ * @brief Function boundary descriptor for mapping bytecode offsets to function names.
+ *
+ * Entries are sorted by m_offset_begin in ascending order.
+ * A bytecode offset belongs to a function if offset >= m_offset_begin
+ * and offset < m_offset_begin + m_code_length.
+ */
+typedef struct woort_FunctionBoundary
+{
+    uint32_t m_offset_begin;           /**< @brief Bytecode offset where the function starts. */
+    uint32_t m_code_length;            /**< @brief Length of the function's bytecode in words. */
+    /* OPTIONAL */ const char* m_name; /**< @brief Function name (may be NULL for anonymous). */
+
+} woort_FunctionBoundary;
+
 /* ========== VM API ========== */
 
 /**
@@ -396,6 +411,21 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
     const char* filepath,
     uint32_t line,
     uint32_t* out_bytecode_offset);
+
+/**
+ * @brief Look up the function name for a given bytecode offset.
+ *
+ * Searches the function boundary table to find the function that contains
+ * the given bytecode offset.
+ *
+ * @param env             The code environment. Must not be NULL.
+ * @param bytecode_offset The bytecode offset to look up.
+ * @return The function name, or NULL if no function boundary contains the offset
+ *         or the function is anonymous.
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_offset(
+    const woort_CodeEnv* env,
+    uint32_t bytecode_offset);
 
 /**
  * @brief Set a breakpoint trap at the given bytecode address.
@@ -598,6 +628,20 @@ WOORT_API WOORT_NODISCARD bool woort_IRFunction_push_srcloc(
  * @param f  The IR function. Must not be NULL.
  */
 WOORT_API void woort_IRFunction_pop_srcloc(woort_IRFunction* f);
+
+/**
+ * @brief Set the name of an IR function.
+ *
+ * The name string need not be interned; it will be copied into the
+ * CodeEnv's string pool during woort_IRCompiler_finish().
+ * The pointer must remain valid until after finish() completes.
+ *
+ * @param f     The IR function. Must not be NULL.
+ * @param name  The function name (may be NULL for anonymous functions).
+ */
+WOORT_API void woort_IRFunction_set_name(
+    woort_IRFunction* f,
+    /* OPTIONAL */ const char* name);
 
 /* ========== Instruction Emission API ========== */
 
