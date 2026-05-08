@@ -32,3 +32,12 @@ struct woort_Dylib
 
 bool _woort_dylib_bootup(void);
 void _woort_dylib_shutdown(void);
+
+/*
+ATTENTION: Pay attention to thread safety issues. The dylib obtained here does not have an 
+extra reference count. If the last reference is released elsewhere at the same time, you may
+get an invalid woort_Dylib. Considering that this interface is only used for internal callstack
+tracing, the GC should guarantee that the codeenv corresponding to the library remains alive, 
+so no special handling is required. However, other parts do not necessarily have this guarantee.
+*/
+WOORT_NODISCARD bool woort_Dylib_find_by_resolved_func(void* addr, woort_Dylib** out_dylib);

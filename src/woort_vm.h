@@ -188,3 +188,30 @@ WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm);
 WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
     woort_VMRuntime* vm);
 
+typedef struct woort_VMRuntime_TraceCallstack_Iter
+{
+    woort_VMRuntime* m_vm;
+
+    size_t m_next_tracing_depth;
+    size_t m_next_tracing_offset_of_base;
+
+} woort_VMRuntime_TraceCallstack_Iter;
+
+typedef struct woort_VMRuntime_TraceCallstack
+{
+    bool m_is_fuzzy;
+
+    const char* m_function_name;
+    const char* m_file_or_lib_name;
+
+    size_t m_location_begin[2];
+    size_t m_location_end[2];
+
+}woort_VMRuntime_TraceCallstack;
+
+void woort_VMRuntime_trace_begin(
+    woort_VMRuntime* vm,
+    woort_VMRuntime_TraceCallstack_Iter* out_trace_iter);
+WOORT_NODISCARD bool woort_VMRuntime_trace_next(
+    woort_VMRuntime_TraceCallstack_Iter* modify_trace_iter,
+    woort_VMRuntime_TraceCallstack* out_result);

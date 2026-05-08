@@ -650,3 +650,52 @@ void woort_dylib_keep(woort_Dylib* lib)
     woort_atomic_fetch_add_explicit(
         &lib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 }
+
+static bool _woort_dylib_find_by_resolved_func_foreach(
+    const void* key,
+    void* value,
+    /* OPTIONAL */ void* user_data)
+{
+    (void)key;
+    woort_Dylib* dylib = *(woort_Dylib**)value;
+    void** args = (void**)user_data;
+
+    void* target_addr = args[0];
+
+    woort_rwspinlock_read_lock(&dylib->m_resolved_lock);
+    {
+        void* unused;
+        bool found = woort_hashmap_find(
+            &dylib->m_resolved_funcs, &target_addr, &unused);
+        if (found)
+        {
+            args[1] = (void*)dylib;
+            woort_rwspinlock_read_unlock(&dylib->m_resolved_lock);
+            return false;
+        }
+    }
+    woort_rwspinlock_read_unlock(&dylib->m_resolved_lock);
+
+    return true;
+}
+
+WOORT_NODISCARD bool woort_Dylib_find_by_resolved_func(void* addr, woort_Dylib** out_dylib)
+{
+    if (addr == NULL || out_dylib == NULL)
+        return false;
+
+    void* args[2] = { addr, NULL };
+
+    woort_recursive_mutex_lock(g_named_libs_mx);
+    (void)woort_hashmap_foreach(&g_named_libs,
+        _woort_dylib_find_by_resolved_func_foreach, args);
+    woort_recursive_mutex_unlock(g_named_libs_mx);
+
+    if (args[1] != NULL)
+    {
+        *out_dylib = (woort_Dylib*)args[1];
+        return true;
+    }
+
+    return false;
+}

@@ -20,6 +20,7 @@
 #include "woort_vm_debugger.h"
 #include "woort_disassembly.h"
 #include "woort_serialize.h"
+#include "woort_dylib.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -3864,4 +3865,52 @@ WOORT_NODISCARD /* OPTIONAL */ const char* woort_VMRuntime_get_runtime_error_msg
         return vm->m_sp->m_string->m_content;
     }
     return NULL;
+}
+
+void woort_VMRuntime_trace_begin(
+    woort_VMRuntime* vm, 
+    woort_VMRuntime_TraceCallstack_Iter* out_trace_iter)
+{
+    out_trace_iter->m_vm = vm;
+    out_trace_iter->m_next_tracing_depth = 0;
+    out_trace_iter->m_next_tracing_offset_of_base = 
+        (size_t)(vm->m_stack_end - vm->m_sp);
+}
+
+static void _woort_VMRuntime_trace_addr(
+    const woort_Bytecode* code, woort_VMRuntime_TraceCallstack* out_result)
+{
+    assert(code == NULL);
+
+    // Try find the code_env from code.
+    woort_CodeEnv* cenv;
+    if (woort_CodeEnv_find(code, &cenv))
+    {
+        woort_SourceLocation src_loc;
+
+        // Found, trace it.
+        if (woort_CodeEnv_find_srcloc_by_offset(cenv, code - cenv->m_code_begin, &src_loc))
+        {
+        }
+        else
+        {
+        }
+    }
+
+    // May be extern function?
+    woort_Dylib* out_dylib;
+    if (woort_Dylib_find_by_resolved_func((void*)code, &out_dylib))
+    {
+        
+    }
+
+    // Emm? what?
+
+}
+
+WOORT_NODISCARD bool woort_VMRuntime_trace_next(
+    woort_VMRuntime_TraceCallstack_Iter* modify_trace_iter,
+    woort_VMRuntime_TraceCallstack* out_result)
+{
+
 }
