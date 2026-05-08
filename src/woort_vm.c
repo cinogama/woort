@@ -3619,7 +3619,7 @@ _label_continue_execution:
                 goto _label_vm_dispatch_reentry_for_debug_trap;
             }
             /* 没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
-            (void)woort_CodeEnv_clear_trap((woort_Bytecode*)rt_ip);
+            (void)woort_CodeEnv_clear_trap(rt_env, (woort_Bytecode*)rt_ip);
             continue;
         }
         // PANICS

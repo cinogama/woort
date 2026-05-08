@@ -334,50 +334,59 @@ void woort_CodeEnv_GC_mark_all_envs(void)
         &_codeenv_global_ctx->m_codeenvs_lock);
 }
 
-WOORT_NODISCARD bool woort_CodeEnv_set_trap(woort_Bytecode* code)
+WOORT_NODISCARD bool woort_CodeEnv_set_trap(
+    woort_CodeEnv* env,
+    woort_Bytecode* code)
 {
-    // Find env
-    woort_CodeEnv* codeenv;
-    if (!woort_CodeEnv_find(code, &codeenv))
-    {
-        // Bad code.
-        return false;
-    }
-
     bool r = false;
-    woort_CodeEnv_lock(codeenv);
+    woort_CodeEnv_lock(env);
     {
-        if (WOORT_HASHMAP_RESULT_OK == woort_hashmap_insert(&codeenv->m_trap_records, &code, code))
+        if (WOORT_HASHMAP_RESULT_OK == woort_hashmap_insert(&env->m_trap_records, &code, code))
         {
-            // Traped.
             *code = woort_OpCode_DEBUGTRAP();
             r = true;
         }
     }
-    woort_CodeEnv_unlock(codeenv);
+    woort_CodeEnv_unlock(env);
     return r;
 }
 
-WOORT_NODISCARD bool woort_CodeEnv_clear_trap(woort_Bytecode* code)
+WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
+    woort_CodeEnv* env,
+    woort_Bytecode* code)
 {
-    woort_CodeEnv* codeenv;
-    if (!woort_CodeEnv_find(code, &codeenv))
-    {
-        return false;
-    }
-
     bool r = false;
-    woort_CodeEnv_lock(codeenv);
+    woort_CodeEnv_lock(env);
     {
         woort_Bytecode* value_addr;
-        if (woort_hashmap_find(&codeenv->m_trap_records, &code, &value_addr))
+        if (woort_hashmap_find(&env->m_trap_records, &code, &value_addr))
         {
             *code = *value_addr;
-            (void)woort_hashmap_remove(&codeenv->m_trap_records, &code);
+            (void)woort_hashmap_remove(&env->m_trap_records, &code);
             r = true;
         }
     }
-    woort_CodeEnv_unlock(codeenv);
+    woort_CodeEnv_unlock(env);
+    return r;
+}
+
+WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
+    woort_CodeEnv* env,
+    const woort_Bytecode* code)
+{
+    if (*code != woort_OpCode_DEBUGTRAP())
+        return *code;
+
+    woort_Bytecode r = woort_OpCode_DEBUGTRAP();
+    woort_CodeEnv_lock(env);
+    {
+        woort_Bytecode* value_addr;
+        if (woort_hashmap_find(&env->m_trap_records, &code, &value_addr))
+        {
+            r = *value_addr;
+        }
+    }
+    woort_CodeEnv_unlock(env);
     return r;
 }
 
