@@ -345,6 +345,54 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_VMRuntime_get_runtime_error_msg(
     woort_VMRuntime* vm);
 
+typedef struct woort_VMRuntime_TraceCallstack_Iter
+{
+    woort_VMRuntime* m_vm;
+
+    size_t m_next_tracing_depth;
+    size_t m_next_tracing_offset_of_base;
+
+} woort_VMRuntime_TraceCallstack_Iter;
+
+typedef struct woort_VMRuntime_TraceCallstack
+{
+    size_t m_callstack_depth;
+    bool m_is_fuzzy;
+    bool m_has_location;
+
+    /* OPTIONAL */ const char* m_function_name;
+    /* OPTIONAL */ const char* m_file_or_lib_name;
+
+    size_t m_location_begin[2];
+    size_t m_location_end[2];
+
+} woort_VMRuntime_TraceCallstack;
+
+/**
+ * @brief Begin iterating over the VM callstack for tracing.
+ * @param vm  The VM instance. Must not be NULL.
+ * @param[out] out_trace_iter  Pointer to receive the trace iterator. Must not be NULL.
+ */
+WOORT_API void woort_VMRuntime_trace_begin(
+    woort_VMRuntime* vm,
+    woort_VMRuntime_TraceCallstack_Iter* out_trace_iter);
+
+/**
+ * @brief Advance the trace iterator to the next callstack frame.
+ * @param modify_trace_iter  The trace iterator to advance. Must not be NULL.
+ * @param[out] out_result  Pointer to receive the trace callstack info. Must not be NULL.
+ * @return true if a frame was retrieved, false if iteration is complete.
+ */
+WOORT_API WOORT_NODISCARD bool woort_VMRuntime_trace_next(
+    woort_VMRuntime_TraceCallstack_Iter* modify_trace_iter,
+    woort_VMRuntime_TraceCallstack* out_result);
+
+/**
+ * @brief Log a trace callstack entry.
+ * @param trace  The trace callstack info to log. Must not be NULL.
+ */
+WOORT_API void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace);
+
 /* ========== IR API ========== */
 
 /**
@@ -433,6 +481,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function
  * @return true on success, false if the address is invalid/already traped/out of memory.
  */
 WOORT_API WOORT_NODISCARD bool woort_CodeEnv_set_trap(
+    woort_CodeEnv* env,
     woort_Bytecode* code);
 
 /**
@@ -441,7 +490,12 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_set_trap(
  * @return true on success, false if the address is invalid or not trapped.
  */
 WOORT_API WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
+    woort_CodeEnv* env,
     woort_Bytecode* code);
+
+WOORT_API WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
+    woort_CodeEnv* env,
+    const woort_Bytecode* code);
 
 /**
  * @brief Disassemble and print codes to stdout.
