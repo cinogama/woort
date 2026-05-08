@@ -1,6 +1,7 @@
 #include "woort_diagnosis.h"
 #include "woort_log.h"
 #include "woort_vm.h"
+#include "woort_gc_string.h"
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -10,19 +11,30 @@ void woort_vpanic(
     const char* msgfmt,
     va_list args)
 {
-    woort_VMRuntime* const panic_vm = woort_VMRuntime_swap(NULL);
+    woort_VMRuntime* const panic_vm = WOORT_t_this_thread_vm;
     {
-        if (woort_VMRuntime_request_set(panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT))
+        if (panic_vm == NULL
+            || woort_VMRuntime_request_set(panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT))
         {
             woort_log(
                 "WooRT Panic: Fatal runtime error(%X). "
                 "Program execution terminated:\n    ", reason);
 
+            if (panic_vm != NULL)
+            {
+                va_list args_copy;
+                va_copy(args_copy, args);
+                const woort_GCString* panic_str =
+                    woort_GCString_make_format_va(msgfmt, args_copy);
+                va_end(args_copy);
+
+                panic_vm->m_sb->m_string = panic_str;
+                panic_vm->m_sb++;
+            }
             woort_vlog(msgfmt, args);
         }
         /* else: This VM already aborted, skip. */
     }
-    (void)woort_VMRuntime_swap(panic_vm);
 }
 
 void woort_panic(

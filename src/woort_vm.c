@@ -3643,11 +3643,7 @@ _label_continue_execution:
         {
             if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
             {
-                woort_panic(
-                    WOORT_PANIC_ABORTED,
-                    "Aborted vm.",
-                    request_mask);
-
+                // Already aborted.
                 return WOORT_VM_CALL_STATUS_ABORTED;
             }
             else if (request_mask
@@ -3858,4 +3854,14 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
         woort_VMRuntime_gc_checkpoint(vm);
     }
     return last_vm;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ const char* woort_VMRuntime_get_runtime_error_msg(
+    woort_VMRuntime* vm)
+{
+    if (woort_VMRuntime_request_check(vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT))
+    {
+        return vm->m_sp->m_string->m_content;
+    }
+    return NULL;
 }

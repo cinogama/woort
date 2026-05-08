@@ -322,6 +322,9 @@ WOORT_API void woort_VMRuntime_destroy(
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     /* OPTIONAL */ woort_VMRuntime* vm);
 
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_VMRuntime_get_runtime_error_msg(
+    woort_VMRuntime* vm);
+
 /* ========== IR API ========== */
 
 /**
