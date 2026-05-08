@@ -82,9 +82,7 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     woort_StringPool_deinit(&code_env->m_srcloc_string_pool);
 
     /* 释放函数边界数据 */
-    free(code_env->m_function_boundaries);
-    code_env->m_function_boundaries = NULL;
-    code_env->m_function_boundary_count = 0;
+    woort_vector_deinit(&code_env->m_function_boundaries);
 
     /* 释放关联的外部库 */
     for (size_t i = 0; i < code_env->m_extern_libs.m_size; ++i)
@@ -185,8 +183,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         woort_StringPool_init(&code_env_instance->m_srcloc_string_pool);
 
         /* 初始化函数边界为空 */
-        code_env_instance->m_function_boundaries = NULL;
-        code_env_instance->m_function_boundary_count = 0;
+        woort_vector_init(&code_env_instance->m_function_boundaries,
+            sizeof(woort_FunctionBoundary));
 
         code_env_instance->m_data_count = constant_and_static_storage_count;
 
@@ -456,32 +454,27 @@ build_function_boundaries:
     if (func_count == 0 || per_func_code_offsets == NULL || per_func_code_lengths == NULL)
         return;
 
-    woort_FunctionBoundary* boundaries = (woort_FunctionBoundary*)malloc(
-        sizeof(woort_FunctionBoundary) * func_count);
-
-    if (boundaries == NULL)
-        return; /* OOM: 边界信息丢失不影响正确性 */
-
     for (uint32_t i = 0; i < func_count; ++i)
     {
-        boundaries[i].m_offset_begin = per_func_code_offsets[i];
-        boundaries[i].m_code_length = per_func_code_lengths[i];
+        woort_FunctionBoundary boundary;
+        boundary.m_offset_begin = per_func_code_offsets[i];
+        boundary.m_code_length = per_func_code_lengths[i];
 
         if (per_func_names != NULL && per_func_names[i] != NULL)
         {
             const char* interned = woort_StringPool_intern(
                 &env->m_srcloc_string_pool,
                 per_func_names[i]);
-            boundaries[i].m_name = interned;
+            boundary.m_name = interned;
         }
         else
         {
-            boundaries[i].m_name = NULL;
+            boundary.m_name = NULL;
         }
-    }
 
-    env->m_function_boundaries = boundaries;
-    env->m_function_boundary_count = func_count;
+        /* 忽略 push_back 失败 —— 边界信息丢失不影响正确性 */
+        (void)woort_vector_push_back(&env->m_function_boundaries, 1, &boundary);
+    }
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_find_srcloc_by_offset(
@@ -497,10 +490,10 @@ WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_o
     const woort_CodeEnv* env,
     uint32_t bytecode_offset)
 {
-    const woort_FunctionBoundary* boundaries = env->m_function_boundaries;
-    const uint32_t count = env->m_function_boundary_count;
+    const woort_Vector* vec = &env->m_function_boundaries;
+    const uint32_t count = (uint32_t)vec->m_size;
 
-    if (boundaries == NULL || count == 0)
+    if (count == 0)
         return NULL;
 
     /*
@@ -514,7 +507,10 @@ WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_o
     while (lo < hi)
     {
         uint32_t mid = lo + (hi - lo) / 2;
-        if (boundaries[mid].m_offset_begin <= bytecode_offset)
+        const woort_FunctionBoundary* mid_entry =
+            (const woort_FunctionBoundary*)woort_vector_at(
+                (woort_Vector*)vec, mid);
+        if (mid_entry->m_offset_begin <= bytecode_offset)
             lo = mid + 1;
         else
             hi = mid;
@@ -523,7 +519,9 @@ WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_o
     if (lo == 0)
         return NULL;
 
-    const woort_FunctionBoundary* found = &boundaries[lo - 1];
+    const woort_FunctionBoundary* found =
+        (const woort_FunctionBoundary*)woort_vector_at(
+            (woort_Vector*)vec, lo - 1);
 
     /* 验证偏移量在函数范围内 */
     if (bytecode_offset >= found->m_offset_begin + found->m_code_length)

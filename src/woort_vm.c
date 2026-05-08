@@ -1435,7 +1435,7 @@ _label_continue_execution:
             gcstruct->m_datas[0].m_integer = idx;
             woort_GC_mixed_write_barrier_value(
                 &gcstruct->m_datas[1], rt_sb[(int8_t)WOORT_BYTECODE(B8, c)]);
-                
+
             break;
         }
         // MKVECEXT
@@ -3868,19 +3868,19 @@ WOORT_NODISCARD /* OPTIONAL */ const char* woort_VMRuntime_get_runtime_error_msg
 }
 
 void woort_VMRuntime_trace_begin(
-    woort_VMRuntime* vm, 
+    woort_VMRuntime* vm,
     woort_VMRuntime_TraceCallstack_Iter* out_trace_iter)
 {
     out_trace_iter->m_vm = vm;
     out_trace_iter->m_next_tracing_depth = 0;
-    out_trace_iter->m_next_tracing_offset_of_base = 
-        (size_t)(vm->m_stack_end - vm->m_sp);
+    out_trace_iter->m_next_tracing_offset_of_base =
+        (size_t)(vm->m_stack_end - vm->m_sb);
 }
 
-static void _woort_VMRuntime_trace_addr(
+static WOORT_NODISCARD bool _woort_VMRuntime_trace_addr(
     const woort_Bytecode* code, woort_VMRuntime_TraceCallstack* out_result)
 {
-    assert(code == NULL);
+    assert(code != NULL);
 
     // Try find the code_env from code.
     woort_CodeEnv* cenv;
@@ -3889,28 +3889,143 @@ static void _woort_VMRuntime_trace_addr(
         woort_SourceLocation src_loc;
 
         // Found, trace it.
-        if (woort_CodeEnv_find_srcloc_by_offset(cenv, code - cenv->m_code_begin, &src_loc))
+        const uint32_t code_offset = (uint32_t)(code - cenv->m_code_begin);
+        if (woort_CodeEnv_find_srcloc_by_offset(
+            cenv, code_offset, &src_loc))
         {
+            out_result->m_is_fuzzy = false;
+            out_result->m_has_location = true;
+
+            out_result->m_function_name =
+                woort_CodeEnv_find_function_name_by_offset(cenv, code_offset);
+            out_result->m_file_or_lib_name =
+                src_loc.m_filepath;
+            out_result->m_location_begin[0] = src_loc.m_begin_line;
+            out_result->m_location_begin[1] = src_loc.m_begin_column;
+            out_result->m_location_end[0] = src_loc.m_end_line;
+            out_result->m_location_end[1] = src_loc.m_end_column;
         }
         else
         {
+            // No debug info.
+            out_result->m_is_fuzzy = true;
+            out_result->m_has_location = false;
+
+            out_result->m_function_name = NULL;
+            out_result->m_file_or_lib_name = NULL;
+            out_result->m_location_begin[0] = 0;
+            out_result->m_location_begin[1] = 0;
+            out_result->m_location_end[0] = 0;
+            out_result->m_location_end[1] = 0;
         }
+        return true;
     }
 
     // May be extern function?
     woort_Dylib* out_dylib;
     if (woort_Dylib_find_by_resolved_func((void*)code, &out_dylib))
     {
-        
+        out_result->m_is_fuzzy = false;
+        out_result->m_has_location = false;
+
+        (void)woort_Dylib_get_function_name(out_dylib, (void*)code, &out_result->m_function_name);
+        out_result->m_file_or_lib_name = out_dylib->m_name;
+        out_result->m_location_begin[0] = 0;
+        out_result->m_location_begin[1] = 0;
+        out_result->m_location_end[0] = 0;
+        out_result->m_location_end[1] = 0;
+
+        return true;
     }
 
     // Emm? what?
+    out_result->m_is_fuzzy = true;
+    out_result->m_has_location = false;
 
+    out_result->m_function_name = NULL;
+    out_result->m_file_or_lib_name = NULL;
+    out_result->m_location_begin[0] = 0;
+    out_result->m_location_begin[1] = 0;
+    out_result->m_location_end[0] = 0;
+    out_result->m_location_end[1] = 0;
+
+    return false;
 }
 
 WOORT_NODISCARD bool woort_VMRuntime_trace_next(
     woort_VMRuntime_TraceCallstack_Iter* modify_trace_iter,
     woort_VMRuntime_TraceCallstack* out_result)
 {
+    out_result->m_callstack_depth = modify_trace_iter->m_next_tracing_depth++;
+    if (out_result->m_callstack_depth == 0)
+    {
+        (void)_woort_VMRuntime_trace_addr(
+            modify_trace_iter->m_vm->m_ip, out_result);
+    }
+    else
+    {
+        const woort_Value* const sb_addr =
+            modify_trace_iter->m_vm->m_stack_end -
+            modify_trace_iter->m_next_tracing_offset_of_base;
 
+        if (sb_addr + 2 >= modify_trace_iter->m_vm->m_stack_end)
+            // Trace end.
+            return false;
+
+        // Should be CALLWAY & BPOFFSET.
+        modify_trace_iter->m_next_tracing_offset_of_base = 
+            sb_addr[1].m_ret_bp.m_bp_offset;
+
+        if (!_woort_VMRuntime_trace_addr(
+            sb_addr[2].m_ret_addr, out_result))
+        {
+            // Failed to trace the function, this is not a valid function address.
+            // TODO: Trying to find next valid call stack place ?
+
+            return false;
+        }
+    }
+    return true;
+}
+
+void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace)
+{
+    const char* const func = trace->m_function_name;
+    const char* const file = trace->m_file_or_lib_name;
+    const size_t line = trace->m_location_begin[0];
+    const size_t col  = trace->m_location_begin[1];
+
+    if (func != NULL && file != NULL)
+    {
+        if (trace->m_has_location)
+            woort_log("    at %s (%s:%zu:%zu)%s\n",
+                func, file, line + 1, col + 1,
+                trace->m_is_fuzzy ? " ~" : "");
+        else
+            woort_log("    at %s (%s)%s\n",
+                func, file,
+                trace->m_is_fuzzy ? " ~" : "");
+    }
+    else if (func != NULL)
+    {
+        woort_log("    at %s%s\n",
+            func,
+            trace->m_is_fuzzy ? " ~" : "");
+    }
+    else if (file != NULL)
+    {
+        if (line != 0)
+            woort_log("    at <unknown> (%s:%zu:%zu)%s\n",
+                file, line, col,
+                trace->m_is_fuzzy ? " ~" : "");
+        else
+            woort_log("    at <unknown> (%s)%s\n",
+                file,
+                trace->m_is_fuzzy ? " ~" : "");
+    }
+    else
+    {
+        woort_log("    at <unknown>%s\n",
+            trace->m_is_fuzzy ? " ~" : "");
+    }
 }

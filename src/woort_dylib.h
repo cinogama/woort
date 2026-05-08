@@ -40,4 +40,7 @@ get an invalid woort_Dylib. Considering that this interface is only used for int
 tracing, the GC should guarantee that the codeenv corresponding to the library remains alive, 
 so no special handling is required. However, other parts do not necessarily have this guarantee.
 */
-WOORT_NODISCARD bool woort_Dylib_find_by_resolved_func(void* addr, woort_Dylib** out_dylib);
+WOORT_NODISCARD bool woort_Dylib_find_by_resolved_func(
+    void* addr, woort_Dylib** out_dylib);
+WOORT_NODISCARD bool woort_Dylib_get_function_name(
+    woort_Dylib* dylib, void* addr, const char** out_name);

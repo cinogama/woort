@@ -679,10 +679,31 @@ static bool _woort_dylib_find_by_resolved_func_foreach(
     return true;
 }
 
+WOORT_NODISCARD bool woort_Dylib_get_function_name(
+    woort_Dylib* dylib,
+    void* addr,
+    const char** out_name)
+{
+    assert(dylib != NULL || addr != NULL || out_name != NULL);
+
+    bool found = false;
+    woort_rwspinlock_read_lock(&dylib->m_resolved_lock);
+    {
+        void* value_addr;
+        if (woort_hashmap_find(&dylib->m_resolved_funcs, &addr, &value_addr))
+        {
+            *out_name = *(const char**)value_addr;
+            found = true;
+        }
+    }
+    woort_rwspinlock_read_unlock(&dylib->m_resolved_lock);
+
+    return found;
+}
+
 WOORT_NODISCARD bool woort_Dylib_find_by_resolved_func(void* addr, woort_Dylib** out_dylib)
 {
-    if (addr == NULL || out_dylib == NULL)
-        return false;
+    assert(addr != NULL || out_dylib != NULL);
 
     void* args[2] = { addr, NULL };
 

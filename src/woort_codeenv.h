@@ -64,10 +64,8 @@ struct woort_CodeEnv {
      * 按 m_offset_begin 升序排列，使用二分查找查询。
      * 由 woort_CodeEnv_set_source_maps() 设置。
      * CodeEnv 拥有所有权（m_name 指针指向 m_srcloc_string_pool 中的字符串）。
-     * 如果无函数边界信息，m_function_boundaries 为 NULL 且 m_function_boundary_count 为 0。
      */
-    /* OPTIONAL */ woort_FunctionBoundary* m_function_boundaries;
-    uint32_t m_function_boundary_count;
+    woort_Vector /* woort_FunctionBoundary */ m_function_boundaries;
 
     /* === 外部库句柄跟踪 === */
     /*

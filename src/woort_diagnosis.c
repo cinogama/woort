@@ -36,7 +36,16 @@ WOORT_NODISCARD bool woort_vpanic(
 
             woort_vlog(msgfmt, args);
 
-            woort_log("\n");
+            woort_log("\nTrace:\n");
+
+            woort_VMRuntime_TraceCallstack_Iter trace_iter;
+            woort_VMRuntime_TraceCallstack trace;
+
+            woort_VMRuntime_trace_begin(panic_vm, &trace_iter);
+            while (woort_VMRuntime_trace_next(&trace_iter, &trace))
+            {
+                woort_VMRuntime_log_trace(&trace);
+            }
         }
         /* else: This VM already aborted, skip. */
     }
