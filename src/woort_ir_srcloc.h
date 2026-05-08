@@ -101,6 +101,13 @@ typedef struct woort_SourceMap_Entry
 
 } woort_SourceMap_Entry;
 
+typedef struct woort_Function_SourceMap
+{
+    woort_IRFunction* m_ir_function;
+    woort_Vector /* woort_SourceMap_Entry */ m_entries;
+
+} woort_Function_SourceMap;
+
 /*
  * 源码映射表。
  * 包含一组按字节码偏移升序排列的条目。

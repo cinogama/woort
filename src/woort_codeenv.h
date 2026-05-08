@@ -95,19 +95,12 @@ void woort_CodeEnv_GC_mark_all_envs(void);
  * 将编译器收集的源码映射数据转移到 CodeEnv。
  * CodeEnv 会复制所有映射条目和路径字符串，拥有完全的所有权。
  *
- * per_func_entries: 每个函数对应一个 woort_Vector<woort_SourceMap_Entry>
- * func_count: 函数数量
- * per_func_names: 每个函数的名称（可能为 NULL，表示匿名函数）
- * per_func_code_offsets: 每个函数字节码的起始偏移
- * per_func_code_lengths: 每个函数字节码的长度
+ * function_source_map: woort_Vector<woort_Function_SourceMap>
+ *   每个条目包含 IR 函数指针（含名称、偏移、长度）和源码映射条目。
  */
 void woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
-    const woort_Vector* per_func_entries,
-    uint32_t func_count,
-    /* OPTIONAL */ const char** per_func_names,
-    const uint32_t* per_func_code_offsets,
-    const uint32_t* per_func_code_lengths);
+    const woort_Vector* function_source_map);
 
 /*
  * 将外部库句柄关联到 CodeEnv。

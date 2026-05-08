@@ -130,7 +130,7 @@ WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
     do
     {
         const size_t current_stack_size = vm->m_stack_end - vm->m_stack;
-        if (current_stack_size < WOORT_VM_MAX_STACK_SIZE)
+        if (current_stack_size > WOORT_VM_MAX_STACK_SIZE)
         {
             // Too big...
             WOORT_DEBUG("Cannot extern stack, too big.");
@@ -3619,7 +3619,7 @@ _label_continue_execution:
                 goto _label_vm_dispatch_reentry_for_debug_trap;
             }
             /* 没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */
-            (void)woort_CodeEnv_clear_trap(rt_ip);
+            (void)woort_CodeEnv_clear_trap((woort_Bytecode*)rt_ip);
             continue;
         }
         // PANICS
@@ -4051,7 +4051,7 @@ void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace)
     {
         if (line != 0)
             woort_log("    at <unknown> (%s:%zu:%zu)%s\n",
-                file, line, col,
+                file, line + 1, col + 1,
                 trace->m_is_fuzzy ? " ~" : "");
         else
             woort_log("    at <unknown> (%s)%s\n",

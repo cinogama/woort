@@ -2132,54 +2132,31 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
     }
 
     /* 为每个函数分配临时的映射条目收集器 */
-    woort_Vector* per_func_entries = NULL;
-    const char** per_func_names = NULL;
-    uint32_t* per_func_code_offsets = NULL;
-    uint32_t* per_func_code_lengths = NULL;
-
-    if (func_count > 0)
-    {
-        per_func_entries = (woort_Vector*)malloc(
-            sizeof(woort_Vector) * func_count);
-        per_func_names = (const char**)malloc(
-            sizeof(const char*) * func_count);
-        per_func_code_offsets = (uint32_t*)malloc(
-            sizeof(uint32_t) * func_count);
-        per_func_code_lengths = (uint32_t*)malloc(
-            sizeof(uint32_t) * func_count);
-
-        if (per_func_entries == NULL
-            || per_func_names == NULL
-            || per_func_code_offsets == NULL
-            || per_func_code_lengths == NULL)
-        {
-            free(per_func_entries);
-            free(per_func_names);
-            free(per_func_code_offsets);
-            free(per_func_code_lengths);
-            return false;
-        }
-
-        for (uint32_t i = 0; i < func_count; ++i)
-            woort_vector_init(&per_func_entries[i], sizeof(woort_SourceMap_Entry));
-    }
+    woort_Vector /* woort_Function_SourceMap */ function_source_map;
+    woort_vector_init(&function_source_map, sizeof(woort_Function_SourceMap));
 
     /* 对每个函数执行完整的编译流程 */
     {
-        uint32_t fi = 0;
         for (woort_IRFunction* f = woort_linklist_iter(&c->m_ir_functions);
             f != NULL;
-            f = woort_linklist_next(f), ++fi)
+            f = woort_linklist_next(f))
         {
-            if (!_compile_function(f, c, &per_func_entries[fi]))
+            woort_Function_SourceMap fsm;
+            fsm.m_ir_function = f;
+            woort_vector_init(&fsm.m_entries, sizeof(woort_SourceMap_Entry));
+
+            if (!_compile_function(f, c, &fsm.m_entries))
             {
-                /* 清理临时数据 */
-                for (uint32_t j = 0; j < func_count; ++j)
-                    woort_vector_deinit(&per_func_entries[j]);
-                free(per_func_entries);
-                free(per_func_names);
-                free(per_func_code_offsets);
-                free(per_func_code_lengths);
+                /* 清理已收集的临时数据 */
+                for (size_t j = 0; j < function_source_map.m_size; ++j)
+                {
+                    woort_Function_SourceMap* prev =
+                        (woort_Function_SourceMap*)woort_vector_at(
+                            &function_source_map, j);
+                    woort_vector_deinit(&prev->m_entries);
+                }
+                woort_vector_deinit(&fsm.m_entries);
+                woort_vector_deinit(&function_source_map);
                 return false;
             }
 
@@ -2187,18 +2164,28 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
              * _compile_function 完成后，该函数的 m_code_offset 已确定。
              * 映射条目中的偏移量是函数内相对偏移，需要加上全局偏移。
              */
-            for (size_t ei = 0; ei < per_func_entries[fi].m_size; ++ei)
+            for (size_t ei = 0; ei < fsm.m_entries.m_size; ++ei)
             {
                 woort_SourceMap_Entry* entry =
                     (woort_SourceMap_Entry*)woort_vector_at(
-                        &per_func_entries[fi], ei);
+                        &fsm.m_entries, ei);
                 entry->m_bytecode_offset += (uint32_t)f->m_code_offset;
             }
 
-            /* 收集函数边界信息 */
-            per_func_names[fi] = f->m_name;
-            per_func_code_offsets[fi] = (uint32_t)f->m_code_offset;
-            per_func_code_lengths[fi] = (uint32_t)f->m_code_length;
+            /* 追加到 function_source_map */
+            if (!woort_vector_push_back(&function_source_map, 1, &fsm))
+            {
+                woort_vector_deinit(&fsm.m_entries);
+                for (size_t j = 0; j < function_source_map.m_size; ++j)
+                {
+                    woort_Function_SourceMap* prev =
+                        (woort_Function_SourceMap*)woort_vector_at(
+                            &function_source_map, j);
+                    woort_vector_deinit(&prev->m_entries);
+                }
+                woort_vector_deinit(&function_source_map);
+                return false;
+            }
         }
     }
 
@@ -2221,23 +2208,18 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
          */
         woort_CodeEnv_set_source_maps(
             *out_cenv,
-            per_func_entries,
-            func_count,
-            per_func_names,
-            per_func_code_offsets,
-            per_func_code_lengths);
+            &function_source_map);
     }
 
     /* 清理临时数据 */
-    if (per_func_entries != NULL)
+    for (size_t i = 0; i < function_source_map.m_size; ++i)
     {
-        for (uint32_t i = 0; i < func_count; ++i)
-            woort_vector_deinit(&per_func_entries[i]);
-        free(per_func_entries);
-        free(per_func_names);
-        free(per_func_code_offsets);
-        free(per_func_code_lengths);
+        woort_Function_SourceMap* fsm =
+            (woort_Function_SourceMap*)woort_vector_at(
+                &function_source_map, i);
+        woort_vector_deinit(&fsm->m_entries);
     }
+    woort_vector_deinit(&function_source_map);
     return result;
 }
 

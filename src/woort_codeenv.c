@@ -387,16 +387,19 @@ WOORT_NODISCARD bool woort_CodeEnv_clear_trap(woort_Bytecode* code)
 
 void woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
-    const woort_Vector* per_func_entries,
-    uint32_t func_count,
-    /* OPTIONAL */ const char** per_func_names,
-    const uint32_t* per_func_code_offsets,
-    const uint32_t* per_func_code_lengths)
+    const woort_Vector* function_source_map)
 {
+    const uint32_t func_count = (uint32_t)function_source_map->m_size;
+
     /* 计算总条目数 */
     uint32_t total_entries = 0;
     for (uint32_t i = 0; i < func_count; ++i)
-        total_entries += (uint32_t)per_func_entries[i].m_size;
+    {
+        const woort_Function_SourceMap* fsm =
+            (const woort_Function_SourceMap*)woort_vector_at(
+                (woort_Vector*)function_source_map, i);
+        total_entries += (uint32_t)fsm->m_entries.m_size;
+    }
 
     if (total_entries == 0)
     {
@@ -415,7 +418,10 @@ void woort_CodeEnv_set_source_maps(
     uint32_t offset = 0;
     for (uint32_t i = 0; i < func_count; ++i)
     {
-        const woort_Vector* vec = &per_func_entries[i];
+        const woort_Function_SourceMap* fsm =
+            (const woort_Function_SourceMap*)woort_vector_at(
+                (woort_Vector*)function_source_map, i);
+        const woort_Vector* vec = &fsm->m_entries;
         for (size_t j = 0; j < vec->m_size; ++j)
         {
             const woort_SourceMap_Entry* src =
@@ -451,20 +457,25 @@ build_function_boundaries:
      * 构建函数边界表。
      * 即使没有源码映射条目，函数边界信息仍然有用。
      */
-    if (func_count == 0 || per_func_code_offsets == NULL || per_func_code_lengths == NULL)
+    if (func_count == 0)
         return;
 
     for (uint32_t i = 0; i < func_count; ++i)
     {
-        woort_FunctionBoundary boundary;
-        boundary.m_offset_begin = per_func_code_offsets[i];
-        boundary.m_code_length = per_func_code_lengths[i];
+        const woort_Function_SourceMap* fsm =
+            (const woort_Function_SourceMap*)woort_vector_at(
+                (woort_Vector*)function_source_map, i);
+        const woort_IRFunction* f = fsm->m_ir_function;
 
-        if (per_func_names != NULL && per_func_names[i] != NULL)
+        woort_FunctionBoundary boundary;
+        boundary.m_offset_begin = (uint32_t)f->m_code_offset;
+        boundary.m_code_length = (uint32_t)f->m_code_length;
+
+        if (f->m_name != NULL)
         {
             const char* interned = woort_StringPool_intern(
                 &env->m_srcloc_string_pool,
-                per_func_names[i]);
+                f->m_name);
             boundary.m_name = interned;
         }
         else
