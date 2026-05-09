@@ -20,7 +20,7 @@ typedef struct woort_HashMap
     /* OPTIONAL */ struct woort_HashMapEntry* m_free_entries;
 
     /* User-defined functions */
-    size_t  (*m_hash_fn)(const void* key);
+    size_t(*m_hash_fn)(const void* key);
     bool    (*m_equal_fn)(const void* key1, const void* key2);
 
     /* Key and value sizes */
@@ -66,7 +66,7 @@ Maybe:
 WOORT_NODISCARD woort_hashmap_Result woort_hashmap_insert(
     woort_HashMap* map,
     const void* key,
-    const void* value);
+    /* OPTIONAL if value size is 0 */ const void* value);
 
 WOORT_NODISCARD bool woort_hashmap_find(
     woort_HashMap* map,

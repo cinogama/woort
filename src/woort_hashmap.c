@@ -173,65 +173,16 @@ WOORT_NODISCARD bool woort_hashmap_is_empty(woort_HashMap* map)
     return map->m_size == 0;
 }
 
-WOORT_NODISCARD woort_hashmap_Result woort_hashmap_get_or_emplace(
-    woort_HashMap* map,
-    const void* key,
-    void** out_value_storage)
-{
-    if (map->m_size * 4 >= map->m_bucket_count * 3)
-    {
-        // Reach rehash limit.
-
-        if (!_woort_hashmap_rehash_to_externed(map))
-            // Out of memory.
-            return WOORT_HASHMAP_RESULT_OUT_OF_MEMORY;
-    }
-
-    const size_t hash_mask = map->m_bucket_count - 1;
-    const size_t bucket_id =
-        map->m_hash_fn(key) & hash_mask;
-
-    // Find if already exist?
-    for (woort_HashMapEntry* entry = map->m_buckets[bucket_id];
-        entry != NULL;
-        entry = entry->m_next)
-    {
-        if (map->m_equal_fn(entry->m_kv_storage, key))
-            // Already exist!
-            return WOORT_HASHMAP_RESULT_ALREADY_EXIST;
-    }
-
-    // Insert!
-    woort_HashMapEntry* const new_entry =
-        _woort_hashmap_get_free_entry_and_reset_prev(map);
-
-    if (new_entry == NULL)
-        // Out of memory.
-        return WOORT_HASHMAP_RESULT_OUT_OF_MEMORY;
-
-    // Set key & value.
-    memcpy(new_entry->m_kv_storage, key, map->m_key_size);
-    *out_value_storage = new_entry->m_value;
-
-    // Put into bucket.
-    new_entry->m_next = map->m_buckets[bucket_id];
-    map->m_buckets[bucket_id] = new_entry;
-
-    ++map->m_size;
-
-    return WOORT_HASHMAP_RESULT_OK;
-}
-
 WOORT_NODISCARD woort_hashmap_Result woort_hashmap_insert(
     woort_HashMap* map,
     const void* key,
-    const void* value)
+    /* OPTIONAL if value size is 0 */ const void* value)
 {
     void* storage;
     const woort_hashmap_Result r = 
         woort_hashmap_get_or_emplace(map, key, &storage);
 
-    if (r == WOORT_HASHMAP_RESULT_OK)
+    if (r == WOORT_HASHMAP_RESULT_OK && map->m_value_size != 0)
         // New kvpair inserted, copy value into storage.
         memcpy(storage, value, map->m_value_size);
 
@@ -263,6 +214,49 @@ WOORT_NODISCARD bool woort_hashmap_find(
         }
     }
     return false;
+}
+
+WOORT_NODISCARD woort_hashmap_Result woort_hashmap_get_or_emplace(
+    woort_HashMap* map,
+    const void* key,
+    void** out_value_addr)
+{
+    if (map->m_size * 4 >= map->m_bucket_count * 3)
+    {
+        if (!_woort_hashmap_rehash_to_externed(map))
+            return WOORT_HASHMAP_RESULT_OUT_OF_MEMORY;
+    }
+
+    const size_t hash_mask = map->m_bucket_count - 1;
+    const size_t bucket_id =
+        map->m_hash_fn(key) & hash_mask;
+
+    for (woort_HashMapEntry* entry = map->m_buckets[bucket_id];
+        entry != NULL;
+        entry = entry->m_next)
+    {
+        if (map->m_equal_fn(entry->m_kv_storage, key))
+        {
+            *out_value_addr = entry->m_value;
+            return WOORT_HASHMAP_RESULT_ALREADY_EXIST;
+        }
+    }
+
+    woort_HashMapEntry* const new_entry =
+        _woort_hashmap_get_free_entry_and_reset_prev(map);
+
+    if (new_entry == NULL)
+        return WOORT_HASHMAP_RESULT_OUT_OF_MEMORY;
+
+    memcpy(new_entry->m_kv_storage, key, map->m_key_size);
+    *out_value_addr = new_entry->m_value;
+
+    new_entry->m_next = map->m_buckets[bucket_id];
+    map->m_buckets[bucket_id] = new_entry;
+
+    ++map->m_size;
+
+    return WOORT_HASHMAP_RESULT_OK;
 }
 
 WOORT_NODISCARD bool woort_hashmap_contains(

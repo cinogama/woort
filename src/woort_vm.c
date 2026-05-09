@@ -3614,6 +3614,7 @@ _label_continue_execution:
         // DEBUGTRAP
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_TRAP, 0):
         {
+            WOORT_VM_SYNC_STATE_WITH_ENV();
             if (woort_VMRuntime_Debugger_try_trap())
             {
                 c = woort_CodeEnv_raw_trap(rt_env, rt_ip);

@@ -108,7 +108,7 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
     return true;
 }
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool force)
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(void)
 {
     woort_VMRuntime_Debugger* current_debugger;
     woort_rwspinlock_read_lock(&g_debugger_rwspin);
