@@ -5,6 +5,10 @@ file(GLOB_RECURSE woort_src_c *.c)
 file(GLOB_RECURSE woort_src_hpp *.hpp)
 file(GLOB_RECURSE woort_src_h *.h)
 
+if (MSVC)
+    list(APPEND woort_src_c resources.rc)
+endif()
+
 add_library(woort 
     ${woort_src_cpp} 
     ${woort_src_c}

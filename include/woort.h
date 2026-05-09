@@ -71,6 +71,11 @@ extern "C" {
 #   define WOORT_API
 #endif
 
+/** @brief Woort version encoded as (major, minor, patch, tweak). */
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 0, 0)
+
+#ifndef WOORT_MSVC_RC_INCLUDE
+
 /**
  * @brief Initialize the Woolang runtime.
  *
@@ -3692,3 +3697,5 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u32strn_to_str(
 #ifdef __cplusplus
 }
 #endif // __cplusplus
+
+#endif /* WOORT_MSVC_RC_INCLUDE */

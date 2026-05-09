@@ -259,6 +259,30 @@ void woort_CodeEnv_drop(
     code_env->m_hold = false;
 }
 
+void woort_CodeEnv_drop_all(void)
+{
+    woort_rwspinlock_read_lock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
+
+    const size_t count = _codeenv_global_ctx->m_codeenvs.m_size;
+    for (size_t i = 0; i < count; ++i)
+    {
+        woort_CodeEnv* const code_env =
+            *(woort_CodeEnv**)woort_vector_at(
+                &_codeenv_global_ctx->m_codeenvs, i);
+
+        woort_CodeEnv_lock(code_env);
+        {
+            if (code_env->m_hold)
+                woort_CodeEnv_drop(code_env);
+        }
+        woort_CodeEnv_unlock(code_env);
+    }
+
+    woort_rwspinlock_read_unlock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
+}
+
 WOORT_NODISCARD bool woort_CodeEnv_query_function(
     woort_CodeEnv* code_env,
     woort_IRFunction* f,

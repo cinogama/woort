@@ -209,7 +209,7 @@ static bool _woort_GC_shutdown_dump_vm_trace_callback(
     size_t logged_count = 0;
 
     woort_VMRuntime_trace_begin(vm, &trace_iter);
-    while (logged_count < 32
+    while (logged_count < 4
         && woort_VMRuntime_trace_next(&trace_iter, &trace))
     {
         woort_VMRuntime_log_trace(&trace);
@@ -236,6 +236,8 @@ void woort_GC_shutdown(void)
     * 等待所有 VM 关闭，并排空 GC 待释放单元。
     * 参见旧实现 wo_finish 中的同类流程。
     */
+    woort_CodeEnv_drop_all();
+
     time_t last_warning_time = 0;
     size_t last_warning_vm_count = 0;
 

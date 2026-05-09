@@ -20,6 +20,7 @@ woort_codeenv.h
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void);
 void woort_CodeEnv_shutdown(void);
+void woort_CodeEnv_drop_all(void);
 
 struct woort_CodeEnv {
     woort_GCUnit m_gc_unit;
