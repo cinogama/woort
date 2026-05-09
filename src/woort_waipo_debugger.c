@@ -5,6 +5,8 @@
 #include "woort_util.h"
 #include "woort_codeenv.h"
 
+#include <stdlib.h>
+
 /*
 Watch And Inspect Program Operation
 */
@@ -109,9 +111,13 @@ static void _woort_WAIPO_VMLocalContext_clean_step_break(
     for (size_t i = 0; i < 2; ++i)
     {
         if (vmcontext->m_step_breakpoints[i] != NULL)
+        {
             _woort_WAIPO_BreakpointCollection_cancel_break_at(
                 vmcontext->m_breakpoint_collection,
                 vmcontext->m_step_breakpoints[i]);
+
+            vmcontext->m_step_breakpoints[i] = NULL;
+        }
     }
 }
 
@@ -196,6 +202,12 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
     return breakdown;
 }
 
+static void woort_WAIPO_Debugger_process(
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm)
+{
+
+}
+
 static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance)
 {
     woort_WAIPO_Debugger* const debugger_instance = instance;
@@ -208,13 +220,34 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance)
     if (!trap_down)
         trap_down = _woort_WAIPO_Debugger_meet_breakpoint(debugger_instance, vm);
 
+    if (trap_down)
+    {
+        woort_WAIPO_Debugger_process(debugger_instance, vm);
+    }
+}
+
+static bool _woort_WAIPO_VMLocalContext_deinit_callback(
+    const void* key,
+    void* value,
+    void* user_data)
+{
+    (void)key;
+    (void)user_data;
+    _woort_WAIPO_VMLocalContext_deinit((woort_WAIPO_VMLocalContext*)value);
+    return true;
 }
 
 static void _woort_WAIPO_Debugger_close(void* instance)
 {
     woort_WAIPO_Debugger* const debugger_instance = instance;
 
+    (void)woort_hashmap_foreach(
+        &debugger_instance->m_focusing_vms,
+        &_woort_WAIPO_VMLocalContext_deinit_callback,
+        NULL);
 
+    woort_hashmap_deinit(&debugger_instance->m_focusing_vms);
+    _woort_WAIPO_BreakpointCollection_deinit(&debugger_instance->m_breakpoint_collection);
     
     free(debugger_instance);
 }
