@@ -3706,7 +3706,7 @@ _label_continue_execution:
     WOORT_VM_EXCEPTION_LABEL(stack_overflow) :
     {
         // Stack used up, try extern.
-        while (/* UNLIKELY */ !_woort_VMRuntime_extern_stack(vm))
+        if (/* UNLIKELY */ !_woort_VMRuntime_extern_stack(vm))
         {
             WOORT_VM_SYNC_STATE_AND_PANIC(
                 WOORT_PANIC_STACK_OVERFLOW,

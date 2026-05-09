@@ -50,14 +50,10 @@ void woort_init(int argc, char** argv)
 }
 void woort_shutdown(void)
 {
-    _woort_builtin_shutdown();
-
-    _woort_dylib_shutdown();
-
     woort_GC_shutdown();
-
+    _woort_builtin_shutdown();
+    _woort_dylib_shutdown();
     woort_CodeEnv_shutdown();
-
     _woort_path_shutdown();
 }
 

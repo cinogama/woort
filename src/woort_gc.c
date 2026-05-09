@@ -160,10 +160,10 @@ void woort_GC_bootup(void)
 }
 void woort_GC_shutdown(void)
 {
+    woomem_shutdown();
+
     woort_rwspinlock_deinit(&g_root_vms_to_mark_mx);
     woort_hashmap_deinit(&g_root_vms_to_mark);
-
-    woomem_shutdown();
 }
 
 WOORT_NODISCARD bool woort_GC_register_root_vm(struct woort_VMRuntime* vmruntime)
