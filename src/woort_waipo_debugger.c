@@ -70,35 +70,61 @@ static bool _woort_WAIPO_BreakpointCollection_break_at(
 
 static void _woort_WAIPO_BreakpointCollection_cancel_break_at(
     woort_WAIPO_BreakpointCollection* collection, const woort_Bytecode* ip)
-{}
+{
+    size_t* counter;
+    if (woort_hashmap_find(&collection->m_breakpoints, &ip, (void**)&counter))
+    {
+        --*counter;
+        if (*counter == 0)
+        {
+            (void)woort_hashmap_remove(&collection->m_breakpoints, &ip);
+
+            woort_CodeEnv* cenv;
+            if (woort_CodeEnv_find(ip, &cenv))
+                (void)woort_CodeEnv_clear_trap(cenv, (woort_Bytecode*)ip);
+        }
+    }
+}
 
 typedef struct woort_WAIPO_VMLocalContext
 {
+    woort_WAIPO_BreakpointCollection* m_breakpoint_collection;
+
     // 与 m_debug_breakpoints 不同，m_step_breakpoints 的断点仅限当前虚拟机关注时生效
     /* OPTIONAL */ const woort_Bytecode* m_step_breakpoints[2];
 
 }woort_WAIPO_VMLocalContext;
 
-static void _woort_WAIPO_VMLocalContext_init(woort_WAIPO_VMLocalContext* vmcontext)
+static void _woort_WAIPO_VMLocalContext_init(
+    woort_WAIPO_VMLocalContext* vmcontext, woort_WAIPO_BreakpointCollection* collection)
 {
+    vmcontext->m_breakpoint_collection = collection;
     vmcontext->m_step_breakpoints[0] = NULL;
     vmcontext->m_step_breakpoints[1] = NULL;
 }
+
+static void _woort_WAIPO_VMLocalContext_clean_step_break(
+    woort_WAIPO_VMLocalContext* vmcontext)
+{
+    for (size_t i = 0; i < 2; ++i)
+    {
+        if (vmcontext->m_step_breakpoints[i] != NULL)
+            _woort_WAIPO_BreakpointCollection_cancel_break_at(
+                vmcontext->m_breakpoint_collection,
+                vmcontext->m_step_breakpoints[i]);
+    }
+}
+
 static void _woort_WAIPO_VMLocalContext_deinit(woort_WAIPO_VMLocalContext* vmcontext)
 {
+    _woort_WAIPO_VMLocalContext_clean_step_break(vmcontext);
 }
 
 static bool _woort_WAIPO_VMLocalContext_meet_step_breakdown(
     woort_WAIPO_VMLocalContext* vmcontext, const woort_Bytecode* ip)
 {
-    if (vmcontext->m_step_breakpoints[0] == ip
-        || vmcontext->m_step_breakpoints[1] == ip)
-    {
-
-
-        return true;
-    }
-    return false;
+    return vmcontext->m_step_breakpoints[0] == ip
+        || vmcontext->m_step_breakpoints[1] == ip;
 }
 
 typedef struct woort_WAIPO_Debugger
@@ -117,7 +143,7 @@ static bool _woort_WAIPO_Debugger_focus_on(
         &debugger_instance->m_focusing_vms, &vm, (void**)&vmcontext))
     {
     case WOORT_HASHMAP_RESULT_OK:
-        _woort_WAIPO_VMLocalContext_init(vmcontext);
+        _woort_WAIPO_VMLocalContext_init(vmcontext, &debugger_instance->m_breakpoint_collection);
         break;
     case WOORT_HASHMAP_RESULT_ALREADY_EXIST:
         break;
@@ -128,11 +154,23 @@ static bool _woort_WAIPO_Debugger_focus_on(
     return true;
 }
 
+static void _woort_WAIPO_Debugger_out_of_focus(
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm)
+{
+    woort_WAIPO_VMLocalContext* vmcontext;
+    if (woort_hashmap_find(&debugger_instance->m_focusing_vms, &vm, (void**)&vmcontext))
+    {
+        _woort_WAIPO_VMLocalContext_deinit(vmcontext);
+        (void)woort_hashmap_remove(&debugger_instance->m_focusing_vms, &vm);
+    }
+}
+
 static bool _woort_WAIPO_Debugger_meet_breakpoint(
     woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm)
 {
     const woort_Bytecode* current_ip = vm->m_ip;
 
+    bool breakdown = false;
     if (woort_hashmap_contains(
         &debugger_instance->m_breakpoint_collection.m_breakpoints,
         &current_ip))
@@ -141,7 +179,7 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
             &debugger_instance->m_breakpoint_collection.m_debug_breakpoints,
             &current_ip))
         {
-            return true;
+            breakdown = true;
         }
 
         /* May be step debug point? */
@@ -149,11 +187,13 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
         if (woort_hashmap_find(&debugger_instance->m_focusing_vms, &vm, (void**)&vmcontext))
         {
             if (_woort_WAIPO_VMLocalContext_meet_step_breakdown(vmcontext, current_ip))
-                return true;
+                breakdown = true;
+
+            if (breakdown)
+                _woort_WAIPO_VMLocalContext_clean_step_break(vmcontext);
         }
     }
-    return false;
-
+    return breakdown;
 }
 
 static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance)
@@ -173,6 +213,9 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance)
 static void _woort_WAIPO_Debugger_close(void* instance)
 {
     woort_WAIPO_Debugger* const debugger_instance = instance;
+
+
+    
     free(debugger_instance);
 }
 
