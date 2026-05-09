@@ -19,6 +19,7 @@
 #include "woort_serialize.h"
 #include "woort_util.h"
 #include "woort_utf8.h"
+#include "woort_vm_debugger_api.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -47,6 +48,12 @@ void woort_init(int argc, char** argv)
         WOORT_DEBUG("Failed to bootup builtin functions.");
         abort();
     }
+
+    if (!woort_VMRuntime_Debugger_bootup())
+    {
+        WOORT_DEBUG("Failed to bootup debugger support.");
+        abort();
+    }
 }
 void woort_shutdown(void)
 {
@@ -55,6 +62,7 @@ void woort_shutdown(void)
     _woort_dylib_shutdown();
     woort_CodeEnv_shutdown();
     _woort_path_shutdown();
+    woort_VMRuntime_Debugger_shutdown();
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void)

@@ -17,7 +17,7 @@
 #include "woort_gc_struct.h"
 #include "woort_gc_closure.h"
 #include "woort_utf8.h"
-#include "woort_vm_debugger.h"
+#include "woort_vm_debugger_api.h"
 #include "woort_disassembly.h"
 #include "woort_serialize.h"
 #include "woort_dylib.h"
@@ -332,7 +332,7 @@ _label_continue_execution:
     case WOORT_VM_CASE_OP6_M2(CODE, 2):     \
     case WOORT_VM_CASE_OP6_M2(CODE, 3)
 
-        register const woort_Bytecode c = *rt_ip;
+        register woort_Bytecode c = *rt_ip;
 
     _label_vm_dispatch_reentry_for_debug_trap:
         switch ((uint8_t)(c >> 24))
@@ -3616,6 +3616,7 @@ _label_continue_execution:
         {
             if (woort_VMRuntime_Debugger_try_trap())
             {
+                c = woort_CodeEnv_raw_trap(rt_env, rt_ip);
                 goto _label_vm_dispatch_reentry_for_debug_trap;
             }
             /* 没有调试器，但是陷入了 TRAP 指令，通知 CodeEnv 清空 Trap */

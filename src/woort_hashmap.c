@@ -168,6 +168,11 @@ WOORT_NODISCARD bool _woort_hashmap_rehash_to_externed(woort_HashMap* map)
     return true;
 }
 
+WOORT_NODISCARD bool woort_hashmap_is_empty(woort_HashMap* map)
+{
+    return map->m_size == 0;
+}
+
 WOORT_NODISCARD woort_hashmap_Result woort_hashmap_get_or_emplace(
     woort_HashMap* map,
     const void* key,

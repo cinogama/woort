@@ -1,6 +1,7 @@
-#include "woort_vm_debugger.h"
+#include "woort_vm_debugger_api.h"
 #include "woort_atomic.h"
 #include "woort_spin.h"
+#include "woort_gc.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -17,17 +18,25 @@ typedef struct woort_VMRuntime_Debugger
 
 static /* OPTIONAL */ woort_VMRuntime_Debugger* g_debugger;
 static woort_RWSpinlock g_debugger_rwspin;
+static woort_Mutex* g_debugger_execute_mx;
 
-void woort_VMRuntime_Debugger_bootup(void)
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_bootup(void)
 {
+    if (!woort_mutex_create(&g_debugger_execute_mx))
+        return false;
+
     g_debugger = NULL;
     woort_rwspinlock_init(&g_debugger_rwspin);
+    return true;
 }
 
 void woort_VMRuntime_Debugger_shutdown(void)
 {
     woort_VMRuntime_Debugger_detach();
     woort_rwspinlock_deinit(&g_debugger_rwspin);
+    woort_mutex_destroy(g_debugger_execute_mx);
+
+    g_debugger_execute_mx = NULL;
 }
 
 void _woort_VMRuntime_Debugger_release_impl(woort_VMRuntime_Debugger* debugger)
@@ -96,10 +105,10 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
     }
     woort_rwspinlock_write_unlock(&g_debugger_rwspin);
 
-    return g_debugger == new_debugger;
+    return true;
 }
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(void)
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool force)
 {
     woort_VMRuntime_Debugger* current_debugger;
     woort_rwspinlock_read_lock(&g_debugger_rwspin);
@@ -121,9 +130,13 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(void)
         woort_VMRuntime* const running_vm = woort_VMRuntime_swap(NULL);
         assert(running_vm != NULL);
         {
-            current_debugger->m_break_callback(
-                running_vm,
-                current_debugger->m_debugger_context);
+            woort_mutex_lock(g_debugger_execute_mx);
+            {
+                current_debugger->m_break_callback(
+                    running_vm,
+                    current_debugger->m_debugger_context);
+            }
+            woort_mutex_unlock(g_debugger_execute_mx);
         }
         (void)woort_VMRuntime_swap(running_vm);
 
@@ -134,3 +147,7 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(void)
     return false;
 }
 
+void woort_VMRuntime_Debugger_breakdown_all_vm(void)
+{
+    _woort_GC_debug_callback_all_vm();
+}

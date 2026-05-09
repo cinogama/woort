@@ -92,3 +92,5 @@ WOORT_NODISCARD bool /* foreach complete */ woort_hashmap_foreach(
     woort_HashMap* map,
     woort_HashMapForEachCallback callback,
     void* user_data);
+
+WOORT_NODISCARD bool woort_hashmap_is_empty(woort_HashMap* map);

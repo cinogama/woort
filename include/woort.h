@@ -3545,6 +3545,29 @@ WOORT_API void woort_dylib_keep(woort_Dylib* lib);
  */
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_get_builtin_lib(void);
 
+/* ========== WAIPO Debugger ========== */
+
+/**
+ * @brief Attach a WAIPO (Watch And Inspect Program Operation) debugger to the VM.
+ *
+ * Allocates a debugger instance and registers it with the current VM runtime.
+ * The debugger will be notified of VM events such as breakpoints and step
+ * operations.
+ *
+ * @return true on success, false on out-of-memory.
+ */
+WOORT_API WOORT_NODISCARD bool woort_WAIPO_Debugger_attach(void);
+
+/**
+ * @brief Breakdown all VMs by sending a debug callback request.
+ *
+ * Iterates over all registered root VMs and sets the
+ * WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK flag on each one.
+ * When a VM reaches its next checkpoint, it will invoke the currently
+ * attached debugger callback (if any).
+ */
+WOORT_API void woort_VMRuntime_Debugger_breakdown_all_vm(void);
+
 /* ========== String / Unicode Conversion API ========== */
 
 /*
