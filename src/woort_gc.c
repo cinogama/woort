@@ -9,10 +9,12 @@
 #include "woort_log.h"
 #include "woort_gc_units.h"
 #include "woort_codeenv.h"
+#include "woort_threads.h"
 
 #include <stdbool.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <time.h>
 
 static woort_RWSpinlock g_root_vms_to_mark_mx;
 static woort_HashMap /* struct woort_VMRuntime* */ g_root_vms_to_mark;
@@ -158,8 +160,137 @@ void woort_GC_bootup(void)
         woort_util_ptr_hash,
         woort_util_ptr_equal);
 }
+static bool _woort_GC_shutdown_abort_vm_callback(
+    const void* key,
+    void* value,
+    /* OPTIONAL */ void* user_data)
+{
+    (void)value;
+    (void)user_data;
+
+    woort_VMRuntime* const vm =
+        *(woort_VMRuntime* const*)key;
+
+    (void)woort_VMRuntime_request_set(
+        vm,
+        WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE);
+
+    return true;
+}
+
+typedef struct _woort_GC_shutdown_dump_traces_context
+{
+    size_t m_remaining_quota;
+    size_t m_total_vm_count;
+} _woort_GC_shutdown_dump_traces_context;
+
+static bool _woort_GC_shutdown_dump_vm_trace_callback(
+    const void* key,
+    void* value,
+    /* OPTIONAL */ void* user_data)
+{
+    (void)value;
+
+    _woort_GC_shutdown_dump_traces_context* const ctx =
+        (_woort_GC_shutdown_dump_traces_context*)user_data;
+
+    woort_VMRuntime* const vm =
+        *(woort_VMRuntime* const*)key;
+
+    if (ctx->m_remaining_quota == 0)
+        return true;
+
+    --ctx->m_remaining_quota;
+
+    woort_log("    VM %p trace:\n", (void*)vm);
+
+    woort_VMRuntime_TraceCallstack_Iter trace_iter;
+    woort_VMRuntime_TraceCallstack trace;
+    size_t logged_count = 0;
+
+    woort_VMRuntime_trace_begin(vm, &trace_iter);
+    while (logged_count < 32
+        && woort_VMRuntime_trace_next(&trace_iter, &trace))
+    {
+        woort_VMRuntime_log_trace(&trace);
+        ++logged_count;
+    }
+
+    if (logged_count == 0)
+        woort_log("        (no trace available)\n");
+
+    /* Count remaining frames beyond the 32 logged. */
+    size_t extra_frames = 0;
+    while (woort_VMRuntime_trace_next(&trace_iter, &trace))
+        ++extra_frames;
+
+    if (extra_frames > 0)
+        woort_log("        ... (%zu more frames not shown)\n", extra_frames);
+
+    return true;
+}
+
 void woort_GC_shutdown(void)
 {
+    /*
+    * 等待所有 VM 关闭，并排空 GC 待释放单元。
+    * 参见旧实现 wo_finish 中的同类流程。
+    */
+    time_t last_warning_time = 0;
+    size_t last_warning_vm_count = 0;
+
+    for (;;)
+    {
+        woort_rwspinlock_write_lock(&g_root_vms_to_mark_mx);
+        {
+            if (g_root_vms_to_mark.m_size == 0)
+            {
+                woort_rwspinlock_write_unlock(&g_root_vms_to_mark_mx);
+                break;
+            }
+
+            /* 向所有存活的 VM 发送 ABORT 请求 */
+            (void)woort_hashmap_foreach(
+                &g_root_vms_to_mark,
+                &_woort_GC_shutdown_abort_vm_callback,
+                NULL);
+
+            /* 限速：每秒最多一次警告，且仅在数量变化时输出 */
+            const time_t now = time(NULL);
+            if ((last_warning_time == 0 || now != last_warning_time)
+                && g_root_vms_to_mark.m_size != last_warning_vm_count)
+            {
+                last_warning_time = now;
+                last_warning_vm_count = g_root_vms_to_mark.m_size;
+
+                woort_log(
+                    "WOORT: %zu VM(s) have not been closed during shutdown.\n",
+                    g_root_vms_to_mark.m_size);
+
+                _woort_GC_shutdown_dump_traces_context dump_ctx;
+                dump_ctx.m_remaining_quota = 3;
+                dump_ctx.m_total_vm_count = g_root_vms_to_mark.m_size;
+
+                (void)woort_hashmap_foreach(
+                    &g_root_vms_to_mark,
+                    &_woort_GC_shutdown_dump_vm_trace_callback,
+                    &dump_ctx);
+
+                if (dump_ctx.m_total_vm_count > 3)
+                    woort_log(
+                        "    ... %zu more VM(s) not shown\n",
+                        dump_ctx.m_total_vm_count - 3);
+            }
+        }
+        woort_rwspinlock_write_unlock(&g_root_vms_to_mark_mx);
+
+        /* 触发一次完整的 GC 回收（标记 → 终结 → 清扫） */
+        woomem_gc_collect();
+
+        /* 短暂休眠，让 VM 析构器和 GC 终结器完成工作 */
+        woort_thread_sleep_ms(10);
+    }
+
     woomem_shutdown();
 
     woort_rwspinlock_deinit(&g_root_vms_to_mark_mx);

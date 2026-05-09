@@ -24,6 +24,8 @@ typedef enum woort_VMRuntime_CheckRequestMask
     设置此请求时，**必须** 在当前虚拟机的 m_sp 处立即写入一个
     GCString 用以描述 panic 信息。
         * JIT 运行时：
+            JIT 运行时无法处理此请求，执行正同步之后以 WOORT_VM_CALL_STATUS_RESYNC 
+            向上抛出到解释执行
         * 解释执行运行时：
             以 WOORT_VM_CALL_STATUS_ABORTED 结束调用
     */
@@ -107,6 +109,19 @@ typedef enum woort_VMRuntime_CheckRequestMask
                 2）
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_YIELD = 1 << 6,
+
+    /*
+    TERMINATE
+    虚拟机被外部请求立即终止
+    接受此请求时，当前 VM 会设置 ABORT, 然后按照约定向 m_sp 写入
+    GCString。
+        * JIT 运行时：
+            JIT 运行时无法处理此请求，执行正同步之后以 WOORT_VM_CALL_STATUS_RESYNC 
+            向上抛出到解释执行
+        * 解释执行运行时：
+            按照约定描述终止原因，然后设置 ABORT
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE = 1 << 7,
 
 }woort_VMRuntime_CheckRequestMask;
 

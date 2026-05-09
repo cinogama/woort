@@ -3665,6 +3665,16 @@ _label_continue_execution:
                 // Already aborted.
                 return WOORT_VM_CALL_STATUS_ABORTED;
             }
+            if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE)
+            {
+                if (woort_VMRuntime_request_set(vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT))
+                {
+                    const char* abort_reason = "Terminated.";
+
+                    vm->m_sp->m_string = woort_GCString_make_string(
+                        abort_reason, strlen(abort_reason));
+                }
+            }
             else if (request_mask
                 & (WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK
                     | WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
