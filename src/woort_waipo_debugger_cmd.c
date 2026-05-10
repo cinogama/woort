@@ -298,6 +298,8 @@ static void _woort_WAIPO_print_source_file(
     bool has_highlight,
     size_t highlight_begin_line,
     size_t highlight_end_line,
+    size_t highlight_begin_col,
+    size_t highlight_end_col,
     size_t from_line,
     size_t to_line)
 {
@@ -325,10 +327,27 @@ static void _woort_WAIPO_print_source_file(
                 && current_line >= highlight_begin_line
                 && current_line <= highlight_end_line;
 
-            (void)printf("%c %5zu | %s",
-                is_highlight ? '>' : ' ',
-                current_line + 1,
-                line_buf);
+            if (is_highlight)
+            {
+                const size_t line_len = strlen(line_buf);
+                size_t col_start = 0;
+                size_t col_end = line_len;
+                if (current_line == highlight_begin_line && highlight_begin_col < line_len)
+                    col_start = highlight_begin_col;
+                if (current_line == highlight_end_line && highlight_end_col < line_len)
+                    col_end = highlight_end_col;
+
+                (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s",
+                    current_line + 1,
+                    (int)col_start, line_buf,
+                    (int)(col_end - col_start), line_buf + col_start,
+                    (int)(line_len - col_end), line_buf + col_end);
+            }
+            else
+                (void)printf("%c %5zu | %s",
+                    ' ',
+                    current_line + 1,
+                    line_buf);
         }
         ++current_line;
     }
@@ -447,11 +466,16 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
         }
     }
 
+    const size_t highlight_begin_col = trace.m_location_begin[1];
+    const size_t highlight_end_col = trace.m_location_end[1];
+
     if (show_full)
     {
         _woort_WAIPO_print_source_file(
             target_file,
             false,
+            0,
+            0,
             0,
             0,
             0,
@@ -469,6 +493,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
             has_highlight,
             highlight_begin,
             highlight_end,
+            highlight_begin_col,
+            highlight_end_col,
             from_line,
             to_line);
     }
