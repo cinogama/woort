@@ -6,7 +6,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-const woort_Bytecode* woort_disassembly(const woort_Bytecode* c)
+const woort_Bytecode* woort_disassembly(
+    const woort_Bytecode* c, woort_Disassembly_DumpCallback callback)
 {
     woort_Bytecode bc = c[0];
 
@@ -18,7 +19,7 @@ label_reentry_for_debug_trap:;
     {
     case WOORT_OPCODE_NOP:
     {
-        printf("NOP\n");
+        callback("NOP\n");
         return c + 1;
     }
 
@@ -26,7 +27,7 @@ label_reentry_for_debug_trap:;
     {
         const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
         const uint32_t src = WOORT_BYTECODE(MAB18, bc);
-        printf("LOAD        [SB %+d] = G[%u]\n", dst, src);
+        callback("LOAD        [SB %+d] = G[%u]\n", dst, src);
         return c + 1;
     }
 
@@ -34,7 +35,7 @@ label_reentry_for_debug_trap:;
     {
         const int8_t src = (int8_t)WOORT_BYTECODE(C8, bc);
         const uint32_t dst = WOORT_BYTECODE(MAB18, bc);
-        printf("STORE       G[%u] = [SB %+d]\n", dst, src);
+        callback("STORE       G[%u] = [SB %+d]\n", dst, src);
         return c + 1;
     }
 
@@ -42,7 +43,7 @@ label_reentry_for_debug_trap:;
     {
         const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
         const uint32_t src = (uint32_t)c[1];
-        printf("LOADEX      [SB %+d] = G[%u]\n", dst, src);
+        callback("LOADEX      [SB %+d] = G[%u]\n", dst, src);
         return c + 2;
     }
 
@@ -50,7 +51,7 @@ label_reentry_for_debug_trap:;
     {
         const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
         const uint32_t dst = (uint32_t)c[1];
-        printf("STOREEX     G[%u] = [SB %+d]\n", dst, src);
+        callback("STOREEX     G[%u] = [SB %+d]\n", dst, src);
         return c + 2;
     }
 
@@ -62,28 +63,28 @@ label_reentry_for_debug_trap:;
         {
             const int8_t dst = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("MOVLD       [SB %+d] = [SB %+d]\n", dst, src);
+            callback("MOVLD       [SB %+d] = [SB %+d]\n", dst, src);
             return c + 1;
         }
         case 1:
         {
             const int8_t src = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("MOVST       [SB %+d] = [SB %+d]\n", dst, src);
+            callback("MOVST       [SB %+d] = [SB %+d]\n", dst, src);
             return c + 1;
         }
         case 2:
         {
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
             const int32_t src = (int32_t)c[1];
-            printf("MOVLDEXT    [SB %+d] = [SB %+d]\n", dst, src);
+            callback("MOVLDEXT    [SB %+d] = [SB %+d]\n", dst, src);
             return c + 2;
         }
         case 3:
         {
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
             const int32_t dst = (int32_t)c[1];
-            printf("MOVSTEXT    [SB %+d] = [SB %+d]\n", dst, src);
+            callback("MOVSTEXT    [SB %+d] = [SB %+d]\n", dst, src);
             return c + 2;
         }
         }
@@ -97,25 +98,25 @@ label_reentry_for_debug_trap:;
         case 0:
         {
             const uint32_t n = WOORT_BYTECODE(ABC24, bc);
-            printf("PUSHRCHK    %u\n", n);
+            callback("PUSHRCHK    %u\n", n);
             return c + 1;
         }
         case 1:
         {
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("PUSHSCHK    [SB %+d]\n", src);
+            callback("PUSHSCHK    [SB %+d]\n", src);
             return c + 1;
         }
         case 2:
         {
             const uint32_t src = WOORT_BYTECODE(ABC24, bc);
-            printf("PUSHCCHK    G[%u]\n", src);
+            callback("PUSHCCHK    G[%u]\n", src);
             return c + 1;
         }
         case 3:
         {
             const uint32_t src = (uint32_t)c[1];
-            printf("PUSHCCHKEXT G[%u]\n", src);
+            callback("PUSHCCHKEXT G[%u]\n", src);
             return c + 2;
         }
         }
@@ -129,25 +130,25 @@ label_reentry_for_debug_trap:;
         case 0:
         {
             const uint32_t n = WOORT_BYTECODE(ABC24, bc);
-            printf("ASSURESSZ   %u\n", n);
+            callback("ASSURESSZ   %u\n", n);
             return c + 1;
         }
         case 1:
         {
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("PUSHS       [SB %+d]\n", src);
+            callback("PUSHS       [SB %+d]\n", src);
             return c + 1;
         }
         case 2:
         {
             const uint32_t src = WOORT_BYTECODE(ABC24, bc);
-            printf("PUSHC       G[%u]\n", src);
+            callback("PUSHC       G[%u]\n", src);
             return c + 1;
         }
         case 3:
         {
             const uint32_t src = (uint32_t)c[1];
-            printf("PUSHCEXT    G[%u]\n", src);
+            callback("PUSHCEXT    G[%u]\n", src);
             return c + 2;
         }
         }
@@ -161,25 +162,25 @@ label_reentry_for_debug_trap:;
         case 0:
         {
             const uint32_t n = WOORT_BYTECODE(ABC24, bc);
-            printf("POPR        %u\n", n);
+            callback("POPR        %u\n", n);
             return c + 1;
         }
         case 1:
         {
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("POPS        [SB %+d]\n", dst);
+            callback("POPS        [SB %+d]\n", dst);
             return c + 1;
         }
         case 2:
         {
             const uint32_t dst = WOORT_BYTECODE(ABC24, bc);
-            printf("POPC        G[%u]\n", dst);
+            callback("POPC        G[%u]\n", dst);
             return c + 1;
         }
         case 3:
         {
             const uint32_t dst = (uint32_t)c[1];
-            printf("POPCEXT     G[%u]\n", dst);
+            callback("POPCEXT     G[%u]\n", dst);
             return c + 2;
         }
         }
@@ -194,28 +195,28 @@ label_reentry_for_debug_trap:;
         {
             const int8_t src = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("ITORST      [SB %+d] -> [SB %+d]\n", src, dst);
+            callback("ITORST      [SB %+d] -> [SB %+d]\n", src, dst);
             return c + 1;
         }
         case 1:
         {
             const int8_t dst = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("ITORLD      [SB %+d] -> [SB %+d]\n", src, dst);
+            callback("ITORLD      [SB %+d] -> [SB %+d]\n", src, dst);
             return c + 1;
         }
         case 2:
         {
             const int8_t src = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("ITOSST      [SB %+d] -> [SB %+d]\n", src, dst);
+            callback("ITOSST      [SB %+d] -> [SB %+d]\n", src, dst);
             return c + 1;
         }
         case 3:
         {
             const int8_t dst = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("ITOSLD      [SB %+d] -> [SB %+d]\n", src, dst);
+            callback("ITOSLD      [SB %+d] -> [SB %+d]\n", src, dst);
             return c + 1;
         }
         }
@@ -230,28 +231,28 @@ label_reentry_for_debug_trap:;
         {
             const int8_t src = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("RTOIST      [SB %+d] -> [SB %+d]\n", src, dst);
+            callback("RTOIST      [SB %+d] -> [SB %+d]\n", src, dst);
             return c + 1;
         }
         case 1:
         {
             const int8_t dst = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("RTOILD      [SB %+d] -> [SB %+d]\n", src, dst);
+            callback("RTOILD      [SB %+d] -> [SB %+d]\n", src, dst);
             return c + 1;
         }
         case 2:
         {
             const int8_t src = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("RTOSST      [SB %+d] -> [SB %+d]\n", src, dst);
+            callback("RTOSST      [SB %+d] -> [SB %+d]\n", src, dst);
             return c + 1;
         }
         case 3:
         {
             const int8_t dst = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("RTOSLD      [SB %+d] -> [SB %+d]\n", src, dst);
+            callback("RTOSLD      [SB %+d] -> [SB %+d]\n", src, dst);
             return c + 1;
         }
         }
@@ -267,7 +268,7 @@ label_reentry_for_debug_trap:;
             const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("CASTSTO     T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
+            callback("CASTSTO     T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
             return c + 1;
         }
         case 1:
@@ -275,7 +276,7 @@ label_reentry_for_debug_trap:;
             const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("CASTSFROM   T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
+            callback("CASTSFROM   T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
             return c + 1;
         }
         case 2:
@@ -283,14 +284,14 @@ label_reentry_for_debug_trap:;
             const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("CASTDYN     T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
+            callback("CASTDYN     T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
             return c + 1;
         }
         case 3:
         {
             const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("ASSERTDYN   T%u, [SB %+d]\n", t, src);
+            callback("ASSERTDYN   T%u, [SB %+d]\n", t, src);
             return c + 1;
         }
         }
@@ -300,21 +301,21 @@ label_reentry_for_debug_trap:;
     case WOORT_OPCODE_CALLNWO:
     {
         const uint32_t target = WOORT_BYTECODE(MABC26, bc);
-        printf("CALLNWO     G[%u]\n", target);
+        callback("CALLNWO     G[%u]\n", target);
         return c + 1;
     }
 
     case WOORT_OPCODE_CALLNFP:
     {
         const uint32_t target = WOORT_BYTECODE(MABC26, bc);
-        printf("CALLNFP     G[%u]\n", target);
+        callback("CALLNFP     G[%u]\n", target);
         return c + 1;
     }
 
     case WOORT_OPCODE_CALLNJIT:
     {
         const uint32_t target = WOORT_BYTECODE(MABC26, bc);
-        printf("CALLNJIT    G[%u]\n", target);
+        callback("CALLNJIT    G[%u]\n", target);
         return c + 1;
     }
 
@@ -325,13 +326,13 @@ label_reentry_for_debug_trap:;
         case 0:
         {
             const int16_t target = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("CALLS       [SB %+d]\n", target);
+            callback("CALLS       [SB %+d]\n", target);
             return c + 1;
         }
         case 1:
         {
             const uint32_t target = WOORT_BYTECODE(ABC24, bc);
-            printf("CALLC       G[%u]\n", target);
+            callback("CALLC       G[%u]\n", target);
             return c + 1;
         }
         }
@@ -343,24 +344,24 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("RET\n");
+            callback("RET\n");
             return c + 1;
         case 1:
         {
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("RETVS       [SB %+d]\n", src);
+            callback("RETVS       [SB %+d]\n", src);
             return c + 1;
         }
         case 2:
         {
             const uint32_t src = WOORT_BYTECODE(ABC24, bc);
-            printf("RETVC       G[%u]\n", src);
+            callback("RETVC       G[%u]\n", src);
             return c + 1;
         }
         case 3:
         {
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("POPRS       [SB %+d]\n", src);
+            callback("POPRS       [SB %+d]\n", src);
             return c + 1;
         }
         }
@@ -371,21 +372,21 @@ label_reentry_for_debug_trap:;
     {
         const uint32_t n = WOORT_BYTECODE(MA10, bc);
         const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-        printf("RESULT      [SB %+d], POP %u\n", dst, n);
+        callback("RESULT      [SB %+d], POP %u\n", dst, n);
         return c + 1;
     }
 
     case WOORT_OPCODE_JFWD:
     {
         const uint32_t addr = WOORT_BYTECODE(MABC26, bc);
-        printf("JFWD        %u\n", addr);
+        callback("JFWD        %u\n", addr);
         return c + 1;
     }
 
     case WOORT_OPCODE_JBCK:
     {
         const uint32_t addr = WOORT_BYTECODE(MABC26, bc);
-        printf("JBCK        %u\n", addr);
+        callback("JBCK        %u\n", addr);
         return c + 1;
     }
 
@@ -397,14 +398,14 @@ label_reentry_for_debug_trap:;
         {
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const uint16_t offset = (uint16_t)WOORT_BYTECODE(BC16, bc);
-            printf("JFWDNZ      +%u IF [SB %+d] != 0\n", offset, a);
+            callback("JFWDNZ      +%u IF [SB %+d] != 0\n", offset, a);
             return c + 1;
         }
         case 1:
         {
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const uint16_t offset = (uint16_t)WOORT_BYTECODE(BC16, bc);
-            printf("JFWDZ       +%u IF [SB %+d] == 0\n", offset, a);
+            callback("JFWDZ       +%u IF [SB %+d] == 0\n", offset, a);
             return c + 1;
         }
         case 2:
@@ -412,7 +413,7 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const uint8_t offset = (uint8_t)WOORT_BYTECODE(C8, bc);
-            printf("JFWDEQ      +%u IF [SB %+d] == [SB %+d]\n", offset, a, b);
+            callback("JFWDEQ      +%u IF [SB %+d] == [SB %+d]\n", offset, a, b);
             return c + 1;
         }
         case 3:
@@ -420,7 +421,7 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const uint8_t offset = (uint8_t)WOORT_BYTECODE(C8, bc);
-            printf("JFWDNEQ     +%u IF [SB %+d] != [SB %+d]\n", offset, a, b);
+            callback("JFWDNEQ     +%u IF [SB %+d] != [SB %+d]\n", offset, a, b);
             return c + 1;
         }
         }
@@ -435,14 +436,14 @@ label_reentry_for_debug_trap:;
         {
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const uint16_t offset = (uint16_t)WOORT_BYTECODE(BC16, bc);
-            printf("JBCKNZ      -%u IF [SB %+d] != 0\n", offset, a);
+            callback("JBCKNZ      -%u IF [SB %+d] != 0\n", offset, a);
             return c + 1;
         }
         case 1:
         {
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const uint16_t offset = (uint16_t)WOORT_BYTECODE(BC16, bc);
-            printf("JBCKZ       -%u IF [SB %+d] == 0\n", offset, a);
+            callback("JBCKZ       -%u IF [SB %+d] == 0\n", offset, a);
             return c + 1;
         }
         case 2:
@@ -450,7 +451,7 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const uint8_t offset = (uint8_t)WOORT_BYTECODE(C8, bc);
-            printf("JBCKEQ      -%u IF [SB %+d] == [SB %+d]\n", offset, a, b);
+            callback("JBCKEQ      -%u IF [SB %+d] == [SB %+d]\n", offset, a, b);
             return c + 1;
         }
         case 3:
@@ -458,7 +459,7 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const uint8_t offset = (uint8_t)WOORT_BYTECODE(C8, bc);
-            printf("JBCKNEQ     -%u IF [SB %+d] != [SB %+d]\n", offset, a, b);
+            callback("JBCKNEQ     -%u IF [SB %+d] != [SB %+d]\n", offset, a, b);
             return c + 1;
         }
         }
@@ -473,16 +474,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("JFWDLT      +%u IF [SB %+d] < [SB %+d]\n", offset, a, b);
+            callback("JFWDLT      +%u IF [SB %+d] < [SB %+d]\n", offset, a, b);
             return c + 1;
         case 1:
-            printf("JFWDGT      +%u IF [SB %+d] > [SB %+d]\n", offset, a, b);
+            callback("JFWDGT      +%u IF [SB %+d] > [SB %+d]\n", offset, a, b);
             return c + 1;
         case 2:
-            printf("JFWDEL      +%u IF [SB %+d] <= [SB %+d]\n", offset, a, b);
+            callback("JFWDEL      +%u IF [SB %+d] <= [SB %+d]\n", offset, a, b);
             return c + 1;
         case 3:
-            printf("JFWDEG      +%u IF [SB %+d] >= [SB %+d]\n", offset, a, b);
+            callback("JFWDEG      +%u IF [SB %+d] >= [SB %+d]\n", offset, a, b);
             return c + 1;
         }
         break;
@@ -496,16 +497,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("JBCKLT      -%u IF [SB %+d] < [SB %+d]\n", offset, a, b);
+            callback("JBCKLT      -%u IF [SB %+d] < [SB %+d]\n", offset, a, b);
             return c + 1;
         case 1:
-            printf("JBCKGT      -%u IF [SB %+d] > [SB %+d]\n", offset, a, b);
+            callback("JBCKGT      -%u IF [SB %+d] > [SB %+d]\n", offset, a, b);
             return c + 1;
         case 2:
-            printf("JBCKEL      -%u IF [SB %+d] <= [SB %+d]\n", offset, a, b);
+            callback("JBCKEL      -%u IF [SB %+d] <= [SB %+d]\n", offset, a, b);
             return c + 1;
         case 3:
-            printf("JBCKEG      -%u IF [SB %+d] >= [SB %+d]\n", offset, a, b);
+            callback("JBCKEG      -%u IF [SB %+d] >= [SB %+d]\n", offset, a, b);
             return c + 1;
         }
         break;
@@ -519,19 +520,19 @@ label_reentry_for_debug_trap:;
         case 0:
         {
             const uint8_t n = (uint8_t)WOORT_BYTECODE(A8, bc);
-            printf("MKVEC       %u -> [SB %+d]\n", n, dst);
+            callback("MKVEC       %u -> [SB %+d]\n", n, dst);
             return c + 1;
         }
         case 1:
         {
             const uint8_t n = (uint8_t)WOORT_BYTECODE(A8, bc);
-            printf("MKMAP       %u -> [SB %+d]\n", n, dst);
+            callback("MKMAP       %u -> [SB %+d]\n", n, dst);
             return c + 1;
         }
         case 2:
         {
             const uint8_t n = (uint8_t)WOORT_BYTECODE(A8, bc);
-            printf("MKSTRUCT    %u -> [SB %+d]\n", n, dst);
+            callback("MKSTRUCT    %u -> [SB %+d]\n", n, dst);
             return c + 1;
         }
         case 3:
@@ -539,7 +540,7 @@ label_reentry_for_debug_trap:;
             const uint8_t idx = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst2 = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("MKUNION     %u, [SB %+d] -> [SB %+d]\n", idx, src, dst2);
+            callback("MKUNION     %u, [SB %+d] -> [SB %+d]\n", idx, src, dst2);
             return c + 1;
         }
         }
@@ -553,16 +554,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("MKVECEXT    %u -> [SB %+d]\n", n, dst);
+            callback("MKVECEXT    %u -> [SB %+d]\n", n, dst);
             return c + 2;
         case 1:
-            printf("MKMAPEXT    %u -> [SB %+d]\n", n, dst);
+            callback("MKMAPEXT    %u -> [SB %+d]\n", n, dst);
             return c + 2;
         case 2:
-            printf("MKSTRUCTEXT %u -> [SB %+d]\n", n, dst);
+            callback("MKSTRUCTEXT %u -> [SB %+d]\n", n, dst);
             return c + 2;
         case 3:
-            printf("MKUNIONEXT  %u, [SB %+d] -> [SB %+d]\n", n, (int8_t)WOORT_BYTECODE(A8, bc), dst);
+            callback("MKUNIONEXT  %u, [SB %+d] -> [SB %+d]\n", n, (int8_t)WOORT_BYTECODE(A8, bc), dst);
             return c + 2;
         }
         break;
@@ -573,7 +574,7 @@ label_reentry_for_debug_trap:;
         const uint32_t n = WOORT_BYTECODE(MA10, bc);
         const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
         const uint32_t func = (uint32_t)c[1];
-        printf("MKCLOSURE   %u -> [SB %+d], G[%u]\n", n, dst, func);
+        callback("MKCLOSURE   %u -> [SB %+d], G[%u]\n", n, dst, func);
         return c + 2;
     }
 
@@ -586,7 +587,7 @@ label_reentry_for_debug_trap:;
             const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("BOXDYN      T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
+            callback("BOXDYN      T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
             return c + 1;
         }
         case 1:
@@ -594,7 +595,7 @@ label_reentry_for_debug_trap:;
             const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("UNBOXDYN    T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
+            callback("UNBOXDYN    T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
             return c + 1;
         }
         case 2:
@@ -602,14 +603,14 @@ label_reentry_for_debug_trap:;
             const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int8_t src = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("CHECKDYN    T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
+            callback("CHECKDYN    T%u, [SB %+d] -> [SB %+d]\n", t, src, dst);
             return c + 1;
         }
         case 3:
         {
             const uint8_t t = (uint8_t)WOORT_BYTECODE(A8, bc);
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("PUSHBOXDYN  T%u, [SB %+d]\n", t, src);
+            callback("PUSHBOXDYN  T%u, [SB %+d]\n", t, src);
             return c + 1;
         }
         }
@@ -624,16 +625,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("ADDI        [SB %+d] + [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("ADDI        [SB %+d] + [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            printf("SUBI        [SB %+d] - [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("SUBI        [SB %+d] - [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            printf("MULI        [SB %+d] * [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("MULI        [SB %+d] * [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 3:
-            printf("DIVI        [SB %+d] / [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("DIVI        [SB %+d] / [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -648,14 +649,14 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("MODI        [SB %+d] %% [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("MODI        [SB %+d] %% [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         case 1:
         {
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("NEGI        -[SB %+d] -> [SB %+d]\n", a, dst);
+            callback("NEGI        -[SB %+d] -> [SB %+d]\n", a, dst);
             return c + 1;
         }
         case 2:
@@ -663,7 +664,7 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("LTI         [SB %+d] < [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("LTI         [SB %+d] < [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         case 3:
@@ -671,7 +672,7 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("GTI         [SB %+d] > [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("GTI         [SB %+d] > [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         }
@@ -686,16 +687,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("LEI         [SB %+d] <= [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("LEI         [SB %+d] <= [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            printf("GEI         [SB %+d] >= [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("GEI         [SB %+d] >= [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            printf("EQI         [SB %+d] == [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("EQI         [SB %+d] == [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 3:
-            printf("NEI         [SB %+d] != [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("NEI         [SB %+d] != [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -709,16 +710,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("ADDR        [SB %+d] + [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("ADDR        [SB %+d] + [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            printf("SUBR        [SB %+d] - [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("SUBR        [SB %+d] - [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            printf("MULR        [SB %+d] * [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("MULR        [SB %+d] * [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 3:
-            printf("DIVR        [SB %+d] / [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("DIVR        [SB %+d] / [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -733,14 +734,14 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("MODR        [SB %+d] %% [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("MODR        [SB %+d] %% [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         case 1:
         {
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("NEGR        -[SB %+d] -> [SB %+d]\n", a, dst);
+            callback("NEGR        -[SB %+d] -> [SB %+d]\n", a, dst);
             return c + 1;
         }
         case 2:
@@ -748,7 +749,7 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("LTR         [SB %+d] < [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("LTR         [SB %+d] < [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         case 3:
@@ -756,7 +757,7 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("GTR         [SB %+d] > [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("GTR         [SB %+d] > [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         }
@@ -771,16 +772,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("LER         [SB %+d] <= [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("LER         [SB %+d] <= [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            printf("GER         [SB %+d] >= [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("GER         [SB %+d] >= [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            printf("EQR         [SB %+d] == [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("EQR         [SB %+d] == [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 3:
-            printf("NER         [SB %+d] != [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("NER         [SB %+d] != [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -794,16 +795,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("ADDS        [SB %+d] + [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("ADDS        [SB %+d] + [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            printf("LTS         [SB %+d] < [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("LTS         [SB %+d] < [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            printf("GTS         [SB %+d] > [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("GTS         [SB %+d] > [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 3:
-            printf("LES         [SB %+d] <= [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("LES         [SB %+d] <= [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -817,13 +818,13 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("GES         [SB %+d] >= [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("GES         [SB %+d] >= [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            printf("EQS         [SB %+d] == [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("EQS         [SB %+d] == [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            printf("NES         [SB %+d] != [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("NES         [SB %+d] != [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -838,7 +839,7 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("LAND        [SB %+d] && [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("LAND        [SB %+d] && [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         case 1:
@@ -846,14 +847,14 @@ label_reentry_for_debug_trap:;
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int8_t b = (int8_t)WOORT_BYTECODE(B8, bc);
             const int8_t dst = (int8_t)WOORT_BYTECODE(C8, bc);
-            printf("LOR         [SB %+d] || [SB %+d] -> [SB %+d]\n", a, b, dst);
+            callback("LOR         [SB %+d] || [SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         case 2:
         {
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("LNOT        ![SB %+d] -> [SB %+d]\n", a, dst);
+            callback("LNOT        ![SB %+d] -> [SB %+d]\n", a, dst);
             return c + 1;
         }
         }
@@ -867,16 +868,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("CADDI       [SB %+d] += [SB %+d]\n", dst, a);
+            callback("CADDI       [SB %+d] += [SB %+d]\n", dst, a);
             return c + 1;
         case 1:
-            printf("CSUBI       [SB %+d] -= [SB %+d]\n", dst, a);
+            callback("CSUBI       [SB %+d] -= [SB %+d]\n", dst, a);
             return c + 1;
         case 2:
-            printf("CMULI       [SB %+d] *= [SB %+d]\n", dst, a);
+            callback("CMULI       [SB %+d] *= [SB %+d]\n", dst, a);
             return c + 1;
         case 3:
-            printf("CDIVI       [SB %+d] /= [SB %+d]\n", dst, a);
+            callback("CDIVI       [SB %+d] /= [SB %+d]\n", dst, a);
             return c + 1;
         }
         break;
@@ -889,16 +890,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("CADDR       [SB %+d] += [SB %+d]\n", dst, a);
+            callback("CADDR       [SB %+d] += [SB %+d]\n", dst, a);
             return c + 1;
         case 1:
-            printf("CSUBR       [SB %+d] -= [SB %+d]\n", dst, a);
+            callback("CSUBR       [SB %+d] -= [SB %+d]\n", dst, a);
             return c + 1;
         case 2:
-            printf("CMULR       [SB %+d] *= [SB %+d]\n", dst, a);
+            callback("CMULR       [SB %+d] *= [SB %+d]\n", dst, a);
             return c + 1;
         case 3:
-            printf("CDIVR       [SB %+d] /= [SB %+d]\n", dst, a);
+            callback("CDIVR       [SB %+d] /= [SB %+d]\n", dst, a);
             return c + 1;
         }
         break;
@@ -911,16 +912,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("CADDS       [SB %+d] += [SB %+d]\n", dst, a);
+            callback("CADDS       [SB %+d] += [SB %+d]\n", dst, a);
             return c + 1;
         case 1:
-            printf("CVADDS      [SB %+d] = [SB %+d] + [SB %+d]\n", dst, a, dst);
+            callback("CVADDS      [SB %+d] = [SB %+d] + [SB %+d]\n", dst, a, dst);
             return c + 1;
         case 2:
-            printf("CMODI       [SB %+d] %%= [SB %+d]\n", dst, a);
+            callback("CMODI       [SB %+d] %%= [SB %+d]\n", dst, a);
             return c + 1;
         case 3:
-            printf("CMODR       [SB %+d] %%= [SB %+d]\n", dst, a);
+            callback("CMODR       [SB %+d] %%= [SB %+d]\n", dst, a);
             return c + 1;
         }
         break;
@@ -934,20 +935,20 @@ label_reentry_for_debug_trap:;
         {
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("CLAND       [SB %+d] &&= [SB %+d]\n", dst, a);
+            callback("CLAND       [SB %+d] &&= [SB %+d]\n", dst, a);
             return c + 1;
         }
         case 1:
         {
             const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("CLOR        [SB %+d] ||= [SB %+d]\n", dst, a);
+            callback("CLOR        [SB %+d] ||= [SB %+d]\n", dst, a);
             return c + 1;
         }
         case 2:
         {
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("CLNOT       ![SB %+d]\n", dst);
+            callback("CLNOT       ![SB %+d]\n", dst);
             return c + 1;
         }
         }
@@ -962,16 +963,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("LDIDXVEC    [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXVEC    [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            printf("LDIDXVECX   [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXVECX   [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            printf("LDIDSTRUCT  [SB %+d].%u -> [SB %+d]\n", b, (uint8_t)a, dst);
+            callback("LDIDSTRUCT  [SB %+d].%u -> [SB %+d]\n", b, (uint8_t)a, dst);
             return c + 1;
         case 3:
-            printf("LDIDSTRING  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDSTRING  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -985,16 +986,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("LDIDXDICTI  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTI  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            printf("LDIDXDICTR  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTR  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            printf("LDIDXDICTB  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTB  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 3:
-            printf("LDIDXDICTX  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTX  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -1008,16 +1009,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("LDIDXDICTIX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTIX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            printf("LDIDXDICTRX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTRX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            printf("LDIDXDICTBX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTBX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 3:
-            printf("LDIDXDICTXX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTXX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -1031,16 +1032,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("LDIDXVECEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXVECEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 1:
-            printf("LDIDXVECXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXVECXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 2:
-            printf("LDIDSTRUCTEXT [SB %+d].%u -> [SB %+d]\n", b, (uint32_t)a, dst);
+            callback("LDIDSTRUCTEXT [SB %+d].%u -> [SB %+d]\n", b, (uint32_t)a, dst);
             return c + 2;
         case 3:
-            printf("LDIDSTRINGEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDSTRINGEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         }
         break;
@@ -1054,16 +1055,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("LDIDXDICTIEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTIEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 1:
-            printf("LDIDXDICTREXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTREXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 2:
-            printf("LDIDXDICTBEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTBEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 3:
-            printf("LDIDXDICTXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         }
         break;
@@ -1077,16 +1078,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("LDIDXDICTIXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTIXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 1:
-            printf("LDIDXDICTRXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTRXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 2:
-            printf("LDIDXDICTBXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTBXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 3:
-            printf("LDIDXDICTXXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTXXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         }
         break;
@@ -1100,16 +1101,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("STIDXVECI   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXVECI   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            printf("STIDXVECR   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXVECR   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            printf("STIDXVECB   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXVECB   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            printf("STIDXVECX   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXVECX   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1123,16 +1124,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("STIDXDICTII [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTII [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            printf("STIDXDICTIR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTIR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            printf("STIDXDICTIB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTIB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            printf("STIDXDICTIX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTIX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1146,16 +1147,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("STIDXDICTRI [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTRI [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            printf("STIDXDICTRR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTRR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            printf("STIDXDICTRB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTRB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            printf("STIDXDICTRX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTRX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1169,16 +1170,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("STIDXDICTBI [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTBI [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            printf("STIDXDICTBR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTBR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            printf("STIDXDICTBB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTBB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            printf("STIDXDICTBX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTBX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1192,16 +1193,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("STIDXDICTXI [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTXI [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            printf("STIDXDICTXR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTXR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            printf("STIDXDICTXB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTXB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            printf("STIDXDICTXX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTXX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1215,16 +1216,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("STIDXMAPII  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPII  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            printf("STIDXMAPIR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPIR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            printf("STIDXMAPIB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPIB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            printf("STIDXMAPIX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPIX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1238,16 +1239,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("STIDXMAPRI  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPRI  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            printf("STIDXMAPRR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPRR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            printf("STIDXMAPRB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPRB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            printf("STIDXMAPRX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPRX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1261,16 +1262,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("STIDXMAPBI  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPBI  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            printf("STIDXMAPBR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPBR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            printf("STIDXMAPBB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPBB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            printf("STIDXMAPBX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPBX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1284,16 +1285,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("STIDXMAPXI  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPXI  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            printf("STIDXMAPXR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPXR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            printf("STIDXMAPXB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPXB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            printf("STIDXMAPXX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPXX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1304,7 +1305,7 @@ label_reentry_for_debug_trap:;
         const uint32_t n = WOORT_BYTECODE(MA10, bc);
         const int8_t a = (int8_t)WOORT_BYTECODE(B8, bc);
         const int8_t b = (int8_t)WOORT_BYTECODE(C8, bc);
-        printf("STIDSTRUCT  [SB %+d].%u = [SB %+d]\n", a, n, b);
+        callback("STIDSTRUCT  [SB %+d].%u = [SB %+d]\n", a, n, b);
         return c + 1;
     }
 
@@ -1316,16 +1317,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("STIDXVECEXT [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, dst);
+            callback("STIDXVECEXT [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, dst);
             return c + 2;
         case 1:
-            printf("STIDXDICTEXT [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, dst);
+            callback("STIDXDICTEXT [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, dst);
             return c + 2;
         case 2:
-            printf("STIDXMAPEXT [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, dst);
+            callback("STIDXMAPEXT [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, dst);
             return c + 2;
         case 3:
-            printf("STIDSTRUCTEXT [SB %+d].%u = [SB %+d]\n", b, (uint32_t)a, dst);
+            callback("STIDSTRUCTEXT [SB %+d].%u = [SB %+d]\n", b, (uint32_t)a, dst);
             return c + 2;
         }
         break;
@@ -1336,23 +1337,23 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("UNPACKVEC   %u in [SB %+d]\n",
+            callback("UNPACKVEC   %u in [SB %+d]\n",
                 (uint8_t)WOORT_BYTECODE(A8, bc),
                 (int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
         case 1:
-            printf("UNPACKVECX  %u in [SB %+d]\n",
+            callback("UNPACKVECX  %u in [SB %+d]\n",
                 (uint8_t)WOORT_BYTECODE(A8, bc),
                 (int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
         case 2:
-            printf("UNPACKVECALL %u in [SB %+d] -> [SB %+d]\n",
+            callback("UNPACKVECALL %u in [SB %+d] -> [SB %+d]\n",
                 (uint8_t)WOORT_BYTECODE(A8, bc),
                 (int8_t)WOORT_BYTECODE(B8, bc),
                 (int8_t)WOORT_BYTECODE(C8, bc));
             return c + 1;
         case 3:
-            printf("UNPACKVECXALL %u in [SB %+d] -> [SB %+d]\n",
+            callback("UNPACKVECXALL %u in [SB %+d] -> [SB %+d]\n",
                 (uint8_t)WOORT_BYTECODE(A8, bc),
                 (int8_t)WOORT_BYTECODE(B8, bc),
                 (int8_t)WOORT_BYTECODE(C8, bc));
@@ -1368,16 +1369,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            printf("PUSHIDXSTRUCT [SB %+d].%u\n", src, n);
+            callback("PUSHIDXSTRUCT [SB %+d].%u\n", src, n);
             return c + 1;
         case 1:
-            printf("PUSHIDXSTBOXI [SB %+d].%u\n", src, n);
+            callback("PUSHIDXSTBOXI [SB %+d].%u\n", src, n);
             return c + 1;
         case 2:
-            printf("PUSHIDXSTBOXR [SB %+d].%u\n", src, n);
+            callback("PUSHIDXSTBOXR [SB %+d].%u\n", src, n);
             return c + 1;
         case 3:
-            printf("PUSHIDXSTBOXB [SB %+d].%u\n", src, n);
+            callback("PUSHIDXSTBOXB [SB %+d].%u\n", src, n);
             return c + 1;
         }
         break;
@@ -1387,7 +1388,7 @@ label_reentry_for_debug_trap:;
     {
         const uint32_t n = WOORT_BYTECODE(MA10, bc);
         const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-        printf("PACKARG     %u -> [SB %+d]\n", n, dst);
+        callback("PACKARG     %u -> [SB %+d]\n", n, dst);
         return c + 1;
     }
 
@@ -1399,14 +1400,14 @@ label_reentry_for_debug_trap:;
         {
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
             const uint32_t dst = (uint32_t)c[1];
-            printf("ASTORE      G[%u] = [SB %+d]\n", dst, src);
+            callback("ASTORE      G[%u] = [SB %+d]\n", dst, src);
             return c + 2;
         }
         case 1:
         {
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
             const uint32_t src = (uint32_t)c[1];
-            printf("ALOAD       [SB %+d] = G[%u]\n", dst, src);
+            callback("ALOAD       [SB %+d] = G[%u]\n", dst, src);
             return c + 2;
         }
         case 2:
@@ -1414,7 +1415,7 @@ label_reentry_for_debug_trap:;
             const int8_t desired = (int8_t)WOORT_BYTECODE(A8, bc);
             const int16_t expected = (int16_t)WOORT_BYTECODE(BC16, bc);
             const uint32_t addr = (uint32_t)c[1];
-            printf("CAS         DESIRED=[SB %+d] EXPECTED=[SB %+d], G[%u]\n", desired, expected, addr);
+            callback("CAS         DESIRED=[SB %+d] EXPECTED=[SB %+d], G[%u]\n", desired, expected, addr);
             return c + 2;
         }
         }
@@ -1425,7 +1426,7 @@ label_reentry_for_debug_trap:;
     {
         const uint32_t addr = WOORT_BYTECODE(MABC26, bc);
         const uint32_t c32 = (uint32_t)c[1];
-        printf("JIFINITED   %u, IF ALOAD G[%u] != 0\n", addr, c32);
+        callback("JIFINITED   %u, IF ALOAD G[%u] != 0\n", addr, c32);
         return c + 2;
     }
 
@@ -1443,20 +1444,20 @@ label_reentry_for_debug_trap:;
             }
             else
             {
-                printf("DEBUGTRAP\n");
+                callback("DEBUGTRAP\n");
                 return c + 1;
             }
         }
         case 1:
         {
             const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-            printf("PANICS      [SB %+d]\n", src);
+            callback("PANICS      [SB %+d]\n", src);
             return c + 1;
         }
         case 2:
         {
             const uint32_t src = WOORT_BYTECODE(ABC24, bc);
-            printf("PANICC      G[%u]\n", src);
+            callback("PANICC      G[%u]\n", src);
             return c + 1;
         }
         }
@@ -1467,26 +1468,27 @@ label_reentry_for_debug_trap:;
         break;
     }
 
-    printf("UNKNOWN_OPCODE(%u)\n", op6);
+    callback("UNKNOWN_OPCODE(%u)\n", op6);
     return c + 1;
 }
 
-void woort_dump_codes(const woort_CodeEnv* code_env)
+void woort_dump_codes(
+    const woort_CodeEnv* code_env, woort_Disassembly_DumpCallback callback)
 {
     const woort_Bytecode* pc = code_env->m_code_begin;
     const woort_Bytecode* next_bc = pc;
 
     while (pc < code_env->m_code_end)
     {
-        printf("%04zu:\t", (size_t)(pc - code_env->m_code_begin));
+        callback("%04zu:\t", (size_t)(pc - code_env->m_code_begin));
 
         if (pc == next_bc)
-            next_bc = woort_disassembly(pc);
+            next_bc = woort_disassembly(pc, callback);
         else
-            printf("\n");
+            callback("\n");
 
         ++pc;
     }
 
-    printf("\n");
+    callback("\n");
 }

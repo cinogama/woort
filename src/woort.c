@@ -22,6 +22,7 @@
 #include "woort_utf8.h"
 #include "woort_vm_debugger_api.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -1782,7 +1783,7 @@ WOORT_NODISCARD bool woort_map_iter(
 void woort_CodeEnv_dumps(
     const woort_CodeEnv* env)
 {
-    woort_dump_codes(env);
+    woort_dump_codes(env, printf);
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_vm_create(void)

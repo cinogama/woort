@@ -7,5 +7,9 @@
 #include "woort_opcode_formal.h"
 #include "woort_codeenv.h"
 
-const woort_Bytecode* woort_disassembly(const woort_Bytecode* c);
-void woort_dump_codes(const woort_CodeEnv* code_env);
+typedef int (*woort_Disassembly_DumpCallback)(const char*, ...);
+
+const woort_Bytecode* woort_disassembly(
+    const woort_Bytecode* c, woort_Disassembly_DumpCallback callback);
+void woort_dump_codes(
+    const woort_CodeEnv* code_env, woort_Disassembly_DumpCallback callback);
