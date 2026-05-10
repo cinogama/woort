@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 typedef woort_WAIPO_CommandResult (*woort_WAIPO_CommandHandler)(
     woort_WAIPO_Debugger* dbg,
@@ -43,6 +44,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "quit                                Stop all vm to exit.\n"
         "clear       cls                     Clean the screen.\n"
         "backtrace   bt      [depth]         Print callstack backtrace (default 32).\n"
+        "frame       f       <frameid>       Switch to a call frame.\n"
+        "source      src     [file|range]    Display source code.\n"
         "\n");
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -265,6 +268,214 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_list(
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
+WOORT_NODISCARD static bool _woort_WAIPO_trace_to_depth(
+    woort_VMRuntime* vm,
+    size_t target_depth,
+    /* OPTIONAL */ woort_VMRuntime_TraceCallstack* out_trace)
+{
+    woort_VMRuntime_TraceCallstack_Iter trace_iter;
+    woort_VMRuntime_TraceCallstack trace;
+
+    woort_VMRuntime_trace_begin(vm, &trace_iter);
+
+    size_t depth = 0;
+    while (woort_VMRuntime_trace_next(&trace_iter, &trace))
+    {
+        if (depth == target_depth)
+        {
+            if (out_trace != NULL)
+                *out_trace = trace;
+            return true;
+        }
+        ++depth;
+    }
+
+    return false;
+}
+
+static void _woort_WAIPO_print_source_file(
+    const char* filepath,
+    bool has_highlight,
+    size_t highlight_begin_line,
+    size_t highlight_end_line,
+    size_t from_line,
+    size_t to_line)
+{
+    FILE* f = fopen(filepath, "r");
+    if (f == NULL)
+    {
+        (void)printf("Cannot open source: '%s'.\n", filepath);
+        return;
+    }
+
+    (void)printf("%s from line %zu to ", filepath, from_line + 1);
+    if (to_line == SIZE_MAX)
+        (void)printf("<end>:\n");
+    else
+        (void)printf("line %zu:\n", to_line + 1);
+
+    char line_buf[4096];
+    size_t current_line = 0;
+    while (fgets(line_buf, sizeof(line_buf), f) != NULL)
+    {
+        if (current_line >= from_line
+            && (to_line == SIZE_MAX || current_line <= to_line))
+        {
+            const bool is_highlight = has_highlight
+                && current_line >= highlight_begin_line
+                && current_line <= highlight_end_line;
+
+            (void)printf("%c %5zu | %s",
+                is_highlight ? '>' : ' ',
+                current_line + 1,
+                line_buf);
+        }
+        ++current_line;
+    }
+
+    (void)fclose(f);
+    (void)printf("\n");
+}
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_frame(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    if (arg_count < 2)
+    {
+        (void)printf("Usage: frame <frameid>\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const long frame_id = strtol(args[1], NULL, 10);
+    if (frame_id < 0)
+    {
+        (void)printf("Invalid frame id.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    woort_VMRuntime_TraceCallstack trace;
+    if (!_woort_WAIPO_trace_to_depth(vm, (size_t)frame_id, &trace))
+    {
+        (void)printf("No such frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    dbg->m_current_frame_depth = (size_t)frame_id;
+
+    (void)printf("Now at: frame %zu", (size_t)frame_id);
+
+    if (trace.m_function_name != NULL)
+    {
+        (void)printf("  %s", trace.m_function_name);
+
+        if (trace.m_file_or_lib_name != NULL)
+        {
+            if (trace.m_has_location)
+                (void)printf(" (%s:%zu:%zu)",
+                    trace.m_file_or_lib_name,
+                    trace.m_location_begin[0] + 1,
+                    trace.m_location_begin[1] + 1);
+            else
+                (void)printf(" (%s)", trace.m_file_or_lib_name);
+        }
+    }
+    else
+    {
+        (void)printf("  <unknown>");
+    }
+
+    (void)printf("\n");
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    woort_VMRuntime_TraceCallstack trace;
+    if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
+    {
+        (void)printf("No callstack.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (!trace.m_has_location || trace.m_file_or_lib_name == NULL)
+    {
+        (void)printf("No source location available for current frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    size_t display_range = 5;
+    const char* target_file = trace.m_file_or_lib_name;
+    size_t highlight_begin = trace.m_location_begin[0];
+    size_t highlight_end = trace.m_location_end[0];
+    bool has_highlight = true;
+    bool show_full = false;
+
+    if (arg_count >= 2)
+    {
+        bool is_number = true;
+        for (const char* p = args[1]; *p != '\0'; ++p)
+        {
+            if (*p < '0' || *p > '9')
+            {
+                is_number = false;
+                break;
+            }
+        }
+
+        if (is_number)
+        {
+            display_range = (size_t)strtoul(args[1], NULL, 10);
+        }
+        else
+        {
+            target_file = args[1];
+            if (strcmp(args[1], trace.m_file_or_lib_name) == 0)
+                has_highlight = true;
+            else
+            {
+                has_highlight = false;
+                show_full = true;
+            }
+        }
+    }
+
+    if (show_full)
+    {
+        _woort_WAIPO_print_source_file(
+            target_file,
+            false,
+            0,
+            0,
+            0,
+            SIZE_MAX);
+    }
+    else
+    {
+        const size_t from_line = highlight_begin >= display_range / 2
+            ? highlight_begin - display_range / 2
+            : 0;
+        const size_t to_line = highlight_end + display_range / 2;
+
+        _woort_WAIPO_print_source_file(
+            target_file,
+            has_highlight,
+            highlight_begin,
+            highlight_end,
+            from_line,
+            to_line);
+    }
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "help",      "?",    &_woort_WAIPO_cmd_help },
     { "continue",  "c",    &_woort_WAIPO_cmd_continue },
@@ -272,6 +483,8 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "exit",      NULL,   &_woort_WAIPO_cmd_exit },
     { "clear",     "cls",  &_woort_WAIPO_cmd_clear },
     { "backtrace", "bt",   &_woort_WAIPO_cmd_backtrace },
+    { "frame",     "f",    &_woort_WAIPO_cmd_frame },
+    { "source",    "src",  &_woort_WAIPO_cmd_source },
     { "list",      "l",    &_woort_WAIPO_cmd_list },
 };
 
@@ -376,6 +589,7 @@ void woort_WAIPO_Debugger_process(
     }
 
     debugger_instance->m_last_command[0] = '\0';
+    debugger_instance->m_current_frame_depth = 0;
 
     for (;;)
     {

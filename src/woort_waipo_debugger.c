@@ -248,6 +248,7 @@ WOORT_NODISCARD bool woort_WAIPO_Debugger_attach(void)
 
     debugger_instance->m_first_breakdown = true;
     debugger_instance->m_last_command[0] = '\0';
+    debugger_instance->m_current_frame_depth = 0;
 
     return woort_VMRuntime_Debugger_attach(
         &woort_WAIPO_Debugger_active,

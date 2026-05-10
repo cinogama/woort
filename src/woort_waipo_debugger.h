@@ -28,6 +28,8 @@ typedef struct woort_WAIPO_Debugger
     bool m_first_breakdown;
     char m_last_command[256];
 
+    size_t m_current_frame_depth;
+
 } woort_WAIPO_Debugger;
 
 typedef enum woort_WAIPO_CommandResult
