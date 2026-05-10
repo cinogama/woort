@@ -1,6 +1,7 @@
 #include "woort_waipo_debugger.h"
 #include "woort_gc.h"
 #include "woort_codeenv.h"
+#include "woort_disassembly.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -46,6 +47,9 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "backtrace   bt      [depth]         Print callstack backtrace (default 32).\n"
         "frame       f       <frameid>       Switch to a call frame.\n"
         "source      src     [file|range]    Display source code.\n"
+        "dis                 [funcname]      Dump current VM's running bytecodes.\n"
+        "                    --all           Or dump all bytecodes in current CodeEnv.\n"
+        "                    [offset length] Or dump bytecodes in specified range.\n"
         "\n");
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -502,6 +506,210 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
+static void _woort_WAIPO_dump_disassembly_range(
+    const woort_CodeEnv* cenv,
+    size_t begin_offset,
+    size_t end_offset,
+    const woort_Bytecode* current_ip)
+{
+    const size_t code_count = (size_t)(cenv->m_code_end - cenv->m_code_begin);
+    if (begin_offset > code_count)
+        begin_offset = code_count;
+    if (end_offset > code_count)
+        end_offset = code_count;
+    if (begin_offset >= end_offset)
+        return;
+
+    const woort_Bytecode* pc = cenv->m_code_begin + begin_offset;
+    const woort_Bytecode* end = cenv->m_code_begin + end_offset;
+    const woort_Bytecode* next_bc = pc;
+
+    while (pc < end)
+    {
+        const size_t offset = (size_t)(pc - cenv->m_code_begin);
+        const bool is_current = (pc == current_ip);
+
+        if (is_current)
+            (void)printf(WOORT_ANSI_HIG "=>%04zu:\t" WOORT_ANSI_RST, offset);
+        else
+            (void)printf("  %04zu:\t", offset);
+
+        if (pc == next_bc)
+            next_bc = woort_disassembly(pc, (woort_Disassembly_DumpCallback)printf);
+        else
+            (void)printf("\n");
+
+        ++pc;
+    }
+
+    (void)printf("\n");
+}
+
+typedef struct _woort_WAIPO_DisSearchFuncContext
+{
+    const char* m_funcname;
+    size_t m_funcname_len;
+    bool m_fullmatch;
+    size_t m_match_count;
+    const woort_CodeEnv* m_last_cenv;
+    uint32_t m_last_offset_begin;
+    uint32_t m_last_code_length;
+} _woort_WAIPO_DisSearchFuncContext;
+
+static bool _woort_WAIPO_dis_search_func_callback(
+    woort_CodeEnv* cenv, void* user_data)
+{
+    _woort_WAIPO_DisSearchFuncContext* ctx =
+        (_woort_WAIPO_DisSearchFuncContext*)user_data;
+
+    const size_t boundary_count = cenv->m_function_boundaries.m_size;
+    for (size_t i = 0; i < boundary_count; ++i)
+    {
+        const woort_FunctionBoundary* boundary =
+            (const woort_FunctionBoundary*)woort_vector_at(
+                (woort_Vector*)&cenv->m_function_boundaries, i);
+
+        if (boundary->m_name == NULL)
+            continue;
+
+        const bool match = ctx->m_fullmatch
+            ? (strcmp(boundary->m_name, ctx->m_funcname) == 0)
+            : (strstr(boundary->m_name, ctx->m_funcname) != NULL);
+
+        if (match)
+        {
+            ++ctx->m_match_count;
+            ctx->m_last_cenv = cenv;
+            ctx->m_last_offset_begin = boundary->m_offset_begin;
+            ctx->m_last_code_length = boundary->m_code_length;
+
+            (void)printf("In function: " WOORT_ANSI_HIG "%s" WOORT_ANSI_RST "\n",
+                boundary->m_name);
+
+            _woort_WAIPO_dump_disassembly_range(
+                cenv,
+                boundary->m_offset_begin,
+                boundary->m_offset_begin + boundary->m_code_length,
+                NULL);
+        }
+    }
+
+    return true;
+}
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    (void)dbg;
+
+    woort_CodeEnv* cenv;
+    if (!woort_CodeEnv_find(vm->m_ip, &cenv))
+    {
+        (void)printf(WOORT_ANSI_HIR "Cannot locate CodeEnv for current IP.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const size_t current_ip_offset = (size_t)(vm->m_ip - cenv->m_code_begin);
+
+    if (arg_count < 2)
+    {
+        const char* func_name =
+            woort_CodeEnv_find_function_name_by_offset(cenv, (uint32_t)current_ip_offset);
+
+        if (func_name != NULL)
+        {
+            const size_t boundary_count = cenv->m_function_boundaries.m_size;
+            for (size_t i = 0; i < boundary_count; ++i)
+            {
+                const woort_FunctionBoundary* boundary =
+                    (const woort_FunctionBoundary*)woort_vector_at(
+                        (woort_Vector*)&cenv->m_function_boundaries, i);
+
+                if (boundary->m_name != NULL
+                    && strcmp(boundary->m_name, func_name) == 0)
+                {
+                    (void)printf("In function: " WOORT_ANSI_HIG "%s" WOORT_ANSI_RST "\n",
+                        func_name);
+
+                    _woort_WAIPO_dump_disassembly_range(
+                        cenv,
+                        boundary->m_offset_begin,
+                        boundary->m_offset_begin + boundary->m_code_length,
+                        vm->m_ip);
+
+                    return WOORT_WAIPO_CMD_NEED_NEXT;
+                }
+            }
+        }
+
+        (void)printf("Unable to locate function, display following 100 words.\n");
+        _woort_WAIPO_dump_disassembly_range(
+            cenv,
+            current_ip_offset,
+            current_ip_offset + 100,
+            vm->m_ip);
+
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const char* first_arg = args[1];
+
+    bool is_number = true;
+    for (const char* p = first_arg; *p != '\0'; ++p)
+    {
+        if (*p < '0' || *p > '9')
+        {
+            is_number = false;
+            break;
+        }
+    }
+
+    if (is_number)
+    {
+        const size_t begin_offset = (size_t)strtoul(first_arg, NULL, 10);
+
+        if (arg_count >= 3)
+        {
+            const size_t length = (size_t)strtoul(args[2], NULL, 10);
+            (void)printf("Display +%04zu to +%04zu.\n",
+                begin_offset, begin_offset + length);
+
+            _woort_WAIPO_dump_disassembly_range(
+                cenv, begin_offset, begin_offset + length, vm->m_ip);
+        }
+        else
+        {
+            (void)printf(WOORT_ANSI_HIR "Missing length, command failed.\n" WOORT_ANSI_RST);
+        }
+
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (strcmp(first_arg, "--all") == 0)
+    {
+        _woort_WAIPO_dump_disassembly_range(cenv, 0, SIZE_MAX, vm->m_ip);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    _woort_WAIPO_DisSearchFuncContext ctx;
+    ctx.m_funcname = first_arg;
+    ctx.m_funcname_len = strlen(first_arg);
+    ctx.m_fullmatch = false;
+    ctx.m_match_count = 0;
+    ctx.m_last_cenv = NULL;
+    ctx.m_last_offset_begin = 0;
+    ctx.m_last_code_length = 0;
+
+    woort_CodeEnv_foreach(&_woort_WAIPO_dis_search_func_callback, &ctx);
+
+    (void)printf("Find %zu symbol(s).\n", ctx.m_match_count);
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "help",      "?",    &_woort_WAIPO_cmd_help },
     { "continue",  "c",    &_woort_WAIPO_cmd_continue },
@@ -512,6 +720,7 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "frame",     "f",    &_woort_WAIPO_cmd_frame },
     { "source",    "src",  &_woort_WAIPO_cmd_source },
     { "list",      "l",    &_woort_WAIPO_cmd_list },
+    { "dis",       NULL,   &_woort_WAIPO_cmd_dis },
 };
 
 static const size_t _woort_WAIPO_command_table_size =
