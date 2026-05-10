@@ -14,6 +14,7 @@
 #include "woort_gc_gchandle.h"
 #include "woort_gc_closure.h"
 #include "woort_disassembly.h"
+#include "woort_env.h"
 #include "woort_path.h"
 #include "woort_dylib.h"
 #include "woort_serialize.h"
@@ -25,8 +26,10 @@
 #include <string.h>
 #include <assert.h>
 
+#undef woort_init
 void woort_init(int argc, char** argv)
 {
+    _woort_env_bootup();
     _woort_path_bootup();
 
     if (!woort_CodeEnv_bootup())
@@ -63,6 +66,7 @@ void woort_shutdown(void)
     woort_CodeEnv_shutdown();
     _woort_path_shutdown();
     woort_VMRuntime_Debugger_shutdown();
+    _woort_env_shutdown();
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void)

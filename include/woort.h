@@ -3,11 +3,13 @@
 #ifdef __cplusplus
 #   include <cstddef>
 #   include <cstdint>
+#   include <clocale>
 extern "C" {
 #else
 #   include <stdbool.h>
 #   include <stddef.h>
 #   include <stdint.h>
+#   include <locale.h>
 #endif // __cplusplus
 
 #ifdef __cplusplus
@@ -86,6 +88,12 @@ extern "C" {
  * @param argv  Command-line argument vector (as passed to main).
  */
 WOORT_API void woort_init(int argc, char** argv);
+#define woort_init(argc, argv)                          \
+    do                                                  \
+    {                                                   \
+        woort_init(argc, argv);                         \
+        setlocale(LC_CTYPE, woort_env_locale_name());   \
+    } while (0)
 
 /**
  * @brief Shut down the Woolang runtime.
@@ -94,6 +102,38 @@ WOORT_API void woort_init(int argc, char** argv);
  * after this function returns. Must be paired with a prior woort_init() call.
  */
 WOORT_API void woort_shutdown(void);
+
+/* ========== Console I/O API ========== */
+
+/**
+ * @brief Read a line of UTF-8 text from the console (stdin).
+ *
+ * On Windows, reads UTF-16 from the console and converts to UTF-8.
+ * On POSIX, reads from stdin (which is assumed to be UTF-8 after locale setup).
+ *
+ * The returned string is null-terminated (without the trailing newline).
+ * Must be freed with woort_free().
+ *
+ * @return A malloc-allocated UTF-8 string, or NULL on EOF or read error.
+ */
+WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_console_readline(void);
+
+/**
+ * @brief Free a buffer.
+ * @param buf  The buffer to free (may be NULL).
+ */
+WOORT_API void woort_free(/* OPTIONAL */ void* buf);
+
+/**
+ * @brief Get the default locale name for the current platform.
+ *
+ * Returns a platform-appropriate UTF-8 locale name string
+ * (e.g. ".UTF-8" on Windows, "en_US.UTF-8" on macOS, "C.UTF-8" on Linux).
+ * The returned string is statically allocated and must not be freed.
+ *
+ * @return A null-terminated locale name string (never NULL).
+ */
+WOORT_API WOORT_NODISCARD const char* woort_env_locale_name(void);
 
 /**
  * @brief Status codes returned by VM call dispatch operations.
