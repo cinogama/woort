@@ -331,6 +331,12 @@ static void _woort_WAIPO_print_source_file(
     size_t current_line = 0;
     while (fgets(line_buf, sizeof(line_buf), f) != NULL)
     {
+        for (char* p = line_buf; *p; ++p)
+        {
+            if (*p == '\n' || *p == '\r')
+                *p = ' ';
+        }
+
         if (current_line >= from_line
             && (to_line == SIZE_MAX || current_line <= to_line))
         {
@@ -348,14 +354,14 @@ static void _woort_WAIPO_print_source_file(
                 if (current_line == highlight_end_line && highlight_end_col < line_len)
                     col_end = highlight_end_col;
 
-                (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s",
+                (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
                     current_line + 1,
                     (int)col_start, line_buf,
                     (int)(col_end - col_start), line_buf + col_start,
                     (int)(line_len - col_end), line_buf + col_end);
             }
             else
-                (void)printf("%c %5zu | %s",
+                (void)printf("%c %5zu | %s\n",
                     ' ',
                     current_line + 1,
                     line_buf);
@@ -443,8 +449,10 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
 
     size_t display_range = 5;
     const char* target_file = trace.m_file_or_lib_name;
-    size_t highlight_begin = trace.m_location_begin[0];
-    size_t highlight_end = trace.m_location_end[0];
+    const size_t highlight_begin = trace.m_location_begin[0];
+    const size_t highlight_end = trace.m_location_end[0];
+    const size_t highlight_begin_col = trace.m_location_begin[1];
+    const size_t highlight_end_col = trace.m_location_end[1];
     bool has_highlight = true;
     bool show_full = false;
 
@@ -476,9 +484,6 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
             }
         }
     }
-
-    const size_t highlight_begin_col = trace.m_location_begin[1];
-    const size_t highlight_end_col = trace.m_location_end[1];
 
     if (show_full)
     {
@@ -894,14 +899,10 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
         return true;
     }
     case WOORT_OPCODE_CALLNFP:
+    case WOORT_OPCODE_CALLNJIT:
     {
         (void)woort_VMRuntime_request_set(
             vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
-        *out_next_ip = ip + 1;
-        return true;
-    }
-    case WOORT_OPCODE_CALLNJIT:
-    {
         *out_next_ip = ip + 1;
         return true;
     }
@@ -921,7 +922,8 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
             *out_next_ip = target->m_script_function;
             return true;
         }
-		if (target->m_native_function != NULL)
+		if (target->m_native_function != NULL
+            /* || target->m_jit_function != NULL */)
 		{
         	(void)woort_VMRuntime_request_set(
             	vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
