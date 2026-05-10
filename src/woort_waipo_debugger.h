@@ -56,6 +56,10 @@ bool _woort_WAIPO_Debugger_set_next_source_break(
     woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm,
     const woort_Bytecode* ip);
 
+bool _woort_WAIPO_Debugger_set_return_break(
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm,
+    const woort_Bytecode* ip);
+
 void woort_WAIPO_Debugger_process(
     woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm);
 

@@ -102,6 +102,9 @@ typedef struct woort_WAIPO_VMLocalContext
     bool m_is_source_next;
     size_t m_step_target_depth;
 
+    /* "return" 步进状态 */
+    bool m_is_source_return;
+
 }woort_WAIPO_VMLocalContext;
 
 static void _woort_WAIPO_VMLocalContext_init(
@@ -118,6 +121,7 @@ static void _woort_WAIPO_VMLocalContext_init(
     vmcontext->m_step_source_end_column = 0;
     vmcontext->m_is_source_next = false;
     vmcontext->m_step_target_depth = 0;
+    vmcontext->m_is_source_return = false;
 }
 
 static bool _woort_WAIPO_VMLocalContext_set_step_break(
@@ -177,6 +181,7 @@ static void _woort_WAIPO_VMLocalContext_clean_step_break(
     vmcontext->m_step_source_end_column = 0;
     vmcontext->m_is_source_next = false;
     vmcontext->m_step_target_depth = 0;
+    vmcontext->m_is_source_return = false;
 }
 
 static void _woort_WAIPO_VMLocalContext_deinit(woort_WAIPO_VMLocalContext* vmcontext)
@@ -238,6 +243,45 @@ bool _woort_WAIPO_Debugger_set_next_source_break(
     }
 
     vmcontext->m_is_source_next = true;
+    vmcontext->m_step_target_depth = _woort_WAIPO_get_current_callstack_depth(vm);
+
+    return _woort_WAIPO_VMLocalContext_set_step_break(vmcontext, ip);
+}
+
+bool _woort_WAIPO_Debugger_set_return_break(
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm,
+    const woort_Bytecode* ip)
+{
+    woort_WAIPO_VMLocalContext* vmcontext;
+    if (!woort_hashmap_find(
+        &debugger_instance->m_focusing_vms, &vm, (void**)&vmcontext))
+        return false;
+
+    woort_CodeEnv* cenv;
+    if (!woort_CodeEnv_find(vm->m_ip, &cenv))
+        return false;
+
+    const uint32_t code_offset =
+        (uint32_t)(vm->m_ip - cenv->m_code_begin);
+    woort_SourceLocation src_loc;
+
+    if (woort_CodeEnv_find_srcloc_by_offset(cenv, code_offset, &src_loc))
+    {
+        _woort_WAIPO_VMLocalContext_set_source_step(
+            vmcontext,
+            src_loc.m_filepath,
+            (size_t)src_loc.m_begin_line,
+            (size_t)src_loc.m_begin_column,
+            (size_t)src_loc.m_end_line,
+            (size_t)src_loc.m_end_column);
+    }
+    else
+    {
+        _woort_WAIPO_VMLocalContext_set_source_step(
+            vmcontext, NULL, 0, 0, 0, 0);
+    }
+
+    vmcontext->m_is_source_return = true;
     vmcontext->m_step_target_depth = _woort_WAIPO_get_current_callstack_depth(vm);
 
     return _woort_WAIPO_VMLocalContext_set_step_break(vmcontext, ip);
@@ -375,7 +419,17 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
 
                             bool should_break = false;
 
-                            if (vmcontext->m_is_source_next)
+                            if (vmcontext->m_is_source_return)
+                            {
+                                if (_woort_WAIPO_get_current_callstack_depth(vm)
+                                    < vmcontext->m_step_target_depth)
+                                {
+                                    /* 调用栈深度已减少，已返回上层函数，中断 */
+                                    should_break = true;
+                                }
+                                /* else: 仍在当前函数或更深层，继续步进 */
+                            }
+                            else if (vmcontext->m_is_source_next)
                             {
                                 if (_woort_WAIPO_get_current_callstack_depth(vm)
                                     <= vmcontext->m_step_target_depth)
@@ -407,6 +461,7 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
                                 const size_t saved_eline = vmcontext->m_step_source_end_line;
                                 const size_t saved_ecol = vmcontext->m_step_source_end_column;
                                 const bool saved_is_next = vmcontext->m_is_source_next;
+                                const bool saved_is_return = vmcontext->m_is_source_return;
                                 const size_t saved_target_depth = vmcontext->m_step_target_depth;
 
                                 _woort_WAIPO_VMLocalContext_clean_step_break(vmcontext);
@@ -419,6 +474,7 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
                                         vmcontext, saved_file, saved_line,
                                         saved_bcol, saved_eline, saved_ecol);
                                     vmcontext->m_is_source_next = saved_is_next;
+                                    vmcontext->m_is_source_return = saved_is_return;
                                     vmcontext->m_step_target_depth = saved_target_depth;
 
                                     if (_woort_WAIPO_VMLocalContext_set_step_break(
