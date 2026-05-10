@@ -2,6 +2,9 @@
 #include "woort_gc.h"
 #include "woort_codeenv.h"
 #include "woort_disassembly.h"
+#include "woort_opcode.h"
+#include "woort_atomic.h"
+#include "woort_gc_closure.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -717,6 +720,239 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
     (void)printf("Find %zu symbol(s).\n", ctx.m_match_count);
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
+static int _woort_WAIPO_empty_cb(const char* fmt, ...)
+{
+    (void)fmt;
+    return 0;
+}
+
+WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
+    const woort_Bytecode*   ip,
+    woort_CodeEnv*          cenv,
+    const woort_Value*      sb,
+    /* OPTIONAL */ const woort_Bytecode**  out_next_ip)
+{
+    if (ip == NULL || cenv == NULL || sb == NULL || out_next_ip == NULL)
+        return false;
+
+    if (ip < cenv->m_code_begin || ip >= cenv->m_code_end)
+        return false;
+
+    const woort_Bytecode bc = woort_CodeEnv_raw_trap(cenv, ip);
+    const uint8_t op6 = (uint8_t)WOORT_BYTECODE(OP6, bc);
+    const uint8_t m2 = (uint8_t)WOORT_BYTECODE(M2, bc);
+
+    switch ((woort_Opcode)op6)
+    {
+    case WOORT_OPCODE_JFWD:
+    case WOORT_OPCODE_JBCK:
+    {
+        *out_next_ip = cenv->m_code_begin + WOORT_BYTECODE(MABC26, bc);
+        return true;
+    }
+
+    case WOORT_OPCODE_JFWDCND:
+    {
+        const int8_t a_offset = (int8_t)WOORT_BYTECODE(A8, bc);
+        switch (m2)
+        {
+        case 0: /* JFWDNZ */
+            if (sb[a_offset].m_integer != 0)
+            {
+                *out_next_ip = ip + (int16_t)WOORT_BYTECODE(BC16, bc);
+                return true;
+            }
+            break;
+        case 1: /* JFWDZ */
+            if (sb[a_offset].m_integer == 0)
+            {
+                *out_next_ip = ip + (int16_t)WOORT_BYTECODE(BC16, bc);
+                return true;
+            }
+            break;
+        case 2: /* JFWDEQ */
+        {
+            const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+            if (sb[a_offset].m_integer == sb[b_offset].m_integer)
+            {
+                *out_next_ip = ip + (int8_t)WOORT_BYTECODE(C8, bc);
+                return true;
+            }
+            break;
+        }
+        case 3: /* JFWDNEQ */
+        {
+            const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+            if (sb[a_offset].m_integer != sb[b_offset].m_integer)
+            {
+                *out_next_ip = ip + (int8_t)WOORT_BYTECODE(C8, bc);
+                return true;
+            }
+            break;
+        }
+        }
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    case WOORT_OPCODE_JBCKCND:
+    {
+        const int8_t a_offset = (int8_t)WOORT_BYTECODE(A8, bc);
+        switch (m2)
+        {
+        case 0: /* JBCKNZ */
+            if (sb[a_offset].m_integer != 0)
+            {
+                *out_next_ip = ip - (int16_t)WOORT_BYTECODE(BC16, bc);
+                return true;
+            }
+            break;
+        case 1: /* JBCKZ */
+            if (sb[a_offset].m_integer == 0)
+            {
+                *out_next_ip = ip - (int16_t)WOORT_BYTECODE(BC16, bc);
+                return true;
+            }
+            break;
+        case 2: /* JBCKEQ */
+        {
+            const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+            if (sb[a_offset].m_integer == sb[b_offset].m_integer)
+            {
+                *out_next_ip = ip - (int8_t)WOORT_BYTECODE(C8, bc);
+                return true;
+            }
+            break;
+        }
+        case 3: /* JBCKNEQ */
+        {
+            const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+            if (sb[a_offset].m_integer != sb[b_offset].m_integer)
+            {
+                *out_next_ip = ip - (int8_t)WOORT_BYTECODE(C8, bc);
+                return true;
+            }
+            break;
+        }
+        }
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    case WOORT_OPCODE_JFDCMP:
+    {
+        const int8_t a_offset = (int8_t)WOORT_BYTECODE(A8, bc);
+        const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+        bool taken = false;
+        switch (m2)
+        {
+        case 0: taken = (sb[a_offset].m_integer <  sb[b_offset].m_integer); break;
+        case 1: taken = (sb[a_offset].m_integer >  sb[b_offset].m_integer); break;
+        case 2: taken = (sb[a_offset].m_integer <= sb[b_offset].m_integer); break;
+        case 3: taken = (sb[a_offset].m_integer >= sb[b_offset].m_integer); break;
+        }
+        if (taken)
+        {
+            *out_next_ip = ip + (int8_t)WOORT_BYTECODE(C8, bc);
+            return true;
+        }
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    case WOORT_OPCODE_JBCKCMP:
+    {
+        const int8_t a_offset = (int8_t)WOORT_BYTECODE(A8, bc);
+        const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+        bool taken = false;
+        switch (m2)
+        {
+        case 0: taken = (sb[a_offset].m_integer <  sb[b_offset].m_integer); break;
+        case 1: taken = (sb[a_offset].m_integer >  sb[b_offset].m_integer); break;
+        case 2: taken = (sb[a_offset].m_integer <= sb[b_offset].m_integer); break;
+        case 3: taken = (sb[a_offset].m_integer >= sb[b_offset].m_integer); break;
+        }
+        if (taken)
+        {
+            *out_next_ip = ip - (int8_t)WOORT_BYTECODE(C8, bc);
+            return true;
+        }
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    case WOORT_OPCODE_CALLNWO:
+    {
+        *out_next_ip = cenv->m_data_begin[WOORT_BYTECODE(MABC26, bc)].m_script_function;
+        return true;
+    }
+
+    case WOORT_OPCODE_CALLNFP:
+    case WOORT_OPCODE_CALLNJIT:
+    {
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    case WOORT_OPCODE_CALL:
+    {
+        const woort_GCClosure* target;
+        if (m2 == 0) /* CALLS */
+        {
+            target = sb[(int16_t)WOORT_BYTECODE(BC16, bc)].m_closure;
+        }
+        else /* m2 == 1, CALLC */
+        {
+            target = cenv->m_data_begin[WOORT_BYTECODE(ABC24, bc)].m_closure;
+        }
+        if (target->m_script_function != NULL)
+        {
+            *out_next_ip = target->m_script_function;
+            return true;
+        }
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    case WOORT_OPCODE_RET:
+    {
+        if (sb[1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE)
+            return false;
+        *out_next_ip = (const woort_Bytecode*)sb[2].m_ret_addr;
+        return true;
+    }
+
+    case WOORT_OPCODE_JIFINITED:
+    {
+        woort_AtomicInt64* const flag =
+            (woort_AtomicInt64*)&cenv->m_data_begin[ip[1]].m_integer;
+        const int64_t flag_stat = woort_atomic_load_explicit(
+            flag, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+        if (flag_stat == 2)
+        {
+            *out_next_ip = cenv->m_code_begin + WOORT_BYTECODE(MABC26, bc);
+            return true;
+        }
+        *out_next_ip = ip + 2;
+        return true;
+    }
+
+    case WOORT_OPCODE_TRAP:
+    {
+        if (m2 != 0)
+            return false;
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    default:
+    {
+        *out_next_ip = woort_disassembly(ip, &_woort_WAIPO_empty_cb);
+        return true;
+    }
+    }
 }
 
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
