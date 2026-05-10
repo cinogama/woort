@@ -22,6 +22,12 @@ WOORT_NODISCARD bool woort_GC_register_root_vm(
 void woort_GC_unregister_root_vm(
     struct woort_VMRuntime* vmruntime);
 
+typedef bool (*woort_GC_ForeachRootVMCallback)(woort_VMRuntime* vm, void* user_data);
+
+void woort_GC_foreach_root_vm(
+    woort_GC_ForeachRootVMCallback callback,
+    void* user_data);
+
 static inline void woort_GC_mixed_write_barrier_gcaddr(
     const void** modified_unit_addr, const void* src_unit)
 {

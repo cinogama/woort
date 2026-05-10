@@ -113,3 +113,9 @@ void woort_CodeEnv_set_source_maps(
 WOORT_NODISCARD bool woort_CodeEnv_add_extern_lib(
     woort_CodeEnv* env,
     woort_Dylib* lib);
+
+typedef bool (*woort_CodeEnv_ForeachCallback)(woort_CodeEnv* cenv, void* user_data);
+
+void woort_CodeEnv_foreach(
+    woort_CodeEnv_ForeachCallback callback,
+    void* user_data);

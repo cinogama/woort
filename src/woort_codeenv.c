@@ -713,3 +713,23 @@ WOORT_NODISCARD bool woort_CodeEnv_add_extern_lib(
 
     return true;
 }
+
+void woort_CodeEnv_foreach(
+    woort_CodeEnv_ForeachCallback callback,
+    void* user_data)
+{
+    woort_rwspinlock_read_lock(&_codeenv_global_ctx->m_codeenvs_lock);
+
+    const size_t count = _codeenv_global_ctx->m_codeenvs.m_size;
+    for (size_t i = 0; i < count; ++i)
+    {
+        woort_CodeEnv* const code_env =
+            *(woort_CodeEnv**)woort_vector_at(
+                &_codeenv_global_ctx->m_codeenvs, i);
+
+        if (!callback(code_env, user_data))
+            break;
+    }
+
+    woort_rwspinlock_read_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
+}

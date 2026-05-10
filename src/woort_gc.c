@@ -363,3 +363,43 @@ void woort_GC_unregister_root_vm(struct woort_VMRuntime* vmruntime)
     }
     woort_rwspinlock_write_unlock(&g_root_vms_to_mark_mx);
 }
+
+typedef struct _woort_GC_ForeachContext
+{
+    woort_GC_ForeachRootVMCallback m_callback;
+    void* m_user_data;
+} _woort_GC_ForeachContext;
+
+static bool _woort_GC_foreach_root_vm_callback_adapter(
+    const void* key,
+    void* value,
+    void* user_data)
+{
+    (void)value;
+
+    _woort_GC_ForeachContext* ctx =
+        (_woort_GC_ForeachContext*)user_data;
+
+    woort_VMRuntime* const vm =
+        *(woort_VMRuntime* const*)key;
+
+    return ctx->m_callback(vm, ctx->m_user_data);
+}
+
+void woort_GC_foreach_root_vm(
+    woort_GC_ForeachRootVMCallback callback,
+    void* user_data)
+{
+    _woort_GC_ForeachContext ctx;
+    ctx.m_callback = callback;
+    ctx.m_user_data = user_data;
+
+    woort_rwspinlock_read_lock(&g_root_vms_to_mark_mx);
+    {
+        (void)woort_hashmap_foreach(
+            &g_root_vms_to_mark,
+            &_woort_GC_foreach_root_vm_callback_adapter,
+            &ctx);
+    }
+    woort_rwspinlock_read_unlock(&g_root_vms_to_mark_mx);
+}
