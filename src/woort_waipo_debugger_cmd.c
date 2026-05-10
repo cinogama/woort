@@ -42,7 +42,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "                    vm              List all VM(s).\n"
         "quit                                Stop all vm to exit.\n"
         "clear       cls                     Clean the screen.\n"
-        "backtrace   bt                      Print callstack backtrace.\n"
+        "backtrace   bt      [depth]         Print callstack backtrace (default 32).\n"
         "\n");
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -113,16 +113,33 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_backtrace(
     size_t arg_count)
 {
     (void)dbg;
-    (void)args;
-    (void)arg_count;
+
+    size_t max_depth = 32;
+    if (arg_count >= 2)
+    {
+        const long val = strtol(args[1], NULL, 10);
+        if (val > 0)
+            max_depth = (size_t)val;
+    }
 
     woort_VMRuntime_TraceCallstack_Iter trace_iter;
     woort_VMRuntime_TraceCallstack trace;
 
     woort_VMRuntime_trace_begin(vm, &trace_iter);
     (void)printf("Backtrace:\n");
+
+    size_t depth = 0;
     while (woort_VMRuntime_trace_next(&trace_iter, &trace))
+    {
+        if (depth >= max_depth)
+        {
+            (void)printf("    ...\n");
+            break;
+        }
+
         woort_VMRuntime_log_trace(&trace);
+        ++depth;
+    }
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
