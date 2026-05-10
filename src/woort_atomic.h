@@ -180,6 +180,7 @@ static inline void woort_atomic_store_uint32(woort_AtomicUInt32* obj, uint32_t v
     _InterlockedExchange((volatile long*)obj, (long)value);
 }
 
+#if defined(_M_X64) || defined(_M_ARM64)
 static inline void woort_atomic_store_int64(woort_AtomicInt64* obj, int64_t value)
 {
     _InterlockedExchange64((volatile __int64*)obj, (__int64)value);
@@ -189,6 +190,23 @@ static inline void woort_atomic_store_uint64(woort_AtomicUInt64* obj, uint64_t v
 {
     _InterlockedExchange64((volatile __int64*)obj, (__int64)value);
 }
+#else
+static inline void woort_atomic_store_int64(woort_AtomicInt64* obj, int64_t value)
+{
+    int64_t old;
+    do {
+        old = *(volatile int64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)value, (__int64)old) != (__int64)old);
+}
+
+static inline void woort_atomic_store_uint64(woort_AtomicUInt64* obj, uint64_t value)
+{
+    uint64_t old;
+    do {
+        old = *(volatile uint64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)value, (__int64)old) != (__int64)old);
+}
+#endif
 
 static inline void woort_atomic_store_ptr(woort_AtomicPtr* obj, void* value)
 {
@@ -301,6 +319,7 @@ static inline uint32_t woort_atomic_exchange_uint32(woort_AtomicUInt32* obj, uin
     return (uint32_t)_InterlockedExchange((volatile long*)obj, (long)value);
 }
 
+#if defined(_M_X64) || defined(_M_ARM64)
 static inline int64_t woort_atomic_exchange_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedExchange64((volatile __int64*)obj, (__int64)value);
@@ -310,6 +329,25 @@ static inline uint64_t woort_atomic_exchange_uint64(woort_AtomicUInt64* obj, uin
 {
     return (uint64_t)_InterlockedExchange64((volatile __int64*)obj, (__int64)value);
 }
+#else
+static inline int64_t woort_atomic_exchange_int64(woort_AtomicInt64* obj, int64_t value)
+{
+    int64_t old;
+    do {
+        old = *(volatile int64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)value, (__int64)old) != (__int64)old);
+    return old;
+}
+
+static inline uint64_t woort_atomic_exchange_uint64(woort_AtomicUInt64* obj, uint64_t value)
+{
+    uint64_t old;
+    do {
+        old = *(volatile uint64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)value, (__int64)old) != (__int64)old);
+    return old;
+}
+#endif
 
 static inline void* woort_atomic_exchange_ptr(woort_AtomicPtr* obj, void* value)
 {
@@ -419,6 +457,7 @@ static inline uint32_t woort_atomic_load_uint32(woort_AtomicUInt32* obj)
     return (uint32_t)_InterlockedOr((volatile long*)obj, 0);
 }
 
+#if defined(_M_X64) || defined(_M_ARM64)
 static inline int64_t woort_atomic_load_int64(woort_AtomicInt64* obj)
 {
     return (int64_t)_InterlockedOr64((volatile __int64*)obj, 0);
@@ -428,6 +467,17 @@ static inline uint64_t woort_atomic_load_uint64(woort_AtomicUInt64* obj)
 {
     return (uint64_t)_InterlockedOr64((volatile __int64*)obj, 0);
 }
+#else
+static inline int64_t woort_atomic_load_int64(woort_AtomicInt64* obj)
+{
+    return (int64_t)_InterlockedCompareExchange64((volatile __int64*)obj, 0, 0);
+}
+
+static inline uint64_t woort_atomic_load_uint64(woort_AtomicUInt64* obj)
+{
+    return (uint64_t)_InterlockedCompareExchange64((volatile __int64*)obj, 0, 0);
+}
+#endif
 
 static inline void* woort_atomic_load_ptr(woort_AtomicPtr* obj)
 {
@@ -537,6 +587,7 @@ static inline uint32_t woort_atomic_fetch_add_uint32(woort_AtomicUInt32* obj, ui
     return (uint32_t)_InterlockedExchangeAdd((volatile long*)obj, (long)value);
 }
 
+#if defined(_M_X64) || defined(_M_ARM64)
 static inline int64_t woort_atomic_fetch_add_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedExchangeAdd64((volatile __int64*)obj, (__int64)value);
@@ -546,6 +597,25 @@ static inline uint64_t woort_atomic_fetch_add_uint64(woort_AtomicUInt64* obj, ui
 {
     return (uint64_t)_InterlockedExchangeAdd64((volatile __int64*)obj, (__int64)value);
 }
+#else
+static inline int64_t woort_atomic_fetch_add_int64(woort_AtomicInt64* obj, int64_t value)
+{
+    int64_t old;
+    do {
+        old = *(volatile int64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)(old + value), (__int64)old) != (__int64)old);
+    return old;
+}
+
+static inline uint64_t woort_atomic_fetch_add_uint64(woort_AtomicUInt64* obj, uint64_t value)
+{
+    uint64_t old;
+    do {
+        old = *(volatile uint64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)(old + value), (__int64)old) != (__int64)old);
+    return old;
+}
+#endif
 
 #elif defined(WOORT_ATOMIC_GCC)
 
@@ -644,6 +714,7 @@ static inline uint32_t woort_atomic_fetch_sub_uint32(woort_AtomicUInt32* obj, ui
     return (uint32_t)_InterlockedExchangeAdd((volatile long*)obj, -(long)value);
 }
 
+#if defined(_M_X64) || defined(_M_ARM64)
 static inline int64_t woort_atomic_fetch_sub_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedExchangeAdd64((volatile __int64*)obj, -(__int64)value);
@@ -653,6 +724,25 @@ static inline uint64_t woort_atomic_fetch_sub_uint64(woort_AtomicUInt64* obj, ui
 {
     return (uint64_t)_InterlockedExchangeAdd64((volatile __int64*)obj, -(__int64)value);
 }
+#else
+static inline int64_t woort_atomic_fetch_sub_int64(woort_AtomicInt64* obj, int64_t value)
+{
+    int64_t old;
+    do {
+        old = *(volatile int64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)(old - value), (__int64)old) != (__int64)old);
+    return old;
+}
+
+static inline uint64_t woort_atomic_fetch_sub_uint64(woort_AtomicUInt64* obj, uint64_t value)
+{
+    uint64_t old;
+    do {
+        old = *(volatile uint64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)(old - value), (__int64)old) != (__int64)old);
+    return old;
+}
+#endif
 
 #elif defined(WOORT_ATOMIC_GCC)
 
@@ -751,6 +841,7 @@ static inline uint32_t woort_atomic_fetch_or_uint32(woort_AtomicUInt32* obj, uin
     return (uint32_t)_InterlockedOr((volatile long*)obj, (long)value);
 }
 
+#if defined(_M_X64) || defined(_M_ARM64)
 static inline int64_t woort_atomic_fetch_or_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedOr64((volatile __int64*)obj, (__int64)value);
@@ -760,6 +851,25 @@ static inline uint64_t woort_atomic_fetch_or_uint64(woort_AtomicUInt64* obj, uin
 {
     return (uint64_t)_InterlockedOr64((volatile __int64*)obj, (__int64)value);
 }
+#else
+static inline int64_t woort_atomic_fetch_or_int64(woort_AtomicInt64* obj, int64_t value)
+{
+    int64_t old;
+    do {
+        old = *(volatile int64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)(old | value), (__int64)old) != (__int64)old);
+    return old;
+}
+
+static inline uint64_t woort_atomic_fetch_or_uint64(woort_AtomicUInt64* obj, uint64_t value)
+{
+    uint64_t old;
+    do {
+        old = *(volatile uint64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)(old | value), (__int64)old) != (__int64)old);
+    return old;
+}
+#endif
 
 #elif defined(WOORT_ATOMIC_GCC)
 
@@ -858,6 +968,7 @@ static inline uint32_t woort_atomic_fetch_xor_uint32(woort_AtomicUInt32* obj, ui
     return (uint32_t)_InterlockedXor((volatile long*)obj, (long)value);
 }
 
+#if defined(_M_X64) || defined(_M_ARM64)
 static inline int64_t woort_atomic_fetch_xor_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedXor64((volatile __int64*)obj, (__int64)value);
@@ -867,6 +978,25 @@ static inline uint64_t woort_atomic_fetch_xor_uint64(woort_AtomicUInt64* obj, ui
 {
     return (uint64_t)_InterlockedXor64((volatile __int64*)obj, (__int64)value);
 }
+#else
+static inline int64_t woort_atomic_fetch_xor_int64(woort_AtomicInt64* obj, int64_t value)
+{
+    int64_t old;
+    do {
+        old = *(volatile int64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)(old ^ value), (__int64)old) != (__int64)old);
+    return old;
+}
+
+static inline uint64_t woort_atomic_fetch_xor_uint64(woort_AtomicUInt64* obj, uint64_t value)
+{
+    uint64_t old;
+    do {
+        old = *(volatile uint64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)(old ^ value), (__int64)old) != (__int64)old);
+    return old;
+}
+#endif
 
 #elif defined(WOORT_ATOMIC_GCC)
 
@@ -965,6 +1095,7 @@ static inline uint32_t woort_atomic_fetch_and_uint32(woort_AtomicUInt32* obj, ui
     return (uint32_t)_InterlockedAnd((volatile long*)obj, (long)value);
 }
 
+#if defined(_M_X64) || defined(_M_ARM64)
 static inline int64_t woort_atomic_fetch_and_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedAnd64((volatile __int64*)obj, (__int64)value);
@@ -974,6 +1105,25 @@ static inline uint64_t woort_atomic_fetch_and_uint64(woort_AtomicUInt64* obj, ui
 {
     return (uint64_t)_InterlockedAnd64((volatile __int64*)obj, (__int64)value);
 }
+#else
+static inline int64_t woort_atomic_fetch_and_int64(woort_AtomicInt64* obj, int64_t value)
+{
+    int64_t old;
+    do {
+        old = *(volatile int64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)(old & value), (__int64)old) != (__int64)old);
+    return old;
+}
+
+static inline uint64_t woort_atomic_fetch_and_uint64(woort_AtomicUInt64* obj, uint64_t value)
+{
+    uint64_t old;
+    do {
+        old = *(volatile uint64_t*)obj;
+    } while (_InterlockedCompareExchange64((volatile __int64*)obj, (__int64)(old & value), (__int64)old) != (__int64)old);
+    return old;
+}
+#endif
 
 #elif defined(WOORT_ATOMIC_GCC)
 

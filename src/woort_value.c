@@ -539,19 +539,33 @@ woort_DynBox_unbox_no_check_and_get_type(
 
 WOORT_NODISCARD size_t _woort_hash_int(woort_Int val)
 {
-    size_t hash = (size_t)val;
+#ifdef WOORT_ARCH_64
+    /* Murmur3 64-bit finalizer */
+    uint64_t hash = (uint64_t)val;
     hash ^= hash >> 33;
     hash *= 0xff51afd7ed558ccdULL;
     hash ^= hash >> 33;
     hash *= 0xc4ceb9fe1a85ec53ULL;
     hash ^= hash >> 33;
-    return hash;
+    return (size_t)hash;
+#else
+    /* Fold 64-bit int to 32 bits, then apply Murmur3 32-bit finalizer */
+    uint32_t hash = (uint32_t)((uint64_t)val ^ ((uint64_t)val >> 32));
+    hash ^= hash >> 16;
+    hash *= 0x85ebca6bU;
+    hash ^= hash >> 13;
+    hash *= 0xc2b2ae35U;
+    hash ^= hash >> 16;
+    return (size_t)hash;
+#endif
 }
 
 WOORT_NODISCARD size_t _woort_hash_real(woort_Real val)
 {
     uint64_t real_bits;
     memcpy(&real_bits, &val, sizeof(double));
+#ifdef WOORT_ARCH_64
+    /* Murmur3 64-bit finalizer */
     size_t hash = (size_t)real_bits;
     hash ^= hash >> 33;
     hash *= 0xff51afd7ed558ccdULL;
@@ -559,6 +573,16 @@ WOORT_NODISCARD size_t _woort_hash_real(woort_Real val)
     hash *= 0xc4ceb9fe1a85ec53ULL;
     hash ^= hash >> 33;
     return hash;
+#else
+    /* Fold 64-bit double bits to 32 bits, then apply Murmur3 32-bit finalizer */
+    uint32_t hash = (uint32_t)(real_bits ^ (real_bits >> 32));
+    hash ^= hash >> 16;
+    hash *= 0x85ebca6bU;
+    hash ^= hash >> 13;
+    hash *= 0xc2b2ae35U;
+    hash ^= hash >> 16;
+    return (size_t)hash;
+#endif
 }
 
 WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val)

@@ -53,7 +53,7 @@ static bool _woort_WAIPO_BreakpointCollection_break_at(
             NOTE: 因为之前的调试器实例遗留的 Trap，woort_CodeEnv_set_trap 可能会失败。不过
                 我们不在意，此处直接假装是我们设置的即可。
             */
-            (void)woort_CodeEnv_set_trap(cenv, ip);
+            (void)woort_CodeEnv_set_trap(cenv, (woort_Bytecode*)ip);
             return true;
         case WOORT_HASHMAP_RESULT_ALREADY_EXIST:
             ++*counter;
