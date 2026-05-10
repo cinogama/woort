@@ -540,7 +540,7 @@ woort_DynBox_unbox_no_check_and_get_type(
 
 WOORT_NODISCARD size_t _woort_hash_int(woort_Int val)
 {
-#ifdef WO_PLATFORM_64
+#ifdef WOORT_PLATFORM_64
     /* Murmur3 64-bit finalizer */
     uint64_t hash = (uint64_t)val;
     hash ^= hash >> 33;

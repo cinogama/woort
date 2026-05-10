@@ -17,7 +17,7 @@ WOORT_NODISCARD size_t woort_util_ptr_hash(const void* ptr_addr)
 {
     size_t hash = (size_t)(intptr_t)*(void**)ptr_addr;
 
-#ifdef WO_PLATFORM_64
+#ifdef WOORT_PLATFORM_64
     /* Murmur3 64-bit finalizer */
     hash ^= hash >> 33;
     hash *= 0xff51afd7ed558ccdULL;
@@ -47,7 +47,7 @@ WOORT_NODISCARD size_t woort_hash_string(const char* str, size_t len)
     const unsigned char* ptr = (const unsigned char*)str;
     const unsigned char* const end = ptr + len;
 
-#ifdef WO_PLATFORM_64
+#ifdef WOORT_PLATFORM_64
     /* FNV-1a 64-bit */
     size_t hash = 14695981039346656037ULL;
     while (ptr < end)
