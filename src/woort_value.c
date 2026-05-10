@@ -17,6 +17,7 @@
 #include "woort_diagnosis.h"
 #include "woort_gc.h"
 #include "woort_util.h"
+#include "woort_platform.h"
 
 /*
 Boxed value:    | ............................... | 3 type bits |
@@ -539,7 +540,7 @@ woort_DynBox_unbox_no_check_and_get_type(
 
 WOORT_NODISCARD size_t _woort_hash_int(woort_Int val)
 {
-#ifdef WOORT_ARCH_64
+#ifdef WO_PLATFORM_64
     /* Murmur3 64-bit finalizer */
     uint64_t hash = (uint64_t)val;
     hash ^= hash >> 33;

@@ -10,18 +10,6 @@ woort_util.h
 #include <stddef.h>
 #include <stdbool.h>
 
-/*
- * Platform pointer-size detection.
- * Uses INTPTR_MAX (from <stdint.h>) which reflects the size of void*.
- */
-#if INTPTR_MAX == INT64_MAX
-#   define WOORT_ARCH_64
-#elif INTPTR_MAX == INT32_MAX
-#   define WOORT_ARCH_32
-#else
-#   error "woort_util.h: Unsupported pointer size (neither 32-bit nor 64-bit)"
-#endif
-
 WOORT_NODISCARD size_t woort_util_abs_diff(
     size_t a,
     size_t b);
