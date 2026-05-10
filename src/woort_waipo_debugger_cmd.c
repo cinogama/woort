@@ -322,6 +322,53 @@ static size_t _woort_WAIPO_split_line(
 void woort_WAIPO_Debugger_process(
     woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm)
 {
+    {
+        woort_VMRuntime_TraceCallstack_Iter trace_iter;
+        woort_VMRuntime_TraceCallstack trace;
+
+        woort_VMRuntime_trace_begin(vm, &trace_iter);
+        if (woort_VMRuntime_trace_next(&trace_iter, &trace))
+        {
+            (void)printf("Breakdown VM(%p) at:\n", (void*)vm);
+
+            if (trace.m_function_name != NULL && trace.m_file_or_lib_name != NULL)
+            {
+                if (trace.m_has_location)
+                    (void)printf("    %s (%s:%zu:%zu)",
+                        trace.m_function_name,
+                        trace.m_file_or_lib_name,
+                        trace.m_location_begin[0] + 1,
+                        trace.m_location_begin[1] + 1);
+                else
+                    (void)printf("    %s (%s)",
+                        trace.m_function_name,
+                        trace.m_file_or_lib_name);
+            }
+            else if (trace.m_function_name != NULL)
+            {
+                (void)printf("    %s",
+                    trace.m_function_name);
+            }
+            else
+            {
+                (void)printf("    <unknown>");
+            }
+
+            if (trace.m_is_fuzzy)
+                (void)printf(" ~");
+
+            woort_CodeEnv* cenv;
+            if (woort_CodeEnv_find(vm->m_ip, &cenv))
+            {
+                const uint32_t code_offset =
+                    (uint32_t)(vm->m_ip - cenv->m_code_begin);
+                (void)printf("\nBytecode offset = %04u", code_offset);
+            }
+
+            (void)printf("\n");
+        }
+    }
+
     if (debugger_instance->m_first_breakdown)
     {
         debugger_instance->m_first_breakdown = false;
