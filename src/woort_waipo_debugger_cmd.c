@@ -54,6 +54,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "                    --all           Or dump all bytecodes in current CodeEnv.\n"
         "                    [offset length] Or dump bytecodes in specified range.\n"
         "stepir      si                      Step one bytecode instruction.\n"
+        "step        s                       Step one source line.\n"
         "\n");
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -723,7 +724,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
-static int _woort_WAIPO_empty_cb(const char* fmt, ...)
+int _woort_WAIPO_empty_cb(const char* fmt, ...)
 {
     (void)fmt;
     return 0;
@@ -996,6 +997,46 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_stepir(
     return WOORT_WAIPO_CMD_CONTINUE;
 }
 
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_step(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    (void)args;
+    (void)arg_count;
+
+    woort_CodeEnv* cenv;
+    if (!woort_CodeEnv_find(vm->m_ip, &cenv))
+    {
+        (void)printf(WOORT_ANSI_HIR "Cannot locate CodeEnv for current IP.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const woort_Bytecode* next_ip;
+    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, &next_ip))
+    {
+        (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (!_woort_WAIPO_Debugger_focus_on(dbg, vm))
+    {
+        (void)printf(WOORT_ANSI_HIR "Failed to focus on VM.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (!_woort_WAIPO_Debugger_set_step_source_break(dbg, vm, next_ip))
+    {
+        (void)printf(WOORT_ANSI_HIR "Failed to set step breakpoint.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    (void)printf("Stepping to next source line...\n");
+
+    return WOORT_WAIPO_CMD_CONTINUE;
+}
+
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "help",      "?",    &_woort_WAIPO_cmd_help },
     { "continue",  "c",    &_woort_WAIPO_cmd_continue },
@@ -1008,6 +1049,7 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "list",      "l",    &_woort_WAIPO_cmd_list },
     { "dis",       NULL,   &_woort_WAIPO_cmd_dis },
     { "stepir",    "si",   &_woort_WAIPO_cmd_stepir },
+    { "step",      "s",    &_woort_WAIPO_cmd_step },
 };
 
 static const size_t _woort_WAIPO_command_table_size =

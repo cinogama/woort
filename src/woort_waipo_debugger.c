@@ -90,6 +90,11 @@ typedef struct woort_WAIPO_VMLocalContext
     /* 与 m_debug_breakpoints 不同，m_step_breakpoints 的断点仅限当前虚拟机关注时生效 */
     /* OPTIONAL */ const woort_Bytecode* m_step_breakpoints[2];
 
+    /* 源码行级步进状态 */
+    bool m_is_source_step;
+    /* OPTIONAL */ const char* m_step_source_file;
+    size_t m_step_source_line;
+
 }woort_WAIPO_VMLocalContext;
 
 static void _woort_WAIPO_VMLocalContext_init(
@@ -98,6 +103,9 @@ static void _woort_WAIPO_VMLocalContext_init(
     vmcontext->m_breakpoint_collection = collection;
     vmcontext->m_step_breakpoints[0] = NULL;
     vmcontext->m_step_breakpoints[1] = NULL;
+    vmcontext->m_is_source_step = false;
+    vmcontext->m_step_source_file = NULL;
+    vmcontext->m_step_source_line = 0;
 }
 
 static bool _woort_WAIPO_VMLocalContext_set_step_break(
@@ -119,6 +127,16 @@ static bool _woort_WAIPO_VMLocalContext_set_step_break(
     return false;
 }
 
+static void _woort_WAIPO_VMLocalContext_set_source_step(
+    woort_WAIPO_VMLocalContext* vmcontext,
+    /* OPTIONAL */ const char* filepath,
+    size_t line)
+{
+    vmcontext->m_is_source_step = true;
+    vmcontext->m_step_source_file = filepath;
+    vmcontext->m_step_source_line = line;
+}
+
 static void _woort_WAIPO_VMLocalContext_clean_step_break(
     woort_WAIPO_VMLocalContext* vmcontext)
 {
@@ -133,6 +151,9 @@ static void _woort_WAIPO_VMLocalContext_clean_step_break(
             vmcontext->m_step_breakpoints[i] = NULL;
         }
     }
+    vmcontext->m_is_source_step = false;
+    vmcontext->m_step_source_file = NULL;
+    vmcontext->m_step_source_line = 0;
 }
 
 static void _woort_WAIPO_VMLocalContext_deinit(woort_WAIPO_VMLocalContext* vmcontext)
@@ -188,6 +209,39 @@ bool _woort_WAIPO_Debugger_set_step_break(
     return _woort_WAIPO_VMLocalContext_set_step_break(vmcontext, ip);
 }
 
+bool _woort_WAIPO_Debugger_set_step_source_break(
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm,
+    const woort_Bytecode* ip)
+{
+    woort_WAIPO_VMLocalContext* vmcontext;
+    if (!woort_hashmap_find(
+        &debugger_instance->m_focusing_vms, &vm, (void**)&vmcontext))
+        return false;
+
+    woort_CodeEnv* cenv;
+    if (!woort_CodeEnv_find(vm->m_ip, &cenv))
+        return false;
+
+    const uint32_t code_offset =
+        (uint32_t)(vm->m_ip - cenv->m_code_begin);
+    woort_SourceLocation src_loc;
+
+    if (woort_CodeEnv_find_srcloc_by_offset(cenv, code_offset, &src_loc))
+    {
+        _woort_WAIPO_VMLocalContext_set_source_step(
+            vmcontext,
+            src_loc.m_filepath,
+            (size_t)src_loc.m_begin_line);
+    }
+    else
+    {
+        _woort_WAIPO_VMLocalContext_set_source_step(
+            vmcontext, NULL, 0);
+    }
+
+    return _woort_WAIPO_VMLocalContext_set_step_break(vmcontext, ip);
+}
+
 static bool _woort_WAIPO_Debugger_meet_breakpoint(
     woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm)
 {
@@ -210,7 +264,84 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
         if (woort_hashmap_find(&debugger_instance->m_focusing_vms, &vm, (void**)&vmcontext))
         {
             if (_woort_WAIPO_VMLocalContext_meet_step_breakdown(vmcontext, current_ip))
-                breakdown = true;
+            {
+                if (vmcontext->m_is_source_step)
+                {
+                    woort_CodeEnv* cenv;
+                    if (woort_CodeEnv_find(current_ip, &cenv))
+                    {
+                        const uint32_t code_offset =
+                            (uint32_t)(current_ip - cenv->m_code_begin);
+                        woort_SourceLocation src_loc;
+
+                        if (woort_CodeEnv_find_srcloc_by_offset(
+                            cenv, code_offset, &src_loc))
+                        {
+                            const bool file_changed =
+                                (vmcontext->m_step_source_file == NULL
+                                    || src_loc.m_filepath == NULL)
+                                ? (vmcontext->m_step_source_file != src_loc.m_filepath)
+                                : (strcmp(vmcontext->m_step_source_file,
+                                    src_loc.m_filepath) != 0);
+
+                            if (file_changed
+                                || src_loc.m_begin_line
+                                    != vmcontext->m_step_source_line)
+                            {
+                                /* 源码行已变动，中断 */
+                                breakdown = true;
+                            }
+                            else
+                            {
+                                /* 仍在同一源码行，继续向下一条指令步进 */
+                                const char* saved_file = vmcontext->m_step_source_file;
+                                const size_t saved_line = vmcontext->m_step_source_line;
+
+                                _woort_WAIPO_VMLocalContext_clean_step_break(vmcontext);
+
+                                const woort_Bytecode* next_ip;
+                                if (_woort_WAIPO_get_next_ip(
+                                    current_ip, cenv, vm->m_sb, &next_ip))
+                                {
+                                    _woort_WAIPO_VMLocalContext_set_source_step(
+                                        vmcontext, saved_file, saved_line);
+
+                                    if (_woort_WAIPO_VMLocalContext_set_step_break(
+                                        vmcontext, next_ip))
+                                    {
+                                        /* 成功设置下一步断点，不中断 */
+                                    }
+                                    else
+                                    {
+                                        /* 设置断点失败，中断 */
+                                        breakdown = true;
+                                    }
+                                }
+                                else
+                                {
+                                    /* 无法确定下一条指令，中断 */
+                                    breakdown = true;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            /* 当前指令无源码信息，中断 */
+                            breakdown = true;
+                        }
+                    }
+                    else
+                    {
+                        /* 无法定位 CodeEnv，中断 */
+                        breakdown = true;
+                    }
+                }
+                else
+                {
+                    /* IR 级步进：直接中断 */
+                    breakdown = true;
+                }
+            }
 
             if (breakdown)
                 _woort_WAIPO_VMLocalContext_clean_step_break(vmcontext);
