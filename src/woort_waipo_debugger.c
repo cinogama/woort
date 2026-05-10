@@ -94,6 +94,9 @@ typedef struct woort_WAIPO_VMLocalContext
     bool m_is_source_step;
     /* OPTIONAL */ const char* m_step_source_file;
     size_t m_step_source_line;
+    size_t m_step_source_begin_column;
+    size_t m_step_source_end_line;
+    size_t m_step_source_end_column;
 
 }woort_WAIPO_VMLocalContext;
 
@@ -106,6 +109,9 @@ static void _woort_WAIPO_VMLocalContext_init(
     vmcontext->m_is_source_step = false;
     vmcontext->m_step_source_file = NULL;
     vmcontext->m_step_source_line = 0;
+    vmcontext->m_step_source_begin_column = 0;
+    vmcontext->m_step_source_end_line = 0;
+    vmcontext->m_step_source_end_column = 0;
 }
 
 static bool _woort_WAIPO_VMLocalContext_set_step_break(
@@ -130,11 +136,17 @@ static bool _woort_WAIPO_VMLocalContext_set_step_break(
 static void _woort_WAIPO_VMLocalContext_set_source_step(
     woort_WAIPO_VMLocalContext* vmcontext,
     /* OPTIONAL */ const char* filepath,
-    size_t line)
+    size_t line,
+    size_t begin_column,
+    size_t end_line,
+    size_t end_column)
 {
     vmcontext->m_is_source_step = true;
     vmcontext->m_step_source_file = filepath;
     vmcontext->m_step_source_line = line;
+    vmcontext->m_step_source_begin_column = begin_column;
+    vmcontext->m_step_source_end_line = end_line;
+    vmcontext->m_step_source_end_column = end_column;
 }
 
 static void _woort_WAIPO_VMLocalContext_clean_step_break(
@@ -154,6 +166,9 @@ static void _woort_WAIPO_VMLocalContext_clean_step_break(
     vmcontext->m_is_source_step = false;
     vmcontext->m_step_source_file = NULL;
     vmcontext->m_step_source_line = 0;
+    vmcontext->m_step_source_begin_column = 0;
+    vmcontext->m_step_source_end_line = 0;
+    vmcontext->m_step_source_end_column = 0;
 }
 
 static void _woort_WAIPO_VMLocalContext_deinit(woort_WAIPO_VMLocalContext* vmcontext)
@@ -231,12 +246,15 @@ bool _woort_WAIPO_Debugger_set_step_source_break(
         _woort_WAIPO_VMLocalContext_set_source_step(
             vmcontext,
             src_loc.m_filepath,
-            (size_t)src_loc.m_begin_line);
+            (size_t)src_loc.m_begin_line,
+            (size_t)src_loc.m_begin_column,
+            (size_t)src_loc.m_end_line,
+            (size_t)src_loc.m_end_column);
     }
     else
     {
         _woort_WAIPO_VMLocalContext_set_source_step(
-            vmcontext, NULL, 0);
+            vmcontext, NULL, 0, 0, 0, 0);
     }
 
     return _woort_WAIPO_VMLocalContext_set_step_break(vmcontext, ip);
@@ -286,16 +304,25 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
 
                             if (file_changed
                                 || src_loc.m_begin_line
-                                    != vmcontext->m_step_source_line)
+                                    != vmcontext->m_step_source_line
+                                || (size_t)src_loc.m_begin_column
+                                    != vmcontext->m_step_source_begin_column
+                                || (size_t)src_loc.m_end_line
+                                    != vmcontext->m_step_source_end_line
+                                || (size_t)src_loc.m_end_column
+                                    != vmcontext->m_step_source_end_column)
                             {
-                                /* 源码行已变动，中断 */
+                                /* 源码位置已变动，中断 */
                                 breakdown = true;
                             }
                             else
                             {
-                                /* 仍在同一源码行，继续向下一条指令步进 */
+                                /* 仍在同一源码位置，继续向下一条指令步进 */
                                 const char* saved_file = vmcontext->m_step_source_file;
                                 const size_t saved_line = vmcontext->m_step_source_line;
+                                const size_t saved_bcol = vmcontext->m_step_source_begin_column;
+                                const size_t saved_eline = vmcontext->m_step_source_end_line;
+                                const size_t saved_ecol = vmcontext->m_step_source_end_column;
 
                                 _woort_WAIPO_VMLocalContext_clean_step_break(vmcontext);
 
@@ -304,7 +331,8 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
                                     current_ip, cenv, vm->m_sb, &next_ip))
                                 {
                                     _woort_WAIPO_VMLocalContext_set_source_step(
-                                        vmcontext, saved_file, saved_line);
+                                        vmcontext, saved_file, saved_line,
+                                        saved_bcol, saved_eline, saved_ecol);
 
                                     if (_woort_WAIPO_VMLocalContext_set_step_break(
                                         vmcontext, next_ip))
