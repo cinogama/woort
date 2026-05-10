@@ -3762,6 +3762,162 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u32str_to_str(
 WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u32strn_to_str(
     const char32_t* str, size_t size);
 
+/* ========== ANSI Escape Code Macros ========== */
+
+/**
+ * @name ANSI Terminal Control
+ * @brief Macros for ANSI escape code sequences.
+ *
+ * You can use these macros to specify ANSI_XXX as a wide character string.
+ * NOTE: After use, you MUST re-define them as nothing to avoid collisions.
+ * @{
+ */
+
+/** @brief ANSI escape sequence introducer. */
+#   define WOORT_ANSI_ESC "\033["
+/** @brief ANSI sequence terminator. */
+#   define WOORT_ANSI_END "m"
+/** @brief Reset all attributes. */
+#   define WOORT_ANSI_RST WOORT_ANSI_ESC "0m"
+/** @brief Bold / increased intensity. */
+#   define WOORT_ANSI_HIL WOORT_ANSI_ESC "1m"
+/** @brief Faint / decreased intensity. */
+#   define WOORT_ANSI_FAINT WOORT_ANSI_ESC "2m"
+/** @brief Italic. */
+#   define WOORT_ANSI_ITALIC WOORT_ANSI_ESC "3m"
+/** @brief Underline. */
+#   define WOORT_ANSI_UNDERLNE WOORT_ANSI_ESC "4m"
+/** @brief No underline. */
+#   define WOORT_ANSI_NUNDERLNE WOORT_ANSI_ESC "24m"
+/** @brief Slow blink. */
+#   define WOORT_ANSI_SLOW_BLINK WOORT_ANSI_ESC "5m"
+/** @brief Fast blink. */
+#   define WOORT_ANSI_FAST_BLINK WOORT_ANSI_ESC "6m"
+/** @brief Inverse / reverse video. */
+#   define WOORT_ANSI_INV WOORT_ANSI_ESC "7m"
+/** @brief Conceal / fade. */
+#   define WOORT_ANSI_FADE WOORT_ANSI_ESC "8m"
+
+/** @name Foreground Colors */
+/**@{*/
+/** @brief Black foreground. */
+#   define WOORT_ANSI_BLK WOORT_ANSI_ESC "30m"
+/** @brief Gray foreground (bright black). */
+#   define WOORT_ANSI_GRY WOORT_ANSI_ESC "1;30m"
+/** @brief Red foreground. */
+#   define WOORT_ANSI_RED WOORT_ANSI_ESC "31m"
+/** @brief Bright red foreground. */
+#   define WOORT_ANSI_HIR WOORT_ANSI_ESC "1;31m"
+/** @brief Green foreground. */
+#   define WOORT_ANSI_GRE WOORT_ANSI_ESC "32m"
+/** @brief Bright green foreground. */
+#   define WOORT_ANSI_HIG WOORT_ANSI_ESC "1;32m"
+/** @brief Yellow foreground. */
+#   define WOORT_ANSI_YEL WOORT_ANSI_ESC "33m"
+/** @brief Bright yellow foreground. */
+#   define WOORT_ANSI_HIY WOORT_ANSI_ESC "1;33m"
+/** @brief Blue foreground. */
+#   define WOORT_ANSI_BLU WOORT_ANSI_ESC "34m"
+/** @brief Bright blue foreground. */
+#   define WOORT_ANSI_HIB WOORT_ANSI_ESC "1;34m"
+/** @brief Magenta foreground. */
+#   define WOORT_ANSI_MAG WOORT_ANSI_ESC "35m"
+/** @brief Bright magenta foreground. */
+#   define WOORT_ANSI_HIM WOORT_ANSI_ESC "1;35m"
+/** @brief Cyan foreground. */
+#   define WOORT_ANSI_CLY WOORT_ANSI_ESC "36m"
+/** @brief Bright cyan foreground. */
+#   define WOORT_ANSI_HIC WOORT_ANSI_ESC "1;36m"
+/** @brief White foreground. */
+#   define WOORT_ANSI_WHI WOORT_ANSI_ESC "37m"
+/** @brief Bright white foreground. */
+#   define WOORT_ANSI_HIW WOORT_ANSI_ESC "1;37m"
+/**@}*/
+
+/** @name Background Colors */
+/**@{*/
+/** @brief Black background. */
+#   define WOORT_ANSI_BBLK WOORT_ANSI_ESC "40m"
+/** @brief Gray background (bright black). */
+#   define WOORT_ANSI_BGRY WOORT_ANSI_ESC "1;40m"
+/** @brief Red background. */
+#   define WOORT_ANSI_BRED WOORT_ANSI_ESC "41m"
+/** @brief Bright red background. */
+#   define WOORT_ANSI_BHIR WOORT_ANSI_ESC "1;41m"
+/** @brief Green background. */
+#   define WOORT_ANSI_BGRE WOORT_ANSI_ESC "42m"
+/** @brief Bright green background. */
+#   define WOORT_ANSI_BHIG WOORT_ANSI_ESC "1;42m"
+/** @brief Yellow background. */
+#   define WOORT_ANSI_BYEL WOORT_ANSI_ESC "43m"
+/** @brief Bright yellow background. */
+#   define WOORT_ANSI_BHIY WOORT_ANSI_ESC "1;43m"
+/** @brief Blue background. */
+#   define WOORT_ANSI_BBLU WOORT_ANSI_ESC "44m"
+/** @brief Bright blue background. */
+#   define WOORT_ANSI_BHIB WOORT_ANSI_ESC "1;44m"
+/** @brief Magenta background. */
+#   define WOORT_ANSI_BMAG WOORT_ANSI_ESC "45m"
+/** @brief Bright magenta background. */
+#   define WOORT_ANSI_BHIM WOORT_ANSI_ESC "1;45m"
+/** @brief Cyan background. */
+#   define WOORT_ANSI_BCLY WOORT_ANSI_ESC "46m"
+/** @brief Bright cyan background. */
+#   define WOORT_ANSI_BHIC WOORT_ANSI_ESC "1;46m"
+/** @brief White background. */
+#   define WOORT_ANSI_BWHI WOORT_ANSI_ESC "47m"
+/** @brief Bright white background. */
+#   define WOORT_ANSI_BHIW WOORT_ANSI_ESC "1;47m"
+/**@}*/
+
+/** @} */ /* end ANSI Terminal Control group */
+
+/** @brief Backward-compatible aliases for the original ANSI macro names. */
+#   define ANSI_ESC WOORT_ANSI_ESC
+#   define ANSI_END WOORT_ANSI_END
+#   define ANSI_RST WOORT_ANSI_RST
+#   define ANSI_HIL WOORT_ANSI_HIL
+#   define ANSI_FAINT WOORT_ANSI_FAINT
+#   define ANSI_ITALIC WOORT_ANSI_ITALIC
+#   define ANSI_UNDERLNE WOORT_ANSI_UNDERLNE
+#   define ANSI_NUNDERLNE WOORT_ANSI_NUNDERLNE
+#   define ANSI_SLOW_BLINK WOORT_ANSI_SLOW_BLINK
+#   define ANSI_FAST_BLINK WOORT_ANSI_FAST_BLINK
+#   define ANSI_INV WOORT_ANSI_INV
+#   define ANSI_FADE WOORT_ANSI_FADE
+#   define ANSI_BLK WOORT_ANSI_BLK
+#   define ANSI_GRY WOORT_ANSI_GRY
+#   define ANSI_RED WOORT_ANSI_RED
+#   define ANSI_HIR WOORT_ANSI_HIR
+#   define ANSI_GRE WOORT_ANSI_GRE
+#   define ANSI_HIG WOORT_ANSI_HIG
+#   define ANSI_YEL WOORT_ANSI_YEL
+#   define ANSI_HIY WOORT_ANSI_HIY
+#   define ANSI_BLU WOORT_ANSI_BLU
+#   define ANSI_HIB WOORT_ANSI_HIB
+#   define ANSI_MAG WOORT_ANSI_MAG
+#   define ANSI_HIM WOORT_ANSI_HIM
+#   define ANSI_CLY WOORT_ANSI_CLY
+#   define ANSI_HIC WOORT_ANSI_HIC
+#   define ANSI_WHI WOORT_ANSI_WHI
+#   define ANSI_HIW WOORT_ANSI_HIW
+#   define ANSI_BBLK WOORT_ANSI_BBLK
+#   define ANSI_BGRY WOORT_ANSI_BGRY
+#   define ANSI_BRED WOORT_ANSI_BRED
+#   define ANSI_BHIR WOORT_ANSI_BHIR
+#   define ANSI_BGRE WOORT_ANSI_BGRE
+#   define ANSI_BHIG WOORT_ANSI_BHIG
+#   define ANSI_BYEL WOORT_ANSI_BYEL
+#   define ANSI_BHIY WOORT_ANSI_BHIY
+#   define ANSI_BBLU WOORT_ANSI_BBLU
+#   define ANSI_BHIB WOORT_ANSI_BHIB
+#   define ANSI_BMAG WOORT_ANSI_BMAG
+#   define ANSI_BHIM WOORT_ANSI_BHIM
+#   define ANSI_BCLY WOORT_ANSI_BCLY
+#   define ANSI_BHIC WOORT_ANSI_BHIC
+#   define ANSI_BWHI WOORT_ANSI_BWHI
+#   define ANSI_BHIW WOORT_ANSI_BHIW
+
 /* ---------------------------- */
 
 #undef WOORT_API
