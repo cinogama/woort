@@ -56,6 +56,16 @@ typedef struct _JumpPatch
     int32_t m_src1_off;         /* 比较跳转的第二操作数偏移 (b) */
 } _JumpPatch;
 
+/*
+ * 字节码插入事件（由 _patch_jumps 在展开跳转时记录）
+ * 用于修正 _emit_function 阶段记录的 source_map_entries 偏移。
+ */
+typedef struct _woort_InsertionEvent
+{
+    uint32_t m_block_idx;    /* 插入所在 block 的索引 */
+    uint32_t m_insert_pos;   /* 在 block 的 m_bytecodes 中的插入位置（当时坐标） */
+} _woort_InsertionEvent;
+
 /* ========================================================================
  * 编码范围常量
  * ======================================================================== */
@@ -1721,7 +1731,8 @@ static bool _emit_function(
 static bool _patch_jumps(
     woort_IRFunction* f,
     woort_Vector* jump_patches,
-    size_t stack_space)
+    size_t stack_space,
+    woort_Vector* insertions)
 {
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
 
@@ -1821,6 +1832,14 @@ static bool _patch_jumps(
                         data[j] = data[j - 1];
                     data[insert_pos] = uncond;
 
+                    /* 记录插入事件，用于后续修正 source_map 偏移 */
+                    {
+                        _woort_InsertionEvent ev;
+                        ev.m_block_idx = patch->m_block_idx;
+                        ev.m_insert_pos = (uint32_t)insert_pos;
+                        (void)woort_vector_push_back(insertions, 1, &ev);
+                    }
+
                     /* 更新同 block 中后续 patch 的索引 */
                     for (size_t j = 0; j < jump_patches->m_size; ++j)
                     {
@@ -1914,6 +1933,14 @@ static bool _patch_jumps(
                         data[j] = data[j - 1];
                     data[insert_pos] = uncond;
 
+                    /* 记录插入事件，用于后续修正 source_map 偏移 */
+                    {
+                        _woort_InsertionEvent ev;
+                        ev.m_block_idx = patch->m_block_idx;
+                        ev.m_insert_pos = (uint32_t)insert_pos;
+                        (void)woort_vector_push_back(insertions, 1, &ev);
+                    }
+
                     for (size_t j = 0; j < jump_patches->m_size; ++j)
                     {
                         _JumpPatch* other = (_JumpPatch*)woort_vector_at(jump_patches, j);
@@ -1988,6 +2015,114 @@ static bool _patch_jumps(
 }
 
 /* ========================================================================
+ * Source Map 偏移修正
+ * ======================================================================== */
+
+/*
+ * _emit_function 在发射字节码时记录了 source_map_entries，
+ * 但 _patch_jumps 可能插入额外字节码（跳转溢出展开），
+ * 导致已记录的偏移量发生偏差。此函数根据插入事件修正偏移。
+ *
+ * 同时将 PUSHRCHK 的 1 槽偏移计入（若有），使条目偏移
+ * 相对于函数起始位置（f->m_code_offset）而非第一个 block。
+ */
+static void _fixup_source_map_offsets(
+    woort_IRFunction* f,
+    woort_Vector* source_map_entries,
+    const uint32_t* old_block_sizes,
+    const woort_Vector* insertions,
+    size_t stack_space)
+{
+    if (source_map_entries->m_size == 0)
+        return;
+
+    const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
+
+    /*
+     * 计算旧 block 累积大小，用于将旧偏移映射回 (block_index, local_offset)。
+     */
+    uint32_t* cum_old = (uint32_t*)malloc(sizeof(uint32_t) * block_count);
+    if (cum_old == NULL)
+        return; /* OOM，偏移修正失败不影响正确性，仅映射精度下降 */
+
+    {
+        uint32_t sum = 0;
+        for (uint32_t bi = 0; bi < block_count; ++bi)
+        {
+            sum += old_block_sizes[bi];
+            cum_old[bi] = sum;
+        }
+    }
+
+    for (size_t ei = 0; ei < source_map_entries->m_size; ++ei)
+    {
+        woort_SourceMap_Entry* entry =
+            (woort_SourceMap_Entry*)woort_vector_at(source_map_entries, ei);
+
+        const uint32_t old_offset = entry->m_bytecode_offset;
+
+        /*
+         * 利用旧累积大小找到该条目所属的 block 及其局部偏移。
+         */
+        uint32_t bi = 0;
+        uint32_t prev_cum = 0;
+        for (bi = 0; bi < block_count; ++bi)
+        {
+            if (old_offset < cum_old[bi])
+                break;
+            prev_cum = cum_old[bi];
+        }
+        if (bi >= block_count)
+            bi = block_count - 1;
+
+        const uint32_t local_offset = old_offset - prev_cum;
+
+        /*
+         * 统计该 block 中在 local_offset 之前发生的插入次数。
+         *
+         * 插入事件按时间顺序记录，m_insert_pos 是当时坐标
+         * （已包含先前插入的偏移）。转换回原始坐标：
+         *   original_pos = m_insert_pos - prior_insertions_in_same_block
+         *
+         * 若 original_pos <= local_offset，则该插入在此条目之前，
+         * 条目的局部偏移需要 +1。
+         */
+        uint32_t prior_in_block = 0;
+        uint32_t shift = 0;
+        for (size_t ii = 0; ii < insertions->m_size; ++ii)
+        {
+            const _woort_InsertionEvent* ev =
+                (_woort_InsertionEvent*)woort_vector_at((woort_Vector*)insertions, ii);
+            if (ev->m_block_idx == bi)
+            {
+                uint32_t original_pos = ev->m_insert_pos - prior_in_block;
+                if (original_pos <= local_offset)
+                    ++shift;
+                ++prior_in_block;
+            }
+        }
+
+        /*
+         * 使用新的 block 大小重新计算全局偏移。
+         * 新偏移 = 前面所有 block 的新大小之和 + 调整后的局部偏移
+         *         + PUSHRCHK 占位（若有）
+         */
+        uint32_t new_offset = (stack_space > 0) ? 1u : 0u;
+        for (uint32_t j = 0; j < bi; ++j)
+        {
+            woort_IRBlock* blk =
+                (woort_IRBlock*)woort_vector_at(&f->m_blocks, j);
+            new_offset += (uint32_t)blk->m_bytecodes.m_size;
+        }
+        new_offset += local_offset + shift;
+
+        entry->m_bytecode_offset = new_offset;
+    }
+
+    free(cum_old);
+}
+
+/* ========================================================================
  * 单个函数的完整编译流程
  * ======================================================================== */
 
@@ -2014,17 +2149,50 @@ static bool _compile_function(
         return false;
     }
 
-    /* 第 3 步：跳转修正 */
-    if (!_patch_jumps(f, &jump_patches, stack_space))
+    /*
+     * 保存 _patch_jumps 之前的各 block 字节码大小，
+     * 用于后续将 source_map_entries 的旧偏移映射回 (block, local_offset)。
+     */
+    const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
+    uint32_t* old_block_sizes = (uint32_t*)malloc(sizeof(uint32_t) * block_count);
+    if (old_block_sizes == NULL)
     {
+        woort_vector_deinit(&jump_patches);
+        return false;
+    }
+    for (uint32_t bi = 0; bi < block_count; ++bi)
+    {
+        woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, bi);
+        old_block_sizes[bi] = (uint32_t)blk->m_bytecodes.m_size;
+    }
+
+    /* 第 3 步：跳转修正 */
+    woort_Vector insertions;
+    woort_vector_init(&insertions, sizeof(_woort_InsertionEvent));
+
+    if (!_patch_jumps(f, &jump_patches, stack_space, &insertions))
+    {
+        woort_vector_deinit(&insertions);
+        free(old_block_sizes);
         woort_vector_deinit(&jump_patches);
         return false;
     }
 
     woort_vector_deinit(&jump_patches);
 
+    /*
+     * 第 3.5 步：修正 source_map_entries 的偏移量。
+     * _patch_jumps 可能插入了额外字节码（跳转溢出展开），
+     * 导致 _emit_function 阶段记录的偏移发生偏差。
+     * _fixup_source_map_offsets 根据插入事件和 PUSHRCHK 占位修正偏移，
+     * 修正后的偏移相对于函数起始位置（f->m_code_offset）。
+     */
+    _fixup_source_map_offsets(f, source_map_entries, old_block_sizes, &insertions, stack_space);
+
+    woort_vector_deinit(&insertions);
+    free(old_block_sizes);
+
     /* 第 4 步：将 block 字节码拼接到 compiler 的 m_commited_codes */
-    const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
 
     /*
      * PUSHRCHK 预留在函数入口处单独发射，不放在任何 block 内，
@@ -2162,7 +2330,8 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
 
             /*
              * _compile_function 完成后，该函数的 m_code_offset 已确定。
-             * 映射条目中的偏移量是函数内相对偏移，需要加上全局偏移。
+             * 映射条目中的偏移量已包含 PUSHRCHK 占位（若有），
+             * 是相对于函数起始位置的偏移，需要加上全局偏移。
              */
             for (size_t ei = 0; ei < fsm.m_entries.m_size; ++ei)
             {
