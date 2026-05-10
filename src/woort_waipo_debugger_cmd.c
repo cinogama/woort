@@ -971,11 +971,18 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
     }
 }
 
-static woort_WAIPO_CommandResult _woort_WAIPO_cmd_stepir(
+typedef bool (*_woort_WAIPO_SetBreakFunc)(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    const woort_Bytecode* ip);
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_step_common(
     woort_WAIPO_Debugger* dbg,
     woort_VMRuntime* vm,
     char** args,
-    size_t arg_count)
+    size_t arg_count,
+    _woort_WAIPO_SetBreakFunc set_break,
+    const char* message)
 {
     (void)args;
     (void)arg_count;
@@ -1000,15 +1007,27 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_stepir(
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    if (!_woort_WAIPO_Debugger_set_step_break(dbg, vm, next_ip))
+    if (!set_break(dbg, vm, next_ip))
     {
         (void)printf(WOORT_ANSI_HIR "Failed to set step breakpoint.\n" WOORT_ANSI_RST);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    (void)printf("Stepping to next instruction...\n");
+    (void)printf("%s", message);
 
     return WOORT_WAIPO_CMD_CONTINUE;
+}
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_stepir(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    return _woort_WAIPO_cmd_step_common(
+        dbg, vm, args, arg_count,
+        _woort_WAIPO_Debugger_set_step_break,
+        "Stepping to next instruction...\n");
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_step(
@@ -1017,38 +1036,10 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_step(
     char** args,
     size_t arg_count)
 {
-    (void)args;
-    (void)arg_count;
-
-    woort_CodeEnv* cenv;
-    if (!woort_CodeEnv_find(vm->m_ip, &cenv))
-    {
-        (void)printf(WOORT_ANSI_HIR "Cannot locate CodeEnv for current IP.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    const woort_Bytecode* next_ip;
-    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, vm, &next_ip))
-    {
-        (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    if (!_woort_WAIPO_Debugger_focus_on(dbg, vm))
-    {
-        (void)printf(WOORT_ANSI_HIR "Failed to focus on VM.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    if (!_woort_WAIPO_Debugger_set_step_source_break(dbg, vm, next_ip))
-    {
-        (void)printf(WOORT_ANSI_HIR "Failed to set step breakpoint.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    (void)printf("Stepping to next source line...\n");
-
-    return WOORT_WAIPO_CMD_CONTINUE;
+    return _woort_WAIPO_cmd_step_common(
+        dbg, vm, args, arg_count,
+        _woort_WAIPO_Debugger_set_step_source_break,
+        "Stepping to next source line...\n");
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_next(
@@ -1057,38 +1048,10 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_next(
     char** args,
     size_t arg_count)
 {
-    (void)args;
-    (void)arg_count;
-
-    woort_CodeEnv* cenv;
-    if (!woort_CodeEnv_find(vm->m_ip, &cenv))
-    {
-        (void)printf(WOORT_ANSI_HIR "Cannot locate CodeEnv for current IP.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    const woort_Bytecode* next_ip;
-    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, vm, &next_ip))
-    {
-        (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    if (!_woort_WAIPO_Debugger_focus_on(dbg, vm))
-    {
-        (void)printf(WOORT_ANSI_HIR "Failed to focus on VM.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    if (!_woort_WAIPO_Debugger_set_next_source_break(dbg, vm, next_ip))
-    {
-        (void)printf(WOORT_ANSI_HIR "Failed to set step breakpoint.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    (void)printf("Stepping over to next source line...\n");
-
-    return WOORT_WAIPO_CMD_CONTINUE;
+    return _woort_WAIPO_cmd_step_common(
+        dbg, vm, args, arg_count,
+        _woort_WAIPO_Debugger_set_next_source_break,
+        "Stepping over to next source line...\n");
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
@@ -1097,38 +1060,10 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
     char** args,
     size_t arg_count)
 {
-    (void)args;
-    (void)arg_count;
-
-    woort_CodeEnv* cenv;
-    if (!woort_CodeEnv_find(vm->m_ip, &cenv))
-    {
-        (void)printf(WOORT_ANSI_HIR "Cannot locate CodeEnv for current IP.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    const woort_Bytecode* next_ip;
-    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, vm, &next_ip))
-    {
-        (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    if (!_woort_WAIPO_Debugger_focus_on(dbg, vm))
-    {
-        (void)printf(WOORT_ANSI_HIR "Failed to focus on VM.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    if (!_woort_WAIPO_Debugger_set_return_break(dbg, vm, next_ip))
-    {
-        (void)printf(WOORT_ANSI_HIR "Failed to set step breakpoint.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    (void)printf("Returning to caller...\n");
-
-    return WOORT_WAIPO_CMD_CONTINUE;
+    return _woort_WAIPO_cmd_step_common(
+        dbg, vm, args, arg_count,
+        _woort_WAIPO_Debugger_set_return_break,
+        "Returning to caller...\n");
 }
 
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
