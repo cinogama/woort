@@ -402,6 +402,7 @@ typedef struct woort_VMRuntime_TraceCallstack_Iter
 typedef struct woort_VMRuntime_TraceCallstack
 {
     size_t m_callstack_depth;
+
     bool m_is_fuzzy;
     bool m_has_location;
 
@@ -410,6 +411,8 @@ typedef struct woort_VMRuntime_TraceCallstack
 
     size_t m_location_begin[2];
     size_t m_location_end[2];
+
+    /* OPTIONAL */ const woort_Bytecode* m_code_addr;
 
 } woort_VMRuntime_TraceCallstack;
 

@@ -603,16 +603,25 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
     char** args,
     size_t arg_count)
 {
-    (void)dbg;
+    woort_VMRuntime_TraceCallstack trace;
+    if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
+    {
+        (void)printf(WOORT_ANSI_HIR "No callstack.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const woort_Bytecode* frame_ip = trace.m_code_addr;
+    if (frame_ip == NULL)
+        frame_ip = vm->m_ip;
 
     woort_CodeEnv* cenv;
-    if (!woort_CodeEnv_find(vm->m_ip, &cenv))
+    if (!woort_CodeEnv_find(frame_ip, &cenv))
     {
         (void)printf(WOORT_ANSI_HIR "Cannot locate CodeEnv for current IP.\n" WOORT_ANSI_RST);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    const size_t current_ip_offset = (size_t)(vm->m_ip - cenv->m_code_begin);
+    const size_t current_ip_offset = (size_t)(frame_ip - cenv->m_code_begin);
 
     if (arg_count < 2)
     {
@@ -638,7 +647,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
                         cenv,
                         boundary->m_offset_begin,
                         boundary->m_offset_begin + boundary->m_code_length,
-                        vm->m_ip);
+                        frame_ip);
 
                     return WOORT_WAIPO_CMD_NEED_NEXT;
                 }
@@ -650,7 +659,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
             cenv,
             current_ip_offset,
             current_ip_offset + 100,
-            vm->m_ip);
+            frame_ip);
 
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
@@ -678,7 +687,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
                 begin_offset, begin_offset + length);
 
             _woort_WAIPO_dump_disassembly_range(
-                cenv, begin_offset, begin_offset + length, vm->m_ip);
+                cenv, begin_offset, begin_offset + length, frame_ip);
         }
         else
         {
@@ -690,7 +699,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
 
     if (strcmp(first_arg, "--all") == 0)
     {
-        _woort_WAIPO_dump_disassembly_range(cenv, 0, SIZE_MAX, vm->m_ip);
+        _woort_WAIPO_dump_disassembly_range(cenv, 0, SIZE_MAX, frame_ip);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 

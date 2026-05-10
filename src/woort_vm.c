@@ -3982,9 +3982,12 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
 {
     bool traced = false;
 
+    out_result->m_code_addr = NULL;
     out_result->m_callstack_depth = modify_trace_iter->m_next_tracing_depth++;
     if (out_result->m_callstack_depth == 0)
     {
+        out_result->m_code_addr = modify_trace_iter->m_vm->m_ip;
+
         (void)_woort_VMRuntime_trace_addr(
             modify_trace_iter->m_vm->m_ip, 0, out_result);
 
@@ -4007,19 +4010,22 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
 
                 if (sb_addr[2].m_ret_addr == NULL)
                 {
-                    // Trace end.
+                    /* Trace end. */
                     break;
                 }
 
-                // Should be CALLWAY & BPOFFSET.
+                out_result->m_code_addr =
+                    (const woort_Bytecode*)sb_addr[2].m_ret_addr - 1;
+
+                /* Should be CALLWAY & BPOFFSET. */
                 modify_trace_iter->m_next_tracing_offset_of_base =
                     sb_addr[1].m_ret_bp.m_bp_offset;
 
                 if (!_woort_VMRuntime_trace_addr(
                     sb_addr[2].m_ret_addr, -1, out_result))
                 {
-                    // Failed to trace the function, this is not a valid function address.
-                    // TODO: Trying to find next valid call stack place ?
+                    /* Failed to trace the function, this is not a valid function address. */
+                    /* TODO: Trying to find next valid call stack place ? */
                     break;
                 }
 
