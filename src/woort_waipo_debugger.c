@@ -364,6 +364,12 @@ bool _woort_WAIPO_Debugger_set_step_source_break(
     return _woort_WAIPO_VMLocalContext_set_step_break(vmcontext, ip);
 }
 
+static bool _woort_WAIPO_Debugger_is_focus_vm(
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm)
+{
+    return woort_hashmap_contains(&debugger_instance->m_focusing_vms, &vm);
+}
+
 static bool _woort_WAIPO_Debugger_meet_breakpoint(
     woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm)
 {
@@ -466,9 +472,8 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
 
                                 _woort_WAIPO_VMLocalContext_clean_step_break(vmcontext);
 
-                                const woort_Bytecode* next_ip;
-                                if (_woort_WAIPO_get_next_ip(
-                                    current_ip, cenv, vm->m_sb, &next_ip))
+                                const woort_Bytecode* next_ip = NULL;
+                                if (_woort_WAIPO_get_next_ip(current_ip, cenv, vm->m_sb, vm, &next_ip))
                                 {
                                     _woort_WAIPO_VMLocalContext_set_source_step(
                                         vmcontext, saved_file, saved_line,
@@ -521,14 +526,15 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
     return breakdown;
 }
 
-static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance)
+static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, bool trap_by_request)
 {
     woort_WAIPO_Debugger* const debugger_instance = instance;
 
     bool trap_down = false;
 
     if (woort_hashmap_is_empty(&debugger_instance->m_focusing_vms)
-        || _woort_WAIPO_Debugger_meet_breakpoint(debugger_instance, vm))
+        || _woort_WAIPO_Debugger_meet_breakpoint(debugger_instance, vm)
+        || (trap_by_request && _woort_WAIPO_Debugger_is_focus_vm(debugger_instance, vm)))
     {
         woort_WAIPO_Debugger_process(debugger_instance, vm);
     }

@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <stdbool.h>
 
 typedef struct woort_VMRuntime_Debugger
 {
@@ -108,7 +109,7 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
     return true;
 }
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(void)
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request)
 {
     woort_VMRuntime_Debugger* current_debugger;
     woort_rwspinlock_read_lock(&g_debugger_rwspin);
@@ -134,7 +135,8 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(void)
             {
                 current_debugger->m_break_callback(
                     running_vm,
-                    current_debugger->m_debugger_context);
+                    current_debugger->m_debugger_context,
+                    trap_by_request);
             }
             woort_mutex_unlock(g_debugger_execute_mx);
         }

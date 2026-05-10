@@ -10,7 +10,7 @@
 
 #include <stdbool.h>
 
-typedef void (*woort_VMRuntime_DebuggerCallback)(woort_VMRuntime*, void*);
+typedef void (*woort_VMRuntime_DebuggerCallback)(woort_VMRuntime*, void*, bool);
 typedef void (*woort_VMRuntime_DebuggerContextDestroyCallback)(void*);
 
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_bootup(void);
@@ -23,4 +23,4 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
 
 void woort_VMRuntime_Debugger_detach(void);
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(void);
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request);

@@ -69,7 +69,8 @@ void woort_WAIPO_Debugger_process(
  * 返回 false 表示无法确定下一条指令（如从 native 函数返回）。
  */
 WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
-    const woort_Bytecode*   ip,
-    woort_CodeEnv*          cenv,
-    const woort_Value*      sb,
-    /* OPTIONAL */ const woort_Bytecode**  out_next_ip);
+    const woort_Bytecode* ip,
+    woort_CodeEnv* cenv,
+    const woort_Value* sb,
+    woort_VMRuntime* vm,
+    /* OPTIONAL */ const woort_Bytecode** out_next_ip);

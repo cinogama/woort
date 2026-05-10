@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
+#include <stdbool.h>
 
 WOORT_THREAD_LOCAL woort_VMRuntime* WOORT_t_this_thread_vm;
 
@@ -3615,7 +3616,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_TRAP, 0):
         {
             WOORT_VM_SYNC_STATE_WITH_ENV();
-            if (woort_VMRuntime_Debugger_try_trap())
+            if (woort_VMRuntime_Debugger_try_trap(false))
             {
                 c = woort_CodeEnv_raw_trap(rt_env, rt_ip);
                 goto _label_vm_dispatch_reentry_for_debug_trap;
@@ -3691,7 +3692,7 @@ _label_continue_execution:
             else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK)
             {
-                if (woort_VMRuntime_Debugger_try_trap())
+                if (woort_VMRuntime_Debugger_try_trap(true))
                 {
                     (void)woort_VMRuntime_request_accept(
                         vm,

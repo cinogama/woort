@@ -736,6 +736,7 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
     const woort_Bytecode*   ip,
     woort_CodeEnv*          cenv,
     const woort_Value*      sb,
+    woort_VMRuntime*        vm,
     /* OPTIONAL */ const woort_Bytecode**  out_next_ip)
 {
     if (ip == NULL || cenv == NULL || sb == NULL || out_next_ip == NULL)
@@ -892,14 +893,18 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
         *out_next_ip = cenv->m_data_begin[WOORT_BYTECODE(MABC26, bc)].m_script_function;
         return true;
     }
-
     case WOORT_OPCODE_CALLNFP:
+    {
+        (void)woort_VMRuntime_request_set(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+        *out_next_ip = ip + 1;
+        return true;
+    }
     case WOORT_OPCODE_CALLNJIT:
     {
         *out_next_ip = ip + 1;
         return true;
     }
-
     case WOORT_OPCODE_CALL:
     {
         const woort_GCClosure* target;
@@ -916,6 +921,11 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
             *out_next_ip = target->m_script_function;
             return true;
         }
+		if (target->m_native_function != NULL)
+		{
+        	(void)woort_VMRuntime_request_set(
+            	vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+		}
         *out_next_ip = ip + 1;
         return true;
     }
@@ -976,7 +986,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_stepir(
     }
 
     const woort_Bytecode* next_ip;
-    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, &next_ip))
+    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, vm, &next_ip))
     {
         (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
         return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -1016,7 +1026,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_step(
     }
 
     const woort_Bytecode* next_ip;
-    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, &next_ip))
+    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, vm, &next_ip))
     {
         (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
         return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -1056,7 +1066,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_next(
     }
 
     const woort_Bytecode* next_ip;
-    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, &next_ip))
+    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, vm, &next_ip))
     {
         (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
         return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -1096,7 +1106,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
     }
 
     const woort_Bytecode* next_ip;
-    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, &next_ip))
+    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, vm, &next_ip))
     {
         (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
         return WOORT_WAIPO_CMD_NEED_NEXT;
