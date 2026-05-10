@@ -42,6 +42,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "                    vm              List all VM(s).\n"
         "quit                                Stop all vm to exit.\n"
         "clear       cls                     Clean the screen.\n"
+        "backtrace   bt                      Print callstack backtrace.\n"
         "\n");
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -103,6 +104,27 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_exit(
     _Exit(0);
 
     return WOORT_WAIPO_CMD_CONTINUE;
+}
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_backtrace(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    (void)dbg;
+    (void)args;
+    (void)arg_count;
+
+    woort_VMRuntime_TraceCallstack_Iter trace_iter;
+    woort_VMRuntime_TraceCallstack trace;
+
+    woort_VMRuntime_trace_begin(vm, &trace_iter);
+    (void)printf("Backtrace:\n");
+    while (woort_VMRuntime_trace_next(&trace_iter, &trace))
+        woort_VMRuntime_log_trace(&trace);
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_clear(
@@ -179,23 +201,22 @@ static bool _woort_WAIPO_list_vm_callback(
     _woort_WAIPO_ListVMContext* ctx =
         (_woort_WAIPO_ListVMContext*)user_data;
 
-    size_t stack_total = (size_t)(vm->m_stack_end - vm->m_stack);
-    size_t stack_used = (size_t)(vm->m_sp - vm->m_stack);
+    const size_t stack_total = (size_t)(vm->m_stack_end - vm->m_stack);
+    const size_t stack_used = (size_t)(vm->m_stack_end - vm->m_sp);
 
-    double usage = stack_total > 0
+    const double usage = stack_total > 0
         ? (double)stack_used / (double)stack_total * 100.0
         : 0.0;
 
     (void)printf(
-        "[%zu] %p  ip=%p  sp=%p  stack=[%p-%p]  usage=%.1f%%  env=%p\n",
+        "[%zu] VMRuntime(%p)  ip=%p  sp=%p  stack=[%p-%p]  usage=%.1f%%\n",
         ctx->m_index,
         (void*)vm,
         (const void*)vm->m_ip,
         (void*)vm->m_sp,
         (void*)vm->m_stack,
         (void*)vm->m_stack_end,
-        usage,
-        (void*)vm->m_env);
+        usage);
 
     ++ctx->m_index;
     return true;
@@ -248,6 +269,7 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "quit",      NULL,   &_woort_WAIPO_cmd_quit },
     { "exit",      NULL,   &_woort_WAIPO_cmd_exit },
     { "clear",     "cls",  &_woort_WAIPO_cmd_clear },
+    { "backtrace", "bt",   &_woort_WAIPO_cmd_backtrace },
     { "list",      "l",    &_woort_WAIPO_cmd_list },
 };
 
