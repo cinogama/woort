@@ -53,6 +53,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "dis                 [funcname]      Dump current VM's running bytecodes.\n"
         "                    --all           Or dump all bytecodes in current CodeEnv.\n"
         "                    [offset length] Or dump bytecodes in specified range.\n"
+        "stepir      si                      Step one bytecode instruction.\n"
         "\n");
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -926,7 +927,7 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
 
     case WOORT_OPCODE_JIFINITED:
     {
-        woort_AtomicInt64* const flag =
+        woort_AtomicInt64* flag =
             (woort_AtomicInt64*)&cenv->m_data_begin[ip[1]].m_integer;
         const int64_t flag_stat = woort_atomic_load_explicit(
             flag, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
@@ -955,6 +956,46 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
     }
 }
 
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_stepir(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    (void)args;
+    (void)arg_count;
+
+    woort_CodeEnv* cenv;
+    if (!woort_CodeEnv_find(vm->m_ip, &cenv))
+    {
+        (void)printf(WOORT_ANSI_HIR "Cannot locate CodeEnv for current IP.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const woort_Bytecode* next_ip;
+    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, &next_ip))
+    {
+        (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (!_woort_WAIPO_Debugger_focus_on(dbg, vm))
+    {
+        (void)printf(WOORT_ANSI_HIR "Failed to focus on VM.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (!_woort_WAIPO_Debugger_set_step_break(dbg, vm, next_ip))
+    {
+        (void)printf(WOORT_ANSI_HIR "Failed to set step breakpoint.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    (void)printf("Stepping to next instruction...\n");
+
+    return WOORT_WAIPO_CMD_CONTINUE;
+}
+
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "help",      "?",    &_woort_WAIPO_cmd_help },
     { "continue",  "c",    &_woort_WAIPO_cmd_continue },
@@ -966,6 +1007,7 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "source",    "src",  &_woort_WAIPO_cmd_source },
     { "list",      "l",    &_woort_WAIPO_cmd_list },
     { "dis",       NULL,   &_woort_WAIPO_cmd_dis },
+    { "stepir",    "si",   &_woort_WAIPO_cmd_stepir },
 };
 
 static const size_t _woort_WAIPO_command_table_size =

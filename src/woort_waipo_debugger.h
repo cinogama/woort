@@ -41,5 +41,12 @@ typedef enum woort_WAIPO_CommandResult
 void _woort_WAIPO_Debugger_out_of_focus(
     woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm);
 
+bool _woort_WAIPO_Debugger_focus_on(
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm);
+
+bool _woort_WAIPO_Debugger_set_step_break(
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm,
+    const woort_Bytecode* ip);
+
 void woort_WAIPO_Debugger_process(
     woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm);
