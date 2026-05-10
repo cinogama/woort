@@ -122,24 +122,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_backtrace(
             max_depth = (size_t)val;
     }
 
-    woort_VMRuntime_TraceCallstack_Iter trace_iter;
-    woort_VMRuntime_TraceCallstack trace;
-
-    woort_VMRuntime_trace_begin(vm, &trace_iter);
-    (void)printf("Backtrace:\n");
-
-    size_t depth = 0;
-    while (woort_VMRuntime_trace_next(&trace_iter, &trace))
-    {
-        if (depth >= max_depth)
-        {
-            (void)printf("    ...\n");
-            break;
-        }
-
-        woort_VMRuntime_log_trace(&trace);
-        ++depth;
-    }
+    woort_VMRuntime_print_backtrace(vm, max_depth);
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
@@ -234,6 +217,8 @@ static bool _woort_WAIPO_list_vm_callback(
         (void*)vm->m_stack,
         (void*)vm->m_stack_end,
         usage);
+
+    woort_VMRuntime_print_backtrace(vm, 3);
 
     ++ctx->m_index;
     return true;

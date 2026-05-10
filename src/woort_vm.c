@@ -4076,3 +4076,27 @@ void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace)
             trace->m_is_fuzzy ? " ~" : "");
     }
 }
+
+void woort_VMRuntime_print_backtrace(
+    woort_VMRuntime* vm,
+    size_t max_depth)
+{
+    woort_VMRuntime_TraceCallstack_Iter trace_iter;
+    woort_VMRuntime_TraceCallstack trace;
+
+    woort_VMRuntime_trace_begin(vm, &trace_iter);
+    woort_log("Backtrace:\n");
+
+    size_t depth = 0;
+    while (woort_VMRuntime_trace_next(&trace_iter, &trace))
+    {
+        if (max_depth != 0 && depth >= max_depth)
+        {
+            woort_log("    ...\n");
+            break;
+        }
+
+        woort_VMRuntime_log_trace(&trace);
+        ++depth;
+    }
+}

@@ -398,6 +398,15 @@ WOORT_API WOORT_NODISCARD bool woort_VMRuntime_trace_next(
  */
 WOORT_API void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace);
 
+/**
+ * @brief Print the full callstack backtrace of a VM.
+ * @param vm  The VM instance. Must not be NULL.
+ * @param max_depth  Maximum number of frames to print. Use 0 for unlimited.
+ */
+WOORT_API void woort_VMRuntime_print_backtrace(
+    woort_VMRuntime* vm,
+    size_t max_depth);
+
 /* ========== IR API ========== */
 
 /**
