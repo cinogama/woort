@@ -51,10 +51,10 @@ void woort_StringPool_deinit(woort_StringPool* pool);
  * intern 一个字符串到池中。
  * 如果池中已有相同内容的字符串，返回已有的指针。
  * 否则复制并存储，返回新指针。
- * 返回 NULL 表示 OOM。
+ * 返回 NULL 表示 OOM，或者参数为 NULL。
  */
 WOORT_NODISCARD /* OPTIONAL */ const char* woort_StringPool_intern(
-    woort_StringPool* pool, const char* str);
+    woort_StringPool* pool, /* OPTIONAL */ const char* str);
 
 /* ========== 源码位置栈 ========== */
 

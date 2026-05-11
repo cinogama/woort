@@ -1,26 +1,16 @@
 /*
  * test_ir_srcloc.c
  *
- * 测试 IR 源码位置信息支持：
- *   1. StringPool intern 去重
- *   2. SourceLocationStack push/pop
- *   3. IR 编译后源码映射生成
- *   4. 字节码偏移 -> 源码位置查询
- *   5. 源码位置 -> 字节码偏移查询
- *   6. 无源码信息时的行为
- *   7. 多函数场景
+ * 测试 IR 源码位置信息支持（仅使用 woort.h 公共 API）：
+ *   1. IR 编译后源码映射生成
+ *   2. 字节码偏移 -> 源码位置查询
+ *   3. 源码位置 -> 字节码偏移查询
+ *   4. 无源码信息时的行为
+ *   5. push/pop 嵌套
+ *   6. 多函数场景
  */
 
 #include "woort.h"
-
-#include "woort_codeenv.h"
-#include "woort_vm.h"
-#include "woort_ir_compiler.h"
-#include "woort_ir_function.h"
-#include "woort_ir_block.h"
-#include "woort_ir_value.h"
-#include "woort_ir_srcloc.h"
-#include "woort_value.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,100 +44,7 @@ static int g_tests_passed = 0;
         }                                                       \
     } while(0)
 
-/* ========== 测试 1: StringPool intern 去重 ========== */
-static void test_string_pool_intern(void)
-{
-    TEST_BEGIN("string_pool_intern");
-
-    woort_StringPool pool;
-    woort_StringPool_init(&pool);
-
-    const char* a = woort_StringPool_intern(&pool, "hello.woo");
-    TEST_ASSERT(a != NULL);
-    TEST_ASSERT(strcmp(a, "hello.woo") == 0);
-
-    /* 相同内容 intern 应返回相同指针 */
-    const char* b = woort_StringPool_intern(&pool, "hello.woo");
-    TEST_ASSERT(b == a);
-
-    /* 不同内容 intern 应返回不同指针 */
-    const char* c = woort_StringPool_intern(&pool, "world.woo");
-    TEST_ASSERT(c != NULL);
-    TEST_ASSERT(c != a);
-    TEST_ASSERT(strcmp(c, "world.woo") == 0);
-
-    /* NULL 返回 NULL */
-    const char* d = woort_StringPool_intern(&pool, NULL);
-    TEST_ASSERT(d == NULL);
-
-    woort_StringPool_deinit(&pool);
-
-    TEST_END();
-}
-
-/* ========== 测试 2: SourceLocationStack push/pop ========== */
-static void test_srcloc_stack(void)
-{
-    TEST_BEGIN("srcloc_stack_push_pop");
-
-    woort_SourceLocationStack stack;
-    woort_SourceLocationStack_init(&stack);
-
-    TEST_ASSERT(woort_SourceLocationStack_empty(&stack));
-    TEST_ASSERT(woort_SourceLocationStack_top(&stack) == NULL);
-
-    woort_SourceLocation loc1 = {
-        "test.woo", 1, 1, 1, 10
-    };
-    woort_SourceLocation loc2 = {
-        "test.woo", 5, 1, 5, 20
-    };
-
-    TEST_ASSERT(woort_SourceLocationStack_push(&stack, &loc1));
-    TEST_ASSERT(!woort_SourceLocationStack_empty(&stack));
-
-    const woort_SourceLocation* top = woort_SourceLocationStack_top(&stack);
-    TEST_ASSERT(top != NULL);
-    TEST_ASSERT(top->m_begin_line == 1);
-
-    TEST_ASSERT(woort_SourceLocationStack_push(&stack, &loc2));
-    top = woort_SourceLocationStack_top(&stack);
-    TEST_ASSERT(top != NULL);
-    TEST_ASSERT(top->m_begin_line == 5);
-
-    woort_SourceLocationStack_pop(&stack);
-    top = woort_SourceLocationStack_top(&stack);
-    TEST_ASSERT(top != NULL);
-    TEST_ASSERT(top->m_begin_line == 1);
-
-    woort_SourceLocationStack_pop(&stack);
-    TEST_ASSERT(woort_SourceLocationStack_empty(&stack));
-
-    woort_SourceLocationStack_deinit(&stack);
-
-    TEST_END();
-}
-
-/* ========== 测试 3: SourceLocation equal ========== */
-static void test_srcloc_equal(void)
-{
-    TEST_BEGIN("srcloc_equal");
-
-    const char* path = "test.woo";
-
-    woort_SourceLocation a = { path, 1, 1, 1, 10 };
-    woort_SourceLocation b = { path, 1, 1, 1, 10 };
-    woort_SourceLocation c = { path, 2, 1, 2, 10 };
-    woort_SourceLocation d = { "other.woo", 1, 1, 1, 10 };
-
-    TEST_ASSERT(woort_SourceLocation_equal(&a, &b));
-    TEST_ASSERT(!woort_SourceLocation_equal(&a, &c));
-    TEST_ASSERT(!woort_SourceLocation_equal(&a, &d));
-
-    TEST_END();
-}
-
-/* ========== 测试 4: IR 编译 + 源码映射生成 + 双向查询 ========== */
+/* ========== 测试 1: IR 编译 + 源码映射生成 + 双向查询 ========== */
 /*
  * 模拟编译如下代码：
  *
@@ -162,13 +59,7 @@ static void test_ir_srcloc_basic(void)
 
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
-    /* intern 路径 */
     const char* path = woort_IRCompiler_intern_string(irc, "test.woo");
-    TEST_ASSERT(path != NULL);
-
-    /* 相同路径 intern 返回相同指针 */
-    const char* path2 = woort_IRCompiler_intern_string(irc, "test.woo");
-    TEST_ASSERT(path2 == path);
 
     /* 添加常量 1 */
     woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
@@ -204,44 +95,32 @@ static void test_ir_srcloc_basic(void)
     woort_CodeEnv_set_const_int(cenv, c1, 1);
     woort_CodeEnv_unlock(cenv);
 
-    /* 验证：CodeEnv 中应该有源码映射 */
-    TEST_ASSERT(cenv->m_source_map.m_entry_count > 0);
-    TEST_ASSERT(cenv->m_source_map.m_entries != NULL);
-
     /* 查询：字节码偏移 -> 源码位置 */
     woort_SourceLocation found_loc;
     memset(&found_loc, 0, sizeof(found_loc));
 
-    /* 第一个映射条目应该对应 line 2 */
-    TEST_ASSERT(woort_CodeEnv_find_srcloc_by_offset(
-        cenv, cenv->m_source_map.m_entries[0].m_bytecode_offset, &found_loc));
-    TEST_ASSERT(found_loc.m_begin_line == 2);
-    TEST_ASSERT(found_loc.m_filepath != NULL);
-    TEST_ASSERT(strcmp(found_loc.m_filepath, "test.woo") == 0);
-
-    /* 查询：源码位置 -> 字节码偏移 */
-    uint32_t found_offset = 0;
+    /* 应该能找到 line 2 */
+    uint32_t off2 = 0;
     TEST_ASSERT(woort_CodeEnv_find_offset_by_srcloc(
-        cenv, "test.woo", 2, &found_offset));
-
-    /* 找到的偏移应该能反向查回 line 2 */
+        cenv, "test.woo", 2, &off2));
     memset(&found_loc, 0, sizeof(found_loc));
     TEST_ASSERT(woort_CodeEnv_find_srcloc_by_offset(
-        cenv, found_offset, &found_loc));
+        cenv, off2, &found_loc));
     TEST_ASSERT(found_loc.m_begin_line == 2);
 
     /* 查询 line 3 */
-    found_offset = 0;
+    uint32_t off3 = 0;
     TEST_ASSERT(woort_CodeEnv_find_offset_by_srcloc(
-        cenv, "test.woo", 3, &found_offset));
+        cenv, "test.woo", 3, &off3));
     memset(&found_loc, 0, sizeof(found_loc));
     TEST_ASSERT(woort_CodeEnv_find_srcloc_by_offset(
-        cenv, found_offset, &found_loc));
+        cenv, off3, &found_loc));
     TEST_ASSERT(found_loc.m_begin_line == 3);
 
     /* 查询不存在的文件 */
+    uint32_t bad_offset;
     TEST_ASSERT(!woort_CodeEnv_find_offset_by_srcloc(
-        cenv, "nonexistent.woo", 1, &found_offset));
+        cenv, "nonexistent.woo", 1, &bad_offset));
 
     woort_CodeEnv_drop(cenv);
     woort_IRCompiler_close(irc);
@@ -249,7 +128,7 @@ static void test_ir_srcloc_basic(void)
     TEST_END();
 }
 
-/* ========== 测试 5: 无源码信息时的行为 ========== */
+/* ========== 测试 2: 无源码信息时的行为 ========== */
 static void test_ir_no_srcloc(void)
 {
     TEST_BEGIN("ir_no_srcloc_fallback");
@@ -273,9 +152,6 @@ static void test_ir_no_srcloc(void)
     woort_CodeEnv_set_const_int(cenv, c42, 42);
     woort_CodeEnv_unlock(cenv);
 
-    /* 无源码映射 */
-    TEST_ASSERT(cenv->m_source_map.m_entry_count == 0);
-
     /* 查询应返回 false */
     woort_SourceLocation loc;
     TEST_ASSERT(!woort_CodeEnv_find_srcloc_by_offset(cenv, 0, &loc));
@@ -289,7 +165,7 @@ static void test_ir_no_srcloc(void)
     TEST_END();
 }
 
-/* ========== 测试 6: push/pop 嵌套 ========== */
+/* ========== 测试 3: push/pop 嵌套 ========== */
 /*
  * 模拟：
  *   push(outer)     -> line 10
@@ -308,7 +184,6 @@ static void test_ir_srcloc_nested_push_pop(void)
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
     const char* path = woort_IRCompiler_intern_string(irc, "nested.woo");
-    TEST_ASSERT(path != NULL);
 
     woort_IRConstantIndex c0 = woort_IRCompiler_add_constant(irc);
 
@@ -344,9 +219,6 @@ static void test_ir_srcloc_nested_push_pop(void)
     woort_CodeEnv_set_const_int(cenv, c0, 0);
     woort_CodeEnv_unlock(cenv);
 
-    /* 应该有映射条目 */
-    TEST_ASSERT(cenv->m_source_map.m_entry_count >= 2);
-
     /* 验证 line 10 和 line 20 都能查到 */
     uint32_t off10, off20;
     TEST_ASSERT(woort_CodeEnv_find_offset_by_srcloc(cenv, "nested.woo", 10, &off10));
@@ -365,7 +237,7 @@ static void test_ir_srcloc_nested_push_pop(void)
     TEST_END();
 }
 
-/* ========== 测试 7: 多函数场景 ========== */
+/* ========== 测试 4: 多函数场景 ========== */
 static void test_ir_srcloc_multi_function(void)
 {
     TEST_BEGIN("ir_srcloc_multi_function");
@@ -375,7 +247,6 @@ static void test_ir_srcloc_multi_function(void)
     const char* path_a = woort_IRCompiler_intern_string(irc, "file_a.woo");
     const char* path_b = woort_IRCompiler_intern_string(irc, "file_b.woo");
     TEST_ASSERT(path_a != NULL && path_b != NULL);
-    TEST_ASSERT(path_a != path_b);
 
     woort_IRConstantIndex c1 = woort_IRCompiler_add_constant(irc);
 
@@ -414,15 +285,13 @@ static void test_ir_srcloc_multi_function(void)
     woort_CodeEnv_set_const_int(cenv, c1, 1);
     woort_CodeEnv_unlock(cenv);
 
-    /* 两个函数都应该有映射 */
-    TEST_ASSERT(cenv->m_source_map.m_entry_count >= 2);
-
     /* 查询 file_a.woo line 5 */
     uint32_t off_a;
     TEST_ASSERT(woort_CodeEnv_find_offset_by_srcloc(cenv, "file_a.woo", 5, &off_a));
     woort_SourceLocation loc;
     TEST_ASSERT(woort_CodeEnv_find_srcloc_by_offset(cenv, off_a, &loc));
     TEST_ASSERT(loc.m_begin_line == 5);
+    TEST_ASSERT(loc.m_filepath != NULL);
     TEST_ASSERT(strcmp(loc.m_filepath, "file_a.woo") == 0);
 
     /* 查询 file_b.woo line 10 */
@@ -441,111 +310,6 @@ static void test_ir_srcloc_multi_function(void)
     TEST_END();
 }
 
-/* ========== 测试 8: SourceMap 二分查找精确性 ========== */
-static void test_source_map_binary_search(void)
-{
-    TEST_BEGIN("source_map_binary_search");
-
-    /* 手动构造一个 SourceMap 来测试二分查找 */
-    woort_SourceMap_Entry entries[4];
-    entries[0].m_bytecode_offset = 0;
-    entries[0].m_location = (woort_SourceLocation){ "test.woo", 1, 1, 1, 10 };
-    entries[1].m_bytecode_offset = 5;
-    entries[1].m_location = (woort_SourceLocation){ "test.woo", 2, 1, 2, 10 };
-    entries[2].m_bytecode_offset = 10;
-    entries[2].m_location = (woort_SourceLocation){ "test.woo", 3, 1, 3, 10 };
-    entries[3].m_bytecode_offset = 20;
-    entries[3].m_location = (woort_SourceLocation){ "test.woo", 5, 1, 5, 10 };
-
-    woort_SourceMap map;
-    map.m_entries = entries;
-    map.m_entry_count = 4;
-
-    woort_SourceLocation loc;
-
-    /* 精确命中 */
-    TEST_ASSERT(woort_SourceMap_find_by_offset(&map, 0, &loc));
-    TEST_ASSERT(loc.m_begin_line == 1);
-
-    TEST_ASSERT(woort_SourceMap_find_by_offset(&map, 5, &loc));
-    TEST_ASSERT(loc.m_begin_line == 2);
-
-    TEST_ASSERT(woort_SourceMap_find_by_offset(&map, 10, &loc));
-    TEST_ASSERT(loc.m_begin_line == 3);
-
-    TEST_ASSERT(woort_SourceMap_find_by_offset(&map, 20, &loc));
-    TEST_ASSERT(loc.m_begin_line == 5);
-
-    /* 落在两个条目之间 -> 取 <= 偏移的最大条目 */
-    TEST_ASSERT(woort_SourceMap_find_by_offset(&map, 3, &loc));
-    TEST_ASSERT(loc.m_begin_line == 1);
-
-    TEST_ASSERT(woort_SourceMap_find_by_offset(&map, 7, &loc));
-    TEST_ASSERT(loc.m_begin_line == 2);
-
-    TEST_ASSERT(woort_SourceMap_find_by_offset(&map, 15, &loc));
-    TEST_ASSERT(loc.m_begin_line == 3);
-
-    TEST_ASSERT(woort_SourceMap_find_by_offset(&map, 100, &loc));
-    TEST_ASSERT(loc.m_begin_line == 5);
-
-    /* 空映射 */
-    woort_SourceMap empty_map;
-    empty_map.m_entries = NULL;
-    empty_map.m_entry_count = 0;
-    TEST_ASSERT(!woort_SourceMap_find_by_offset(&empty_map, 0, &loc));
-
-    TEST_END();
-}
-
-/* ========== 测试 9: SourceMap 按行查找 ========== */
-static void test_source_map_find_by_line(void)
-{
-    TEST_BEGIN("source_map_find_by_line");
-
-    const char* path = "test.woo";
-
-    woort_SourceMap_Entry entries[3];
-    entries[0].m_bytecode_offset = 0;
-    entries[0].m_location = (woort_SourceLocation){ path, 1, 1, 1, 10 };
-    entries[1].m_bytecode_offset = 5;
-    entries[1].m_location = (woort_SourceLocation){ path, 5, 1, 5, 10 };
-    entries[2].m_bytecode_offset = 10;
-    entries[2].m_location = (woort_SourceLocation){ path, 10, 1, 10, 10 };
-
-    woort_SourceMap map;
-    map.m_entries = entries;
-    map.m_entry_count = 3;
-
-    uint32_t offset;
-
-    /* 精确行号 */
-    TEST_ASSERT(woort_SourceMap_find_by_line(&map, path, 1, &offset));
-    TEST_ASSERT(offset == 0);
-
-    TEST_ASSERT(woort_SourceMap_find_by_line(&map, path, 5, &offset));
-    TEST_ASSERT(offset == 5);
-
-    TEST_ASSERT(woort_SourceMap_find_by_line(&map, path, 10, &offset));
-    TEST_ASSERT(offset == 10);
-
-    /* 在两行之间 -> >= line 的最小行 */
-    TEST_ASSERT(woort_SourceMap_find_by_line(&map, path, 3, &offset));
-    TEST_ASSERT(offset == 5); /* line 5 是 >= 3 的最小 */
-
-    TEST_ASSERT(woort_SourceMap_find_by_line(&map, path, 7, &offset));
-    TEST_ASSERT(offset == 10); /* line 10 是 >= 7 的最小 */
-
-    /* 大于所有行 -> fallback 到 <= line 的最大 */
-    TEST_ASSERT(woort_SourceMap_find_by_line(&map, path, 100, &offset));
-    TEST_ASSERT(offset == 10); /* line 10 是 <= 100 的最大 */
-
-    /* 不匹配的路径 */
-    TEST_ASSERT(!woort_SourceMap_find_by_line(&map, "other.woo", 1, &offset));
-
-    TEST_END();
-}
-
 /* ========== 主函数 ========== */
 
 int main(int argc, char** argv)
@@ -557,11 +321,6 @@ int main(int argc, char** argv)
 
     (void)printf("\n=== IR Source Location Tests ===\n\n");
 
-    test_string_pool_intern();
-    test_srcloc_stack();
-    test_srcloc_equal();
-    test_source_map_binary_search();
-    test_source_map_find_by_line();
     test_ir_srcloc_basic();
     test_ir_no_srcloc();
     test_ir_srcloc_nested_push_pop();

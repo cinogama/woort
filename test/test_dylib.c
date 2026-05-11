@@ -1,8 +1,5 @@
 #include "woort.h"
 
-#include "woort_dylib.h"
-#include "woort_path.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

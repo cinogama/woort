@@ -1,11 +1,5 @@
 #include "woort.h"
 
-#include "woort_codeenv.h"
-#include "woort_vm.h"
-#include "woort_opcode.h"
-#include "woort_opcode_builder.h"
-#include "woort_disassembly.h"
-
 #include <stdio.h>
 #include <time.h>
 

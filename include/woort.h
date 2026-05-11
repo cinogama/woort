@@ -658,6 +658,22 @@ WOORT_API void woort_IRCompiler_close(
     woort_IRCompiler* c);
 
 /**
+ * @brief Intern a string in the compiler's string pool.
+ *
+ * Returns a stable pointer for the given string.  Identical content
+ * returns the same pointer, enabling pointer-equality comparisons in
+ * source-location lookups.  Required by woort_IRFunction_push_srcloc().
+ *
+ * @param c    The compiler. Must not be NULL.
+ * @param str  The string to intern. May be NULL.
+ * @return A stable pointer to the interned string, or NULL on OOM
+ *         or if str is NULL.
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ const char* woort_IRCompiler_intern_string(
+    woort_IRCompiler* c,
+    /* OPTIONAL */ const char* str);
+
+/**
  * @brief Add a new function definition to the compiler.
  * @param c              The compiler. Must not be NULL.
  * @param param_count    The number of parameters the function accepts.
@@ -753,8 +769,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ const woort_IRValue* woort_IRFunction_f
  * @brief Push a source location onto the function's source location stack.
  *
  * Subsequently emitted IR instructions will be associated with the top-of-stack
- * source location. filepath must be an intern pointer obtained via
- * woort_IRCompiler_intern_string().
+ * source location.
  *
  * @param f             The IR function. Must not be NULL.
  * @param filepath      Interned source file path string (may be NULL).

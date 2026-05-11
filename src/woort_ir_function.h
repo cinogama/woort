@@ -21,6 +21,8 @@
 
 struct woort_IRFunction
 {
+    woort_IRCompiler* m_ircompiler;
+
     uint32_t m_param_count;
     uint32_t m_captured_count;
 
@@ -55,7 +57,11 @@ struct woort_IRFunction
 };
 
 void woort_IRFunction_init(
-    woort_IRFunction* f, uint32_t param_count, uint32_t captured_count);
+    woort_IRFunction* f, 
+    woort_IRCompiler* c,
+    uint32_t param_count,
+    uint32_t captured_count);
+
 void woort_IRFunction_deinit(woort_IRFunction* f);
 
 /* finish 阶段内部函数 */

@@ -57,7 +57,7 @@ void woort_StringPool_deinit(woort_StringPool* pool)
 }
 
 WOORT_NODISCARD /* OPTIONAL */ const char* woort_StringPool_intern(
-    woort_StringPool* pool, const char* str)
+    woort_StringPool* pool, /* OPTIONAL */ const char* str)
 {
     if (str == NULL)
         return NULL;

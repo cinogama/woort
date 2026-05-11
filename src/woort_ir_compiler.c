@@ -2276,7 +2276,7 @@ WOORT_NODISCARD bool woort_IRCompiler_add_function(
         return false;
 
     woort_IRFunction* f = (woort_IRFunction*)storage;
-    woort_IRFunction_init(f, param_count, captured_count);
+    woort_IRFunction_init(f, c, param_count, captured_count);
     *out_f = f;
     return true;
 }

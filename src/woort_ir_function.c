@@ -13,6 +13,7 @@
 #include "woort_ir_value.h"
 #include "woort_ir_op.h"
 #include "woort_ir_srcloc.h"
+#include "woort_ir_compiler.h"
 #include "woort_vector.h"
 #include "woort_linklist.h"
 #include "woort_bitset.h"
@@ -166,10 +167,15 @@ static int _compare_intervals_by_start(const void* a, const void* b)
  * 公共 API 实现
  * ======================================================================== */
 
-void woort_IRFunction_init(woort_IRFunction* f, uint32_t param_count, uint32_t captured_count)
+void woort_IRFunction_init(
+    woort_IRFunction* f, 
+    woort_IRCompiler* c, 
+    uint32_t param_count, 
+    uint32_t captured_count)
 {
     f->m_param_count = param_count;
     f->m_captured_count = captured_count;
+    f->m_ircompiler = c;
 
     woort_linklist_init(&f->m_ir_values, sizeof(woort_IRValue));
     f->m_next_vreg_id = 0;
@@ -221,7 +227,7 @@ WOORT_NODISCARD bool woort_IRFunction_push_srcloc(
     uint32_t end_column)
 {
     woort_SourceLocation loc;
-    loc.m_filepath = filepath;
+    loc.m_filepath = woort_IRCompiler_intern_string(f->m_ircompiler, filepath);
     loc.m_begin_line = begin_line;
     loc.m_begin_column = begin_column;
     loc.m_end_line = end_line;
