@@ -207,17 +207,20 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
         /* 预填充 m_const_records 为 NIL 类型 */
         {
-            woort_ConstRecord nil_rec;
-            nil_rec.m_type = WOORT_CONST_TYPE_NIL;
-            nil_rec.m_lib_name = NULL;
-            nil_rec.m_func_name = NULL;
-            if (!woort_vector_push_back(
+            void* buffer;
+            _Static_assert(WOORT_CONST_TYPE_NIL == 0, "WOORT_CONST_TYPE_NIL should be 0.");
+
+            if (!woort_vector_emplace_back(
                 &code_env_instance->m_const_records,
                 constant_and_static_storage_count,
-                &nil_rec))
+                &buffer))
             {
                 /* OOM: 不影响正常运行，但序列化将失败 */
                 WOORT_DEBUG("Out of memory filling const_records.");
+            }
+            else
+            {
+                memset(buffer, 0, sizeof(woort_ConstRecord) * constant_and_static_storage_count);
             }
         }
 
@@ -818,15 +821,15 @@ void woort_CodeEnv_foreach(
  * 二进制序列化 / 反序列化
  * ======================================================================== */
 
-/*
- * 二进制格式版本号与魔数。
- */
+ /*
+  * 二进制格式版本号与魔数。
+  */
 #define WOORT_CODEENV_BINARY_MAGIC   0x30314345u  /* "EC10" */
 #define WOORT_CODEENV_BINARY_VERSION 1u
 
-/*
- * 常量类型标签（与 woort_ConstRecordType 一一对应，确保稳定）。
- */
+  /*
+   * 常量类型标签（与 woort_ConstRecordType 一一对应，确保稳定）。
+   */
 enum {
     _WOORT_BIN_TYPE_NIL = 0,
     _WOORT_BIN_TYPE_INT = 1,
@@ -887,11 +890,12 @@ static void _bin_strpool_deinit(_CodeEnvBinStrPool* sp)
 static bool _bin_strpool_insert(
     _CodeEnvBinStrPool* sp,
     /* OPTIONAL */ const char* str,
-    uint32_t* out_offset)
+    /* OPTIONAL */ uint32_t* out_offset)
 {
     if (str == NULL)
     {
-        *out_offset = UINT32_MAX;
+        if (out_offset != NULL)
+            *out_offset = UINT32_MAX;
         return true;
     }
 
@@ -906,7 +910,9 @@ static bool _bin_strpool_insert(
             uint32_t off = 0;
             for (size_t j = 0; j < i; ++j)
                 off += (uint32_t)strlen(((char**)sp->m_strings.m_data)[j]) + 1;
-            *out_offset = off;
+
+            if (out_offset != NULL)
+                *out_offset = off;
             return true;
         }
     }
@@ -933,7 +939,8 @@ static bool _bin_strpool_insert(
         return false;
     }
 
-    *out_offset = data_offset;
+    if (out_offset != NULL)
+        *out_offset = data_offset;
     return true;
 }
 
@@ -1072,7 +1079,7 @@ static bool _bin_read_f64(_BinReader* r, double* out)
  * woort_HashMap 没有迭代器，必须使用 foreach 模式。
  */
 
-/* 用于字符串池构建阶段，收集 extern constants 的 key 字符串 */
+ /* 用于字符串池构建阶段，收集 extern constants 的 key 字符串 */
 struct _SaveStrPoolCtx {
     _CodeEnvBinStrPool* m_sp;
     bool* m_ok;
@@ -1173,7 +1180,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
      * 串池阶段：遍历所有需要写入的字符串，建立字符串池。
      */
 
-    /* 遍历常量数据，收集字符串/库名/函数名 */
+     /* 遍历常量数据，收集字符串/库名/函数名 */
     for (size_t i = 0; ok && i < data_count; ++i)
     {
         const woort_ConstRecord* rec = (const woort_ConstRecord*)woort_vector_at(
@@ -1658,7 +1665,7 @@ WOORT_NODISCARD bool woort_CodeEnv_restore_binary(
     }
 
     /* 辅助宏：从字符串池中读取字符串指针 */
-    #define _RESTORE_STR(off) \
+#define _RESTORE_STR(off) \
         ((off) == UINT32_MAX ? NULL : _bin_strpool_get(strpool_data, (off)))
 
     /*
