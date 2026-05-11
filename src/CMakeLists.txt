@@ -30,6 +30,9 @@ target_link_libraries(woort
     PRIVATE ${CMAKE_DL_LIBS}
     PUBLIC woomem)
 
+set_target_properties(
+    woomem PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     set_target_properties(woort PROPERTIES RELEASE_POSTFIX "")
     set_target_properties(woort PROPERTIES RELWITHDEBINFO_POSTFIX "")

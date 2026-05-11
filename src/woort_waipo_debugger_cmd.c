@@ -153,9 +153,9 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_clear(
     (void)arg_count;
 
 #if defined(_WIN32) || defined(_WIN64)
-    (void)system("cls");
+    { int _woort_sys_ret = system("cls"); (void)_woort_sys_ret; }
 #else
-    (void)system("clear");
+    { int _woort_sys_ret = system("clear"); (void)_woort_sys_ret; }
 #endif
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
