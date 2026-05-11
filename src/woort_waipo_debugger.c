@@ -371,16 +371,16 @@ static bool _woort_WAIPO_Debugger_is_focus_vm(
 }
 
 static bool _woort_WAIPO_Debugger_meet_breakpoint(
-    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm)
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm, bool trap_by_req)
 {
     const woort_Bytecode* current_ip = vm->m_ip;
 
     bool breakdown = false;
-    if (woort_hashmap_contains(
+    if (trap_by_req || woort_hashmap_contains(
         &debugger_instance->m_breakpoint_collection.m_breakpoints,
         &current_ip))
     {
-        if (woort_hashmap_contains(
+        if (!trap_by_req && woort_hashmap_contains(
             &debugger_instance->m_breakpoint_collection.m_debug_breakpoints,
             &current_ip))
         {
@@ -391,7 +391,7 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
         woort_WAIPO_VMLocalContext* vmcontext;
         if (woort_hashmap_find(&debugger_instance->m_focusing_vms, &vm, (void**)&vmcontext))
         {
-            if (_woort_WAIPO_VMLocalContext_meet_step_breakdown(vmcontext, current_ip))
+            if (trap_by_req || _woort_WAIPO_VMLocalContext_meet_step_breakdown(vmcontext, current_ip))
             {
                 if (vmcontext->m_is_source_step)
                 {
@@ -415,13 +415,13 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
                             bool loc_changed =
                                 file_changed
                                 || src_loc.m_begin_line
-                                    != vmcontext->m_step_source_line
+                                != vmcontext->m_step_source_line
                                 || (size_t)src_loc.m_begin_column
-                                    != vmcontext->m_step_source_begin_column
+                                != vmcontext->m_step_source_begin_column
                                 || (size_t)src_loc.m_end_line
-                                    != vmcontext->m_step_source_end_line
+                                != vmcontext->m_step_source_end_line
                                 || (size_t)src_loc.m_end_column
-                                    != vmcontext->m_step_source_end_column;
+                                != vmcontext->m_step_source_end_column;
 
                             bool should_break = false;
 
@@ -533,8 +533,7 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, boo
     bool trap_down = false;
 
     if (woort_hashmap_is_empty(&debugger_instance->m_focusing_vms)
-        || _woort_WAIPO_Debugger_meet_breakpoint(debugger_instance, vm)
-        || (trap_by_request && _woort_WAIPO_Debugger_is_focus_vm(debugger_instance, vm)))
+        || _woort_WAIPO_Debugger_meet_breakpoint(debugger_instance, vm, trap_by_request))
     {
         woort_WAIPO_Debugger_process(debugger_instance, vm);
     }
@@ -562,7 +561,7 @@ static void _woort_WAIPO_Debugger_close(void* instance)
 
     woort_hashmap_deinit(&debugger_instance->m_focusing_vms);
     _woort_WAIPO_BreakpointCollection_deinit(&debugger_instance->m_breakpoint_collection);
-    
+
     free(debugger_instance);
 }
 

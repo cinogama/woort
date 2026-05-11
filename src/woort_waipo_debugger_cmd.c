@@ -522,7 +522,8 @@ static void _woort_WAIPO_dump_disassembly_range(
     const woort_CodeEnv* cenv,
     size_t begin_offset,
     size_t end_offset,
-    const woort_Bytecode* current_ip)
+    const woort_Bytecode* current_ip,
+    const char* sign)
 {
     const size_t code_count = (size_t)(cenv->m_code_end - cenv->m_code_begin);
     if (begin_offset > code_count)
@@ -542,9 +543,9 @@ static void _woort_WAIPO_dump_disassembly_range(
         const bool is_current = (pc == current_ip);
 
         if (is_current)
-            (void)printf(WOORT_ANSI_HIG "=>%04zu:\t" WOORT_ANSI_RST, offset);
+            (void)printf(WOORT_ANSI_HIG "%s\t%04zu:\t" WOORT_ANSI_RST, sign, offset);
         else
-            (void)printf("  %04zu:\t", offset);
+            (void)printf("\t%04zu:\t", offset);
 
         if (pc == next_bc)
             next_bc = woort_disassembly(pc, (woort_Disassembly_DumpCallback)printf);
@@ -602,6 +603,7 @@ static bool _woort_WAIPO_dis_search_func_callback(
                 cenv,
                 boundary->m_offset_begin,
                 boundary->m_offset_begin + boundary->m_code_length,
+                NULL,
                 NULL);
         }
     }
@@ -621,6 +623,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
         (void)printf(WOORT_ANSI_HIR "No callstack.\n" WOORT_ANSI_RST);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
+
+    const char* const sign = dbg->m_current_frame_depth == 0 ? "=>" : "\\>";
 
     const woort_Bytecode* frame_ip = trace.m_code_addr;
     if (frame_ip == NULL)
@@ -659,7 +663,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
                         cenv,
                         boundary->m_offset_begin,
                         boundary->m_offset_begin + boundary->m_code_length,
-                        frame_ip);
+                        frame_ip,
+                        sign);
 
                     return WOORT_WAIPO_CMD_NEED_NEXT;
                 }
@@ -671,7 +676,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
             cenv,
             current_ip_offset,
             current_ip_offset + 100,
-            frame_ip);
+            frame_ip,
+            sign);
 
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
@@ -699,7 +705,10 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
                 begin_offset, begin_offset + length);
 
             _woort_WAIPO_dump_disassembly_range(
-                cenv, begin_offset, begin_offset + length, frame_ip);
+                cenv, begin_offset, 
+                begin_offset + length, 
+                frame_ip,
+                sign);
         }
         else
         {
@@ -711,7 +720,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
 
     if (strcmp(first_arg, "--all") == 0)
     {
-        _woort_WAIPO_dump_disassembly_range(cenv, 0, SIZE_MAX, frame_ip);
+        _woort_WAIPO_dump_disassembly_range(cenv, 0, SIZE_MAX, frame_ip, sign);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
@@ -1179,6 +1188,8 @@ void woort_WAIPO_Debugger_process(
             }
 
             (void)printf("\n");
+
+            _woort_WAIPO_cmd_source(debugger_instance, vm, NULL, 0);
         }
     }
 

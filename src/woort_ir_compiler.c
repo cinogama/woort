@@ -2210,28 +2210,18 @@ static bool _compile_function(
         /*
          * PUSHRCHK 位于函数入口偏移 0，为其补充 source_map 条目。
          * 使用函数首条 IR 指令的源码位置作为 PUSHRCHK 的位置信息。
-         *
-         * 由于 vector 不支持头部插入，采用 push_back + 整体后移。
-         * 原有条目整体后移 1 位，新条目位于 index 0（偏移 0）。
          */
         if (source_map_entries != NULL && source_map_entries->m_size > 0)
         {
             const woort_SourceMap_Entry* first =
                 (const woort_SourceMap_Entry*)woort_vector_at(source_map_entries, 0);
+
             woort_SourceMap_Entry entry;
             entry.m_bytecode_offset = 0;
             entry.m_location = first->m_location;
 
-            const size_t elem_size = sizeof(woort_SourceMap_Entry);
-            const size_t old_count = source_map_entries->m_size;
-            if (woort_vector_push_back(source_map_entries, 1, &entry))
-            {
-                memmove(
-                    (char*)source_map_entries->m_data + elem_size,
-                    source_map_entries->m_data,
-                    old_count * elem_size);
-                memcpy(source_map_entries->m_data, &entry, elem_size);
-            }
+            /* 忽略失败 —— 映射表丢失不影响正确性 */
+            (void)woort_vector_insert(source_map_entries, 0, &entry);
         }
     }
 
