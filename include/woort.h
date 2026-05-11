@@ -301,6 +301,9 @@ typedef struct woort_IRValue woort_IRValue;
 /** @brief Opaque handle to an IR label (branch target). */
 typedef struct woort_IRLabel woort_IRLabel;
 
+/** @brief Opaque handle to a streaming file (virtual or disk). */
+typedef struct woort_VFile woort_VFile;
+
 /** @brief Index into the constant pool of a CodeEnv. */
 typedef uint32_t woort_IRConstantIndex;
 
@@ -3572,6 +3575,100 @@ WOORT_API WOORT_NODISCARD size_t woort_vfs_get_all_paths(
  */
 WOORT_API WOORT_NODISCARD bool woort_fs_is_file_readable(
     /* OPTIONAL */ const char* path);
+
+/**
+ * @brief Resolve a file path by searching through virtual and real filesystems.
+ *
+ * Searches in the following order:
+ *   1. If filepath is already a virtual URI ("woovf://..."), returns it.
+ *   2. For each caller-supplied search directory, try dir + "/" + filepath.
+ *   3. Current working directory + "/" + filepath.
+ *   4. Executable directory + "/" + filepath.
+ *   5. filepath as-is (real filesystem).
+ *   6. "woovf://" + filepath (virtual filesystem only).
+ *
+ * The result is normalize'd (backslash → slash on Windows).
+ *
+ * @param filepath         The file path to resolve.
+ * @param search_dirs      Optional list of directories to search first.
+ * @param search_dir_count Number of entries in search_dirs.
+ * @param out_resolved_path Receives the malloc'd resolved path (may be NULL).
+ * @return true if the file was found (virtual or real).
+ */
+WOORT_API WOORT_NODISCARD bool woort_vfs_resolve_path(
+    const char* filepath,
+    /* OPTIONAL */ const char* const* search_dirs,
+    size_t search_dir_count,
+    /* OPTIONAL */ char** out_resolved_path);
+
+/**
+ * @brief Open a file for streaming read (virtual or disk).
+ *
+ * If the path starts with "woovf://" the VFS is queried; otherwise the
+ * file is opened from disk via fopen.  The returned woort_VFile* must
+ * be closed with woort_vfile_close().
+ *
+ * @param filepath  The file path or virtual URI.
+ * @param out_file  Receives the opened file handle.
+ * @return true on success.
+ */
+WOORT_API WOORT_NODISCARD bool woort_vfile_open(
+    const char* filepath,
+    /* OPTIONAL */ woort_VFile** out_file);
+
+/**
+ * @brief Read up to @p size bytes from a streaming file handle.
+ *
+ * @param file           The file handle.
+ * @param buffer         Destination buffer (may be NULL to skip/advance).
+ * @param size           Maximum number of bytes to read.
+ * @param out_bytes_read Receives the actual number of bytes read (may be NULL).
+ * @return true on success (false if file is NULL).
+ */
+WOORT_API WOORT_NODISCARD bool woort_vfile_read(
+    woort_VFile* file,
+    /* OPTIONAL */ void* buffer,
+    size_t size,
+    /* OPTIONAL */ size_t* out_bytes_read);
+
+/**
+ * @brief Seek to a position within a streaming file handle.
+ *
+ * @param file    The file handle.
+ * @param offset  Byte offset.
+ * @param whence  SEEK_SET, SEEK_CUR, or SEEK_END.
+ * @return true on success.
+ */
+WOORT_API WOORT_NODISCARD bool woort_vfile_seek(
+    woort_VFile* file,
+    int64_t offset,
+    int whence);
+
+/**
+ * @brief Get the current read position of a file handle.
+ *
+ * @param file  The file handle (may be NULL, returns -1).
+ * @return The current byte offset, or -1 on error.
+ */
+WOORT_API WOORT_NODISCARD int64_t woort_vfile_tell(
+    /* OPTIONAL */ woort_VFile* file);
+
+/**
+ * @brief Get the total size of a file handle.
+ *
+ * @param file  The file handle (may be NULL, returns -1).
+ * @return The file size in bytes, or -1 on error.
+ */
+WOORT_API WOORT_NODISCARD int64_t woort_vfile_size(
+    /* OPTIONAL */ woort_VFile* file);
+
+/**
+ * @brief Close a streaming file handle and release all resources.
+ *
+ * @param file  The file handle (may be NULL, no-op).
+ */
+WOORT_API void woort_vfile_close(/* OPTIONAL */ woort_VFile* file);
+
 
 /* ================================================================
  * Dynamic library loading

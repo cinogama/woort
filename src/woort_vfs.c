@@ -355,3 +355,368 @@ WOORT_NODISCARD bool woort_fs_is_file_readable(const char* path)
     fclose(f);
     return true;
 }
+
+/* ================================================================
+ *  Path resolution
+ * ================================================================ */
+
+/*
+Walk through a list of search directories and try to resolve filepath.
+For each directory, try both virtual and real file lookups.
+*/
+static bool _woort_vfs_try_search_dir(
+    const char* filepath,
+    const char* search_dir,
+    /* OPTIONAL */ char** out_resolved_path)
+{
+    if (search_dir == NULL || search_dir[0] == '\0')
+        return false;
+
+    /* Build: search_dir + "/" + filepath */
+    size_t dir_len = strlen(search_dir);
+    size_t fn_len  = strlen(filepath);
+    size_t total    = dir_len + 1 + fn_len + 1;
+    char* candidate = (char*)malloc(total);
+    if (candidate == NULL)
+        return false;
+
+    memcpy(candidate, search_dir, dir_len);
+    candidate[dir_len] = '/';
+    memcpy(candidate + dir_len + 1, filepath, fn_len + 1);
+
+    if (woort_vfs_is_virtual_uri(candidate))
+    {
+        if (woort_vfs_exists(candidate))
+        {
+            if (out_resolved_path != NULL)
+                *out_resolved_path = candidate;
+            else
+                free(candidate);
+            return true;
+        }
+    }
+    else
+    {
+        if (woort_fs_is_file_readable(candidate))
+        {
+            if (out_resolved_path != NULL)
+                *out_resolved_path = candidate;
+            else
+                free(candidate);
+            return true;
+        }
+    }
+
+    free(candidate);
+    return false;
+}
+
+WOORT_NODISCARD bool woort_vfs_resolve_path(
+    const char* filepath,
+    /* OPTIONAL */ const char* const* search_dirs,
+    size_t search_dir_count,
+    /* OPTIONAL */ char** out_resolved_path)
+{
+    if (filepath == NULL)
+        return false;
+
+    /* 0) If the filepath itself is a virtual URI, return it as-is */
+    if (woort_vfs_is_virtual_uri(filepath))
+    {
+        char* copy = (char*)malloc(strlen(filepath) + 1);
+        if (copy == NULL)
+            return false;
+        strcpy(copy, filepath);
+        woort_normalize_path(copy);
+
+        if (out_resolved_path != NULL)
+            *out_resolved_path = copy;
+        else
+            free(copy);
+        return true;
+    }
+
+    /* 1) Search through caller-supplied search directories (import chain) */
+    if (search_dirs != NULL && search_dir_count > 0)
+    {
+        for (size_t i = 0; i < search_dir_count; ++i)
+        {
+            if (_woort_vfs_try_search_dir(filepath, search_dirs[i], out_resolved_path))
+            {
+                if (out_resolved_path != NULL)
+                    woort_normalize_path(*out_resolved_path);
+                return true;
+            }
+        }
+    }
+
+    /* 2) Try: work_path + "/" + filepath */
+    {
+        char* work = woort_work_path();
+        if (work != NULL)
+        {
+            bool found = _woort_vfs_try_search_dir(filepath, work, out_resolved_path);
+            free(work);
+            if (found)
+            {
+                if (out_resolved_path != NULL)
+                    woort_normalize_path(*out_resolved_path);
+                return true;
+            }
+        }
+    }
+
+    /* 3) Try: exe_path + "/" + filepath */
+    {
+        char* exe = woort_exe_path();
+        if (exe != NULL)
+        {
+            bool found = _woort_vfs_try_search_dir(filepath, exe, out_resolved_path);
+            free(exe);
+            if (found)
+            {
+                if (out_resolved_path != NULL)
+                    woort_normalize_path(*out_resolved_path);
+                return true;
+            }
+        }
+    }
+
+    /* 4) Try: filepath as-is */
+    if (woort_fs_is_file_readable(filepath))
+    {
+        char* copy = (char*)malloc(strlen(filepath) + 1);
+        if (copy != NULL)
+        {
+            strcpy(copy, filepath);
+            woort_normalize_path(copy);
+
+            if (out_resolved_path != NULL)
+                *out_resolved_path = copy;
+            else
+                free(copy);
+        }
+        return true;
+    }
+
+    /* 5) Try: WOORT_VFS_SCHEME + filepath (VFS lookup without scheme prefix) */
+    {
+        size_t scheme_len = WOORT_VFS_SCHEME_LEN;
+        size_t fn_len     = strlen(filepath);
+        char*  vfs_path   = (char*)malloc(scheme_len + fn_len + 1);
+        if (vfs_path != NULL)
+        {
+            memcpy(vfs_path, WOORT_VFS_SCHEME, scheme_len);
+            memcpy(vfs_path + scheme_len, filepath, fn_len + 1);
+
+            if (woort_vfs_exists(vfs_path))
+            {
+                woort_normalize_path(vfs_path);
+
+                if (out_resolved_path != NULL)
+                    *out_resolved_path = vfs_path;
+                else
+                    free(vfs_path);
+                return true;
+            }
+
+            free(vfs_path);
+        }
+    }
+
+    return false;
+}
+
+/* ================================================================
+ *  Streaming virtual file handle
+ * ================================================================ */
+
+/*
+Platform-specific 64-bit seek/tell wrappers so the vfile API
+can handle large files portably.
+*/
+#if defined(_MSC_VER)
+    #define _WOORT_VFILE_FSEEK _fseeki64
+    #define _WOORT_VFILE_FTELL _ftelli64
+#else
+    #define _WOORT_VFILE_FSEEK fseeko
+    #define _WOORT_VFILE_FTELL ftello
+#endif
+
+WOORT_NODISCARD bool woort_vfile_open(
+    const char* filepath,
+    /* OPTIONAL */ woort_VFile** out_file)
+{
+    if (filepath == NULL || out_file == NULL)
+        return false;
+
+    woort_VFile* file = (woort_VFile*)calloc(1, sizeof(woort_VFile));
+    if (file == NULL)
+        return false;
+
+    if (woort_vfs_is_virtual_uri(filepath))
+    {
+        file->m_type = WOORT_VFILE_TYPE_VIRTUAL;
+
+        char*  data   = NULL;
+        size_t length = 0;
+        if (!woort_vfs_read(filepath, &data, &length))
+        {
+            free(file);
+            return false;
+        }
+
+        file->m_virtual.m_data = data;
+        file->m_virtual.m_size = length;
+        file->m_virtual.m_pos  = 0;
+    }
+    else
+    {
+        file->m_type      = WOORT_VFILE_TYPE_REAL;
+        file->m_real_file = fopen(filepath, "rb");
+        if (file->m_real_file == NULL)
+        {
+            free(file);
+            return false;
+        }
+    }
+
+    *out_file = file;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_vfile_read(
+    woort_VFile* file,
+    /* OPTIONAL */ void* buffer,
+    size_t size,
+    /* OPTIONAL */ size_t* out_bytes_read)
+{
+    size_t total_read = 0;
+
+    if (file == NULL)
+    {
+        if (out_bytes_read != NULL)
+            *out_bytes_read = 0;
+        return false;
+    }
+
+    if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
+    {
+        size_t available = file->m_virtual.m_size - file->m_virtual.m_pos;
+        size_t to_read   = (size < available) ? size : available;
+
+        if (buffer != NULL && to_read > 0)
+            memcpy(buffer, file->m_virtual.m_data + file->m_virtual.m_pos, to_read);
+
+        file->m_virtual.m_pos += to_read;
+        total_read = to_read;
+    }
+    else
+    {
+        if (buffer != NULL && size > 0)
+        {
+            total_read = fread(buffer, 1, size, file->m_real_file);
+        }
+    }
+
+    if (out_bytes_read != NULL)
+        *out_bytes_read = total_read;
+
+    return true;
+}
+
+WOORT_NODISCARD bool woort_vfile_seek(
+    woort_VFile* file,
+    int64_t offset,
+    int whence)
+{
+    if (file == NULL)
+        return false;
+
+    if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
+    {
+        int64_t new_pos;
+
+        switch (whence)
+        {
+        case SEEK_SET:
+            new_pos = offset;
+            break;
+        case SEEK_CUR:
+            new_pos = (int64_t)file->m_virtual.m_pos + offset;
+            break;
+        case SEEK_END:
+            new_pos = (int64_t)file->m_virtual.m_size + offset;
+            break;
+        default:
+            return false;
+        }
+
+        if (new_pos < 0)
+            return false;
+
+        file->m_virtual.m_pos = (new_pos > (int64_t)file->m_virtual.m_size)
+            ? file->m_virtual.m_size
+            : (size_t)new_pos;
+
+        return true;
+    }
+
+    return _WOORT_VFILE_FSEEK(file->m_real_file, offset, whence) == 0;
+}
+
+WOORT_NODISCARD int64_t woort_vfile_tell(/* OPTIONAL */ woort_VFile* file)
+{
+    if (file == NULL)
+        return -1;
+
+    if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
+        return (int64_t)file->m_virtual.m_pos;
+
+    return (int64_t)_WOORT_VFILE_FTELL(file->m_real_file);
+}
+
+WOORT_NODISCARD int64_t woort_vfile_size(/* OPTIONAL */ woort_VFile* file)
+{
+    if (file == NULL)
+        return -1;
+
+    if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
+        return (int64_t)file->m_virtual.m_size;
+
+    {
+        int64_t saved = _WOORT_VFILE_FTELL(file->m_real_file);
+        if (saved < 0)
+            return -1;
+
+        if (_WOORT_VFILE_FSEEK(file->m_real_file, 0, SEEK_END) != 0)
+            return -1;
+
+        int64_t size = _WOORT_VFILE_FTELL(file->m_real_file);
+
+        _WOORT_VFILE_FSEEK(file->m_real_file, saved, SEEK_SET);
+
+        return size;
+    }
+}
+
+void woort_vfile_close(/* OPTIONAL */ woort_VFile* file)
+{
+    if (file == NULL)
+        return;
+
+    if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
+    {
+        free(file->m_virtual.m_data);
+    }
+    else
+    {
+        if (file->m_real_file != NULL)
+            fclose(file->m_real_file);
+    }
+
+    free(file);
+}
+
+#undef _WOORT_VFILE_FSEEK
+#undef _WOORT_VFILE_FTELL
