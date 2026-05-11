@@ -125,7 +125,7 @@ static void test_loop_with_break(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c0, 0);
@@ -213,7 +213,7 @@ static void test_diamond_if_else(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c3, 3);
@@ -325,7 +325,7 @@ static void test_switch_chain(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, cx, 3);
@@ -418,7 +418,7 @@ static void test_search_loop(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c1, 1);
@@ -518,7 +518,7 @@ static void test_nested_if_in_loop(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c0, 0);
@@ -603,7 +603,7 @@ static void test_itor_loop_roundtrip(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_real(cenv, c_r0, 0.0);
@@ -673,7 +673,7 @@ static void test_mixed_type_arithmetic(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c10, 10);
@@ -729,7 +729,7 @@ static void test_ir_mkvec(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c_ok, 42);
@@ -796,7 +796,7 @@ static void test_ir_mkmap_multi(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_string(cenv, c_k1, "alpha");
@@ -860,7 +860,7 @@ static void test_ir_boxdyn_unboxdyn(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c42, 42);
@@ -951,9 +951,9 @@ static void test_three_function_chain(void)
     const woort_Bytecode* addr_A;
     const woort_Bytecode* addr_B;
     const woort_Bytecode* addr_main;
-    woort_CodeEnv_query_function(cenv, f_A, &addr_A);
-    woort_CodeEnv_query_function(cenv, f_B, &addr_B);
-    woort_CodeEnv_query_function(cenv, f_main, &addr_main);
+    (void)woort_CodeEnv_query_function(cenv, f_A, &addr_A);
+    (void)woort_CodeEnv_query_function(cenv, f_B, &addr_B);
+    (void)woort_CodeEnv_query_function(cenv, f_main, &addr_main);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c1, 1);
@@ -1069,8 +1069,8 @@ static void test_function_5_params(void)
 
     const woort_Bytecode* addr_calc;
     const woort_Bytecode* addr_main;
-    woort_CodeEnv_query_function(cenv, f_calc, &addr_calc);
-    woort_CodeEnv_query_function(cenv, f_main, &addr_main);
+    (void)woort_CodeEnv_query_function(cenv, f_calc, &addr_calc);
+    (void)woort_CodeEnv_query_function(cenv, f_main, &addr_main);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c2, 2);
@@ -1143,7 +1143,7 @@ static void test_popr_cleanup(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c10, 10);
@@ -1212,7 +1212,7 @@ static void test_many_constants(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     for (int i = 0; i < 10; i++)
@@ -1288,7 +1288,7 @@ static void test_branch_different_constants(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, cx, 5);
@@ -1381,8 +1381,8 @@ static void test_multi_call_sequence(void)
 
     const woort_Bytecode* addr_add1;
     const woort_Bytecode* addr_main;
-    woort_CodeEnv_query_function(cenv, f_add1, &addr_add1);
-    woort_CodeEnv_query_function(cenv, f_main, &addr_main);
+    (void)woort_CodeEnv_query_function(cenv, f_add1, &addr_add1);
+    (void)woort_CodeEnv_query_function(cenv, f_main, &addr_main);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c1, 1);
@@ -1463,7 +1463,7 @@ static void test_accumulator_loop(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c0, 0);
@@ -1628,7 +1628,7 @@ static void test_string_in_if_else(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_string(cenv, c_s1, "hello");
@@ -1734,7 +1734,7 @@ static void test_deeply_nested_if(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, cx, 15);
@@ -1823,7 +1823,7 @@ static void test_real_arithmetic_loop(void)
     TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
 
     const woort_Bytecode* addr;
-    woort_CodeEnv_query_function(cenv, f, &addr);
+    (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_real(cenv, c_r1, 1.0);

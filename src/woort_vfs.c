@@ -215,7 +215,7 @@ WOORT_NODISCARD bool woort_vfs_remove(const char* filepath)
                 free((*pentry)->m_data);
                 free(*pentry);
 
-                woort_vector_erase_at(&g_vfs_entries, i);
+                (void)woort_vector_erase_at(&g_vfs_entries, i);
 
                 woort_rwspinlock_write_unlock(&g_vfs_lock);
                 return true;
