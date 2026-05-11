@@ -3481,6 +3481,99 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_get_file_loc(
 WOORT_API void woort_normalize_path(/* OPTIONAL */ char* path);
 
 /* ================================================================
+ * Virtual File System
+ * ================================================================ */
+
+/** @brief Virtual file scheme prefix ("woovf://"). */
+#define WOORT_VFS_SCHEME      "woovf://"
+#define WOORT_VFS_SCHEME_LEN  8
+
+/**
+ * @brief Create or overwrite a virtual file.
+ *
+ * If a file with the same path already exists and has enable_modify set,
+ * its content is replaced.  Otherwise the call fails.
+ *
+ * @param filepath      The virtual file path (without scheme prefix).
+ * @param data          Raw content buffer.
+ * @param length        Size of the buffer in bytes.
+ * @param enable_modify Whether the file can be removed or overwritten later.
+ * @return true on success.
+ */
+WOORT_API WOORT_NODISCARD bool woort_vfs_create(
+    const char* filepath,
+    /* OPTIONAL */ const void* data,
+    size_t length,
+    bool enable_modify);
+
+/**
+ * @brief Remove a virtual file.
+ *
+ * The file must have been created with enable_modify = true.
+ *
+ * @param filepath  The virtual file path (without scheme prefix).
+ * @return true if the file was found and removed.
+ */
+WOORT_API WOORT_NODISCARD bool woort_vfs_remove(const char* filepath);
+
+/**
+ * @brief Check whether a URI uses the virtual file scheme ("woovf://").
+ *
+ * @param uri  The URI to check.
+ * @return true if the URI starts with the virtual file scheme.
+ */
+WOORT_API WOORT_NODISCARD bool woort_vfs_is_virtual_uri(
+    /* OPTIONAL */ const char* uri);
+
+/**
+ * @brief Read the content of a virtual file.
+ *
+ * The path may be supplied with or without the "woovf://" prefix.
+ * The returned buffer is malloc'd; the caller must free it with woort_free().
+ *
+ * @param filepath   The virtual file path.
+ * @param out_data   Receives the malloc'd content buffer (may be NULL).
+ * @param out_length Receives the content length (may be NULL).
+ * @return true if the file was found.
+ */
+WOORT_API WOORT_NODISCARD bool woort_vfs_read(
+    const char* filepath,
+    /* OPTIONAL */ char** out_data,
+    /* OPTIONAL */ size_t* out_length);
+
+/**
+ * @brief Check whether a virtual file exists.
+ *
+ * The path may be supplied with or without the "woovf://" prefix.
+ *
+ * @param filepath  The virtual file path.
+ * @return true if the file exists in the VFS registry.
+ */
+WOORT_API WOORT_NODISCARD bool woort_vfs_exists(const char* filepath);
+
+/**
+ * @brief Get all registered virtual file paths.
+ *
+ * Returns a malloc'd NULL-terminated array of malloc'd strings.
+ * The caller must free each string and then the array itself.
+ * Alternatively, call with out_paths = NULL to just get the count.
+ *
+ * @param out_paths  Receives the string array (may be NULL to get count only).
+ * @return The number of entries.
+ */
+WOORT_API WOORT_NODISCARD size_t woort_vfs_get_all_paths(
+    /* OPTIONAL */ char*** out_paths);
+
+/**
+ * @brief Check whether a real file on disk exists and is readable.
+ *
+ * @param path  The file system path to check.
+ * @return true if the path points to a readable file.
+ */
+WOORT_API WOORT_NODISCARD bool woort_fs_is_file_readable(
+    /* OPTIONAL */ const char* path);
+
+/* ================================================================
  * Dynamic library loading
  * ================================================================ */
 

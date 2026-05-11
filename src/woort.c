@@ -16,6 +16,7 @@
 #include "woort_disassembly.h"
 #include "woort_env.h"
 #include "woort_path.h"
+#include "woort_vfs.h"
 #include "woort_dylib.h"
 #include "woort_serialize.h"
 #include "woort_util.h"
@@ -32,6 +33,7 @@ void woort_init(int argc, char** argv)
 {
     _woort_env_bootup();
     _woort_path_bootup();
+    _woort_vfs_bootup();
 
     if (!woort_CodeEnv_bootup())
     {
@@ -66,6 +68,7 @@ void woort_shutdown(void)
     _woort_dylib_shutdown();
     woort_CodeEnv_shutdown();
     _woort_path_shutdown();
+    _woort_vfs_shutdown();
     woort_VMRuntime_Debugger_shutdown();
     _woort_env_shutdown();
 }
