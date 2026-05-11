@@ -27,6 +27,7 @@ WOORT_NODISCARD bool woort_vector_reserve(woort_Vector* vector, size_t new_capac
 WOORT_NODISCARD bool woort_vector_resize(woort_Vector* vector, size_t new_size);
 WOORT_NODISCARD bool woort_vector_emplace_back(woort_Vector* vector, size_t count, void** out_element);
 WOORT_NODISCARD bool woort_vector_push_back(woort_Vector* vector, size_t count, const void* element);
+WOORT_NODISCARD bool woort_vector_insert(woort_Vector* vector, size_t place, const void* element);
 void woort_vector_clear(woort_Vector* vector);
 
 WOORT_NODISCARD bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element);

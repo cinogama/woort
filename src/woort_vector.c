@@ -114,6 +114,27 @@ WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index)
     vector->m_size--;
     return true;
 }
+WOORT_NODISCARD bool woort_vector_insert(woort_Vector* vector, size_t place, const void* element)
+{
+    if (place > vector->m_size)
+        return false;
+
+    if (!woort_vector_reserve(vector, vector->m_size + 1))
+        return false;
+
+    if (place < vector->m_size)
+    {
+        void* const dest = vector->m_data + (place + 1) * vector->m_element_size;
+        const void* const src = vector->m_data + place * vector->m_element_size;
+        const size_t elements_to_move = vector->m_size - place;
+        memmove(dest, src, elements_to_move * vector->m_element_size);
+    }
+
+    memcpy(vector->m_data + place * vector->m_element_size, element, vector->m_element_size);
+    vector->m_size++;
+
+    return true;
+}
 WOORT_NODISCARD /* OPTIONAL, Null if empty. */ void* woort_vector_move_out(woort_Vector* vector, size_t* out_count)
 {
     *out_count = vector->m_size;
