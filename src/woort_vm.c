@@ -3903,7 +3903,7 @@ void woort_VMRuntime_trace_begin(
 }
 
 WOORT_NODISCARD static bool _woort_VMRuntime_trace_addr(
-    const woort_Bytecode* code, intptr_t code_shift, woort_VMRuntime_TraceCallstack* out_result)
+    const woort_Bytecode* code, ptrdiff_t code_shift, woort_VMRuntime_TraceCallstack* out_result)
 {
     assert(code != NULL);
 
@@ -4009,14 +4009,15 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
                     modify_trace_iter->m_vm->m_stack_end -
                     modify_trace_iter->m_next_tracing_offset_of_base;
 
-                if (sb_addr[2].m_ret_addr == NULL)
+                if (sb_addr[2].m_ret_addr == NULL
+                    || sb_addr[1].m_ret_bp.m_bp_offset >= modify_trace_iter->m_next_tracing_offset_of_base)
                 {
                     /* Trace end. */
                     break;
                 }
 
                 out_result->m_code_addr =
-                    (const woort_Bytecode*)sb_addr[2].m_ret_addr - 1;
+                    (const woort_Bytecode*)sb_addr[2].m_ret_addr;
 
                 /* Should be CALLWAY & BPOFFSET. */
                 modify_trace_iter->m_next_tracing_offset_of_base =

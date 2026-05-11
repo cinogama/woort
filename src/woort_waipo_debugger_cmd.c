@@ -934,9 +934,14 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
 
     case WOORT_OPCODE_RET:
     {
-        if (sb[1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE)
-            return false;
-        *out_next_ip = (const woort_Bytecode*)sb[2].m_ret_addr;
+        const woort_Value* trace_sb = sb;
+        while (trace_sb[1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE)
+        {
+            trace_sb = vm->m_stack_end - trace_sb[1].m_ret_bp.m_bp_offset;
+            if (vm->m_stack_end - trace_sb < 3)
+                return false;
+        }
+        *out_next_ip = (const woort_Bytecode*)trace_sb[2].m_ret_addr;
         return true;
     }
 
@@ -1013,7 +1018,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_step_common(
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    (void)printf("%s", message);
+    (void)printf(WOORT_ANSI_HIG "%s" WOORT_ANSI_RST, message);
 
     return WOORT_WAIPO_CMD_CONTINUE;
 }
