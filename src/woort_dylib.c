@@ -59,7 +59,7 @@ static void _woort_dylib_os_freelib(void* handle)
 
 static void* _woort_dylib_os_loadlib(const char* path)
 {
-    assert(path == NULL);
+    assert(path != NULL);
 
     return dlopen(path, RTLD_LAZY);
 }
