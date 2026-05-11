@@ -1448,8 +1448,70 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
             ok = ok && _bin_write_u32(&w, member_count);
             for (uint32_t mi = 0; ok && mi < member_count; ++mi)
             {
-                /* 把 struct 成员值作为常量索引引用写回 */
-                ok = ok && _bin_write_u32(&w, (uint32_t)mi); /* 简化：记录成员个数，恢复时需解析 */
+                /*
+                 * 在常量池中查找与 s->m_datas[mi] 值相等的常量索引。
+                 * struct 的成员值是 m_data_begin[original_index] 的副本，
+                 * 通过值与类型匹配可找到原始常量索引。
+                 */
+                const woort_Value* mv = &s->m_datas[mi];
+                woort_IRConstantIndex found_idx = (woort_IRConstantIndex)mi; /* fallback */
+                bool found = false;
+
+                for (size_t j = 0; j < data_count; ++j)
+                {
+                    const woort_ConstRecord* rec_j =
+                        (const woort_ConstRecord*)woort_vector_at(
+                            &code_env->m_const_records, j);
+                    const woort_Value* cv = &code_env->m_data_begin[j];
+
+                    switch (rec_j->m_type)
+                    {
+                    case WOORT_CONST_TYPE_NIL:
+                        if (mv->m_gcinstance == cv->m_gcinstance)
+                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        break;
+                    case WOORT_CONST_TYPE_INT:
+                        if (mv->m_integer == cv->m_integer)
+                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        break;
+                    case WOORT_CONST_TYPE_REAL:
+                        if (mv->m_real == cv->m_real)
+                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        break;
+                    case WOORT_CONST_TYPE_STRING:
+                        if (mv->m_gcinstance == cv->m_gcinstance)
+                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        break;
+                    case WOORT_CONST_TYPE_SCRIPT_FUNC:
+                        if (mv->m_script_function == cv->m_script_function)
+                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        break;
+                    case WOORT_CONST_TYPE_EXTERN_FUNC:
+                        if (mv->m_native_function == cv->m_native_function)
+                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        break;
+                    case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
+                    case WOORT_CONST_TYPE_EXTERN_CLOSURE:
+                        if (mv->m_gcinstance == cv->m_gcinstance)
+                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        break;
+                    case WOORT_CONST_TYPE_BOX_INT:
+                    case WOORT_CONST_TYPE_BOX_REAL:
+                    case WOORT_CONST_TYPE_BOX_BOOL:
+                        if (mv->m_dynamic.m_boxed == cv->m_dynamic.m_boxed)
+                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        break;
+                    case WOORT_CONST_TYPE_STRUCT:
+                        if (mv->m_gcinstance == cv->m_gcinstance)
+                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        break;
+                    default:
+                        break;
+                    }
+                    if (found)
+                        break;
+                }
+                ok = ok && _bin_write_u32(&w, (uint32_t)found_idx);
             }
             break;
         }
