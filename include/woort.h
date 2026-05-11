@@ -455,9 +455,22 @@ WOORT_API void woort_VMRuntime_print_backtrace(
 
 /* ========== IR API ========== */
 
+/**
+ * @brief Serialize a CodeEnv into a binary buffer.
+ * @param code_env    The CodeEnv to serialize. Must not be NULL.
+ * @param out_buffer  Receives the allocated binary buffer. Must not be NULL.
+ * @param out_len     Receives the size of the binary buffer in bytes. Must not be NULL.
+ * @return true on success, false on failure.
+ */
 WOORT_NODISCARD WOORT_API bool woort_CodeEnv_save_binary(
     woort_CodeEnv* code_env, void** out_buffer, size_t* out_len);
 
+/**
+ * @brief Deserialize a CodeEnv from a binary stream.
+ * @param f             The VFile to read binary data from. Must not be NULL.
+ * @param out_code_env  Receives the restored CodeEnv. Must not be NULL.
+ * @return true on success, false on failure.
+ */
 WOORT_NODISCARD WOORT_API bool woort_CodeEnv_restore_binary(
     woort_VFile* f, woort_CodeEnv** out_code_env);
 
