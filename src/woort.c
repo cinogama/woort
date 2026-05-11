@@ -104,6 +104,8 @@ void woort_CodeEnv_set_const_int(
     v.m_integer = val;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_INT, NULL, NULL);
 }
 
 void woort_CodeEnv_set_const_real(
@@ -118,6 +120,8 @@ void woort_CodeEnv_set_const_real(
     v.m_real = val;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_REAL, NULL, NULL);
 }
 
 void woort_CodeEnv_set_const_string(
@@ -137,6 +141,8 @@ void woort_CodeEnv_set_const_string(
     v.m_string = str;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_STRING, NULL, NULL);
 }
 
 void woort_CodeEnv_set_const_script_function(
@@ -151,6 +157,8 @@ void woort_CodeEnv_set_const_script_function(
     v.m_script_function = val;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_SCRIPT_FUNC, NULL, NULL);
 }
 
 void woort_CodeEnv_set_const_extern_function(
@@ -165,6 +173,8 @@ void woort_CodeEnv_set_const_extern_function(
     v.m_native_function = val;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_EXTERN_FUNC, NULL, NULL);
 }
 
 void woort_CodeEnv_set_const_script_closure(
@@ -182,6 +192,8 @@ void woort_CodeEnv_set_const_script_closure(
     v.m_closure = closure;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_SCRIPT_CLOSURE, NULL, NULL);
 }
 
 void woort_CodeEnv_set_const_extern_closure(
@@ -199,6 +211,8 @@ void woort_CodeEnv_set_const_extern_closure(
     v.m_closure = closure;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_EXTERN_CLOSURE, NULL, NULL);
 }
 
 void woort_CodeEnv_set_const_box_int(
@@ -211,6 +225,8 @@ void woort_CodeEnv_set_const_box_int(
 
     woort_DynBox boxed = woort_DynBox_box_int(val);
     woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_BOX_INT, NULL, NULL);
 }
 
 void woort_CodeEnv_set_const_box_real(
@@ -223,6 +239,8 @@ void woort_CodeEnv_set_const_box_real(
 
     woort_DynBox boxed = woort_DynBox_box_real(val);
     woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_BOX_REAL, NULL, NULL);
 }
 
 void woort_CodeEnv_set_const_box_bool(
@@ -235,6 +253,8 @@ void woort_CodeEnv_set_const_box_bool(
 
     woort_DynBox boxed = woort_DynBox_box_bool(val);
     woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_BOX_BOOL, NULL, NULL);
 }
 
 void woort_CodeEnv_set_const_struct(
@@ -260,6 +280,8 @@ void woort_CodeEnv_set_const_struct(
     v.m_struct = s;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
+    (void)woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_STRUCT, NULL, NULL);
 }
 
 WOORT_NODISCARD woort_GCStruct* _woort_set_union(

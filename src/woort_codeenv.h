@@ -18,6 +18,48 @@ woort_codeenv.h
 
 #include <stdbool.h>
 
+/* ========================================================================
+ * 常量池类型记录 —— 用于二进制序列化/反序列化
+ * ======================================================================== */
+
+/*
+ * 常量池条目的类型标签。
+ * 保存/恢复二进制时需要知道每个常量槽存的是什么类型的值，
+ * 因为 woort_Value 是一个无标签联合体。
+ */
+typedef enum woort_ConstRecordType
+{
+    WOORT_CONST_TYPE_NIL = 0,             /* 未初始化（零值） */
+    WOORT_CONST_TYPE_INT,                 /* m_integer */
+    WOORT_CONST_TYPE_REAL,                /* m_real */
+    WOORT_CONST_TYPE_STRING,              /* m_string */
+    WOORT_CONST_TYPE_SCRIPT_FUNC,         /* m_script_function */
+    WOORT_CONST_TYPE_EXTERN_FUNC,         /* m_native_function */
+    WOORT_CONST_TYPE_SCRIPT_CLOSURE,      /* m_closure (指向脚本函数) */
+    WOORT_CONST_TYPE_EXTERN_CLOSURE,      /* m_closure (指向原生函数) */
+    WOORT_CONST_TYPE_BOX_INT,             /* m_dynamic (boxed int) */
+    WOORT_CONST_TYPE_BOX_REAL,            /* m_dynamic (boxed real) */
+    WOORT_CONST_TYPE_BOX_BOOL,            /* m_dynamic (boxed bool) */
+    WOORT_CONST_TYPE_STRUCT,              /* m_struct */
+} woort_ConstRecordType;
+
+/*
+ * 常量池条目的元数据。
+ * 对于 extern 函数/闭包，还需要记录库名和函数名以便恢复时重新解析。
+ */
+typedef struct woort_ConstRecord
+{
+    woort_ConstRecordType m_type;
+
+    /*
+     * extern 函数/闭包专用字段。
+     * 所有权属于 CodeEnv（GC destroy 时释放）。
+     */
+    /* OPTIONAL */ char* m_lib_name;      /* 库名（extern 函数/闭包才有） */
+    /* OPTIONAL */ char* m_func_name;     /* 函数名（extern 函数/闭包才有） */
+
+} woort_ConstRecord;
+
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void);
 void woort_CodeEnv_shutdown(void);
 void woort_CodeEnv_drop_all(void);
@@ -75,6 +117,14 @@ struct woort_CodeEnv {
      */
     woort_Vector /* woort_Dylib* */ m_extern_libs;
 
+    /*
+     * 常量池元数据（与 m_data_begin 并行）。
+     * 每个条目记录该常量槽的类型和 extern 解析信息。
+     * 长度与 m_data_count 一致。
+     * CodeEnv 拥有所有权，GC destroy 时释放。
+     */
+    woort_Vector /* woort_ConstRecord */ m_const_records;
+
     size_t m_data_count;
     woort_Value m_data_begin[];
 };
@@ -102,6 +152,24 @@ void woort_CodeEnv_GC_mark_all_envs(void);
 void woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
     const woort_Vector* function_source_map);
+
+/*
+ * 记录一个常量槽的类型信息。
+ * 在 woort_CodeEnv_set_const_* 之后调用，用于二进制序列化。
+ * 对于 extern 函数/闭包，同时记录库名和函数名。
+ *
+ * @param env        已锁定的 CodeEnv。
+ * @param cidx       常量池索引。
+ * @param type       常量类型。
+ * @param lib_name   库名（extern 函数/闭包需要，否则传 NULL）。
+ * @param func_name  函数名（extern 函数/闭包需要，否则传 NULL）。
+ */
+WOORT_NODISCARD bool woort_CodeEnv_set_const_record(
+    woort_CodeEnv* env,
+    woort_IRConstantIndex cidx,
+    woort_ConstRecordType type,
+    /* OPTIONAL */ const char* lib_name,
+    /* OPTIONAL */ const char* func_name);
 
 /*
  * 将外部库句柄关联到 CodeEnv。

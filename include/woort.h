@@ -233,19 +233,19 @@ typedef int32_t woort_StackValue;
  */
 #define WOORT_IGNORE ((woort_StackValue)-2)
 
-/**
- * @brief Special stack slot index for the function return value.
- *
- * Pass as `dst` to woort_set_* functions to write a value
- * into the calling function's return slot.
- *
- * Without violating calling conventions, this slot may also be used
- * as a temporary stack location for read/write operations, just like
- * any woort_StackValue obtained via woort_push_reserve.
- */
+ /**
+  * @brief Special stack slot index for the function return value.
+  *
+  * Pass as `dst` to woort_set_* functions to write a value
+  * into the calling function's return slot.
+  *
+  * Without violating calling conventions, this slot may also be used
+  * as a temporary stack location for read/write operations, just like
+  * any woort_StackValue obtained via woort_push_reserve.
+  */
 #define WOORT_RETURN_SLOT ((woort_StackValue)-1)
 
- /** @brief Default entry point function name. */
+  /** @brief Default entry point function name. */
 #define WOORT_DEFAULT_ENTRY "@entry"
 
 /** @brief Signature for native (C) functions callable from Woolang. */
@@ -454,6 +454,12 @@ WOORT_API void woort_VMRuntime_print_backtrace(
     size_t max_depth);
 
 /* ========== IR API ========== */
+
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_save_binary(
+    woort_CodeEnv* code_env, void** out_buffer, size_t* out_len);
+
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_restore_binary(
+    woort_VFile* f, woort_CodeEnv** out_code_env);
 
 /**
  * @brief Release a CodeEnv and free all associated resources.
@@ -2216,7 +2222,7 @@ typedef woort_VmCallStatus woort_callstatus;
  *
  * @return Pointer to the new VM runtime, or NULL on out-of-memory.
  */
-WOORT_NODISCARD WOORT_API 
+WOORT_NODISCARD WOORT_API
 /* OPTIONAL */ woort_VMRuntime* woort_vm_create(void);
 
 #define woort_vm_close woort_VMRuntime_destroy
@@ -2653,7 +2659,7 @@ WOORT_API void woort_set_union_box_bool(
  * @{
  */
 
-/** Return result has been stored into WOORT_RETURN_SLOT, do nothing else. */
+ /** Return result has been stored into WOORT_RETURN_SLOT, do nothing else. */
 #define woort_ret() WOORT_VM_CALL_STATUS_NORMAL
 /** @brief Return a stack value: set slot WOORT_RETURN_SLOT and return NORMAL. */
 #define woort_ret_value(src) (woort_set_value(WOORT_RETURN_SLOT, src), woort_ret())
@@ -3453,12 +3459,12 @@ WOORT_API void woort_struct_set(
  * Path utilities
  * ================================================================ */
 
-/**
- * @brief Get the directory containing the executable.
- *
- * The result is cached after the first call. Returns a malloc'd string
- * that the caller must free. Never returns NULL under normal operation.
- */
+ /**
+  * @brief Get the directory containing the executable.
+  *
+  * The result is cached after the first call. Returns a malloc'd string
+  * that the caller must free. Never returns NULL under normal operation.
+  */
 WOORT_NODISCARD WOORT_API char* woort_exe_path(void);
 
 /**
@@ -3502,7 +3508,7 @@ WOORT_API void woort_normalize_path(/* OPTIONAL */ char* path);
  * Virtual File System
  * ================================================================ */
 
-/** @brief Virtual file scheme prefix ("woovf://"). */
+ /** @brief Virtual file scheme prefix ("woovf://"). */
 #define WOORT_VFS_SCHEME      "woovf://"
 #define WOORT_VFS_SCHEME_LEN  8
 
@@ -3689,20 +3695,20 @@ WOORT_API void woort_vfile_close(/* OPTIONAL */ woort_VFile* file);
  * Dynamic library loading
  * ================================================================ */
 
-/**
- * @brief Register a "fake" library backed by a user-supplied function table.
- *
- * The library is registered under the given name in the global library
- * registry.  Subsequent lookups with woort_dylib_load_func will search the
- * function table linearly.
- *
- * @param libname           Unique name for this library.
- * @param funcs             NULL-terminated array of name/function pairs.
- * @param dependence_dylib  Optional library that this fake lib depends on.
- *                          Its reference count is incremented.
- * @return A handle to the fake library, or NULL if the name is already taken
- *         or memory allocation fails.
- */
+ /**
+  * @brief Register a "fake" library backed by a user-supplied function table.
+  *
+  * The library is registered under the given name in the global library
+  * registry.  Subsequent lookups with woort_dylib_load_func will search the
+  * function table linearly.
+  *
+  * @param libname           Unique name for this library.
+  * @param funcs             NULL-terminated array of name/function pairs.
+  * @param dependence_dylib  Optional library that this fake lib depends on.
+  *                          Its reference count is incremented.
+  * @return A handle to the fake library, or NULL if the name is already taken
+  *         or memory allocation fails.
+  */
 WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
     const char* libname,
     const woort_ExternLibFunc* funcs,
@@ -3981,7 +3987,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u32strn_to_str(
  * @{
  */
 
-/** @brief ANSI escape sequence introducer. */
+ /** @brief ANSI escape sequence introducer. */
 #   define WOORT_ANSI_ESC "\033["
 /** @brief ANSI sequence terminator. */
 #   define WOORT_ANSI_END "m"

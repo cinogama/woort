@@ -151,7 +151,7 @@ Each `test/*.c` is compiled into its own executable and registered as a ctest vi
 #include "woort_vm.h"
 
 int main(int argc, char** argv) {
-    woort_init();
+    woort_init(0, NULL);
     woort_VMRuntime* vm;
     woort_VMRuntime_create(&vm);
     /* ... test code ... */
@@ -162,6 +162,19 @@ int main(int argc, char** argv) {
 ```
 
 Test sources include internal headers (`woort_vm.h`, `woort_codeenv.h`, etc.) directly from `src/` — the test CMakeLists adds `../src` to the include path.
+
+## Testing Gotchas
+
+- `woort_init(int argc, char** argv)` requires two arguments. Tests pass `woort_init(0, NULL)`.
+- Tests using only the IR compiler (no VM execution) call `woort_IRCompiler_create()` directly, not `woort_VMRuntime_create()`.
+
+## No Lint / Formatter
+
+There are no lint, formatter, or typecheck commands in this repo. Do not attempt to run them.
+
+## Architecture Docs
+
+`doc/` contains architecture documentation: `ir.md`, `opcodes.md`, and `runtime.md`.
 
 ## Supported Platforms
 
