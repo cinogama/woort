@@ -11,7 +11,7 @@
 #include <string.h>
 #include <stdint.h>
 
-typedef woort_WAIPO_CommandResult (*woort_WAIPO_CommandHandler)(
+typedef woort_WAIPO_CommandResult(*woort_WAIPO_CommandHandler)(
     woort_WAIPO_Debugger* dbg,
     woort_VMRuntime* vm,
     char** args,
@@ -314,8 +314,8 @@ static void _woort_WAIPO_print_source_file(
     size_t from_line,
     size_t to_line)
 {
-    FILE* f = fopen(filepath, "r");
-    if (f == NULL)
+    woort_VFile* f = NULL;
+    if (!woort_vfile_open(filepath, &f) || f == NULL)
     {
         (void)printf("Cannot open source: '%s'.\n", filepath);
         return;
@@ -329,13 +329,109 @@ static void _woort_WAIPO_print_source_file(
 
     char line_buf[4096];
     size_t current_line = 0;
-    while (fgets(line_buf, sizeof(line_buf), f) != NULL)
+    size_t line_idx = 0;
+    char ch;
+    size_t bytes_read;
+    bool prev_was_cr = false;
+
+    for (;;)
     {
-        for (char* p = line_buf; *p; ++p)
+        if (!woort_vfile_read(f, &ch, 1, &bytes_read) || bytes_read == 0)
+            break;
+
+        if (ch == '\r')
         {
-            if (*p == '\n' || *p == '\r')
-                *p = ' ';
+            prev_was_cr = true;
+            line_buf[line_idx] = '\0';
+
+            if (current_line >= from_line
+                && (to_line == SIZE_MAX || current_line <= to_line))
+            {
+                const bool is_highlight = has_highlight
+                    && current_line >= highlight_begin_line
+                    && current_line <= highlight_end_line;
+
+                if (is_highlight)
+                {
+                    const size_t line_len = strlen(line_buf);
+                    size_t col_start = 0;
+                    size_t col_end = line_len;
+                    if (current_line == highlight_begin_line && highlight_begin_col < line_len)
+                        col_start = highlight_begin_col;
+                    if (current_line == highlight_end_line && highlight_end_col < line_len)
+                        col_end = highlight_end_col;
+
+                    (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+                        current_line + 1,
+                        (int)col_start, line_buf,
+                        (int)(col_end - col_start), line_buf + col_start,
+                        (int)(line_len - col_end), line_buf + col_end);
+                }
+                else
+                    (void)printf("%c %5zu | %s\n",
+                        ' ',
+                        current_line + 1,
+                        line_buf);
+            }
+
+            ++current_line;
+            line_idx = 0;
         }
+        else if (ch == '\n')
+        {
+            if (prev_was_cr)
+            {
+                prev_was_cr = false;
+                continue;
+            }
+
+            line_buf[line_idx] = '\0';
+
+            if (current_line >= from_line
+                && (to_line == SIZE_MAX || current_line <= to_line))
+            {
+                const bool is_highlight = has_highlight
+                    && current_line >= highlight_begin_line
+                    && current_line <= highlight_end_line;
+
+                if (is_highlight)
+                {
+                    const size_t line_len = strlen(line_buf);
+                    size_t col_start = 0;
+                    size_t col_end = line_len;
+                    if (current_line == highlight_begin_line && highlight_begin_col < line_len)
+                        col_start = highlight_begin_col;
+                    if (current_line == highlight_end_line && highlight_end_col < line_len)
+                        col_end = highlight_end_col;
+
+                    (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+                        current_line + 1,
+                        (int)col_start, line_buf,
+                        (int)(col_end - col_start), line_buf + col_start,
+                        (int)(line_len - col_end), line_buf + col_end);
+                }
+                else
+                    (void)printf("%c %5zu | %s\n",
+                        ' ',
+                        current_line + 1,
+                        line_buf);
+            }
+
+            ++current_line;
+            line_idx = 0;
+        }
+        else
+        {
+            prev_was_cr = false;
+            if (line_idx < sizeof(line_buf) - 1)
+                line_buf[line_idx++] = ch;
+        }
+    }
+
+    /* Handle last line if file does not end with a newline */
+    if (line_idx > 0)
+    {
+        line_buf[line_idx] = '\0';
 
         if (current_line >= from_line
             && (to_line == SIZE_MAX || current_line <= to_line))
@@ -366,10 +462,9 @@ static void _woort_WAIPO_print_source_file(
                     current_line + 1,
                     line_buf);
         }
-        ++current_line;
     }
 
-    (void)fclose(f);
+    woort_vfile_close(f);
     (void)printf("\n");
 }
 
@@ -705,8 +800,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
                 begin_offset, begin_offset + length);
 
             _woort_WAIPO_dump_disassembly_range(
-                cenv, begin_offset, 
-                begin_offset + length, 
+                cenv, begin_offset,
+                begin_offset + length,
                 frame_ip,
                 sign);
         }
@@ -747,11 +842,11 @@ int _woort_WAIPO_empty_cb(const char* fmt, ...)
 }
 
 WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
-    const woort_Bytecode*   ip,
-    woort_CodeEnv*          cenv,
-    const woort_Value*      sb,
-    woort_VMRuntime*        vm,
-    /* OPTIONAL */ const woort_Bytecode**  out_next_ip)
+    const woort_Bytecode* ip,
+    woort_CodeEnv* cenv,
+    const woort_Value* sb,
+    woort_VMRuntime* vm,
+    /* OPTIONAL */ const woort_Bytecode** out_next_ip)
 {
     if (ip == NULL || cenv == NULL || sb == NULL || out_next_ip == NULL)
         return false;
@@ -867,8 +962,8 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
         bool taken = false;
         switch (m2)
         {
-        case 0: taken = (sb[a_offset].m_integer <  sb[b_offset].m_integer); break;
-        case 1: taken = (sb[a_offset].m_integer >  sb[b_offset].m_integer); break;
+        case 0: taken = (sb[a_offset].m_integer < sb[b_offset].m_integer); break;
+        case 1: taken = (sb[a_offset].m_integer > sb[b_offset].m_integer); break;
         case 2: taken = (sb[a_offset].m_integer <= sb[b_offset].m_integer); break;
         case 3: taken = (sb[a_offset].m_integer >= sb[b_offset].m_integer); break;
         }
@@ -888,8 +983,8 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
         bool taken = false;
         switch (m2)
         {
-        case 0: taken = (sb[a_offset].m_integer <  sb[b_offset].m_integer); break;
-        case 1: taken = (sb[a_offset].m_integer >  sb[b_offset].m_integer); break;
+        case 0: taken = (sb[a_offset].m_integer < sb[b_offset].m_integer); break;
+        case 1: taken = (sb[a_offset].m_integer > sb[b_offset].m_integer); break;
         case 2: taken = (sb[a_offset].m_integer <= sb[b_offset].m_integer); break;
         case 3: taken = (sb[a_offset].m_integer >= sb[b_offset].m_integer); break;
         }
@@ -931,18 +1026,24 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
             *out_next_ip = target->m_script_function;
             return true;
         }
-		if (target->m_native_function != NULL
+        if (target->m_native_function != NULL
             /* || target->m_jit_function != NULL */)
-		{
-        	(void)woort_VMRuntime_request_set(
-            	vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
-		}
+        {
+            (void)woort_VMRuntime_request_set(
+                vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+        }
         *out_next_ip = ip + 1;
         return true;
     }
 
     case WOORT_OPCODE_RET:
     {
+        if (m2 == 3)
+        {
+            // Is POPRS. not ret.
+            goto label_fall_to_default;
+        }
+
         const woort_Value* trace_sb = sb;
         while (trace_sb[1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE)
         {
@@ -979,6 +1080,7 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
 
     default:
     {
+    label_fall_to_default:
         *out_next_ip = woort_disassembly(ip, &_woort_WAIPO_empty_cb);
         return true;
     }
@@ -1098,7 +1200,7 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
 };
 
 static const size_t _woort_WAIPO_command_table_size =
-    sizeof(_woort_WAIPO_command_table) / sizeof(_woort_WAIPO_command_table[0]);
+sizeof(_woort_WAIPO_command_table) / sizeof(_woort_WAIPO_command_table[0]);
 
 /* OPTIONAL */ static woort_WAIPO_CommandHandler _woort_WAIPO_find_command(
     const char* name)
