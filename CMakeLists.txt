@@ -5,6 +5,11 @@ project ("woort")
 add_library(woort_options INTERFACE)
 target_compile_features(woort_options INTERFACE c_std_11)
 
+if (BUILD_SHARED_LIBS)
+    target_compile_definitions(woort_options 
+        INTERFACE -DWOORT_AS_DYLIB=1)
+endif()
+
 if (MSVC)
     if (POLICY CMP0141)
         cmake_policy(SET CMP0141 NEW)

@@ -1,5 +1,10 @@
 #pragma once
 
+/** @brief Woort version encoded as (major, minor, patch, tweak). */
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 0, 0)
+
+#ifndef WOORT_MSVC_RC_INCLUDE
+
 #ifdef __cplusplus
 #   include <cstddef>
 #   include <cstdint>
@@ -73,11 +78,6 @@ extern "C" {
 #   define WOORT_API
 #endif
 
-/** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 0, 0)
-
-#ifndef WOORT_MSVC_RC_INCLUDE
-
 /**
  * @brief Initialize the Woolang runtime.
  *
@@ -116,7 +116,7 @@ WOORT_API void woort_shutdown(void);
  *
  * @return A malloc-allocated UTF-8 string, or NULL on EOF or read error.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_console_readline(void);
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_console_readline(void);
 
 /**
  * @brief Free a buffer.
@@ -133,7 +133,7 @@ WOORT_API void woort_free(/* OPTIONAL */ void* buf);
  *
  * @return A null-terminated locale name string (never NULL).
  */
-WOORT_API WOORT_NODISCARD const char* woort_env_locale_name(void);
+WOORT_NODISCARD WOORT_API const char* woort_env_locale_name(void);
 
 /**
  * @brief Status codes returned by VM call dispatch operations.
@@ -367,7 +367,7 @@ typedef struct woort_FunctionBoundary
  * @param[out] out_vm  Pointer to receive the new VM handle. Must not be NULL.
  * @return true on success, false on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD bool woort_VMRuntime_create(
+WOORT_NODISCARD WOORT_API bool woort_VMRuntime_create(
     woort_VMRuntime** out_vm);
 
 /**
@@ -382,7 +382,7 @@ WOORT_API void woort_VMRuntime_destroy(
  * @param vm  The new VM instance to install, or NULL to detach.
  * @return The previously active VM instance, or NULL if none was active.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     /* OPTIONAL */ woort_VMRuntime* vm);
 
 /**
@@ -390,7 +390,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
  * @param vm  The VM instance. Must not be NULL.
  * @return The error message string, or NULL if the VM has not aborted.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_VMRuntime_get_runtime_error_msg(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ const char* woort_VMRuntime_get_runtime_error_msg(
     woort_VMRuntime* vm);
 
 typedef struct woort_VMRuntime_TraceCallstack_Iter
@@ -434,7 +434,7 @@ WOORT_API void woort_VMRuntime_trace_begin(
  * @param[out] out_result  Pointer to receive the trace callstack info. Must not be NULL.
  * @return true if a frame was retrieved, false if iteration is complete.
  */
-WOORT_API WOORT_NODISCARD bool woort_VMRuntime_trace_next(
+WOORT_NODISCARD WOORT_API bool woort_VMRuntime_trace_next(
     woort_VMRuntime_TraceCallstack_Iter* modify_trace_iter,
     woort_VMRuntime_TraceCallstack* out_result);
 
@@ -469,7 +469,7 @@ WOORT_API void woort_CodeEnv_drop(
  * @param[out] out_f_addr  Pointer to receive the bytecode address. Must not be NULL.
  * @return true if the function was found, false otherwise.
  */
-WOORT_API WOORT_NODISCARD bool woort_CodeEnv_query_function(
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_query_function(
     woort_CodeEnv* code_env,
     woort_IRFunction* f,
     const woort_Bytecode** out_f_addr);
@@ -498,7 +498,7 @@ WOORT_API void woort_CodeEnv_unlock(
  * @param[out] out_location  Pointer to receive the source location. Must not be NULL.
  * @return true if a matching source location was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_srcloc_by_offset(
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_find_srcloc_by_offset(
     const woort_CodeEnv* env,
     uint32_t bytecode_offset,
     woort_SourceLocation* out_location);
@@ -514,7 +514,7 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_srcloc_by_offset(
  * @param[out] out_bytecode_offset  Pointer to receive the bytecode offset. Must not be NULL.
  * @return true if a matching entry was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_find_offset_by_srcloc(
     const woort_CodeEnv* env,
     const char* filepath,
     uint32_t line,
@@ -531,7 +531,7 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
  * @return The function name, or NULL if no function boundary contains the offset
  *         or the function is anonymous.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_offset(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_offset(
     const woort_CodeEnv* env,
     uint32_t bytecode_offset);
 
@@ -551,7 +551,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function
  * @return false if the address was already trapped or the internal hashmap
  *               ran out of memory.
  */
-WOORT_API WOORT_NODISCARD bool woort_CodeEnv_set_trap(
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_set_trap(
     woort_CodeEnv* env,
     woort_Bytecode* code);
 
@@ -569,7 +569,7 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_set_trap(
  * @return true  if the trap was found and cleared successfully.
  * @return false if no trap was set at the given address.
  */
-WOORT_API WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_clear_trap(
     woort_CodeEnv* env,
     woort_Bytecode* code);
 
@@ -591,7 +591,7 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_clear_trap(
  *              the range [env->m_code_begin, env->m_code_end).
  * @return The original bytecode instruction at the given address.
  */
-WOORT_API WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
+WOORT_NODISCARD WOORT_API woort_Bytecode woort_CodeEnv_raw_trap(
     woort_CodeEnv* env,
     const woort_Bytecode* code);
 
@@ -609,7 +609,7 @@ WOORT_API void woort_CodeEnv_dumps(
  * @param cidx  The IR constant index to associate with the name.
  * @return true on success, false if the name already exists or out of memory.
  */
-WOORT_API WOORT_NODISCARD bool woort_CodeEnv_register_extern_constant(
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_register_extern_constant(
     woort_CodeEnv* env,
     const char* name,
     woort_IRConstantIndex cidx);
@@ -621,7 +621,7 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_register_extern_constant(
  * @param[out] out_cidx  Pointer to receive the IR constant index. Must not be NULL.
  * @return true if the extern constant was found, false otherwise.
  */
-WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_extern_constant(
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_find_extern_constant(
     const woort_CodeEnv* env,
     const char* name,
     woort_IRConstantIndex* out_cidx);
@@ -638,7 +638,7 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_find_extern_constant(
  * @param lib  The library handle to associate. Must not be NULL.
  * @return true on success, false on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD bool woort_CodeEnv_add_extern_lib(
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_add_extern_lib(
     woort_CodeEnv* env,
     woort_Dylib* lib);
 
@@ -648,7 +648,7 @@ WOORT_API WOORT_NODISCARD bool woort_CodeEnv_add_extern_lib(
  * @brief Create a new IR compiler instance.
  * @return The new compiler handle, or NULL on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void);
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void);
 
 /**
  * @brief Close and destroy an IR compiler instance.
@@ -664,7 +664,7 @@ WOORT_API void woort_IRCompiler_close(
  * @param[out] out_f     Pointer to receive the IR function handle. Must not be NULL.
  * @return true on success, false on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD bool woort_IRCompiler_add_function(
+WOORT_NODISCARD WOORT_API bool woort_IRCompiler_add_function(
     woort_IRCompiler* c,
     uint32_t param_count,
     uint32_t captured_count,
@@ -675,7 +675,7 @@ WOORT_API WOORT_NODISCARD bool woort_IRCompiler_add_function(
  * @param c  The compiler. Must not be NULL.
  * @return The index of the newly allocated constant slot.
  */
-WOORT_API WOORT_NODISCARD woort_IRConstantIndex woort_IRCompiler_add_constant(
+WOORT_NODISCARD WOORT_API woort_IRConstantIndex woort_IRCompiler_add_constant(
     woort_IRCompiler* c);
 
 /**
@@ -683,7 +683,7 @@ WOORT_API WOORT_NODISCARD woort_IRConstantIndex woort_IRCompiler_add_constant(
  * @param c  The compiler. Must not be NULL.
  * @return The index of the newly allocated static slot.
  */
-WOORT_API WOORT_NODISCARD woort_IRStaticIndex woort_IRCompiler_add_static(
+WOORT_NODISCARD WOORT_API woort_IRStaticIndex woort_IRCompiler_add_static(
     woort_IRCompiler* c);
 
 /**
@@ -695,7 +695,7 @@ WOORT_API WOORT_NODISCARD woort_IRStaticIndex woort_IRCompiler_add_static(
  * @param[out] out_cenv  Pointer to receive the compiled CodeEnv. Must not be NULL.
  * @return true on success, false on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD bool woort_IRCompiler_finish(
+WOORT_NODISCARD WOORT_API bool woort_IRCompiler_finish(
     woort_IRCompiler* c,
     woort_CodeEnv** out_cenv);
 
@@ -704,7 +704,7 @@ WOORT_API WOORT_NODISCARD bool woort_IRCompiler_finish(
  * @param f  The IR function. Must not be NULL.
  * @return The new IR value handle, or NULL on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_new_vreg(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_IRValue* woort_IRFunction_new_vreg(
     woort_IRFunction* f);
 
 /**
@@ -713,7 +713,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_new_vre
  * @param param_idx Zero-based parameter index.
  * @return The IR value handle for the parameter, or NULL if out of range.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_argument(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_argument(
     woort_IRFunction* f,
     uint32_t param_idx);
 
@@ -723,7 +723,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_arg
  * @param captured_idx Zero-based captured variable index.
  * @return The IR value handle for the captured variable, or NULL on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_captured(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_captured(
     woort_IRFunction* f,
     uint32_t captured_idx);
 
@@ -732,7 +732,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_cap
  * @param f  The IR function. Must not be NULL.
  * @return The new label handle, or NULL on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRLabel* woort_IRFunction_new_label(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_IRLabel* woort_IRFunction_new_label(
     woort_IRFunction* f);
 
 /**
@@ -745,7 +745,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_IRLabel* woort_IRFunction_new_lab
  * @param idx  The constant pool index.
  * @return The IR value for the constant, or NULL on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_fetch_const(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ const woort_IRValue* woort_IRFunction_fetch_const(
     woort_IRFunction* f,
     woort_IRConstantIndex idx);
 
@@ -764,7 +764,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_f
  * @param end_column    End column number.
  * @return true on success, false on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD bool woort_IRFunction_push_srcloc(
+WOORT_NODISCARD WOORT_API bool woort_IRFunction_push_srcloc(
     woort_IRFunction* f,
     /* OPTIONAL */ const char* filepath,
     uint32_t begin_line,
@@ -808,23 +808,23 @@ WOORT_API void woort_IRFunction_set_name(
  /**@{*/
 
  /** @brief No-operation: occupies a code slot but has no runtime effect. */
-WOORT_API WOORT_NODISCARD bool woort_IR_NOP(
+WOORT_NODISCARD WOORT_API bool woort_IR_NOP(
     woort_IRFunction* f);
 
 /** @brief Move: dst = src. */
-WOORT_API WOORT_NODISCARD bool woort_IR_MOV(
+WOORT_NODISCARD WOORT_API bool woort_IR_MOV(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* src);
 
 /** @brief Load static: dst = Static[idx]. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LOAD(
+WOORT_NODISCARD WOORT_API bool woort_IR_LOAD(
     woort_IRFunction* f,
     woort_IRValue* dst,
     woort_IRStaticIndex idx);
 
 /** @brief Store static: Static[idx] = src. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STORE(
+WOORT_NODISCARD WOORT_API bool woort_IR_STORE(
     woort_IRFunction* f,
     woort_IRStaticIndex idx,
     const woort_IRValue* src);
@@ -835,28 +835,28 @@ WOORT_API WOORT_NODISCARD bool woort_IR_STORE(
 /**@{*/
 
 /** @brief Push value onto stack with overflow check. */
-WOORT_API WOORT_NODISCARD bool woort_IR_PUSHCHK(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHCHK(
     woort_IRFunction* f,
     const woort_IRValue* src);
 
 /** @brief Push static storage value onto stack with overflow check.
  *  Equivalent to LOAD + PUSHCHK but without intermediate vreg. */
-WOORT_API WOORT_NODISCARD bool woort_IR_PUSHSTATICCHK(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHSTATICCHK(
     woort_IRFunction* f,
     woort_IRStaticIndex src);
 
 /** @brief Pop top of stack into dst. */
-WOORT_API WOORT_NODISCARD bool woort_IR_POP(
+WOORT_NODISCARD WOORT_API bool woort_IR_POP(
     woort_IRFunction* f,
     woort_IRValue* dst);
 
 /** @brief Pop count items from stack (discard). */
-WOORT_API WOORT_NODISCARD bool woort_IR_POPR(
+WOORT_NODISCARD WOORT_API bool woort_IR_POPR(
     woort_IRFunction* f,
     uint32_t count);
 
 /** @brief Pop count_src items from stack (discard, count from register). */
-WOORT_API WOORT_NODISCARD bool woort_IR_POPRS(
+WOORT_NODISCARD WOORT_API bool woort_IR_POPRS(
     woort_IRFunction* f,
     const woort_IRValue* count_src);
 
@@ -866,25 +866,25 @@ WOORT_API WOORT_NODISCARD bool woort_IR_POPRS(
 /**@{*/
 
 /** @brief Convert integer to real: dst = (woort_Real)src. */
-WOORT_API WOORT_NODISCARD bool woort_IR_ITOR(
+WOORT_NODISCARD WOORT_API bool woort_IR_ITOR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* src);
 
 /** @brief Convert integer to string: dst = tostring(src). */
-WOORT_API WOORT_NODISCARD bool woort_IR_ITOS(
+WOORT_NODISCARD WOORT_API bool woort_IR_ITOS(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* src);
 
 /** @brief Convert real to integer: dst = (woort_Int)src. */
-WOORT_API WOORT_NODISCARD bool woort_IR_RTOI(
+WOORT_NODISCARD WOORT_API bool woort_IR_RTOI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* src);
 
 /** @brief Convert real to string: dst = tostring(src). */
-WOORT_API WOORT_NODISCARD bool woort_IR_RTOS(
+WOORT_NODISCARD WOORT_API bool woort_IR_RTOS(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* src);
@@ -901,7 +901,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_RTOS(
  * @param argc    Number of arguments already pushed onto the stack.
  * @param dst     Destination register for the return value (may be NULL for void calls).
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_CALLNWO(
+WOORT_NODISCARD WOORT_API bool woort_IR_CALLNWO(
     woort_IRFunction* f,
     woort_IRConstantIndex target,
     uint32_t argc,
@@ -914,7 +914,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_CALLNWO(
  * @param argc    Number of arguments already pushed onto the stack.
  * @param dst     Destination register for the return value (may be NULL for void calls).
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_CALLNFP(
+WOORT_NODISCARD WOORT_API bool woort_IR_CALLNFP(
     woort_IRFunction* f,
     woort_IRConstantIndex target,
     uint32_t argc,
@@ -927,7 +927,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_CALLNFP(
  * @param argc    Number of arguments already pushed onto the stack.
  * @param dst     Destination register for the return value (may be NULL for void calls).
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_CALLNJIT(
+WOORT_NODISCARD WOORT_API bool woort_IR_CALLNJIT(
     woort_IRFunction* f,
     woort_IRConstantIndex target,
     uint32_t argc,
@@ -940,7 +940,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_CALLNJIT(
  * @param argc     Number of arguments already pushed onto the stack.
  * @param dst      Destination register for the return value (may be NULL for void calls).
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_CALL(
+WOORT_NODISCARD WOORT_API bool woort_IR_CALL(
     woort_IRFunction* f,
     const woort_IRValue* func_val,
     uint32_t argc,
@@ -958,7 +958,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_CALL(
  * @param elem_count Number of captured upvalues on the stack.
  * @param func_idx   Constant pool index of the enclosed function.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_MKCLOSURE(
+WOORT_NODISCARD WOORT_API bool woort_IR_MKCLOSURE(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint32_t elem_count,
@@ -970,7 +970,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_MKCLOSURE(
  * @param dst        Destination register for the new vector.
  * @param elem_count Number of elements already pushed onto the stack.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_MKVEC(
+WOORT_NODISCARD WOORT_API bool woort_IR_MKVEC(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint32_t elem_count);
@@ -981,7 +981,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_MKVEC(
  * @param dst          Destination register for the new map.
  * @param kvpair_count Number of key-value pairs already pushed onto the stack.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_MKMAP(
+WOORT_NODISCARD WOORT_API bool woort_IR_MKMAP(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint32_t kvpair_count);
@@ -992,7 +992,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_MKMAP(
  * @param dst        Destination register for the new struct.
  * @param elem_count Number of field values already pushed onto the stack.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_MKSTRUCT(
+WOORT_NODISCARD WOORT_API bool woort_IR_MKSTRUCT(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint32_t elem_count);
@@ -1004,7 +1004,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_MKSTRUCT(
  * @param src       Source register holding the union payload value.
  * @param union_id  Variant tag identifying which union case this is.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_MKUNION(
+WOORT_NODISCARD WOORT_API bool woort_IR_MKUNION(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* src,
@@ -1016,28 +1016,28 @@ WOORT_API WOORT_NODISCARD bool woort_IR_MKUNION(
 /**@{*/
 
 /** @brief Box a value into a dynamic container: dst = Box(typ, src). */
-WOORT_API WOORT_NODISCARD bool woort_IR_BOXDYN(
+WOORT_NODISCARD WOORT_API bool woort_IR_BOXDYN(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint8_t typ,
     const woort_IRValue* src);
 
 /** @brief Unbox a dynamic value: dst = unbox(src, typ). Panics if type mismatches. */
-WOORT_API WOORT_NODISCARD bool woort_IR_UNBOXDYN(
+WOORT_NODISCARD WOORT_API bool woort_IR_UNBOXDYN(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint8_t typ,
     const woort_IRValue* src);
 
 /** @brief Check dynamic type: dst = (unbox_type(src) == typ). */
-WOORT_API WOORT_NODISCARD bool woort_IR_CHECKDYN(
+WOORT_NODISCARD WOORT_API bool woort_IR_CHECKDYN(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint8_t typ,
     const woort_IRValue* src);
 
 /** @brief Box and push a dynamic value onto the stack. */
-WOORT_API WOORT_NODISCARD bool woort_IR_PUSHBOXDYN(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHBOXDYN(
     woort_IRFunction* f,
     uint8_t typ,
     const woort_IRValue* src);
@@ -1048,28 +1048,28 @@ WOORT_API WOORT_NODISCARD bool woort_IR_PUSHBOXDYN(
 /**@{*/
 
 /** @brief Convert string value to T8-specified type: dst = cast_to<T>(src). */
-WOORT_API WOORT_NODISCARD bool woort_IR_CASTSTO(
+WOORT_NODISCARD WOORT_API bool woort_IR_CASTSTO(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint8_t typ,
     const woort_IRValue* src);
 
 /** @brief Convert T8-typed value to string: dst = tostring(src). */
-WOORT_API WOORT_NODISCARD bool woort_IR_CASTSFROM(
+WOORT_NODISCARD WOORT_API bool woort_IR_CASTSFROM(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint8_t typ,
     const woort_IRValue* src);
 
 /** @brief Unbox a BOXED value to T8-specified type: dst = unbox_to<T>(src). */
-WOORT_API WOORT_NODISCARD bool woort_IR_CASTDYN(
+WOORT_NODISCARD WOORT_API bool woort_IR_CASTDYN(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint8_t typ,
     const woort_IRValue* src);
 
 /** @brief Assert BOXED value is of T8-specified type; panic if not. */
-WOORT_API WOORT_NODISCARD bool woort_IR_ASSERTDYN(
+WOORT_NODISCARD WOORT_API bool woort_IR_ASSERTDYN(
     woort_IRFunction* f,
     uint8_t typ,
     const woort_IRValue* src);
@@ -1080,42 +1080,42 @@ WOORT_API WOORT_NODISCARD bool woort_IR_ASSERTDYN(
 /**@{*/
 
 /** @brief Integer addition: dst = a + b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_ADDI(
+WOORT_NODISCARD WOORT_API bool woort_IR_ADDI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Integer subtraction: dst = a - b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_SUBI(
+WOORT_NODISCARD WOORT_API bool woort_IR_SUBI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Integer multiplication: dst = a * b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_MULI(
+WOORT_NODISCARD WOORT_API bool woort_IR_MULI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Integer division: dst = a / b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_DIVI(
+WOORT_NODISCARD WOORT_API bool woort_IR_DIVI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Integer modulo: dst = a % b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_MODI(
+WOORT_NODISCARD WOORT_API bool woort_IR_MODI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Integer negation: dst = -src. */
-WOORT_API WOORT_NODISCARD bool woort_IR_NEGI(
+WOORT_NODISCARD WOORT_API bool woort_IR_NEGI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* src);
@@ -1126,42 +1126,42 @@ WOORT_API WOORT_NODISCARD bool woort_IR_NEGI(
 /**@{*/
 
 /** @brief Integer less-than: dst = (a < b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_LTI(
+WOORT_NODISCARD WOORT_API bool woort_IR_LTI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Integer greater-than: dst = (a > b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_GTI(
+WOORT_NODISCARD WOORT_API bool woort_IR_GTI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Integer less-or-equal: dst = (a <= b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_LEI(
+WOORT_NODISCARD WOORT_API bool woort_IR_LEI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Integer greater-or-equal: dst = (a >= b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_GEI(
+WOORT_NODISCARD WOORT_API bool woort_IR_GEI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Integer equal: dst = (a == b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_EQI(
+WOORT_NODISCARD WOORT_API bool woort_IR_EQI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Integer not-equal: dst = (a != b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_NEI(
+WOORT_NODISCARD WOORT_API bool woort_IR_NEI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
@@ -1173,42 +1173,42 @@ WOORT_API WOORT_NODISCARD bool woort_IR_NEI(
 /**@{*/
 
 /** @brief Real addition: dst = a + b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_ADDR(
+WOORT_NODISCARD WOORT_API bool woort_IR_ADDR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Real subtraction: dst = a - b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_SUBR(
+WOORT_NODISCARD WOORT_API bool woort_IR_SUBR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Real multiplication: dst = a * b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_MULR(
+WOORT_NODISCARD WOORT_API bool woort_IR_MULR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Real division: dst = a / b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_DIVR(
+WOORT_NODISCARD WOORT_API bool woort_IR_DIVR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Real modulo: dst = fmod(a, b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_MODR(
+WOORT_NODISCARD WOORT_API bool woort_IR_MODR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Real negation: dst = -src. */
-WOORT_API WOORT_NODISCARD bool woort_IR_NEGR(
+WOORT_NODISCARD WOORT_API bool woort_IR_NEGR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* src);
@@ -1219,42 +1219,42 @@ WOORT_API WOORT_NODISCARD bool woort_IR_NEGR(
 /**@{*/
 
 /** @brief Real less-than: dst = (a < b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_LTR(
+WOORT_NODISCARD WOORT_API bool woort_IR_LTR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Real greater-than: dst = (a > b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_GTR(
+WOORT_NODISCARD WOORT_API bool woort_IR_GTR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Real less-or-equal: dst = (a <= b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_LER(
+WOORT_NODISCARD WOORT_API bool woort_IR_LER(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Real greater-or-equal: dst = (a >= b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_GER(
+WOORT_NODISCARD WOORT_API bool woort_IR_GER(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Real equal: dst = (a == b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_EQR(
+WOORT_NODISCARD WOORT_API bool woort_IR_EQR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Real not-equal: dst = (a != b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_NER(
+WOORT_NODISCARD WOORT_API bool woort_IR_NER(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
@@ -1266,49 +1266,49 @@ WOORT_API WOORT_NODISCARD bool woort_IR_NER(
 /**@{*/
 
 /** @brief String concatenation: dst = a .. b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_ADDS(
+WOORT_NODISCARD WOORT_API bool woort_IR_ADDS(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief String less-than (lexicographic): dst = (a < b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_LTS(
+WOORT_NODISCARD WOORT_API bool woort_IR_LTS(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief String greater-than (lexicographic): dst = (a > b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_GTS(
+WOORT_NODISCARD WOORT_API bool woort_IR_GTS(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief String less-or-equal (lexicographic): dst = (a <= b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_LES(
+WOORT_NODISCARD WOORT_API bool woort_IR_LES(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief String greater-or-equal (lexicographic): dst = (a >= b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_GES(
+WOORT_NODISCARD WOORT_API bool woort_IR_GES(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief String equal: dst = (a == b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_EQS(
+WOORT_NODISCARD WOORT_API bool woort_IR_EQS(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief String not-equal: dst = (a != b). */
-WOORT_API WOORT_NODISCARD bool woort_IR_NES(
+WOORT_NODISCARD WOORT_API bool woort_IR_NES(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
@@ -1320,21 +1320,21 @@ WOORT_API WOORT_NODISCARD bool woort_IR_NES(
 /**@{*/
 
 /** @brief Logical AND: dst = a && b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LAND(
+WOORT_NODISCARD WOORT_API bool woort_IR_LAND(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Logical OR: dst = a || b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LOR(
+WOORT_NODISCARD WOORT_API bool woort_IR_LOR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* a,
     const woort_IRValue* b);
 
 /** @brief Logical NOT: dst = !src. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LNOT(
+WOORT_NODISCARD WOORT_API bool woort_IR_LNOT(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* src);
@@ -1345,84 +1345,84 @@ WOORT_API WOORT_NODISCARD bool woort_IR_LNOT(
 /**@{*/
 
 /** @brief Load vector element by integer index (bounds-checked): dst = container[idx]. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXVEC(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXVEC(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load vector element by integer index (unchecked): dst = container[idx]. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXVECX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXVECX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load struct field by constant index: dst = container[idx]. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXSTRUCT(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXSTRUCT(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     uint32_t idx);
 
 /** @brief Load string character by integer index: dst = container[idx]. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXSTRING(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXSTRING(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by integer key: dst = container[key]. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTI(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by real key: dst = container[key]. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTR(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by bool key: dst = container[key]. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTB(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTB(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by boxed (dynamic) key: dst = container[key]. */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by integer key (boxed result): dst = box(container[key]). */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTIX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTIX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by real key (boxed result): dst = box(container[key]). */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTRX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTRX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by bool key (boxed result): dst = box(container[key]). */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTBX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTBX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by dynamic key (boxed result): dst = box(container[key]). */
-WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTXX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTXX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
@@ -1434,28 +1434,28 @@ WOORT_API WOORT_NODISCARD bool woort_IR_LDIDXDICTXX(
 /**@{*/
 
 /** @brief Store integer value into vector at index. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXVECI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXVECI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Store real value into vector at index. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXVECR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXVECR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Store bool value into vector at index. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXVECB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXVECB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Store boxed (dynamic) value into vector at index. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXVECX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXVECX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
@@ -1470,112 +1470,112 @@ WOORT_API WOORT_NODISCARD bool woort_IR_STIDXVECX(
  * @{*/
 
  /** @brief Dict[int] = int. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTII(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTII(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[int] = real. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTIR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTIR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[int] = bool. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTIB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTIB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[int] = boxed. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTIX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTIX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[real] = int. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTRI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTRI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[real] = real. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTRR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTRR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[real] = bool. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTRB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTRB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[real] = boxed. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTRX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTRX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[bool] = int. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTBI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTBI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[bool] = real. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTBR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTBR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[bool] = bool. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTBB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTBB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[bool] = boxed. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTBX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTBX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[boxed] = int. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTXI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTXI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[boxed] = real. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTXR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTXR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[boxed] = bool. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTXB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTXB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[boxed] = boxed. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTXX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTXX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
@@ -1589,112 +1589,112 @@ WOORT_API WOORT_NODISCARD bool woort_IR_STIDXDICTXX(
  * @{*/
 
  /** @brief Map[int] = int. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPII(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPII(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[int] = real. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPIR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPIR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[int] = bool. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPIB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPIB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[int] = boxed. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPIX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPIX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[real] = int. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPRI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPRI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[real] = real. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPRR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPRR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[real] = bool. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPRB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPRB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[real] = boxed. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPRX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPRX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[bool] = int. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPBI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPBI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[bool] = real. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPBR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPBR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[bool] = bool. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPBB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPBB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[bool] = boxed. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPBX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPBX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[boxed] = int. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPXI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPXI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[boxed] = real. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPXR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPXR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[boxed] = bool. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPXB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPXB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[boxed] = boxed. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPXX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPXX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
@@ -1706,7 +1706,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_STIDXMAPXX(
 /**@{*/
 
 /** @brief Store value into struct field at constant index. */
-WOORT_API WOORT_NODISCARD bool woort_IR_STIDXSTRUCT(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDXSTRUCT(
     woort_IRFunction* f,
     const woort_IRValue* c,
     uint32_t idx,
@@ -1725,7 +1725,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_STIDXSTRUCT(
  * @return true on success, false on OOM
  * @note Emits UNPACKVEC bytecode (mode=0)
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVEC(
+WOORT_NODISCARD WOORT_API bool woort_IR_UNPACKVEC(
     woort_IRFunction* f,
     uint8_t count,
     const woort_IRValue* val);
@@ -1738,7 +1738,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVEC(
  * @return true on success, false on OOM
  * @note Emits UNPACKVECX bytecode (mode=1)
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVECX(
+WOORT_NODISCARD WOORT_API bool woort_IR_UNPACKVECX(
     woort_IRFunction* f,
     uint8_t count,
     const woort_IRValue* val);
@@ -1752,7 +1752,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVECX(
  * @return true on success, false on OOM
  * @note Emits UNPACKVECALL bytecode (mode=2)
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVECALL(
+WOORT_NODISCARD WOORT_API bool woort_IR_UNPACKVECALL(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint8_t count,
@@ -1767,7 +1767,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVECALL(
  * @return true on success, false on OOM
  * @note Emits UNPACKVECXALL bytecode (mode=3)
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVECXALL(
+WOORT_NODISCARD WOORT_API bool woort_IR_UNPACKVECXALL(
     woort_IRFunction* f,
     woort_IRValue* dst,
     uint8_t count,
@@ -1779,25 +1779,25 @@ WOORT_API WOORT_NODISCARD bool woort_IR_UNPACKVECXALL(
 /**@{*/
 
 /** @brief Push struct field at constant index onto the stack. */
-WOORT_API WOORT_NODISCARD bool woort_IR_PUSHIDXSTRUCT(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDXSTRUCT(
     woort_IRFunction* f,
     const woort_IRValue* src,
     uint32_t idx);
 
 /** @brief Push boxed int struct field at index onto stack. */
-WOORT_API WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXI(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDXSTBOXI(
     woort_IRFunction* f,
     const woort_IRValue* src,
     uint32_t idx);
 
 /** @brief Push boxed real struct field at index onto stack. */
-WOORT_API WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXR(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDXSTBOXR(
     woort_IRFunction* f,
     const woort_IRValue* src,
     uint32_t idx);
 
 /** @brief Push boxed bool struct field at index onto stack. */
-WOORT_API WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXB(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDXSTBOXB(
     woort_IRFunction* f,
     const woort_IRValue* src,
     uint32_t idx);
@@ -1809,7 +1809,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_PUSHIDXSTBOXB(
  * @param src  The value to store.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_ASTORE(
+WOORT_NODISCARD WOORT_API bool woort_IR_ASTORE(
     woort_IRFunction* f,
     woort_IRStaticIndex idx,
     const woort_IRValue* src);
@@ -1821,7 +1821,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_ASTORE(
  * @param idx  Static index of the atomic variable.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_ALOAD(
+WOORT_NODISCARD WOORT_API bool woort_IR_ALOAD(
     woort_IRFunction* f,
     woort_IRValue* dst,
     woort_IRStaticIndex idx);
@@ -1834,7 +1834,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_ALOAD(
  * @param desired  The desired new value to swap in if comparison succeeds.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_CAS(
+WOORT_NODISCARD WOORT_API bool woort_IR_CAS(
     woort_IRFunction* f,
     woort_IRStaticIndex idx,
     woort_IRValue* expected,
@@ -1847,7 +1847,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_CAS(
  * @param dst              The destination to store the packed argument array.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_PACKARG(
+WOORT_NODISCARD WOORT_API bool woort_IR_PACKARG(
     woort_IRFunction* f,
     uint16_t named_param_count,
     woort_IRValue* dst);
@@ -1864,7 +1864,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_PACKARG(
  * @param label  The label to bind. Must not be NULL.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_bind(woort_IRFunction* f, woort_IRLabel* label);
+WOORT_NODISCARD WOORT_API bool woort_IR_bind(woort_IRFunction* f, woort_IRLabel* label);
 
 /**
  * @brief Unconditional jump to target label.
@@ -1872,7 +1872,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_bind(woort_IRFunction* f, woort_IRLabel*
  * @param target  The label to jump to. Must not be NULL.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_jmp(woort_IRFunction* f, woort_IRLabel* target);
+WOORT_NODISCARD WOORT_API bool woort_IR_jmp(woort_IRFunction* f, woort_IRLabel* target);
 
 /**
  * @brief Thread-safe once-only initialization guard.
@@ -1892,7 +1892,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_jmp(woort_IRFunction* f, woort_IRLabel* 
  * @param target     The label to jump to when initialized. Must not be NULL.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_jifinited(
+WOORT_NODISCARD WOORT_API bool woort_IR_jifinited(
     woort_IRFunction* f,
     woort_IRStaticIndex cond_idx,
     woort_IRLabel* target);
@@ -1904,7 +1904,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_jifinited(
  * @param target  The label to jump to. Must not be NULL.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_jcc(
+WOORT_NODISCARD WOORT_API bool woort_IR_jcc(
     woort_IRFunction* f,
     const woort_IRValue* cond,
     woort_IRLabel* target);
@@ -1916,7 +1916,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_jcc(
  * @param target  The label to jump to. Must not be NULL.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_jccz(
+WOORT_NODISCARD WOORT_API bool woort_IR_jccz(
     woort_IRFunction* f,
     const woort_IRValue* cond,
     woort_IRLabel* target);
@@ -1927,42 +1927,42 @@ WOORT_API WOORT_NODISCARD bool woort_IR_jccz(
  * @{ */
 
  /** @brief Jump if a < b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_jcc_lt(
+WOORT_NODISCARD WOORT_API bool woort_IR_jcc_lt(
     woort_IRFunction* f,
     const woort_IRValue* a,
     const woort_IRValue* b,
     woort_IRLabel* target);
 
 /** @brief Jump if a <= b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_jcc_le(
+WOORT_NODISCARD WOORT_API bool woort_IR_jcc_le(
     woort_IRFunction* f,
     const woort_IRValue* a,
     const woort_IRValue* b,
     woort_IRLabel* target);
 
 /** @brief Jump if a == b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_jcc_eq(
+WOORT_NODISCARD WOORT_API bool woort_IR_jcc_eq(
     woort_IRFunction* f,
     const woort_IRValue* a,
     const woort_IRValue* b,
     woort_IRLabel* target);
 
 /** @brief Jump if a > b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_jcc_gt(
+WOORT_NODISCARD WOORT_API bool woort_IR_jcc_gt(
     woort_IRFunction* f,
     const woort_IRValue* a,
     const woort_IRValue* b,
     woort_IRLabel* target);
 
 /** @brief Jump if a >= b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_jcc_ge(
+WOORT_NODISCARD WOORT_API bool woort_IR_jcc_ge(
     woort_IRFunction* f,
     const woort_IRValue* a,
     const woort_IRValue* b,
     woort_IRLabel* target);
 
 /** @brief Jump if a != b. */
-WOORT_API WOORT_NODISCARD bool woort_IR_jcc_ne(
+WOORT_NODISCARD WOORT_API bool woort_IR_jcc_ne(
     woort_IRFunction* f,
     const woort_IRValue* a,
     const woort_IRValue* b,
@@ -1977,7 +1977,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_jcc_ne(
  * @param f  The IR function. Must not be NULL.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_debugtrap(woort_IRFunction* f);
+WOORT_NODISCARD WOORT_API bool woort_IR_debugtrap(woort_IRFunction* f);
 
 /**
  * @brief Emit a panic with a string message.
@@ -1985,7 +1985,7 @@ WOORT_API WOORT_NODISCARD bool woort_IR_debugtrap(woort_IRFunction* f);
  * @param msg  The string value to use as the panic message.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_panic(
+WOORT_NODISCARD WOORT_API bool woort_IR_panic(
     woort_IRFunction* f, const woort_IRValue* msg);
 
 /* ============ Return ============ */
@@ -1996,14 +1996,14 @@ WOORT_API WOORT_NODISCARD bool woort_IR_panic(
  * @param val  The return value register.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_ret(woort_IRFunction* f, const woort_IRValue* val);
+WOORT_NODISCARD WOORT_API bool woort_IR_ret(woort_IRFunction* f, const woort_IRValue* val);
 
 /**
  * @brief Return void from the current function.
  * @param f  The IR function. Must not be NULL.
  * @return true on success, false on OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_IR_ret_void(woort_IRFunction* f);
+WOORT_NODISCARD WOORT_API bool woort_IR_ret_void(woort_IRFunction* f);
 
 /**
  * @name CodeEnv Constant Pool Setters
@@ -2201,7 +2201,7 @@ typedef woort_VmCallStatus woort_callstatus;
  *
  * @return Pointer to the new VM runtime, or NULL on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD 
+WOORT_NODISCARD WOORT_API 
 /* OPTIONAL */ woort_VMRuntime* woort_vm_create(void);
 
 #define woort_vm_close woort_VMRuntime_destroy
@@ -2215,7 +2215,7 @@ WOORT_API WOORT_NODISCARD
  * @param[out] out_stack  Pointer to receive the base stack index of the reserved region.
  * @return true on success, false on stack overflow.
  */
-WOORT_API WOORT_NODISCARD bool woort_push_reserve(
+WOORT_NODISCARD WOORT_API bool woort_push_reserve(
     size_t count, woort_StackValue* out_stack);
 
 /**
@@ -2231,7 +2231,7 @@ WOORT_API void woort_pop(size_t count);
  * @note This is an internal API. The returned pointer is valid until the
  *       stack is resized or the VM enters a GC checkpoint.
  */
-WOORT_API WOORT_NODISCARD woort_Value* woort_internal_value(woort_StackValue src);
+WOORT_NODISCARD WOORT_API woort_Value* woort_internal_value(woort_StackValue src);
 
 /**
  * @brief Import (copy) a value from another VM's stack into the current VM.
@@ -2256,7 +2256,7 @@ WOORT_API void woort_import_value(
  * @param cenv  The code environment holding the compiled bytecode. Must not be NULL.
  * @return The call status (NORMAL or ABORTED).
  */
-WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_bootup_codeenv(
+WOORT_NODISCARD WOORT_API woort_VmCallStatus woort_bootup_codeenv(
     woort_StackValue dst, woort_CodeEnv* cenv);
 
 /**
@@ -2265,7 +2265,7 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_bootup_codeenv(
  * @param f    Stack slot holding the callable value.
  * @return The call status (NORMAL or ABORTED).
  */
-WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_invoke(
+WOORT_NODISCARD WOORT_API woort_VmCallStatus woort_invoke(
     woort_StackValue dst, woort_StackValue f);
 
 /**
@@ -2274,7 +2274,7 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_invoke(
  * @param f    Stack slot holding the callable value.
  * @return The call status (NORMAL, YIELD or ABORTED).
  */
-WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_spawn(
+WOORT_NODISCARD WOORT_API woort_VmCallStatus woort_spawn(
     woort_StackValue dst, woort_StackValue f);
 
 /**
@@ -2282,7 +2282,7 @@ WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_spawn(
  * @param dst  Stack slot for the return value, or WOORT_IGNORE to discard.
  * @return The call status (NORMAL, YIELD or ABORTED).
  */
-WOORT_API WOORT_NODISCARD woort_VmCallStatus woort_resume(
+WOORT_NODISCARD WOORT_API woort_VmCallStatus woort_resume(
     woort_StackValue dst);
 
 /**
@@ -2305,7 +2305,7 @@ WOORT_API void woort_load_const(
  * @param name      The name of the extern constant to look up. Must not be NULL.
  * @return true if the extern constant was found and loaded, false otherwise.
  */
-WOORT_API WOORT_NODISCARD bool woort_load_extern_const(
+WOORT_NODISCARD WOORT_API bool woort_load_extern_const(
     woort_StackValue dst,
     const woort_CodeEnv* code_env,
     const char* name);
@@ -2848,13 +2848,13 @@ WOORT_API void woort_set_union_box_bool(
  * @note Regardless of the user's choice, WooRT makes no guarantees about any program behavior after a panic occurs.
  *       The program may crash even after the user makes a selection.
  */
-WOORT_API WOORT_NODISCARD woort_api woort_ret_panic(const char* fmt, ...);
+WOORT_NODISCARD WOORT_API woort_api woort_ret_panic(const char* fmt, ...);
 
 /**
  * @brief Request to pause VM execution, preserving the state after the current Native-function call completes.
  *        Expects to be resumed later via woort_resume, continuing from the preserved state.
  */
-WOORT_API WOORT_NODISCARD woort_api woort_ret_yield(void);
+WOORT_NODISCARD WOORT_API woort_api woort_ret_yield(void);
 
 /**
  * @name Stack Value Readers
@@ -2866,30 +2866,30 @@ WOORT_API WOORT_NODISCARD woort_api woort_ret_yield(void);
  */
 
  /** @brief Read a raw integer from a stack slot. */
-WOORT_API WOORT_NODISCARD woort_Int woort_int(woort_StackValue src);
+WOORT_NODISCARD WOORT_API woort_Int woort_int(woort_StackValue src);
 /** @brief Read a raw pointer from a stack slot (integer cast to void*). */
 #define woort_pointer(src) ((void*)woort_int(src))
 /** @brief Read a raw real (double) from a stack slot. */
-WOORT_API WOORT_NODISCARD woort_Real woort_real(woort_StackValue src);
+WOORT_NODISCARD WOORT_API woort_Real woort_real(woort_StackValue src);
 /** @brief Read a single-precision float from a stack slot. */
-WOORT_API WOORT_NODISCARD float woort_float(woort_StackValue src);
+WOORT_NODISCARD WOORT_API float woort_float(woort_StackValue src);
 /** @brief Read a boolean from a stack slot. */
-WOORT_API WOORT_NODISCARD bool woort_bool(woort_StackValue src);
+WOORT_NODISCARD WOORT_API bool woort_bool(woort_StackValue src);
 /** @brief Read a string pointer from a stack slot. */
-WOORT_API WOORT_NODISCARD woort_U8CString woort_string(woort_StackValue src);
+WOORT_NODISCARD WOORT_API woort_U8CString woort_string(woort_StackValue src);
 /** @brief Read a buffer pointer and its length from a stack slot. */
-WOORT_API WOORT_NODISCARD const void* woort_buffer(
+WOORT_NODISCARD WOORT_API const void* woort_buffer(
     woort_StackValue src, size_t* out_len);
 /** @brief Read a raw GC pointer from a stack slot. */
-WOORT_API WOORT_NODISCARD void* woort_gcpointer(woort_StackValue src);
+WOORT_NODISCARD WOORT_API void* woort_gcpointer(woort_StackValue src);
 /** @brief Unbox and read an integer from a boxed stack slot. */
-WOORT_API WOORT_NODISCARD woort_Int woort_unbox_int(woort_StackValue src);
+WOORT_NODISCARD WOORT_API woort_Int woort_unbox_int(woort_StackValue src);
 /** @brief Unbox and read a real from a boxed stack slot. */
-WOORT_API WOORT_NODISCARD woort_Real woort_unbox_real(woort_StackValue src);
+WOORT_NODISCARD WOORT_API woort_Real woort_unbox_real(woort_StackValue src);
 /** @brief Unbox and read a boolean from a boxed stack slot. */
-WOORT_API WOORT_NODISCARD bool woort_unbox_bool(woort_StackValue src);
+WOORT_NODISCARD WOORT_API bool woort_unbox_bool(woort_StackValue src);
 /** @brief Query the type tag of a boxed dynamic value. */
-WOORT_API WOORT_NODISCARD woort_BoxValueType woort_unbox_type(
+WOORT_NODISCARD WOORT_API woort_BoxValueType woort_unbox_type(
     woort_StackValue src);
 /**
  * @brief Unbox a dynamic value, writing the inner value to dst.
@@ -2897,7 +2897,7 @@ WOORT_API WOORT_NODISCARD woort_BoxValueType woort_unbox_type(
  * @param src  Source stack slot holding the boxed value.
  * @return The type tag of the unboxed value.
  */
-WOORT_API WOORT_NODISCARD woort_BoxValueType woort_unbox(
+WOORT_NODISCARD WOORT_API woort_BoxValueType woort_unbox(
     woort_StackValue dst,
     woort_StackValue src);
 
@@ -2909,7 +2909,7 @@ WOORT_API WOORT_NODISCARD woort_BoxValueType woort_unbox(
  * @param src  Source stack slot holding the union.
  * @return The union discriminant (variant id).
  */
-WOORT_API WOORT_NODISCARD woort_Int woort_union_get(
+WOORT_NODISCARD WOORT_API woort_Int woort_union_get(
     woort_StackValue dst, woort_StackValue src);
 
 /**
@@ -2937,7 +2937,7 @@ WOORT_API WOORT_NODISCARD woort_Int woort_union_get(
  * @param src  Stack slot holding the vector.
  * @return Number of elements.
  */
-WOORT_API WOORT_NODISCARD size_t woort_vec_len(
+WOORT_NODISCARD WOORT_API size_t woort_vec_len(
     woort_StackValue src);
 
 /**
@@ -2960,7 +2960,7 @@ WOORT_API void woort_vec_resize(
  * @param index      Zero-based element index.
  * @return true if the index was in range, false if out of range.
  */
-WOORT_API WOORT_NODISCARD bool woort_vec_get(
+WOORT_NODISCARD WOORT_API bool woort_vec_get(
     woort_StackValue dst_boxed,
     woort_StackValue src,
     size_t index);
@@ -2977,7 +2977,7 @@ WOORT_API WOORT_NODISCARD bool woort_vec_get(
  * @param boxed_elem Stack slot holding the boxed element to write.
  * @return true if the index was in range, false if out of range.
  */
-WOORT_API WOORT_NODISCARD bool woort_vec_set(
+WOORT_NODISCARD WOORT_API bool woort_vec_set(
     woort_StackValue src,
     size_t index,
     woort_StackValue boxed_elem);
@@ -3055,7 +3055,7 @@ WOORT_API void woort_vec_swap(
  * @param src  Stack slot holding the map.
  * @return Number of entries.
  */
-WOORT_API WOORT_NODISCARD size_t woort_map_len(woort_StackValue src);
+WOORT_NODISCARD WOORT_API size_t woort_map_len(woort_StackValue src);
 
 /**
  * @brief Reserve capacity for at least the given number of entries.
@@ -3079,7 +3079,7 @@ WOORT_API void woort_map_reserve(
  * @param key_boxed   Stack slot holding the boxed key.
  * @return true if the key was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_get(
+WOORT_NODISCARD WOORT_API bool woort_map_get(
     woort_StackValue dst,
     woort_StackValue src,
     woort_StackValue key_boxed);
@@ -3091,7 +3091,7 @@ WOORT_API WOORT_NODISCARD bool woort_map_get(
  * @param key   Integer key to look up.
  * @return true if the key was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_get_by_int(
+WOORT_NODISCARD WOORT_API bool woort_map_get_by_int(
     woort_StackValue dst,
     woort_StackValue src,
     woort_Int key);
@@ -3103,7 +3103,7 @@ WOORT_API WOORT_NODISCARD bool woort_map_get_by_int(
  * @param key   Real key to look up.
  * @return true if the key was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_get_by_real(
+WOORT_NODISCARD WOORT_API bool woort_map_get_by_real(
     woort_StackValue dst,
     woort_StackValue src,
     woort_Real key);
@@ -3115,7 +3115,7 @@ WOORT_API WOORT_NODISCARD bool woort_map_get_by_real(
  * @param key   Boolean key to look up.
  * @return true if the key was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_get_by_bool(
+WOORT_NODISCARD WOORT_API bool woort_map_get_by_bool(
     woort_StackValue dst,
     woort_StackValue src,
     bool key);
@@ -3127,7 +3127,7 @@ WOORT_API WOORT_NODISCARD bool woort_map_get_by_bool(
  * @param key   String key to look up.
  * @return true if the key was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_get_by_string(
+WOORT_NODISCARD WOORT_API bool woort_map_get_by_string(
     woort_StackValue dst,
     woort_StackValue src,
     woort_U8CString key);
@@ -3144,31 +3144,31 @@ WOORT_API WOORT_NODISCARD bool woort_map_get_by_string(
  * @param val_boxed  Stack slot holding the boxed value.
  * @return true if the key was newly inserted, false if an existing key was updated.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_set(
+WOORT_NODISCARD WOORT_API bool woort_map_set(
     woort_StackValue src,
     woort_StackValue key_boxed,
     woort_StackValue val_boxed);
 
 /** @brief Insert/update with int key. Returns true if newly inserted. */
-WOORT_API WOORT_NODISCARD bool woort_map_set_by_int(
+WOORT_NODISCARD WOORT_API bool woort_map_set_by_int(
     woort_StackValue src,
     woort_Int key,
     woort_StackValue val_boxed);
 
 /** @brief Insert/update with real key. Returns true if newly inserted. */
-WOORT_API WOORT_NODISCARD bool woort_map_set_by_real(
+WOORT_NODISCARD WOORT_API bool woort_map_set_by_real(
     woort_StackValue src,
     woort_Real key,
     woort_StackValue val_boxed);
 
 /** @brief Insert/update with bool key. Returns true if newly inserted. */
-WOORT_API WOORT_NODISCARD bool woort_map_set_by_bool(
+WOORT_NODISCARD WOORT_API bool woort_map_set_by_bool(
     woort_StackValue src,
     bool key,
     woort_StackValue val_boxed);
 
 /** @brief Insert/update with string key. Returns true if newly inserted. */
-WOORT_API WOORT_NODISCARD bool woort_map_set_by_string(
+WOORT_NODISCARD WOORT_API bool woort_map_set_by_string(
     woort_StackValue src,
     woort_U8CString key,
     woort_StackValue val_boxed);
@@ -3184,27 +3184,27 @@ WOORT_API WOORT_NODISCARD bool woort_map_set_by_string(
  * @param key_boxed  Stack slot holding the boxed key.
  * @return true if the key existed and was removed.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_erase(
+WOORT_NODISCARD WOORT_API bool woort_map_erase(
     woort_StackValue src,
     woort_StackValue key_boxed);
 
 /** @brief Erase by int key. Returns true if found and removed. */
-WOORT_API WOORT_NODISCARD bool woort_map_erase_by_int(
+WOORT_NODISCARD WOORT_API bool woort_map_erase_by_int(
     woort_StackValue src,
     woort_Int key);
 
 /** @brief Erase by real key. Returns true if found and removed. */
-WOORT_API WOORT_NODISCARD bool woort_map_erase_by_real(
+WOORT_NODISCARD WOORT_API bool woort_map_erase_by_real(
     woort_StackValue src,
     woort_Real key);
 
 /** @brief Erase by bool key. Returns true if found and removed. */
-WOORT_API WOORT_NODISCARD bool woort_map_erase_by_bool(
+WOORT_NODISCARD WOORT_API bool woort_map_erase_by_bool(
     woort_StackValue src,
     bool key);
 
 /** @brief Erase by string key. Returns true if found and removed. */
-WOORT_API WOORT_NODISCARD bool woort_map_erase_by_string(
+WOORT_NODISCARD WOORT_API bool woort_map_erase_by_string(
     woort_StackValue src,
     woort_U8CString key);
 
@@ -3237,27 +3237,27 @@ WOORT_API void woort_map_swap(
 /**@{*/
 
 /** @brief Check if a boxed key exists in the map. */
-WOORT_API WOORT_NODISCARD bool woort_map_contains(
+WOORT_NODISCARD WOORT_API bool woort_map_contains(
     woort_StackValue src,
     woort_StackValue key_boxed);
 
 /** @brief Check if an int key exists in the map. */
-WOORT_API WOORT_NODISCARD bool woort_map_contains_int(
+WOORT_NODISCARD WOORT_API bool woort_map_contains_int(
     woort_StackValue src,
     woort_Int key);
 
 /** @brief Check if a real key exists in the map. */
-WOORT_API WOORT_NODISCARD bool woort_map_contains_real(
+WOORT_NODISCARD WOORT_API bool woort_map_contains_real(
     woort_StackValue src,
     woort_Real key);
 
 /** @brief Check if a bool key exists in the map. */
-WOORT_API WOORT_NODISCARD bool woort_map_contains_bool(
+WOORT_NODISCARD WOORT_API bool woort_map_contains_bool(
     woort_StackValue src,
     bool key);
 
 /** @brief Check if a string key exists in the map. */
-WOORT_API WOORT_NODISCARD bool woort_map_contains_string(
+WOORT_NODISCARD WOORT_API bool woort_map_contains_string(
     woort_StackValue src,
     woort_U8CString key);
 
@@ -3278,7 +3278,7 @@ WOORT_API WOORT_NODISCARD bool woort_map_contains_string(
  * @param out_val_boxed  Destination for the boxed value, or WOORT_IGNORE to discard.
  * @return true if a valid entry was found at the given index.
  */
-WOORT_API WOORT_NODISCARD bool woort_map_iter(
+WOORT_NODISCARD WOORT_API bool woort_map_iter(
     woort_StackValue src,
     size_t index,
     woort_StackValue out_key_boxed,
@@ -3322,7 +3322,7 @@ typedef enum woort_SerializeFlag
  * @param flags  Bitmask of woort_SerializeFlag values.
  * @return NUL-terminated string on success, NULL on failure (unsupported type, cycle, OOM).
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_dynbox(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_serialize_dynbox(
     woort_StackValue src, uint32_t flags);
 
 /**
@@ -3334,7 +3334,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_dynbox(
  * @param flags  Bitmask of woort_SerializeFlag values.
  * @return NUL-terminated string on success, NULL on failure (cycle, OOM).
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_map(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_serialize_map(
     woort_StackValue src, uint32_t flags);
 
 /**
@@ -3346,7 +3346,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_map(
  * @param flags  Bitmask of woort_SerializeFlag values.
  * @return NUL-terminated string on success, NULL on failure (cycle, OOM).
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_vec(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_serialize_vec(
     woort_StackValue src, uint32_t flags);
 
 /**@}*/
@@ -3363,7 +3363,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_serialize_vec(
  * @param str  NUL-terminated Woolang literal string.
  * @return true on success, false on parse error or OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_deserialize_dynbox(
+WOORT_NODISCARD WOORT_API bool woort_deserialize_dynbox(
     woort_StackValue dst, const char* str);
 
 /**
@@ -3375,7 +3375,7 @@ WOORT_API WOORT_NODISCARD bool woort_deserialize_dynbox(
  * @param str  NUL-terminated Woolang literal string.
  * @return true on success, false on parse error, wrong type, or OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_deserialize_map(
+WOORT_NODISCARD WOORT_API bool woort_deserialize_map(
     woort_StackValue dst, const char* str);
 
 /**
@@ -3387,7 +3387,7 @@ WOORT_API WOORT_NODISCARD bool woort_deserialize_map(
  * @param str  NUL-terminated Woolang literal string.
  * @return true on success, false on parse error, wrong type, or OOM.
  */
-WOORT_API WOORT_NODISCARD bool woort_deserialize_vec(
+WOORT_NODISCARD WOORT_API bool woort_deserialize_vec(
     woort_StackValue dst, const char* str);
 
 /**@}*/
@@ -3402,7 +3402,7 @@ WOORT_API WOORT_NODISCARD bool woort_deserialize_vec(
  * @param src  Stack slot holding the struct.
  * @return Number of fields.
  */
-WOORT_API WOORT_NODISCARD size_t woort_struct_len(
+WOORT_NODISCARD WOORT_API size_t woort_struct_len(
     woort_StackValue src);
 
 /**@}*/
@@ -3444,14 +3444,14 @@ WOORT_API void woort_struct_set(
  * The result is cached after the first call. Returns a malloc'd string
  * that the caller must free. Never returns NULL under normal operation.
  */
-WOORT_API WOORT_NODISCARD char* woort_exe_path(void);
+WOORT_NODISCARD WOORT_API char* woort_exe_path(void);
 
 /**
  * @brief Get the current working directory.
  *
  * Returns a malloc'd string that the caller must free.
  */
-WOORT_API WOORT_NODISCARD char* woort_work_path(void);
+WOORT_NODISCARD WOORT_API char* woort_work_path(void);
 
 /**
  * @brief Set the current working directory.
@@ -3470,7 +3470,7 @@ WOORT_API bool woort_set_work_path(const char* path);
  * @param path  The file path to extract the directory from.
  * @return A malloc'd directory path, or NULL if path is NULL.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_get_file_loc(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_get_file_loc(
     /* OPTIONAL */ const char* path);
 
 /**
@@ -3503,7 +3503,7 @@ WOORT_API void woort_normalize_path(/* OPTIONAL */ char* path);
  * @param enable_modify Whether the file can be removed or overwritten later.
  * @return true on success.
  */
-WOORT_API WOORT_NODISCARD bool woort_vfs_create(
+WOORT_NODISCARD WOORT_API bool woort_vfs_create(
     const char* filepath,
     /* OPTIONAL */ const void* data,
     size_t length,
@@ -3517,7 +3517,7 @@ WOORT_API WOORT_NODISCARD bool woort_vfs_create(
  * @param filepath  The virtual file path (without scheme prefix).
  * @return true if the file was found and removed.
  */
-WOORT_API WOORT_NODISCARD bool woort_vfs_remove(const char* filepath);
+WOORT_NODISCARD WOORT_API bool woort_vfs_remove(const char* filepath);
 
 /**
  * @brief Check whether a URI uses the virtual file scheme ("woovf://").
@@ -3525,7 +3525,7 @@ WOORT_API WOORT_NODISCARD bool woort_vfs_remove(const char* filepath);
  * @param uri  The URI to check.
  * @return true if the URI starts with the virtual file scheme.
  */
-WOORT_API WOORT_NODISCARD bool woort_vfs_is_virtual_uri(
+WOORT_NODISCARD WOORT_API bool woort_vfs_is_virtual_uri(
     /* OPTIONAL */ const char* uri);
 
 /**
@@ -3539,7 +3539,7 @@ WOORT_API WOORT_NODISCARD bool woort_vfs_is_virtual_uri(
  * @param out_length Receives the content length (may be NULL).
  * @return true if the file was found.
  */
-WOORT_API WOORT_NODISCARD bool woort_vfs_read(
+WOORT_NODISCARD WOORT_API bool woort_vfs_read(
     const char* filepath,
     /* OPTIONAL */ char** out_data,
     /* OPTIONAL */ size_t* out_length);
@@ -3552,7 +3552,7 @@ WOORT_API WOORT_NODISCARD bool woort_vfs_read(
  * @param filepath  The virtual file path.
  * @return true if the file exists in the VFS registry.
  */
-WOORT_API WOORT_NODISCARD bool woort_vfs_exists(const char* filepath);
+WOORT_NODISCARD WOORT_API bool woort_vfs_exists(const char* filepath);
 
 /**
  * @brief Get all registered virtual file paths.
@@ -3564,7 +3564,7 @@ WOORT_API WOORT_NODISCARD bool woort_vfs_exists(const char* filepath);
  * @param out_paths  Receives the string array (may be NULL to get count only).
  * @return The number of entries.
  */
-WOORT_API WOORT_NODISCARD size_t woort_vfs_get_all_paths(
+WOORT_NODISCARD WOORT_API size_t woort_vfs_get_all_paths(
     /* OPTIONAL */ char*** out_paths);
 
 /**
@@ -3573,7 +3573,7 @@ WOORT_API WOORT_NODISCARD size_t woort_vfs_get_all_paths(
  * @param path  The file system path to check.
  * @return true if the path points to a readable file.
  */
-WOORT_API WOORT_NODISCARD bool woort_fs_is_file_readable(
+WOORT_NODISCARD WOORT_API bool woort_fs_is_file_readable(
     /* OPTIONAL */ const char* path);
 
 /**
@@ -3595,7 +3595,7 @@ WOORT_API WOORT_NODISCARD bool woort_fs_is_file_readable(
  * @param out_resolved_path Receives the malloc'd resolved path (may be NULL).
  * @return true if the file was found (virtual or real).
  */
-WOORT_API WOORT_NODISCARD bool woort_vfs_resolve_path(
+WOORT_NODISCARD WOORT_API bool woort_vfs_resolve_path(
     const char* filepath,
     /* OPTIONAL */ const char* const* search_dirs,
     size_t search_dir_count,
@@ -3612,7 +3612,7 @@ WOORT_API WOORT_NODISCARD bool woort_vfs_resolve_path(
  * @param out_file  Receives the opened file handle.
  * @return true on success.
  */
-WOORT_API WOORT_NODISCARD bool woort_vfile_open(
+WOORT_NODISCARD WOORT_API bool woort_vfile_open(
     const char* filepath,
     /* OPTIONAL */ woort_VFile** out_file);
 
@@ -3625,7 +3625,7 @@ WOORT_API WOORT_NODISCARD bool woort_vfile_open(
  * @param out_bytes_read Receives the actual number of bytes read (may be NULL).
  * @return true on success (false if file is NULL).
  */
-WOORT_API WOORT_NODISCARD bool woort_vfile_read(
+WOORT_NODISCARD WOORT_API bool woort_vfile_read(
     woort_VFile* file,
     /* OPTIONAL */ void* buffer,
     size_t size,
@@ -3639,7 +3639,7 @@ WOORT_API WOORT_NODISCARD bool woort_vfile_read(
  * @param whence  SEEK_SET, SEEK_CUR, or SEEK_END.
  * @return true on success.
  */
-WOORT_API WOORT_NODISCARD bool woort_vfile_seek(
+WOORT_NODISCARD WOORT_API bool woort_vfile_seek(
     woort_VFile* file,
     int64_t offset,
     int whence);
@@ -3650,7 +3650,7 @@ WOORT_API WOORT_NODISCARD bool woort_vfile_seek(
  * @param file  The file handle (may be NULL, returns -1).
  * @return The current byte offset, or -1 on error.
  */
-WOORT_API WOORT_NODISCARD int64_t woort_vfile_tell(
+WOORT_NODISCARD WOORT_API int64_t woort_vfile_tell(
     /* OPTIONAL */ woort_VFile* file);
 
 /**
@@ -3659,7 +3659,7 @@ WOORT_API WOORT_NODISCARD int64_t woort_vfile_tell(
  * @param file  The file handle (may be NULL, returns -1).
  * @return The file size in bytes, or -1 on error.
  */
-WOORT_API WOORT_NODISCARD int64_t woort_vfile_size(
+WOORT_NODISCARD WOORT_API int64_t woort_vfile_size(
     /* OPTIONAL */ woort_VFile* file);
 
 /**
@@ -3688,7 +3688,7 @@ WOORT_API void woort_vfile_close(/* OPTIONAL */ woort_VFile* file);
  * @return A handle to the fake library, or NULL if the name is already taken
  *         or memory allocation fails.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
     const char* libname,
     const woort_ExternLibFunc* funcs,
     /* OPTIONAL */ woort_Dylib* dependence_dylib);
@@ -3711,7 +3711,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
  * @param panic_when_fail  If true, panics on failure instead of returning NULL.
  * @return A handle to the loaded library, or NULL on failure.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     const char* libname,
     const char* path,
     /* OPTIONAL */ const char* script_path,
@@ -3728,7 +3728,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
  * @param funcname  Name of the function to look up.
  * @return The function pointer, or NULL if not found.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ void* woort_dylib_load_func(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ void* woort_dylib_load_func(
     woort_Dylib* lib,
     const char* funcname);
 
@@ -3744,7 +3744,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ void* woort_dylib_load_func(
  * @param func_addr Function address to look up.
  * @return The function name if found in the resolved table, or NULL.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ const char* woort_dylib_get_func_name(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ const char* woort_dylib_get_func_name(
     woort_Dylib* lib,
     /* OPTIONAL */ void* func_addr);
 
@@ -3785,7 +3785,7 @@ WOORT_API void woort_dylib_keep(woort_Dylib* lib);
  *
  * @return The library handle, or NULL if woort_init has not been called.
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_get_builtin_lib(void);
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_Dylib* woort_get_builtin_lib(void);
 
 /* ========== WAIPO Debugger ========== */
 
@@ -3798,7 +3798,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_get_builtin_lib(void
  *
  * @return true on success, false on out-of-memory.
  */
-WOORT_API WOORT_NODISCARD bool woort_WAIPO_Debugger_attach(void);
+WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_attach(void);
 
 /**
  * @brief Breakdown all VMs by sending a debug callback request.
@@ -3839,7 +3839,7 @@ typedef __CHAR32_TYPE__ char32_t;
  * @return The Unicode code point at the given position.
  * @note Panics if the index is out of range.
  */
-WOORT_API WOORT_NODISCARD char32_t woort_str_get_char(
+WOORT_NODISCARD WOORT_API char32_t woort_str_get_char(
     const char* str, size_t index);
 
 /**
@@ -3850,7 +3850,7 @@ WOORT_API WOORT_NODISCARD char32_t woort_str_get_char(
  * @return The Unicode code point at the given position.
  * @note Panics if the index is out of range.
  */
-WOORT_API WOORT_NODISCARD char32_t woort_strn_get_char(
+WOORT_NODISCARD WOORT_API char32_t woort_strn_get_char(
     const char* str, size_t size, size_t index);
 
 /**
@@ -3858,7 +3858,7 @@ WOORT_API WOORT_NODISCARD char32_t woort_strn_get_char(
  * @param str  The UTF-8 input string.
  * @return A heap-allocated wide-character string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_str_to_wstr(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ wchar_t* woort_str_to_wstr(
     const char* str);
 
 /**
@@ -3867,7 +3867,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_str_to_wstr(
  * @param size  Length of the string in bytes.
  * @return A heap-allocated wide-character string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_strn_to_wstr(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ wchar_t* woort_strn_to_wstr(
     const char* str, size_t size);
 
 /**
@@ -3875,7 +3875,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_strn_to_wstr(
  * @param str  The wide-character input string.
  * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_wstr_to_str(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_wstr_to_str(
     const wchar_t* str);
 
 /**
@@ -3884,7 +3884,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_wstr_to_str(
  * @param size  Length of the string in wide characters.
  * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_wstrn_to_str(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_wstrn_to_str(
     const wchar_t* str, size_t size);
 
 /**
@@ -3892,7 +3892,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_wstrn_to_str(
  * @param str  The UTF-8 input string.
  * @return A heap-allocated UTF-16 string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char16_t* woort_str_to_u16str(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char16_t* woort_str_to_u16str(
     const char* str);
 
 /**
@@ -3901,7 +3901,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char16_t* woort_str_to_u16str(
  * @param size  Length of the string in bytes.
  * @return A heap-allocated UTF-16 string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char16_t* woort_strn_to_u16str(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char16_t* woort_strn_to_u16str(
     const char* str, size_t size);
 
 /**
@@ -3909,7 +3909,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char16_t* woort_strn_to_u16str(
  * @param str  The UTF-16 input string.
  * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u16str_to_str(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u16str_to_str(
     const char16_t* str);
 
 /**
@@ -3918,7 +3918,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u16str_to_str(
  * @param size  Length of the string in UTF-16 code units.
  * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u16strn_to_str(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u16strn_to_str(
     const char16_t* str, size_t size);
 
 /**
@@ -3926,7 +3926,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u16strn_to_str(
  * @param str  The UTF-8 input string.
  * @return A heap-allocated UTF-32 string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char32_t* woort_str_to_u32str(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char32_t* woort_str_to_u32str(
     const char* str);
 
 /**
@@ -3935,7 +3935,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char32_t* woort_str_to_u32str(
  * @param size  Length of the string in bytes.
  * @return A heap-allocated UTF-32 string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char32_t* woort_strn_to_u32str(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char32_t* woort_strn_to_u32str(
     const char* str, size_t size);
 
 /**
@@ -3943,7 +3943,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char32_t* woort_strn_to_u32str(
  * @param str  The UTF-32 input string.
  * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u32str_to_str(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u32str_to_str(
     const char32_t* str);
 
 /**
@@ -3952,7 +3952,7 @@ WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u32str_to_str(
  * @param size  Length of the string in UTF-32 code units.
  * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
  */
-WOORT_API WOORT_NODISCARD /* OPTIONAL */ char* woort_u32strn_to_str(
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u32strn_to_str(
     const char32_t* str, size_t size);
 
 /* ========== ANSI Escape Code Macros ========== */

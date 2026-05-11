@@ -20,11 +20,6 @@ target_include_directories(woort PRIVATE "../3rd/woomem/include")
 
 target_compile_definitions(woort PRIVATE -DWOORT_IMPL=1)
 
-if (BUILD_SHARED_LIBS)
-    target_compile_definitions(woort 
-        PRIVATE -DWOORT_AS_DYLIB=1)
-endif()
-
 set_target_properties(
     woort PROPERTIES OUTPUT_NAME libwoort)
 set_target_properties(
