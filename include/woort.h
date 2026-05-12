@@ -386,6 +386,12 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     /* OPTIONAL */ woort_VMRuntime* vm);
 
 /**
+ * @brief Get the current thread-local VM instance.
+ * @return The current VM instance, or NULL if no VM is active on this thread.
+ */
+WOORT_NODISCARD WOORT_API  /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_current();
+
+/**
  * @brief Get the runtime error message if the VM has aborted.
  * @param vm  The VM instance. Must not be NULL.
  * @return The error message string, or NULL if the VM has not aborted.

@@ -1777,12 +1777,6 @@ typedef struct array_iter_t
 
 } array_iter_t;
 
-typedef struct trace_iter_t
-{
-    woort_VMRuntime_TraceCallstack_Iter m_iter;
-
-} trace_iter_t;
-
 static woort_api woort_builtin_array_iter(void)
 {
     array_iter_t* iter = (array_iter_t*)malloc(sizeof(array_iter_t));
@@ -3395,98 +3389,92 @@ static woort_api woort_builtin_tuple_cdr(void)
     return woort_ret();
 }
 
-/* ================================================================
- * Trace functions
- * ================================================================ */
-
-static woort_api woort_builtin_trace_begin(void)
+static woort_api woort_builtin_debug_trace_callstack(void)
 {
-    int layer = (int)woort_int(0);
-    if (layer < 0)
-        layer = 0;
+    const woort_Int layer_count = woort_int(0);
+    woort_vm* this_vm = woort_VMRuntime_current();
 
-    trace_iter_t* iter = (trace_iter_t*)malloc(sizeof(trace_iter_t));
-    if (iter == NULL)
-        return woort_ret_panic("Out of memory.");
-
-    woort_VMRuntime* vm = woort_vm_swap(NULL);
-    woort_VMRuntime_trace_begin(vm, &iter->m_iter);
-    (void)woort_vm_swap(vm);
-
-    for (int i = 0; i < layer; i++)
+    woort_StackValue temp_callstack;
+    if (!woort_push_reserve(7, &temp_callstack))
     {
-        woort_VMRuntime_TraceCallstack dummy;
-        if (!woort_VMRuntime_trace_next(&iter->m_iter, &dummy))
-            break;
+        return woort_ret_panic("Stack overflow.");
     }
+    woort_StackValue temp_val    = temp_callstack + 1;
+    woort_StackValue temp_loc    = temp_callstack + 2;
+    woort_StackValue temp_inner1 = temp_callstack + 3;
+    woort_StackValue temp_inner2 = temp_callstack + 4;
+    woort_StackValue temp_outer  = temp_callstack + 5;
+    woort_StackValue temp_result = temp_callstack + 6;
 
-    return woort_ret_gchandle(iter, 0, free, NULL);
-}
+    woort_set_vec(temp_result);
 
-static woort_api woort_builtin_trace_iter_next(void)
-{
-    void* ptr = woort_gcpointer(0);
-    trace_iter_t* iter = (trace_iter_t*)ptr;
+    woort_VMRuntime_TraceCallstack_Iter iter;
+    woort_VMRuntime_TraceCallstack trace;
+    woort_VMRuntime_trace_begin(this_vm, &iter);
 
-    woort_VMRuntime_TraceCallstack result;
-
-    if (woort_VMRuntime_trace_next(&iter->m_iter, &result))
+    size_t depth = 0;
+    while (woort_VMRuntime_trace_next(&iter, &trace))
     {
-        woort_StackValue elem, elem2, elem3;
-        if (!woort_push_reserve(3, &elem))
-            return woort_ret_panic("Stack overflow.");
-        elem2 = (woort_StackValue)((ptrdiff_t)elem + 1);
-        elem3 = (woort_StackValue)((ptrdiff_t)elem + 2);
+        if (layer_count > 0 && (woort_Int)depth >= layer_count)
+            break;
 
-        /* Build the callstack struct (3 fields) */
-        woort_set_struct(WOORT_RETURN_SLOT, 3);
+        /* Build callstack struct with 3 fields */
+        woort_set_struct(temp_callstack, 3);
 
-        /* Field 0: function_name */
-        woort_set_string(elem,
-            result.m_function_name ? result.m_function_name : "<?>");
-        woort_struct_set(WOORT_RETURN_SLOT, 0, elem);
-
-        /* Field 1: file_name */
-        woort_set_string(elem,
-            result.m_file_or_lib_name ? result.m_file_or_lib_name : "<?>");
-        woort_struct_set(WOORT_RETURN_SLOT, 1, elem);
-
-        /* Field 2: location: option<((int, int), (int, int))> */
-        if (result.m_has_location)
+        /* field 0: function_name */
         {
-            /* Build inner struct on elem2: ((begin), (end)) */
-            woort_set_struct(elem2, 2);
+            const char* name = trace.m_function_name != NULL
+                ? trace.m_function_name : "<unknown>";
+            woort_set_string(temp_val, name);
+            woort_struct_set(temp_callstack, 0, temp_val);
+        }
 
-            /* Field 0: (begin_row, begin_col) */
-            woort_set_struct(elem3, 2);
-            woort_set_int(elem, (woort_Int)result.m_location_begin[0]);
-            woort_struct_set(elem3, 0, elem);
-            woort_set_int(elem, (woort_Int)result.m_location_begin[1]);
-            woort_struct_set(elem3, 1, elem);
-            woort_struct_set(elem2, 0, elem3);
+        /* field 1: file_name */
+        {
+            const char* file = trace.m_file_or_lib_name != NULL
+                ? trace.m_file_or_lib_name : "<unknown>";
+            woort_set_string(temp_val, file);
+            woort_struct_set(temp_callstack, 1, temp_val);
+        }
 
-            /* Field 1: (end_row, end_col) */
-            woort_set_struct(elem3, 2);
-            woort_set_int(elem, (woort_Int)result.m_location_end[0]);
-            woort_struct_set(elem3, 0, elem);
-            woort_set_int(elem, (woort_Int)result.m_location_end[1]);
-            woort_struct_set(elem3, 1, elem);
-            woort_struct_set(elem2, 1, elem3);
+        /* field 2: location (option<((int,int),(int,int))>) */
+        if (trace.m_has_location)
+        {
+            /* inner tuple 1: (begin_line, begin_col) */
+            woort_set_struct(temp_inner1, 2);
+            woort_set_int(temp_val, (woort_Int)trace.m_location_begin[0]);
+            woort_struct_set(temp_inner1, 0, temp_val);
+            woort_set_int(temp_val, (woort_Int)trace.m_location_begin[1]);
+            woort_struct_set(temp_inner1, 1, temp_val);
 
-            /* Wrap in option::value */
-            woort_set_option_value(elem, elem2);
-            woort_struct_set(WOORT_RETURN_SLOT, 2, elem);
+            /* inner tuple 2: (end_line, end_col) */
+            woort_set_struct(temp_inner2, 2);
+            woort_set_int(temp_val, (woort_Int)trace.m_location_end[0]);
+            woort_struct_set(temp_inner2, 0, temp_val);
+            woort_set_int(temp_val, (woort_Int)trace.m_location_end[1]);
+            woort_struct_set(temp_inner2, 1, temp_val);
+
+            /* outer tuple: (inner1, inner2) */
+            woort_set_struct(temp_outer, 2);
+            woort_struct_set(temp_outer, 0, temp_inner1);
+            woort_struct_set(temp_outer, 1, temp_inner2);
+
+            /* wrap in option::Some */
+            woort_set_option_value(temp_loc, temp_outer);
         }
         else
         {
-            woort_set_option_none(elem);
-            woort_struct_set(WOORT_RETURN_SLOT, 2, elem);
+            woort_set_option_none(temp_loc);
         }
 
-        return woort_ret_option_value(WOORT_RETURN_SLOT);
-    }
+        woort_struct_set(temp_callstack, 2, temp_loc);
 
-    return woort_ret_option_none();
+        /* push finished struct onto result vec */
+        woort_vec_push(temp_result, temp_callstack);
+
+        ++depth;
+    }
+    return woort_ret_value(temp_result);
 }
 
 /* ================================================================
@@ -3726,8 +3714,7 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(tuple_nthcdr),
     WOORT_BUILTIN_FUNC(tuple_cdr),
 
-    WOORT_BUILTIN_FUNC(trace_begin),
-    WOORT_BUILTIN_FUNC(trace_iter_next),
+    WOORT_BUILTIN_FUNC(debug_trace_callstack),
 
     WOORT_EXTERN_LIB_FUNC_END,
 };
