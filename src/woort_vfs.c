@@ -1,6 +1,7 @@
 #include "woort_vfs.h"
 
 #include "woort_diagnosis.h"
+#include "woort_hashmap.h"
 #include "woort_util.h"
 
 #include <stdlib.h>
@@ -12,7 +13,7 @@
  *  Global VFS State
  * ================================================================ */
 
-static woort_Vector     g_vfs_entries;   /* vector of woort_VFSEntry*  */
+static woort_HashMap    g_vfs_entries;   /* hashmap of filepath -> woort_VFSEntry* */
 static woort_RWSpinlock g_vfs_lock;      /* read-write spinlock        */
 
 /* ================================================================
@@ -21,28 +22,36 @@ static woort_RWSpinlock g_vfs_lock;      /* read-write spinlock        */
 
 void _woort_vfs_bootup(void)
 {
-    woort_vector_init(&g_vfs_entries, sizeof(woort_VFSEntry*));
+    woort_hashmap_init(
+        &g_vfs_entries,
+        sizeof(const char*),
+        sizeof(woort_VFSEntry*),
+        woort_util_cstr_hash,
+        woort_util_cstr_equal);
     woort_rwspinlock_init(&g_vfs_lock);
+}
+
+static bool _woort_vfs_shutdown_foreach_callback(
+    const void* key,
+    void* value,
+    /* OPTIONAL */ void* user_data)
+{
+    (void)key;
+    (void)user_data;
+    woort_VFSEntry* entry = *(woort_VFSEntry**)value;
+    free(entry->m_filepath);
+    free(entry->m_data);
+    free(entry);
+    return true;
 }
 
 void _woort_vfs_shutdown(void)
 {
     woort_rwspinlock_write_lock(&g_vfs_lock);
-
-    for (size_t i = 0; i < g_vfs_entries.m_size; ++i)
-    {
-        woort_VFSEntry** pentry = (woort_VFSEntry**)woort_vector_at(&g_vfs_entries, i);
-        if (pentry != NULL && *pentry != NULL)
-        {
-            free((*pentry)->m_filepath);
-            free((*pentry)->m_data);
-            free(*pentry);
-        }
-    }
-
+    (void)woort_hashmap_foreach(&g_vfs_entries, _woort_vfs_shutdown_foreach_callback, NULL);
     woort_rwspinlock_write_unlock(&g_vfs_lock);
 
-    woort_vector_deinit(&g_vfs_entries);
+    woort_hashmap_deinit(&g_vfs_entries);
     woort_rwspinlock_deinit(&g_vfs_lock);
 }
 
@@ -58,15 +67,9 @@ Returns the entry pointer, or NULL if not found.
 static /* OPTIONAL */ woort_VFSEntry* _woort_vfs_find_entry(
     const char* filepath)
 {
-    for (size_t i = 0; i < g_vfs_entries.m_size; ++i)
-    {
-        woort_VFSEntry** pentry = (woort_VFSEntry**)woort_vector_at(&g_vfs_entries, i);
-        if (pentry != NULL && *pentry != NULL)
-        {
-            if (strcmp((*pentry)->m_filepath, filepath) == 0)
-                return *pentry;
-        }
-    }
+    void* value_addr;
+    if (woort_hashmap_find(&g_vfs_entries, &filepath, &value_addr))
+        return *(woort_VFSEntry**)value_addr;
     return NULL;
 }
 
@@ -157,7 +160,9 @@ WOORT_NODISCARD bool woort_vfs_create(
     entry->m_data_length = length;
     entry->m_enable_modify = enable_modify;
 
-    if (!woort_vector_push_back(&g_vfs_entries, 1, &entry))
+    woort_hashmap_Result result = woort_hashmap_insert(
+        &g_vfs_entries, &entry->m_filepath, &entry);
+    if (result != WOORT_HASHMAP_RESULT_OK)
     {
         free(entry->m_data);
         free(entry->m_filepath);
@@ -177,33 +182,31 @@ WOORT_NODISCARD bool woort_vfs_remove(const char* filepath)
 
     woort_rwspinlock_write_lock(&g_vfs_lock);
 
-    for (size_t i = 0; i < g_vfs_entries.m_size; ++i)
+    woort_VFSEntry* entry = _woort_vfs_find_entry(filepath);
+    if (entry == NULL)
     {
-        woort_VFSEntry** pentry = (woort_VFSEntry**)woort_vector_at(&g_vfs_entries, i);
-        if (pentry != NULL && *pentry != NULL)
-        {
-            if (strcmp((*pentry)->m_filepath, filepath) == 0)
-            {
-                if (!(*pentry)->m_enable_modify)
-                {
-                    woort_rwspinlock_write_unlock(&g_vfs_lock);
-                    return false;
-                }
-
-                free((*pentry)->m_filepath);
-                free((*pentry)->m_data);
-                free(*pentry);
-
-                (void)woort_vector_erase_at(&g_vfs_entries, i);
-
-                woort_rwspinlock_write_unlock(&g_vfs_lock);
-                return true;
-            }
-        }
+        woort_rwspinlock_write_unlock(&g_vfs_lock);
+        return false;
     }
 
+    if (!entry->m_enable_modify)
+    {
+        woort_rwspinlock_write_unlock(&g_vfs_lock);
+        return false;
+    }
+
+    if (!woort_hashmap_remove(&g_vfs_entries, &filepath))
+    {
+        woort_rwspinlock_write_unlock(&g_vfs_lock);
+        return false;
+    }
+
+    free(entry->m_filepath);
+    free(entry->m_data);
+    free(entry);
+
     woort_rwspinlock_write_unlock(&g_vfs_lock);
-    return false;
+    return true;
 }
 
 WOORT_NODISCARD bool woort_vfs_is_virtual_uri(const char* uri)
@@ -278,6 +281,23 @@ WOORT_NODISCARD bool woort_vfs_exists(const char* filepath)
     return entry != NULL;
 }
 
+static bool _woort_vfs_get_all_paths_foreach(
+    const void* key,
+    void* value,
+    /* OPTIONAL */ void* user_data)
+{
+    (void)value;
+    char** paths = (char**)user_data;
+    const char* filepath = *(const char**)key;
+    size_t index = 0;
+    while (paths[index] != NULL)
+        index++;
+    paths[index] = (char*)malloc(strlen(filepath) + 1);
+    if (paths[index] != NULL)
+        strcpy(paths[index], filepath);
+    return true;
+}
+
 WOORT_NODISCARD size_t woort_vfs_get_all_paths(
     /* OPTIONAL */ char*** out_paths)
 {
@@ -298,17 +318,7 @@ WOORT_NODISCARD size_t woort_vfs_get_all_paths(
         return 0;
     }
 
-    for (size_t i = 0; i < count; ++i)
-    {
-        woort_VFSEntry** pentry = (woort_VFSEntry**)woort_vector_at(&g_vfs_entries, i);
-        if (pentry != NULL && *pentry != NULL && (*pentry)->m_filepath != NULL)
-        {
-            paths[i] = (char*)malloc(strlen((*pentry)->m_filepath) + 1);
-            if (paths[i] != NULL)
-                strcpy(paths[i], (*pentry)->m_filepath);
-        }
-        /* else paths[i] stays NULL */
-    }
+    (void)woort_hashmap_foreach(&g_vfs_entries, _woort_vfs_get_all_paths_foreach, paths);
 
     woort_rwspinlock_read_unlock(&g_vfs_lock);
 

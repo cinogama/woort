@@ -10,7 +10,6 @@ shutdown hooks are called by woort.c.
 
 #include "woort.h"
 #include "woort_spin.h"
-#include "woort_vector.h"
 
 #include <stdio.h>
 #include <stddef.h>
