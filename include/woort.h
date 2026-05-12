@@ -465,14 +465,41 @@ WOORT_API void woort_VMRuntime_print_backtrace(
 WOORT_NODISCARD WOORT_API bool woort_CodeEnv_save_binary(
     woort_CodeEnv* code_env, void** out_buffer, size_t* out_len);
 
+typedef enum woort_CodeEnv_RestoreResult
+{
+    WOORT_CODEENV_RESTORE_OK                    = 0,
+
+    /* File I/O errors */
+    WOORT_CODEENV_RESTORE_FAIL_READ             = 1,  /* Cannot read from vfile */
+    WOORT_CODEENV_RESTORE_FAIL_ALLOC            = 2,  /* Memory allocation failed */
+
+    /* Header verification errors */
+    WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH   = 3,
+    WOORT_CODEENV_RESTORE_FAIL_VERSION_DOESNT_MATCH = 4,
+
+    /* Structural errors */
+    WOORT_CODEENV_RESTORE_FAIL_INVALID_CODE_SIZE    = 5,  /* Code size exceeds available data */
+    WOORT_CODEENV_RESTORE_FAIL_CREATE_CODEENV       = 6,  /* Failed to create CodeEnv */
+    WOORT_CODEENV_RESTORE_FAIL_INVALID_STRPOOL      = 7,  /* String pool size invalid */
+
+    /* Constant data errors */
+    WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA       = 8,  /* Data truncated / unterminated */
+    WOORT_CODEENV_RESTORE_FAIL_INVALID_CONST_TYPE   = 9,  /* Unknown constant type tag */
+    WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET       = 10, /* Invalid offset into pool */
+    WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE       = 11, /* Cannot resolve external function/library */
+}woort_CodeEnv_RestoreResult;
+
 /**
  * @brief Deserialize a CodeEnv from a binary stream.
  * @param f             The VFile to read binary data from. Must not be NULL.
  * @param out_code_env  Receives the restored CodeEnv. Must not be NULL.
- * @return true on success, false on failure.
+ * @return WOORT_CODEENV_RESTORE_OK on success, or an error code on failure.
  */
-WOORT_NODISCARD WOORT_API bool woort_CodeEnv_restore_binary(
+WOORT_NODISCARD WOORT_API woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     woort_VFile* f, woort_CodeEnv** out_code_env);
+
+WOORT_NODISCARD WOORT_API const char* woort_CodeEnv_restore_failed_desc(
+    woort_CodeEnv_RestoreResult rt);
 
 /**
  * @brief Release a CodeEnv and free all associated resources.
@@ -3663,7 +3690,7 @@ WOORT_NODISCARD WOORT_API bool woort_vfile_open(
  * @param out_file  Receives the new VFile handle.
  * @return true on success.
  */
-WOORT_NODISCARD WOORT_API bool woort_vfile_reader(
+WOORT_NODISCARD WOORT_API bool woort_vfile_open_reader(
     /* OPTIONAL */ const void* buf,
     size_t buflen,
     woort_VFile** out_file);

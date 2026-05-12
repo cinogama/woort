@@ -1630,9 +1630,11 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
  * 反序列化主函数
  * ================================================================ */
 
-WOORT_NODISCARD bool woort_CodeEnv_restore_binary(
+WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     woort_VFile* f, woort_CodeEnv** out_code_env)
 {
+    woort_CodeEnv_RestoreResult result = WOORT_CODEENV_RESTORE_OK;
+
     assert(f != NULL);
     assert(out_code_env != NULL);
 
@@ -1641,12 +1643,12 @@ WOORT_NODISCARD bool woort_CodeEnv_restore_binary(
     /* 读取整个文件到内存 */
     int64_t fsize_val = woort_vfile_size(f);
     if (fsize_val < 0)
-        return false;
+        return WOORT_CODEENV_RESTORE_FAIL_READ;
     size_t fsize = (size_t)fsize_val;
 
     void* raw = malloc(fsize);
     if (raw == NULL)
-        return false;
+        return WOORT_CODEENV_RESTORE_FAIL_ALLOC;
 
     size_t bytes_read = 0;
     if (!woort_vfile_seek(f, 0, SEEK_SET)
@@ -1654,371 +1656,414 @@ WOORT_NODISCARD bool woort_CodeEnv_restore_binary(
         || bytes_read != fsize)
     {
         free(raw);
-        return false;
+        return WOORT_CODEENV_RESTORE_FAIL_READ;
     }
 
     _BinReader r;
     _bin_reader_init_memory(&r, raw, fsize);
 
-    bool ok = true;
+    woort_CodeEnv* cenv = NULL;
 
     /* 读取头部 */
-    uint32_t magic, version;
-    uint64_t code_size, data_count;
-    ok = ok && _bin_read_u32(&r, &magic);
-    ok = ok && _bin_read_u32(&r, &version);
-    ok = ok && _bin_read_u64(&r, &code_size);
-    ok = ok && _bin_read_u64(&r, &data_count);
-
-    if (!ok || magic != WOORT_CODEENV_BINARY_MAGIC
-        || version != WOORT_CODEENV_BINARY_VERSION)
     {
-        WOORT_DEBUG("CodeEnv restore: bad header magic=%08x ver=%u.", magic, version);
-        free(raw);
-        return false;
-    }
+        uint32_t magic, version;
+        uint64_t code_size, data_count;
+        if (!_bin_read_u32(&r, &magic)
+            || !_bin_read_u32(&r, &version)
+            || !_bin_read_u64(&r, &code_size)
+            || !_bin_read_u64(&r, &data_count))
+        {
+            WOORT_DEBUG("CodeEnv restore: truncated header.");
+            result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+            goto _restore_fail_after_read_raw;
+        }
 
-    /* 读取字节码（直接从二进制流读取，woort_CodeEnv_create 会复制）*/
-    ok = ok && (code_size <= (r.m_size - r.m_pos) / sizeof(woort_Bytecode));
-    const woort_Bytecode* codes_from_bin = NULL;
-    if (ok && code_size > 0)
-    {
-        codes_from_bin = (const woort_Bytecode*)(r.m_data + r.m_pos);
-        r.m_pos += code_size * sizeof(woort_Bytecode);
-    }
+        if (magic != WOORT_CODEENV_BINARY_MAGIC)
+        {
+            WOORT_DEBUG("CodeEnv restore: bad header magic=%08x ver=%u.", magic, version);
+            result = WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH;
+            goto _restore_fail_after_read_raw;
+        }
 
-    /* 创建 CodeEnv */
-    woort_CodeEnv* cenv = NULL;
-    if (ok)
-    {
-        ok = ok && woort_CodeEnv_create(
-            codes_from_bin,
-            (size_t)code_size,
-            (size_t)data_count,
-            &cenv);
-    }
+        if (version != WOORT_CODEENV_BINARY_VERSION)
+        {
+            WOORT_DEBUG("CodeEnv restore: version mismatch ver=%u.", version);
+            result = WOORT_CODEENV_RESTORE_FAIL_VERSION_DOESNT_MATCH;
+            goto _restore_fail_after_read_raw;
+        }
 
-    if (!ok || cenv == NULL)
-    {
-        free(raw);
-        return false;
+        /* 读取字节码（直接从二进制流读取，woort_CodeEnv_create 会复制）*/
+        if (code_size > (r.m_size - r.m_pos) / sizeof(woort_Bytecode))
+        {
+            WOORT_DEBUG("CodeEnv restore: invalid code size %llu.", (unsigned long long)code_size);
+            result = WOORT_CODEENV_RESTORE_FAIL_INVALID_CODE_SIZE;
+            goto _restore_fail_after_read_raw;
+        }
+
+        const woort_Bytecode* codes_from_bin = NULL;
+        if (code_size > 0)
+        {
+            codes_from_bin = (const woort_Bytecode*)(r.m_data + r.m_pos);
+            r.m_pos += (size_t)code_size * sizeof(woort_Bytecode);
+        }
+
+        /* 创建 CodeEnv */
+        if (!woort_CodeEnv_create(
+                codes_from_bin,
+                (size_t)code_size,
+                (size_t)data_count,
+                &cenv)
+            || cenv == NULL)
+        {
+            result = WOORT_CODEENV_RESTORE_FAIL_CREATE_CODEENV;
+            goto _restore_fail_after_read_raw;
+        }
     }
 
     woort_CodeEnv_lock(cenv);
 
     /* 读取字符串池 */
-    uint64_t strpool_size;
-    ok = ok && _bin_read_u64(&r, &strpool_size);
-    const char* strpool_data = (strpool_size > 0) ? (const char*)(r.m_data + r.m_pos) : NULL;
-    if (ok && strpool_size > 0)
     {
-        if (r.m_pos + strpool_size > r.m_size)
-            ok = false;
-        else
+        uint64_t strpool_size;
+        if (!_bin_read_u64(&r, &strpool_size))
+        {
+            result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+            goto _restore_fail_after_create;
+        }
+
+        const char* strpool_data = (strpool_size > 0) ? (const char*)(r.m_data + r.m_pos) : NULL;
+        if (strpool_size > 0)
+        {
+            if (r.m_pos + strpool_size > r.m_size)
+            {
+                result = WOORT_CODEENV_RESTORE_FAIL_INVALID_STRPOOL;
+                goto _restore_fail_after_create;
+            }
             r.m_pos += (size_t)strpool_size;
-    }
+        }
 
-    if (!ok)
-    {
-        woort_CodeEnv_unlock(cenv);
-        woort_CodeEnv_drop(cenv);
-        free(raw);
-        return false;
-    }
-
-    /* 辅助宏：从字符串池中读取字符串指针 */
+        /* 辅助宏：从字符串池中读取字符串指针 */
 #define _RESTORE_STR(off) \
         ((off) == UINT32_MAX ? NULL : _bin_strpool_get(strpool_data, (off)))
 
-    /*
-     * 读取常量数据。
-     */
-    for (size_t i = 0; ok && i < (size_t)data_count; ++i)
-    {
-        uint8_t type;
-        ok = ok && _bin_read_u8(&r, &type);
-
-        if (!ok)
-            break;
-
-        switch (type)
+        /*
+         * 读取常量数据。
+         */
         {
-        case _WOORT_BIN_TYPE_NIL:
-            woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                WOORT_CONST_TYPE_NIL, NULL, NULL);
-            break;
-
-        case _WOORT_BIN_TYPE_INT:
-        {
-            int64_t v;
-            ok = ok && _bin_read_i64(&r, &v);
-            if (ok)
+            size_t data_count = cenv->m_data_count;
+            for (size_t i = 0; i < data_count; ++i)
             {
-                woort_CodeEnv_set_const_int(cenv, (woort_IRConstantIndex)i, v);
-                woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                    WOORT_CONST_TYPE_INT, NULL, NULL);
-            }
-            break;
-        }
-
-        case _WOORT_BIN_TYPE_REAL:
-        {
-            double v;
-            ok = ok && _bin_read_f64(&r, &v);
-            if (ok)
-            {
-                woort_CodeEnv_set_const_real(cenv, (woort_IRConstantIndex)i, v);
-                woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                    WOORT_CONST_TYPE_REAL, NULL, NULL);
-            }
-            break;
-        }
-
-        case _WOORT_BIN_TYPE_STRING:
-        {
-            uint32_t off;
-            ok = ok && _bin_read_u32(&r, &off);
-            if (ok)
-            {
-                const char* s = _RESTORE_STR(off);
-                woort_CodeEnv_set_const_string(cenv, (woort_IRConstantIndex)i,
-                    s != NULL ? s : "");
-                woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                    WOORT_CONST_TYPE_STRING, NULL, NULL);
-            }
-            break;
-        }
-
-        case _WOORT_BIN_TYPE_SCRIPT_FUNC:
-        {
-            uint32_t off;
-            ok = ok && _bin_read_u32(&r, &off);
-            if (ok)
-            {
-                const woort_Bytecode* addr = (off != UINT32_MAX && code_size > 0)
-                    ? cenv->m_code_begin + off : NULL;
-                woort_CodeEnv_set_const_script_function(cenv, (woort_IRConstantIndex)i, addr);
-                woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                    WOORT_CONST_TYPE_SCRIPT_FUNC, NULL, NULL);
-            }
-            break;
-        }
-
-        case _WOORT_BIN_TYPE_EXTERN_FUNC:
-        {
-            uint32_t lib_off, func_off;
-            ok = ok && _bin_read_u32(&r, &lib_off);
-            ok = ok && _bin_read_u32(&r, &func_off);
-            if (ok)
-            {
-                const char* lib_name = _RESTORE_STR(lib_off);
-                const char* func_name = _RESTORE_STR(func_off);
-                if (lib_name == NULL || func_name == NULL)
+                uint8_t type;
+                if (!_bin_read_u8(&r, &type))
                 {
-                    ok = false;
-                    break;
+                    result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    goto _restore_fail_after_create;
                 }
 
-                /* 尝试解析 */
-                woort_Dylib* lib = woort_dylib_load(lib_name, lib_name, NULL, false);
-                if (lib == NULL)
+                switch (type)
                 {
-                    WOORT_DEBUG("CodeEnv restore: cannot load lib '%s'.", lib_name);
-                    ok = false;
+                case _WOORT_BIN_TYPE_NIL:
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_NIL, NULL, NULL);
                     break;
-                }
 
-                woort_NativeFunction nf = (woort_NativeFunction)woort_dylib_load_func(lib, func_name);
-                if (nf == NULL)
+                case _WOORT_BIN_TYPE_INT:
                 {
-                    WOORT_DEBUG("CodeEnv restore: cannot find func '%s' in lib '%s'.", func_name, lib_name);
-                    ok = false;
-                    break;
-                }
-
-                woort_CodeEnv_set_const_extern_function(cenv, (woort_IRConstantIndex)i, nf);
-                woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                    WOORT_CONST_TYPE_EXTERN_FUNC, lib_name, func_name);
-                woort_CodeEnv_add_extern_lib(cenv, lib);
-            }
-            break;
-        }
-
-        case _WOORT_BIN_TYPE_SCRIPT_CLOSURE:
-        {
-            uint32_t off;
-            ok = ok && _bin_read_u32(&r, &off);
-            if (ok)
-            {
-                const woort_Bytecode* addr = (off != UINT32_MAX && code_size > 0)
-                    ? cenv->m_code_begin + off : NULL;
-                woort_CodeEnv_set_const_script_closure(cenv, (woort_IRConstantIndex)i, addr);
-                woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                    WOORT_CONST_TYPE_SCRIPT_CLOSURE, NULL, NULL);
-            }
-            break;
-        }
-
-        case _WOORT_BIN_TYPE_EXTERN_CLOSURE:
-        {
-            uint32_t lib_off, func_off;
-            ok = ok && _bin_read_u32(&r, &lib_off);
-            ok = ok && _bin_read_u32(&r, &func_off);
-            if (ok)
-            {
-                const char* lib_name = _RESTORE_STR(lib_off);
-                const char* func_name = _RESTORE_STR(func_off);
-                if (lib_name == NULL || func_name == NULL)
-                {
-                    ok = false;
-                    break;
-                }
-
-                woort_Dylib* lib = woort_dylib_load(lib_name, lib_name, NULL, false);
-                if (lib == NULL)
-                {
-                    WOORT_DEBUG("CodeEnv restore: cannot load lib '%s'.", lib_name);
-                    ok = false;
-                    break;
-                }
-
-                woort_NativeFunction nf = (woort_NativeFunction)woort_dylib_load_func(lib, func_name);
-                if (nf == NULL)
-                {
-                    WOORT_DEBUG("CodeEnv restore: cannot find func '%s' in lib '%s'.", func_name, lib_name);
-                    ok = false;
-                    break;
-                }
-
-                woort_CodeEnv_set_const_extern_closure(cenv, (woort_IRConstantIndex)i, nf);
-                woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                    WOORT_CONST_TYPE_EXTERN_CLOSURE, lib_name, func_name);
-                woort_CodeEnv_add_extern_lib(cenv, lib);
-            }
-            break;
-        }
-
-        case _WOORT_BIN_TYPE_BOX_INT:
-        {
-            int64_t v;
-            ok = ok && _bin_read_i64(&r, &v);
-            if (ok)
-            {
-                woort_CodeEnv_set_const_box_int(cenv, (woort_IRConstantIndex)i, v);
-                woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                    WOORT_CONST_TYPE_BOX_INT, NULL, NULL);
-            }
-            break;
-        }
-
-        case _WOORT_BIN_TYPE_BOX_REAL:
-        {
-            double v;
-            ok = ok && _bin_read_f64(&r, &v);
-            if (ok)
-            {
-                woort_CodeEnv_set_const_box_real(cenv, (woort_IRConstantIndex)i, v);
-                woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                    WOORT_CONST_TYPE_BOX_REAL, NULL, NULL);
-            }
-            break;
-        }
-
-        case _WOORT_BIN_TYPE_BOX_BOOL:
-        {
-            uint8_t v;
-            ok = ok && _bin_read_u8(&r, &v);
-            if (ok)
-            {
-                woort_CodeEnv_set_const_box_bool(cenv, (woort_IRConstantIndex)i, v != 0);
-                woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                    WOORT_CONST_TYPE_BOX_BOOL, NULL, NULL);
-            }
-            break;
-        }
-
-        case _WOORT_BIN_TYPE_STRUCT:
-        {
-            uint32_t member_count;
-            ok = ok && _bin_read_u32(&r, &member_count);
-            if (ok)
-            {
-                /* struct 成员索引表在常数池内按序读取 */
-                woort_IRConstantIndex* members = NULL;
-                if (member_count > 0)
-                {
-                    members = (woort_IRConstantIndex*)malloc(
-                        member_count * sizeof(woort_IRConstantIndex));
-                    if (members == NULL)
+                    int64_t v;
+                    if (!_bin_read_i64(&r, &v))
                     {
-                        ok = false;
-                        break;
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
                     }
-                    for (uint32_t mi = 0; ok && mi < member_count; ++mi)
-                    {
-                        uint32_t midx;
-                        ok = ok && _bin_read_u32(&r, &midx);
-                        members[mi] = (woort_IRConstantIndex)midx;
-                    }
+                    woort_CodeEnv_set_const_int(cenv, (woort_IRConstantIndex)i, v);
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_INT, NULL, NULL);
+                    break;
                 }
 
-                if (ok)
+                case _WOORT_BIN_TYPE_REAL:
                 {
+                    double v;
+                    if (!_bin_read_f64(&r, &v))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
+                    }
+                    woort_CodeEnv_set_const_real(cenv, (woort_IRConstantIndex)i, v);
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_REAL, NULL, NULL);
+                    break;
+                }
+
+                case _WOORT_BIN_TYPE_STRING:
+                {
+                    uint32_t off;
+                    if (!_bin_read_u32(&r, &off))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
+                    }
+                    const char* s = _RESTORE_STR(off);
+                    woort_CodeEnv_set_const_string(cenv, (woort_IRConstantIndex)i,
+                        s != NULL ? s : "");
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_STRING, NULL, NULL);
+                    break;
+                }
+
+                case _WOORT_BIN_TYPE_SCRIPT_FUNC:
+                {
+                    uint32_t off;
+                    if (!_bin_read_u32(&r, &off))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
+                    }
+                    const woort_Bytecode* addr = (off != UINT32_MAX && cenv->m_code_end > cenv->m_code_begin)
+                        ? cenv->m_code_begin + off : NULL;
+                    woort_CodeEnv_set_const_script_function(cenv, (woort_IRConstantIndex)i, addr);
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_SCRIPT_FUNC, NULL, NULL);
+                    break;
+                }
+
+                case _WOORT_BIN_TYPE_EXTERN_FUNC:
+                {
+                    uint32_t lib_off, func_off;
+                    if (!_bin_read_u32(&r, &lib_off)
+                        || !_bin_read_u32(&r, &func_off))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
+                    }
+
+                    const char* lib_name = _RESTORE_STR(lib_off);
+                    const char* func_name = _RESTORE_STR(func_off);
+                    if (lib_name == NULL || func_name == NULL)
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET;
+                        goto _restore_fail_after_create;
+                    }
+
+                    /* 尝试解析 */
+                    woort_Dylib* lib = woort_dylib_load(lib_name, lib_name, NULL, false);
+                    if (lib == NULL)
+                    {
+                        WOORT_DEBUG("CodeEnv restore: cannot load lib '%s'.", lib_name);
+                        result = WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE;
+                        goto _restore_fail_after_create;
+                    }
+
+                    woort_NativeFunction nf = (woort_NativeFunction)woort_dylib_load_func(lib, func_name);
+                    if (nf == NULL)
+                    {
+                        WOORT_DEBUG("CodeEnv restore: cannot find func '%s' in lib '%s'.", func_name, lib_name);
+                        result = WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE;
+                        goto _restore_fail_after_create;
+                    }
+
+                    woort_CodeEnv_set_const_extern_function(cenv, (woort_IRConstantIndex)i, nf);
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_EXTERN_FUNC, lib_name, func_name);
+                    woort_CodeEnv_add_extern_lib(cenv, lib);
+                    break;
+                }
+
+                case _WOORT_BIN_TYPE_SCRIPT_CLOSURE:
+                {
+                    uint32_t off;
+                    if (!_bin_read_u32(&r, &off))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
+                    }
+                    const woort_Bytecode* addr = (off != UINT32_MAX && cenv->m_code_end > cenv->m_code_begin)
+                        ? cenv->m_code_begin + off : NULL;
+                    woort_CodeEnv_set_const_script_closure(cenv, (woort_IRConstantIndex)i, addr);
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_SCRIPT_CLOSURE, NULL, NULL);
+                    break;
+                }
+
+                case _WOORT_BIN_TYPE_EXTERN_CLOSURE:
+                {
+                    uint32_t lib_off, func_off;
+                    if (!_bin_read_u32(&r, &lib_off)
+                        || !_bin_read_u32(&r, &func_off))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
+                    }
+
+                    const char* lib_name = _RESTORE_STR(lib_off);
+                    const char* func_name = _RESTORE_STR(func_off);
+                    if (lib_name == NULL || func_name == NULL)
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET;
+                        goto _restore_fail_after_create;
+                    }
+
+                    woort_Dylib* lib = woort_dylib_load(lib_name, lib_name, NULL, false);
+                    if (lib == NULL)
+                    {
+                        WOORT_DEBUG("CodeEnv restore: cannot load lib '%s'.", lib_name);
+                        result = WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE;
+                        goto _restore_fail_after_create;
+                    }
+
+                    woort_NativeFunction nf = (woort_NativeFunction)woort_dylib_load_func(lib, func_name);
+                    if (nf == NULL)
+                    {
+                        WOORT_DEBUG("CodeEnv restore: cannot find func '%s' in lib '%s'.", func_name, lib_name);
+                        result = WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE;
+                        goto _restore_fail_after_create;
+                    }
+
+                    woort_CodeEnv_set_const_extern_closure(cenv, (woort_IRConstantIndex)i, nf);
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_EXTERN_CLOSURE, lib_name, func_name);
+                    woort_CodeEnv_add_extern_lib(cenv, lib);
+                    break;
+                }
+
+                case _WOORT_BIN_TYPE_BOX_INT:
+                {
+                    int64_t v;
+                    if (!_bin_read_i64(&r, &v))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
+                    }
+                    woort_CodeEnv_set_const_box_int(cenv, (woort_IRConstantIndex)i, v);
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_BOX_INT, NULL, NULL);
+                    break;
+                }
+
+                case _WOORT_BIN_TYPE_BOX_REAL:
+                {
+                    double v;
+                    if (!_bin_read_f64(&r, &v))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
+                    }
+                    woort_CodeEnv_set_const_box_real(cenv, (woort_IRConstantIndex)i, v);
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_BOX_REAL, NULL, NULL);
+                    break;
+                }
+
+                case _WOORT_BIN_TYPE_BOX_BOOL:
+                {
+                    uint8_t v;
+                    if (!_bin_read_u8(&r, &v))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
+                    }
+                    woort_CodeEnv_set_const_box_bool(cenv, (woort_IRConstantIndex)i, v != 0);
+                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                        WOORT_CONST_TYPE_BOX_BOOL, NULL, NULL);
+                    break;
+                }
+
+                case _WOORT_BIN_TYPE_STRUCT:
+                {
+                    uint32_t member_count;
+                    if (!_bin_read_u32(&r, &member_count))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
+                    }
+
+                    /* struct 成员索引表在常数池内按序读取 */
+                    woort_IRConstantIndex* members = NULL;
+                    if (member_count > 0)
+                    {
+                        members = (woort_IRConstantIndex*)malloc(
+                            member_count * sizeof(woort_IRConstantIndex));
+                        if (members == NULL)
+                        {
+                            result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                            goto _restore_fail_after_create;
+                        }
+                        for (uint32_t mi = 0; mi < member_count; ++mi)
+                        {
+                            uint32_t midx;
+                            if (!_bin_read_u32(&r, &midx))
+                            {
+                                free(members);
+                                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                                goto _restore_fail_after_create;
+                            }
+                            members[mi] = (woort_IRConstantIndex)midx;
+                        }
+                    }
+
                     woort_CodeEnv_set_const_struct(cenv, (woort_IRConstantIndex)i,
                         members, member_count);
                     woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_STRUCT, NULL, NULL);
+
+                    free(members);
+                    break;
                 }
 
-                free(members);
+                default:
+                    WOORT_DEBUG("CodeEnv restore: unknown const type %d at %zu.", (int)type, i);
+                    result = WOORT_CODEENV_RESTORE_FAIL_INVALID_CONST_TYPE;
+                    goto _restore_fail_after_create;
+                }
             }
-            break;
         }
 
-        default:
-            WOORT_DEBUG("CodeEnv restore: unknown const type %d at %zu.", (int)type, i);
-            ok = false;
-            break;
-        }
-    }
-
-    /*
-     * 读取 extern 常量映射表。
-     */
-    if (ok)
-    {
-        uint64_t extern_count;
-        ok = ok && _bin_read_u64(&r, &extern_count);
-        for (uint64_t ei = 0; ok && ei < extern_count; ++ei)
+        /*
+         * 读取 extern 常量映射表。
+         */
         {
-            uint32_t name_off;
-            uint32_t cidx;
-            ok = ok && _bin_read_u32(&r, &name_off);
-            ok = ok && _bin_read_u32(&r, &cidx);
-
-            if (ok)
+            uint64_t extern_count;
+            if (!_bin_read_u64(&r, &extern_count))
             {
+                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                goto _restore_fail_after_create;
+            }
+            for (uint64_t ei = 0; ei < extern_count; ++ei)
+            {
+                uint32_t name_off;
+                uint32_t cidx;
+                if (!_bin_read_u32(&r, &name_off)
+                    || !_bin_read_u32(&r, &cidx))
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    goto _restore_fail_after_create;
+                }
+
                 const char* name = _RESTORE_STR(name_off);
                 if (name != NULL)
                     woort_CodeEnv_register_extern_constant(cenv, name, cidx);
             }
         }
-    }
 
-    /*
-     * 读取外部库列表。
-     */
-    if (ok)
-    {
-        uint64_t lib_count;
-        ok = ok && _bin_read_u64(&r, &lib_count);
-        for (uint64_t li = 0; ok && li < lib_count; ++li)
+        /*
+         * 读取外部库列表。
+         */
         {
-            uint32_t name_off;
-            ok = ok && _bin_read_u32(&r, &name_off);
-
-            if (ok)
+            uint64_t lib_count;
+            if (!_bin_read_u64(&r, &lib_count))
             {
+                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                goto _restore_fail_after_create;
+            }
+            for (uint64_t li = 0; li < lib_count; ++li)
+            {
+                uint32_t name_off;
+                if (!_bin_read_u32(&r, &name_off))
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    goto _restore_fail_after_create;
+                }
+
                 const char* lib_name = _RESTORE_STR(name_off);
                 if (lib_name != NULL)
                 {
@@ -2028,122 +2073,173 @@ WOORT_NODISCARD bool woort_CodeEnv_restore_binary(
                 }
             }
         }
-    }
 
-    /*
-     * 读取函数边界表。
-     */
-    if (ok)
-    {
-        uint64_t fb_count;
-        ok = ok && _bin_read_u64(&r, &fb_count);
-        for (uint64_t fi = 0; ok && fi < fb_count; ++fi)
+        /*
+         * 读取函数边界表。
+         */
         {
-            woort_FunctionBoundary fb;
-            uint32_t name_off;
-            ok = ok && _bin_read_u32(&r, &fb.m_offset_begin);
-            ok = ok && _bin_read_u32(&r, &fb.m_code_length);
-            ok = ok && _bin_read_u32(&r, &name_off);
-
-            if (ok)
+            uint64_t fb_count;
+            if (!_bin_read_u64(&r, &fb_count))
             {
+                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                goto _restore_fail_after_create;
+            }
+            for (uint64_t fi = 0; fi < fb_count; ++fi)
+            {
+                woort_FunctionBoundary fb;
+                uint32_t name_off;
+                if (!_bin_read_u32(&r, &fb.m_offset_begin)
+                    || !_bin_read_u32(&r, &fb.m_code_length)
+                    || !_bin_read_u32(&r, &name_off))
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    goto _restore_fail_after_create;
+                }
+
                 const char* name = _RESTORE_STR(name_off);
                 /* intern into CodeEnv string pool for lifetime management */
                 if (name != NULL)
                     name = woort_StringPool_intern(&cenv->m_srcloc_string_pool, name);
                 fb.m_name = name;
 
-                ok = ok && woort_vector_push_back(
-                    &cenv->m_function_boundaries, 1, &fb);
+                if (!woort_vector_push_back(
+                        &cenv->m_function_boundaries, 1, &fb))
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                    goto _restore_fail_after_create;
+                }
             }
         }
-    }
 
-    /*
-     * 读取源码映射表。
-     */
-    if (ok)
-    {
-        uint64_t sm_count;
-        ok = ok && _bin_read_u64(&r, &sm_count);
-        if (ok && sm_count > 0)
+        /*
+         * 读取源码映射表。
+         */
         {
-            woort_SourceMap_Entry* entries = (woort_SourceMap_Entry*)malloc(
-                sizeof(woort_SourceMap_Entry) * (size_t)sm_count);
-            if (entries == NULL)
+            uint64_t sm_count;
+            if (!_bin_read_u64(&r, &sm_count))
             {
-                ok = false;
+                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                goto _restore_fail_after_create;
             }
-            else
+            if (sm_count > 0)
             {
-                for (uint64_t si = 0; ok && si < sm_count; ++si)
+                woort_SourceMap_Entry* entries = (woort_SourceMap_Entry*)malloc(
+                    sizeof(woort_SourceMap_Entry) * (size_t)sm_count);
+                if (entries == NULL)
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                    goto _restore_fail_after_create;
+                }
+
+                for (uint64_t si = 0; si < sm_count; ++si)
                 {
                     uint32_t fp_off;
-                    ok = ok && _bin_read_u32(&r, &entries[si].m_bytecode_offset);
-                    ok = ok && _bin_read_u32(&r, &fp_off);
-                    ok = ok && _bin_read_u32(&r, &entries[si].m_location.m_begin_line);
-                    ok = ok && _bin_read_u32(&r, &entries[si].m_location.m_begin_column);
-                    ok = ok && _bin_read_u32(&r, &entries[si].m_location.m_end_line);
-                    ok = ok && _bin_read_u32(&r, &entries[si].m_location.m_end_column);
-
-                    if (ok)
+                    if (!_bin_read_u32(&r, &entries[si].m_bytecode_offset)
+                        || !_bin_read_u32(&r, &fp_off)
+                        || !_bin_read_u32(&r, &entries[si].m_location.m_begin_line)
+                        || !_bin_read_u32(&r, &entries[si].m_location.m_begin_column)
+                        || !_bin_read_u32(&r, &entries[si].m_location.m_end_line)
+                        || !_bin_read_u32(&r, &entries[si].m_location.m_end_column))
                     {
-                        const char* fp = _RESTORE_STR(fp_off);
-                        if (fp != NULL)
-                            fp = woort_StringPool_intern(&cenv->m_srcloc_string_pool, fp);
-                        entries[si].m_location.m_filepath = fp;
+                        free(entries);
+                        result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        goto _restore_fail_after_create;
                     }
+
+                    const char* fp = _RESTORE_STR(fp_off);
+                    if (fp != NULL)
+                        fp = woort_StringPool_intern(&cenv->m_srcloc_string_pool, fp);
+                    entries[si].m_location.m_filepath = fp;
                 }
 
-                if (ok)
-                {
-                    free(cenv->m_source_map.m_entries);
-                    cenv->m_source_map.m_entries = entries;
-                    cenv->m_source_map.m_entry_count = (uint32_t)sm_count;
-                }
-                else
-                {
-                    free(entries);
-                }
+                free(cenv->m_source_map.m_entries);
+                cenv->m_source_map.m_entries = entries;
+                cenv->m_source_map.m_entry_count = (uint32_t)sm_count;
             }
         }
-    }
 
-    /*
-     * 读取 trap 记录表。
-     */
-    if (ok)
-    {
-        uint64_t trap_count;
-        ok = ok && _bin_read_u64(&r, &trap_count);
-        for (uint64_t ti = 0; ok && ti < trap_count; ++ti)
+        /*
+         * 读取 trap 记录表。
+         */
         {
-            uint32_t off, orig;
-            ok = ok && _bin_read_u32(&r, &off);
-            ok = ok && _bin_read_u32(&r, &orig);
-
-            if (ok && code_size > 0 && off < code_size)
+            uint64_t trap_count;
+            if (!_bin_read_u64(&r, &trap_count))
             {
-                /* 注意：trap 记录在恢复时仅仅存下来，不激活（因为可能字节码已变） */
-                (void)woort_hashmap_insert(
-                    &cenv->m_trap_records,
-                    &cenv->m_code_begin[off],
-                    &orig);
+                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                goto _restore_fail_after_create;
+            }
+            for (uint64_t ti = 0; ti < trap_count; ++ti)
+            {
+                uint32_t off, orig;
+                if (!_bin_read_u32(&r, &off)
+                    || !_bin_read_u32(&r, &orig))
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    goto _restore_fail_after_create;
+                }
+
+                if (cenv->m_code_end > cenv->m_code_begin
+                    && (size_t)off < (size_t)(cenv->m_code_end - cenv->m_code_begin))
+                {
+                    /* 注意：trap 记录在恢复时仅仅存下来，不激活（因为可能字节码已变） */
+                    (void)woort_hashmap_insert(
+                        &cenv->m_trap_records,
+                        &cenv->m_code_begin[off],
+                        &orig);
+                }
             }
         }
-    }
+}
 
     woort_CodeEnv_unlock(cenv);
     free(raw);
 
-    if (!ok)
-    {
-        woort_CodeEnv_drop(cenv);
-        return false;
-    }
-
     *out_code_env = cenv;
-    return true;
+    return WOORT_CODEENV_RESTORE_OK;
+
+_restore_fail_after_create:
+    woort_CodeEnv_unlock(cenv);
+    woort_CodeEnv_drop(cenv);
+    free(raw);
+    return result;
+
+_restore_fail_after_read_raw:
+    free(raw);
+    return result;
+}
+
+WOORT_NODISCARD const char* woort_CodeEnv_restore_failed_desc(
+    woort_CodeEnv_RestoreResult rt)
+{
+    switch (rt)
+    {
+    case WOORT_CODEENV_RESTORE_OK:
+        return "OK";
+    case WOORT_CODEENV_RESTORE_FAIL_READ:
+        return "Failed to restore binary: read error.";
+    case WOORT_CODEENV_RESTORE_FAIL_ALLOC:
+        return "Failed to restore binary: out of memory.";
+    case WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH:
+        return "Failed to restore binary: bad magic number.";
+    case WOORT_CODEENV_RESTORE_FAIL_VERSION_DOESNT_MATCH:
+        return "Failed to restore binary: unsupported binary version.";
+    case WOORT_CODEENV_RESTORE_FAIL_INVALID_CODE_SIZE:
+        return "Failed to restore binary: invalid code size.";
+    case WOORT_CODEENV_RESTORE_FAIL_CREATE_CODEENV:
+        return "Failed to restore binary: internal creation failure.";
+    case WOORT_CODEENV_RESTORE_FAIL_INVALID_STRPOOL:
+        return "Failed to restore binary: invalid string pool.";
+    case WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA:
+        return "Failed to restore binary: truncated data.";
+    case WOORT_CODEENV_RESTORE_FAIL_INVALID_CONST_TYPE:
+        return "Failed to restore binary: unknown constant type.";
+    case WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET:
+        return "Failed to restore binary: invalid pool offset.";
+    case WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE:
+        return "Failed to restore binary: cannot resolve external symbol.";
+    default:
+        return "Failed to restore binary: unknown error.";
+    }
 }
 
 #undef _RESTORE_STR

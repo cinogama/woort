@@ -516,7 +516,7 @@ can handle large files portably.
     #define _WOORT_VFILE_FTELL ftello
 #endif
 
-WOORT_NODISCARD bool woort_vfile_reader(
+WOORT_NODISCARD bool woort_vfile_open_reader(
     /* OPTIONAL */ const void* buf,
     size_t buflen,
     woort_VFile** out_file)
