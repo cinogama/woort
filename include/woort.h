@@ -406,7 +406,6 @@ typedef struct woort_VMRuntime_TraceCallstack
 {
     size_t m_callstack_depth;
 
-    bool m_is_fuzzy;
     bool m_has_location;
 
     /* OPTIONAL */ const char* m_function_name;

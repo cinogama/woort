@@ -3918,7 +3918,6 @@ WOORT_NODISCARD static bool _woort_VMRuntime_trace_addr(
         if (woort_CodeEnv_find_srcloc_by_offset(
             cenv, code_offset, &src_loc))
         {
-            out_result->m_is_fuzzy = false;
             out_result->m_has_location = true;
 
             out_result->m_function_name =
@@ -3933,7 +3932,6 @@ WOORT_NODISCARD static bool _woort_VMRuntime_trace_addr(
         else
         {
             // No debug info.
-            out_result->m_is_fuzzy = true;
             out_result->m_has_location = false;
 
             out_result->m_function_name = NULL;
@@ -3950,7 +3948,6 @@ WOORT_NODISCARD static bool _woort_VMRuntime_trace_addr(
     woort_Dylib* out_dylib;
     if (woort_Dylib_find_by_resolved_func((void*)code, &out_dylib))
     {
-        out_result->m_is_fuzzy = false;
         out_result->m_has_location = false;
 
         (void)woort_Dylib_get_function_name(out_dylib, (void*)code, &out_result->m_function_name);
@@ -3964,7 +3961,6 @@ WOORT_NODISCARD static bool _woort_VMRuntime_trace_addr(
     }
 
     // Emm? what?
-    out_result->m_is_fuzzy = true;
     out_result->m_has_location = false;
 
     out_result->m_function_name = NULL;
@@ -4053,35 +4049,34 @@ void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace)
     if (func != NULL && file != NULL)
     {
         if (trace->m_has_location)
-            woort_log("    at %s (%s:%zu:%zu)%s\n",
-                func, file, line + 1, col + 1,
-                trace->m_is_fuzzy ? " ~" : "");
+            woort_log(
+                "    at %s (%s:%zu:%zu)\n",
+                func, 
+                file,
+                line + 1,
+                col + 1);
         else
-            woort_log("    at %s (%s)%s\n",
-                func, file,
-                trace->m_is_fuzzy ? " ~" : "");
+            woort_log(
+                "    at %s (%s)\n",
+                func,
+                file);
     }
     else if (func != NULL)
-    {
-        woort_log("    at %s%s\n",
-            func,
-            trace->m_is_fuzzy ? " ~" : "");
-    }
+        woort_log("    at %s\n", func);
     else if (file != NULL)
     {
         if (line != 0)
-            woort_log("    at <unknown> (%s:%zu:%zu)%s\n",
-                file, line + 1, col + 1,
-                trace->m_is_fuzzy ? " ~" : "");
+            woort_log(
+                "    at <unknown> (%s:%zu:%zu)\n",
+                file, 
+                line + 1, 
+                col + 1);
         else
-            woort_log("    at <unknown> (%s)%s\n",
-                file,
-                trace->m_is_fuzzy ? " ~" : "");
+            woort_log("    at <unknown> (%s)\n", file);
     }
     else
     {
-        woort_log("    at <unknown>%s\n",
-            trace->m_is_fuzzy ? " ~" : "");
+        woort_log("    at <unknown>\n");
     }
 }
 

@@ -25,8 +25,7 @@ WOORT_NODISCARD static bool _woort_diagnosis_trace_equal(
         return false;
     if (!_woort_diagnosis_str_equal(a->m_file_or_lib_name, b->m_file_or_lib_name))
         return false;
-    if (a->m_is_fuzzy != b->m_is_fuzzy
-        || a->m_has_location != b->m_has_location
+    if (a->m_has_location != b->m_has_location
         || a->m_location_begin[0] != b->m_location_begin[0]
         || a->m_location_begin[1] != b->m_location_begin[1]
         || a->m_location_end[0] != b->m_location_end[0]

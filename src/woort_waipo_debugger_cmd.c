@@ -1278,9 +1278,6 @@ void woort_WAIPO_Debugger_process(
                 (void)printf("    <unknown>");
             }
 
-            if (trace.m_is_fuzzy)
-                (void)printf(" ~");
-
             woort_CodeEnv* cenv;
             if (woort_CodeEnv_find(vm->m_ip, &cenv))
             {
