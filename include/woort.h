@@ -3648,7 +3648,25 @@ WOORT_NODISCARD WOORT_API bool woort_vfs_resolve_path(
  */
 WOORT_NODISCARD WOORT_API bool woort_vfile_open(
     const char* filepath,
-    /* OPTIONAL */ woort_VFile** out_file);
+    woort_VFile** out_file);
+
+/**
+ * @brief Wrap an external memory buffer as a read-only VFile.
+ *
+ * The returned VFile reads from @p buf without copying, owning, or
+ * freeing it.  The caller must keep @p buf alive for the lifetime of
+ * the VFile and call woort_vfile_close() when done.
+ *
+ * @param buf       Pointer to the buffer (may be NULL, yielding a
+ *                  zero-length file).
+ * @param buflen    Number of bytes in the buffer.
+ * @param out_file  Receives the new VFile handle.
+ * @return true on success.
+ */
+WOORT_NODISCARD WOORT_API bool woort_vfile_reader(
+    /* OPTIONAL */ const void* buf,
+    size_t buflen,
+    woort_VFile** out_file);
 
 /**
  * @brief Read up to @p size bytes from a streaming file handle.

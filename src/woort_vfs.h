@@ -30,7 +30,8 @@ typedef struct woort_VFSEntry
 typedef enum woort_VFileType
 {
     WOORT_VFILE_TYPE_REAL    = 0,
-    WOORT_VFILE_TYPE_VIRTUAL = 1
+    WOORT_VFILE_TYPE_VIRTUAL = 1,
+    WOORT_VFILE_TYPE_READER  = 2   /* external buffer, not owned */
 } woort_VFileType;
 
 struct woort_VFile
@@ -45,6 +46,12 @@ struct woort_VFile
             size_t      m_size;               /* total size in bytes     */
             size_t      m_pos;                /* current read position   */
         } m_virtual;
+        struct
+        {
+            /* OPTIONAL */ const void* m_data; /* external buffer, not owned */
+            size_t                  m_size;   /* total size in bytes         */
+            size_t                  m_pos;    /* current read position       */
+        } m_reader;
     };
 };
 

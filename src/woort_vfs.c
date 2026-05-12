@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 
 /* ================================================================
  *  Global VFS State
@@ -13,36 +14,19 @@
 
 static woort_Vector     g_vfs_entries;   /* vector of woort_VFSEntry*  */
 static woort_RWSpinlock g_vfs_lock;      /* read-write spinlock        */
-static bool             g_vfs_inited = false;
 
 /* ================================================================
  *  Lifecycle
  * ================================================================ */
 
-/*
-Ensure the VFS is initialized.  Safe to call multiple times;
-idempotent after the first successful call.
-*/
-static void _woort_vfs_ensure_inited(void)
-{
-    if (!g_vfs_inited)
-    {
-        woort_vector_init(&g_vfs_entries, sizeof(woort_VFSEntry*));
-        woort_rwspinlock_init(&g_vfs_lock);
-        g_vfs_inited = true;
-    }
-}
-
 void _woort_vfs_bootup(void)
 {
-    _woort_vfs_ensure_inited();
+    woort_vector_init(&g_vfs_entries, sizeof(woort_VFSEntry*));
+    woort_rwspinlock_init(&g_vfs_lock);
 }
 
 void _woort_vfs_shutdown(void)
 {
-    if (!g_vfs_inited)
-        return;
-
     woort_rwspinlock_write_lock(&g_vfs_lock);
 
     for (size_t i = 0; i < g_vfs_entries.m_size; ++i)
@@ -60,7 +44,6 @@ void _woort_vfs_shutdown(void)
 
     woort_vector_deinit(&g_vfs_entries);
     woort_rwspinlock_deinit(&g_vfs_lock);
-    g_vfs_inited = false;
 }
 
 /* ================================================================
@@ -99,8 +82,6 @@ WOORT_NODISCARD bool woort_vfs_create(
 {
     if (filepath == NULL)
         return false;
-
-    _woort_vfs_ensure_inited();
 
     woort_rwspinlock_write_lock(&g_vfs_lock);
 
@@ -194,8 +175,6 @@ WOORT_NODISCARD bool woort_vfs_remove(const char* filepath)
     if (filepath == NULL)
         return false;
 
-    _woort_vfs_ensure_inited();
-
     woort_rwspinlock_write_lock(&g_vfs_lock);
 
     for (size_t i = 0; i < g_vfs_entries.m_size; ++i)
@@ -243,8 +222,6 @@ WOORT_NODISCARD bool woort_vfs_read(
     if (filepath == NULL)
         return false;
 
-    _woort_vfs_ensure_inited();
-
     const char* lookup_path = filepath;
     if (woort_vfs_is_virtual_uri(filepath))
         lookup_path = filepath + WOORT_VFS_SCHEME_LEN;
@@ -288,8 +265,6 @@ WOORT_NODISCARD bool woort_vfs_exists(const char* filepath)
     if (filepath == NULL)
         return false;
 
-    _woort_vfs_ensure_inited();
-
     const char* lookup_path = filepath;
     if (woort_vfs_is_virtual_uri(filepath))
         lookup_path = filepath + WOORT_VFS_SCHEME_LEN;
@@ -306,8 +281,6 @@ WOORT_NODISCARD bool woort_vfs_exists(const char* filepath)
 WOORT_NODISCARD size_t woort_vfs_get_all_paths(
     /* OPTIONAL */ char*** out_paths)
 {
-    _woort_vfs_ensure_inited();
-
     woort_rwspinlock_read_lock(&g_vfs_lock);
 
     size_t count = g_vfs_entries.m_size;
@@ -543,12 +516,31 @@ can handle large files portably.
     #define _WOORT_VFILE_FTELL ftello
 #endif
 
+WOORT_NODISCARD bool woort_vfile_reader(
+    /* OPTIONAL */ const void* buf,
+    size_t buflen,
+    woort_VFile** out_file)
+{
+    assert(out_file != NULL);
+
+    woort_VFile* file = (woort_VFile*)calloc(1, sizeof(woort_VFile));
+    if (file == NULL)
+        return false;
+
+    file->m_type          = WOORT_VFILE_TYPE_READER;
+    file->m_reader.m_data = buf;
+    file->m_reader.m_size = buflen;
+    file->m_reader.m_pos  = 0;
+
+    *out_file = file;
+    return true;
+}
+
 WOORT_NODISCARD bool woort_vfile_open(
     const char* filepath,
-    /* OPTIONAL */ woort_VFile** out_file)
+    woort_VFile** out_file)
 {
-    if (filepath == NULL || out_file == NULL)
-        return false;
+    assert(filepath != NULL && out_file != NULL);
 
     woort_VFile* file = (woort_VFile*)calloc(1, sizeof(woort_VFile));
     if (file == NULL)
@@ -611,6 +603,17 @@ WOORT_NODISCARD bool woort_vfile_read(
         file->m_virtual.m_pos += to_read;
         total_read = to_read;
     }
+    else if (file->m_type == WOORT_VFILE_TYPE_READER)
+    {
+        size_t available = file->m_reader.m_size - file->m_reader.m_pos;
+        size_t to_read   = (size < available) ? size : available;
+
+        if (buffer != NULL && to_read > 0)
+            memcpy(buffer, (const char*)file->m_reader.m_data + file->m_reader.m_pos, to_read);
+
+        file->m_reader.m_pos += to_read;
+        total_read = to_read;
+    }
     else
     {
         if (buffer != NULL && size > 0)
@@ -662,6 +665,35 @@ WOORT_NODISCARD bool woort_vfile_seek(
         return true;
     }
 
+    if (file->m_type == WOORT_VFILE_TYPE_READER)
+    {
+        int64_t new_pos;
+
+        switch (whence)
+        {
+        case SEEK_SET:
+            new_pos = offset;
+            break;
+        case SEEK_CUR:
+            new_pos = (int64_t)file->m_reader.m_pos + offset;
+            break;
+        case SEEK_END:
+            new_pos = (int64_t)file->m_reader.m_size + offset;
+            break;
+        default:
+            return false;
+        }
+
+        if (new_pos < 0)
+            return false;
+
+        file->m_reader.m_pos = (new_pos > (int64_t)file->m_reader.m_size)
+            ? file->m_reader.m_size
+            : (size_t)new_pos;
+
+        return true;
+    }
+
     return _WOORT_VFILE_FSEEK(file->m_real_file, offset, whence) == 0;
 }
 
@@ -673,6 +705,9 @@ WOORT_NODISCARD int64_t woort_vfile_tell(/* OPTIONAL */ woort_VFile* file)
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
         return (int64_t)file->m_virtual.m_pos;
 
+    if (file->m_type == WOORT_VFILE_TYPE_READER)
+        return (int64_t)file->m_reader.m_pos;
+
     return (int64_t)_WOORT_VFILE_FTELL(file->m_real_file);
 }
 
@@ -683,6 +718,9 @@ WOORT_NODISCARD int64_t woort_vfile_size(/* OPTIONAL */ woort_VFile* file)
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
         return (int64_t)file->m_virtual.m_size;
+
+    if (file->m_type == WOORT_VFILE_TYPE_READER)
+        return (int64_t)file->m_reader.m_size;
 
     {
         int64_t saved = _WOORT_VFILE_FTELL(file->m_real_file);
@@ -709,11 +747,12 @@ void woort_vfile_close(/* OPTIONAL */ woort_VFile* file)
     {
         free(file->m_virtual.m_data);
     }
-    else
+    else if (file->m_type == WOORT_VFILE_TYPE_REAL)
     {
         if (file->m_real_file != NULL)
             fclose(file->m_real_file);
     }
+    /* WOORT_VFILE_TYPE_READER: external buffer, nothing to free */
 
     free(file);
 }
