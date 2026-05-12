@@ -1026,9 +1026,10 @@ static void* _bin_writer_detach(_BinWriter* w, size_t* out_len)
 
 typedef struct _BinReader
 {
-    const unsigned char* m_data;
-    size_t m_size;
-    size_t m_pos;
+    /* OPTIONAL */ const unsigned char* m_data;   /* NULL for VFile mode */
+    size_t            m_size;
+    size_t            m_pos;
+    /* OPTIONAL */ woort_VFile* m_file;            /* NULL for memory mode */
 } _BinReader;
 
 static bool _bin_reader_init_memory(
@@ -1037,6 +1038,7 @@ static bool _bin_reader_init_memory(
     r->m_data = (const unsigned char*)data;
     r->m_size = size;
     r->m_pos = 0;
+    r->m_file = NULL;
     return true;
 }
 
@@ -1044,7 +1046,17 @@ static bool _bin_read_raw(_BinReader* r, void* out, size_t len)
 {
     if (r->m_pos + len > r->m_size)
         return false;
-    memcpy(out, r->m_data + r->m_pos, len);
+    if (r->m_file != NULL)
+    {
+        size_t bytes_read = 0;
+        if (!woort_vfile_read(r->m_file, out, len, &bytes_read)
+            || bytes_read != len)
+            return false;
+    }
+    else
+    {
+        memcpy(out, r->m_data + r->m_pos, len);
+    }
     r->m_pos += len;
     return true;
 }
@@ -1640,106 +1652,145 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
     *out_code_env = NULL;
 
-    /* 读取整个文件到内存 */
+    /* 获取文件总大小，用于增量读取校验 */
     int64_t fsize_val = woort_vfile_size(f);
     if (fsize_val < 0)
         return WOORT_CODEENV_RESTORE_FAIL_READ;
-    size_t fsize = (size_t)fsize_val;
+    size_t total_size = (size_t)fsize_val;
 
-    void* raw = malloc(fsize);
-    if (raw == NULL)
-        return WOORT_CODEENV_RESTORE_FAIL_ALLOC;
-
-    size_t bytes_read = 0;
-    if (!woort_vfile_seek(f, 0, SEEK_SET)
-        || !woort_vfile_read(f, raw, fsize, &bytes_read)
-        || bytes_read != fsize)
-    {
-        free(raw);
+    /* 定位到文件开头 */
+    if (!woort_vfile_seek(f, 0, SEEK_SET))
         return WOORT_CODEENV_RESTORE_FAIL_READ;
+
+    /* 读取头部 24 字节到栈上缓冲区 */
+    unsigned char header_buf[24];
+    {
+        size_t bytes_read;
+        if (!woort_vfile_read(f, header_buf, sizeof(header_buf), &bytes_read)
+            || bytes_read != sizeof(header_buf))
+            return WOORT_CODEENV_RESTORE_FAIL_READ;
     }
 
-    _BinReader r;
-    _bin_reader_init_memory(&r, raw, fsize);
+    /* 解析头部 */
+    uint32_t magic, version;
+    uint64_t code_size, data_count;
 
-    woort_CodeEnv* cenv = NULL;
-
-    /* 读取头部 */
+    do
     {
-        uint32_t magic, version;
-        uint64_t code_size, data_count;
-        if (!_bin_read_u32(&r, &magic)
-            || !_bin_read_u32(&r, &version)
-            || !_bin_read_u64(&r, &code_size)
-            || !_bin_read_u64(&r, &data_count))
+        _BinReader rh;
+        _bin_reader_init_memory(&rh, header_buf, sizeof(header_buf));
+
+        if (!_bin_read_u32(&rh, &magic) || magic != WOORT_CODEENV_BINARY_MAGIC)
+        {
+            // Bad magic, might be 
+            return WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH;
+        }
+
+        if (!_bin_read_u32(&rh, &version)
+            || !_bin_read_u64(&rh, &code_size)
+            || !_bin_read_u64(&rh, &data_count))
         {
             WOORT_DEBUG("CodeEnv restore: truncated header.");
-            result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
-            goto _restore_fail_after_read_raw;
+            return WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
         }
 
-        if (magic != WOORT_CODEENV_BINARY_MAGIC)
-        {
-            WOORT_DEBUG("CodeEnv restore: bad header magic=%08x ver=%u.", magic, version);
-            result = WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH;
-            goto _restore_fail_after_read_raw;
-        }
+    } while (0);
 
-        if (version != WOORT_CODEENV_BINARY_VERSION)
-        {
-            WOORT_DEBUG("CodeEnv restore: version mismatch ver=%u.", version);
-            result = WOORT_CODEENV_RESTORE_FAIL_VERSION_DOESNT_MATCH;
-            goto _restore_fail_after_read_raw;
-        }
+    if (version != WOORT_CODEENV_BINARY_VERSION)
+    {
+        WOORT_DEBUG("CodeEnv restore: version mismatch ver=%u.", version);
+        return WOORT_CODEENV_RESTORE_FAIL_VERSION_DOESNT_MATCH;
+    }
 
-        /* 读取字节码（直接从二进制流读取，woort_CodeEnv_create 会复制）*/
-        if (code_size > (r.m_size - r.m_pos) / sizeof(woort_Bytecode))
-        {
-            WOORT_DEBUG("CodeEnv restore: invalid code size %llu.", (unsigned long long)code_size);
-            result = WOORT_CODEENV_RESTORE_FAIL_INVALID_CODE_SIZE;
-            goto _restore_fail_after_read_raw;
-        }
+    /* 校验 code_size */
+    size_t code_bytes = (size_t)code_size * sizeof(woort_Bytecode);
+    if (code_bytes > total_size - sizeof(header_buf))
+    {
+        WOORT_DEBUG("CodeEnv restore: invalid code size %llu.", (unsigned long long)code_size);
+        return WOORT_CODEENV_RESTORE_FAIL_INVALID_CODE_SIZE;
+    }
 
-        const woort_Bytecode* codes_from_bin = NULL;
-        if (code_size > 0)
+    /* 从 VFile 增量读取字节码到临时缓冲区 */
+    woort_Bytecode* codes_from_bin = NULL;
+    if (code_bytes > 0)
+    {
+        codes_from_bin = (woort_Bytecode*)malloc(code_bytes);
+        if (codes_from_bin == NULL)
+            return WOORT_CODEENV_RESTORE_FAIL_ALLOC;
         {
-            codes_from_bin = (const woort_Bytecode*)(r.m_data + r.m_pos);
-            r.m_pos += (size_t)code_size * sizeof(woort_Bytecode);
-        }
-
-        /* 创建 CodeEnv */
-        if (!woort_CodeEnv_create(
-                codes_from_bin,
-                (size_t)code_size,
-                (size_t)data_count,
-                &cenv)
-            || cenv == NULL)
-        {
-            result = WOORT_CODEENV_RESTORE_FAIL_CREATE_CODEENV;
-            goto _restore_fail_after_read_raw;
+            size_t bytes_read;
+            if (!woort_vfile_read(f, codes_from_bin, code_bytes, &bytes_read)
+                || bytes_read != code_bytes)
+            {
+                free(codes_from_bin);
+                return WOORT_CODEENV_RESTORE_FAIL_READ;
+            }
         }
     }
+
+    /* 创建 CodeEnv (内部会复制字节码，故临时缓冲区可随后释放) */
+    woort_CodeEnv* cenv = NULL;
+    if (!woort_CodeEnv_create(
+            codes_from_bin,
+            (size_t)code_size,
+            (size_t)data_count,
+            &cenv)
+        || cenv == NULL)
+    {
+        free(codes_from_bin);
+        return WOORT_CODEENV_RESTORE_FAIL_CREATE_CODEENV;
+    }
+
+    free(codes_from_bin);
+    codes_from_bin = NULL;
 
     woort_CodeEnv_lock(cenv);
 
-    /* 读取字符串池 */
+    /* 增量读取字符串池 */
+    void* strpool_buf = NULL;
     {
         uint64_t strpool_size;
-        if (!_bin_read_u64(&r, &strpool_size))
         {
-            result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
-            goto _restore_fail_after_create;
-        }
-
-        const char* strpool_data = (strpool_size > 0) ? (const char*)(r.m_data + r.m_pos) : NULL;
-        if (strpool_size > 0)
-        {
-            if (r.m_pos + strpool_size > r.m_size)
+            size_t bytes_read;
+            if (!woort_vfile_read(f, &strpool_size, sizeof(strpool_size), &bytes_read)
+                || bytes_read != sizeof(strpool_size))
             {
-                result = WOORT_CODEENV_RESTORE_FAIL_INVALID_STRPOOL;
+                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                 goto _restore_fail_after_create;
             }
-            r.m_pos += (size_t)strpool_size;
+        }
+
+        const char* strpool_data = NULL;
+        if (strpool_size > 0)
+        {
+            strpool_buf = malloc((size_t)strpool_size);
+            if (strpool_buf == NULL)
+            {
+                result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                goto _restore_fail_after_create;
+            }
+            {
+                size_t bytes_read;
+                if (!woort_vfile_read(f, strpool_buf, (size_t)strpool_size, &bytes_read)
+                    || bytes_read != (size_t)strpool_size)
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_READ;
+                    goto _restore_fail_after_create;
+                }
+            }
+            strpool_data = (const char*)strpool_buf;
+        }
+
+        /* 初始化 VFile 模式读取器，从 VFile 当前位置流式解析剩余数据 */
+        _BinReader r;
+        r.m_data = NULL;
+        r.m_file = f;
+        r.m_pos = 0;
+        /* 剩余大小 = 文件总大小 - 已读部分 */
+        {
+            size_t read_so_far = sizeof(header_buf) + code_bytes
+                               + sizeof(strpool_size) + (size_t)strpool_size;
+            r.m_size = (total_size > read_so_far) ? total_size - read_so_far : 0;
         }
 
         /* 辅助宏：从字符串池中读取字符串指针 */
@@ -1750,8 +1801,8 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
          * 读取常量数据。
          */
         {
-            size_t data_count = cenv->m_data_count;
-            for (size_t i = 0; i < data_count; ++i)
+            size_t data_count_c = cenv->m_data_count;
+            for (size_t i = 0; i < data_count_c; ++i)
             {
                 uint8_t type;
                 if (!_bin_read_u8(&r, &type))
@@ -2189,22 +2240,18 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 }
             }
         }
-}
+    }
 
+    free(strpool_buf);
     woort_CodeEnv_unlock(cenv);
-    free(raw);
 
     *out_code_env = cenv;
     return WOORT_CODEENV_RESTORE_OK;
 
 _restore_fail_after_create:
+    free(strpool_buf);
     woort_CodeEnv_unlock(cenv);
     woort_CodeEnv_drop(cenv);
-    free(raw);
-    return result;
-
-_restore_fail_after_read_raw:
-    free(raw);
     return result;
 }
 
