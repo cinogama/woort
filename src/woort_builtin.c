@@ -1602,7 +1602,7 @@ static woort_api woort_builtin_create_str_by_wchar(void)
     for (size_t i = 0; i < len; i++)
     {
         (void)woort_vec_get(elem_slot, 0, i);
-        u32[i] = (char32_t)woort_int(elem_slot);
+        u32[i] = (char32_t)woort_unbox_int(elem_slot);
     }
 
     size_t u8_len = 0;
@@ -1636,7 +1636,7 @@ static woort_api woort_builtin_create_str_by_ascii(void)
     for (size_t i = 0; i < len; i++)
     {
         (void)woort_vec_get(elem_slot, 0, i);
-        buf[i] = (char)(woort_Int)woort_int(elem_slot);
+        buf[i] = (char)(woort_Int)woort_unbox_int(elem_slot);
     }
 
     const woort_api r = woort_ret_buffer(buf, len);
