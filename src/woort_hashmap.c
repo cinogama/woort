@@ -114,7 +114,16 @@ woort_HashMapEntry* _woort_hashmap_get_free_entry_and_reset_prev(woort_HashMap* 
 void _woort_hashmap_drop_entry(
     woort_HashMap* map, woort_HashMapEntry* entry_to_drop)
 {
-    // Only use next ptr for entries.
+#if !defined(NDEBUG)
+    memset(entry_to_drop->m_kv_storage, 0,
+        ((map->m_key_size + WOORT_HASHMAP_KEY_VALUE_MAX_ALIGN_MASK)
+            & ~WOORT_HASHMAP_KEY_VALUE_MAX_ALIGN_MASK)
+        + map->m_value_size);
+
+    entry_to_drop->m_prev = NULL;
+#endif
+
+    /* Only use next ptr for entries. */
     entry_to_drop->m_next = map->m_free_entries;
     map->m_free_entries = entry_to_drop;
 }
@@ -320,6 +329,8 @@ void woort_hashmap_clear(woort_HashMap* map)
 
             _woort_hashmap_drop_entry(map, current_enrty);
         }
+
+        map->m_buckets[bucket_id] = NULL;
     }
     map->m_size = 0;
 }
