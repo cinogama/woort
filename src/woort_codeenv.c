@@ -1265,7 +1265,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     if (ok)
     {
         struct _SaveStrPoolCtx ctx = { &strpool, &ok };
-        woort_hashmap_foreach(&code_env->m_extern_constants,
+        (void)woort_hashmap_foreach(&code_env->m_extern_constants,
             &_save_strpool_add_key, &ctx);
     }
 
@@ -1534,7 +1534,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
         if (ok && extern_count > 0)
         {
             struct _WriteExternConstCtx ctx = { &strpool, &w, &ok };
-            woort_hashmap_foreach(&code_env->m_extern_constants,
+            (void)woort_hashmap_foreach(&code_env->m_extern_constants,
                 &_write_extern_const, &ctx);
         }
     }
@@ -1607,7 +1607,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
         if (ok && trap_count > 0)
         {
             struct _WriteTrapCtx ctx = { code_env->m_code_begin, &w, &ok };
-            woort_hashmap_foreach(&code_env->m_trap_records,
+            (void)woort_hashmap_foreach(&code_env->m_trap_records,
                 &_write_trap, &ctx);
         }
     }
@@ -1763,7 +1763,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 switch (type)
                 {
                 case _WOORT_BIN_TYPE_NIL:
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_NIL, NULL, NULL);
                     break;
 
@@ -1776,7 +1776,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         goto _restore_fail_after_create;
                     }
                     woort_CodeEnv_set_const_int(cenv, (woort_IRConstantIndex)i, v);
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_INT, NULL, NULL);
                     break;
                 }
@@ -1790,7 +1790,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         goto _restore_fail_after_create;
                     }
                     woort_CodeEnv_set_const_real(cenv, (woort_IRConstantIndex)i, v);
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_REAL, NULL, NULL);
                     break;
                 }
@@ -1806,7 +1806,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     const char* s = _RESTORE_STR(off);
                     woort_CodeEnv_set_const_string(cenv, (woort_IRConstantIndex)i,
                         s != NULL ? s : "");
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_STRING, NULL, NULL);
                     break;
                 }
@@ -1822,7 +1822,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     const woort_Bytecode* addr = (off != UINT32_MAX && cenv->m_code_end > cenv->m_code_begin)
                         ? cenv->m_code_begin + off : NULL;
                     woort_CodeEnv_set_const_script_function(cenv, (woort_IRConstantIndex)i, addr);
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_SCRIPT_FUNC, NULL, NULL);
                     break;
                 }
@@ -1863,9 +1863,9 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     }
 
                     woort_CodeEnv_set_const_extern_function(cenv, (woort_IRConstantIndex)i, nf);
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_EXTERN_FUNC, lib_name, func_name);
-                    woort_CodeEnv_add_extern_lib(cenv, lib);
+                    (void)woort_CodeEnv_add_extern_lib(cenv, lib);
                     break;
                 }
 
@@ -1880,7 +1880,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     const woort_Bytecode* addr = (off != UINT32_MAX && cenv->m_code_end > cenv->m_code_begin)
                         ? cenv->m_code_begin + off : NULL;
                     woort_CodeEnv_set_const_script_closure(cenv, (woort_IRConstantIndex)i, addr);
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_SCRIPT_CLOSURE, NULL, NULL);
                     break;
                 }
@@ -1920,9 +1920,9 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     }
 
                     woort_CodeEnv_set_const_extern_closure(cenv, (woort_IRConstantIndex)i, nf);
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_EXTERN_CLOSURE, lib_name, func_name);
-                    woort_CodeEnv_add_extern_lib(cenv, lib);
+                    (void)woort_CodeEnv_add_extern_lib(cenv, lib);
                     break;
                 }
 
@@ -1935,7 +1935,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         goto _restore_fail_after_create;
                     }
                     woort_CodeEnv_set_const_box_int(cenv, (woort_IRConstantIndex)i, v);
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_BOX_INT, NULL, NULL);
                     break;
                 }
@@ -1949,7 +1949,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         goto _restore_fail_after_create;
                     }
                     woort_CodeEnv_set_const_box_real(cenv, (woort_IRConstantIndex)i, v);
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_BOX_REAL, NULL, NULL);
                     break;
                 }
@@ -1963,7 +1963,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         goto _restore_fail_after_create;
                     }
                     woort_CodeEnv_set_const_box_bool(cenv, (woort_IRConstantIndex)i, v != 0);
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_BOX_BOOL, NULL, NULL);
                     break;
                 }
@@ -2003,7 +2003,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
                     woort_CodeEnv_set_const_struct(cenv, (woort_IRConstantIndex)i,
                         members, member_count);
-                    woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
+                    (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_STRUCT, NULL, NULL);
 
                     free(members);
@@ -2041,7 +2041,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
                 const char* name = _RESTORE_STR(name_off);
                 if (name != NULL)
-                    woort_CodeEnv_register_extern_constant(cenv, name, cidx);
+                    (void)woort_CodeEnv_register_extern_constant(cenv, name, cidx);
             }
         }
 
@@ -2069,7 +2069,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 {
                     woort_Dylib* lib = woort_dylib_load(lib_name, lib_name, NULL, false);
                     if (lib != NULL)
-                        woort_CodeEnv_add_extern_lib(cenv, lib);
+                        (void)woort_CodeEnv_add_extern_lib(cenv, lib);
                 }
             }
         }
