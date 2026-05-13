@@ -71,6 +71,12 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_MODI,
     WOORT_IROP_KIND_NEGI,
 
+    /* ============ 整数除法检查 ============ */
+    WOORT_IROP_KIND_CHKDIVIL,
+    WOORT_IROP_KIND_CHKDIVIR,
+    WOORT_IROP_KIND_CHKDIVIRZ,
+    WOORT_IROP_KIND_CHKDIVILR,
+
     /* ============ 整数比较 ============ */
     WOORT_IROP_KIND_LTI,
     WOORT_IROP_KIND_GTI,

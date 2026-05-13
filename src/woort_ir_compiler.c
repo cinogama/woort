@@ -999,6 +999,43 @@ static bool _emit_op(
         return _apply_store(blk, op->m_dst, w);
     }
 
+    /* ============ 整除检查 ============ */
+    case WOORT_IROP_KIND_CHKDIVIL:
+    {
+        (void)c;
+        int16_t r;
+        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
+            return false;
+        return _emit_bc(blk, woort_OpCode_CHKDIVIL(r));
+    }
+    case WOORT_IROP_KIND_CHKDIVIR:
+    {
+        (void)c;
+        int16_t r;
+        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
+            return false;
+        return _emit_bc(blk, woort_OpCode_CHKDIVIR(r));
+    }
+    case WOORT_IROP_KIND_CHKDIVIRZ:
+    {
+        (void)c;
+        int16_t r;
+        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
+            return false;
+        return _emit_bc(blk, woort_OpCode_CHKDIVIRZ(r));
+    }
+    case WOORT_IROP_KIND_CHKDIVILR:
+    {
+        (void)c;
+        int8_t r1;
+        if (!_load_to_s8(blk, op->m_src[0], -128, &r1))
+            return false;
+        int16_t r2;
+        if (!_load_to_s16(blk, op->m_src[1], -127, &r2))
+            return false;
+        return _emit_bc(blk, woort_OpCode_CHKDIVILR(r1, r2));
+    }
+
     /* ============ 整数比较 ============ */
     case WOORT_IROP_KIND_LTI:
         _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LTI);

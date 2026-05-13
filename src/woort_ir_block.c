@@ -380,6 +380,45 @@ _DEFINE_BINARY_OP(woort_IR_DIVI, WOORT_IROP_KIND_DIVI)
 _DEFINE_BINARY_OP(woort_IR_MODI, WOORT_IROP_KIND_MODI)
 _DEFINE_UNARY_OP(woort_IR_NEGI,  WOORT_IROP_KIND_NEGI)
 
+/* ========== 整除检查 ========== */
+
+WOORT_NODISCARD bool woort_IR_CHKDIVIL(
+    woort_IRFunction* f, const woort_IRValue* a)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_CHKDIVIL);
+    op_->m_dst = NULL;
+    op_->m_src[0] = a;
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_CHKDIVIR(
+    woort_IRFunction* f, const woort_IRValue* a)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_CHKDIVIR);
+    op_->m_dst = NULL;
+    op_->m_src[0] = a;
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_CHKDIVIRZ(
+    woort_IRFunction* f, const woort_IRValue* a)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_CHKDIVIRZ);
+    op_->m_dst = NULL;
+    op_->m_src[0] = a;
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_CHKDIVILR(
+    woort_IRFunction* f, const woort_IRValue* a, const woort_IRValue* b)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_CHKDIVILR);
+    op_->m_dst = NULL;
+    op_->m_src[0] = a;
+    op_->m_src[1] = b;
+    _EMIT_END();
+}
+
 /* ========== 整数比较 ========== */
 
 _DEFINE_BINARY_OP(woort_IR_LTI, WOORT_IROP_KIND_LTI)

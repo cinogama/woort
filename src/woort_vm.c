@@ -3651,8 +3651,8 @@ _label_continue_execution:
             WOORT_VM_SYNC_STATE_AND_PANIC(
                 WOORT_PANIC_INTEGER_DIV_FAIL, "%s", msg->m_content);
         }
-        // DIVICHKL
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DIVICHK, 0):
+        // CHKDIVIL
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 0):
         {
             if (INT64_MIN != rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer)
                 break;
@@ -3660,8 +3660,8 @@ _label_continue_execution:
             WOORT_VM_SYNC_STATE_AND_PANIC(
                 WOORT_PANIC_INTEGER_DIV_FAIL, "Division overflow.");
         }
-        // DIVICHKR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DIVICHK, 1):
+        // CHKDIVIR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 1):
         {
             const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
             if (-1 != dividend && 0 != dividend)
@@ -3674,8 +3674,8 @@ _label_continue_execution:
                 WOORT_VM_SYNC_STATE_AND_PANIC(
                     WOORT_PANIC_INTEGER_DIV_FAIL, "Division overflow.");
         }
-        // DIVICHKRZ
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DIVICHK, 2):
+        // CHKDIVIRZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 2):
         {
             const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
             if (0 != dividend)
@@ -3684,8 +3684,8 @@ _label_continue_execution:
             WOORT_VM_SYNC_STATE_AND_PANIC(
                 WOORT_PANIC_INTEGER_DIV_FAIL, "Dividend cannot be zero.");
         }
-        // DIVICHKLR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DIVICHK, 3):
+        // CHKDIVILR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 3):
         {
             const woort_Int divisor = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
             const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;

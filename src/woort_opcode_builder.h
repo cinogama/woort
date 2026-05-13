@@ -41,6 +41,22 @@
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDSTEX, 1, bc16)
 
 /*
+ * CHKDIVI - 整数除法检查
+ * CHKDIVIL  (mode=0): 检查被除数 [SB + bc16] 是否为 INT64_MIN（溢出）
+ * CHKDIVIR  (mode=1): 检查被除数 [SB + bc16] 是否为 0 或 -1
+ * CHKDIVIRZ (mode=2): 检查被除数 [SB + bc16] 是否为 0
+ * CHKDIVILR (mode=3): 检查除数 [SB + a8] 和被除数 [SB + bc16]
+ */
+#define woort_OpCode_CHKDIVIL(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CHKDIVI, 0, bc16)
+#define woort_OpCode_CHKDIVIR(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CHKDIVI, 1, bc16)
+#define woort_OpCode_CHKDIVIRZ(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CHKDIVI, 2, bc16)
+#define woort_OpCode_CHKDIVILR(a8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CHKDIVI, 3, a8, bc16)
+
+/*
  * MOV - 移动
  * MOVLD (mode=0): [SB + a8] = [SB + bc16]
  * MOVST (mode=1): [SB + bc16] = [SB + a8]

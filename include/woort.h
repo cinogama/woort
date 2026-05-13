@@ -1166,6 +1166,20 @@ WOORT_NODISCARD WOORT_API bool woort_IR_MULI(
     const woort_IRValue* a,
     const woort_IRValue* b);
 
+WOORT_NODISCARD WOORT_API bool woort_IR_CHKDIVIL(
+    woort_IRFunction* f,
+    const woort_IRValue* a);
+WOORT_NODISCARD WOORT_API bool woort_IR_CHKDIVIR(
+    woort_IRFunction* f,
+    const woort_IRValue* a);
+WOORT_NODISCARD WOORT_API bool woort_IR_CHKDIVIRZ(
+    woort_IRFunction* f,
+    const woort_IRValue* a);
+WOORT_NODISCARD WOORT_API bool woort_IR_CHKDIVILR(
+    woort_IRFunction* f,
+    const woort_IRValue* a,
+    const woort_IRValue* b);
+
 /** @brief Integer division: dst = a / b. */
 WOORT_NODISCARD WOORT_API bool woort_IR_DIVI(
     woort_IRFunction* f,
