@@ -503,6 +503,7 @@ typedef enum woort_CodeEnv_RestoreResult
 WOORT_NODISCARD WOORT_API woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     woort_VFile* f, woort_CodeEnv** out_code_env);
 
+/** @brief Get a human-readable description for a restore result code. */
 WOORT_NODISCARD WOORT_API const char* woort_CodeEnv_restore_failed_desc(
     woort_CodeEnv_RestoreResult rt);
 
@@ -1166,15 +1167,19 @@ WOORT_NODISCARD WOORT_API bool woort_IR_MULI(
     const woort_IRValue* a,
     const woort_IRValue* b);
 
+/** @brief Integer division overflow check: panics if a == INT64_MIN. */
 WOORT_NODISCARD WOORT_API bool woort_IR_CHKDIVIL(
     woort_IRFunction* f,
     const woort_IRValue* a);
+/** @brief Integer division guard: panics if a == 0 or a == -1. */
 WOORT_NODISCARD WOORT_API bool woort_IR_CHKDIVIR(
     woort_IRFunction* f,
     const woort_IRValue* a);
+/** @brief Integer division zero guard: panics if a == 0. */
 WOORT_NODISCARD WOORT_API bool woort_IR_CHKDIVIRZ(
     woort_IRFunction* f,
     const woort_IRValue* a);
+/** @brief Integer division full check: panics if b == 0 or (b == -1 and a == INT64_MIN). */
 WOORT_NODISCARD WOORT_API bool woort_IR_CHKDIVILR(
     woort_IRFunction* f,
     const woort_IRValue* a,
@@ -3074,8 +3079,9 @@ WOORT_API void woort_vec_push(
 /**
  * @brief Remove the last element from a vector.
  * @param src  Stack slot holding the vector.
+ * @return true on success, false if the vector is empty.
  */
-WOORT_API void woort_vec_pop(woort_StackValue src);
+WOORT_NODISCARD WOORT_API bool woort_vec_pop(woort_StackValue src);
 
 /**
  * @brief Insert an element at the given index, shifting subsequent elements.

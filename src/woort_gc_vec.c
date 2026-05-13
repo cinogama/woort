@@ -85,13 +85,15 @@ WOORT_NODISCARD bool woort_GCVec_set(woort_GCVec* vec, size_t index, woort_DynBo
     return true;
 }
 
-void woort_GCVec_pop_back(woort_GCVec* vec)
+WOORT_NODISCARD bool woort_GCVec_pop_back(woort_GCVec* vec)
 {
-    assert(vec->m_length > 0);
+    if (vec->m_length == 0)
+        return false;
 
     woort_GC_delete_barrier_dynbox(
         vec->m_datas[vec->m_length - 1]);
     vec->m_length--;
+    return true;
 }
 
 WOORT_NODISCARD bool woort_GCVec_insert(woort_GCVec* vec, size_t index, woort_DynBox boxed_value)

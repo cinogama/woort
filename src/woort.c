@@ -821,13 +821,7 @@ WOORT_NODISCARD bool woort_push_reserve(
             vm->m_sp += count;
 
             if (!_woort_VMRuntime_extern_stack(vm))
-            {
-                woort_panic(
-                    WOORT_PANIC_STACK_OVERFLOW,
-                    "Stack overflow.");
-
                 return false;
-            }
 
             vm->m_sp -= count;
 
@@ -1295,7 +1289,7 @@ void woort_vec_push(
     woort_GCVec_push_back(vec, _WOORT_API_STACK(boxed_elem).m_dynamic);
 }
 
-void woort_vec_pop(woort_StackValue src)
+WOORT_NODISCARD bool woort_vec_pop(woort_StackValue src)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
@@ -1303,7 +1297,7 @@ void woort_vec_pop(woort_StackValue src)
     woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
     assert(vec != NULL);
 
-    woort_GCVec_pop_back(vec);
+    return woort_GCVec_pop_back(vec);
 }
 
 WOORT_NODISCARD bool woort_vec_insert(
