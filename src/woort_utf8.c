@@ -570,7 +570,7 @@ bool woort_u32isu16(char32_t ch32)
     return ch32 <= (char32_t)(0xFFFFu);
 }
 
-char32_t woort_u8stridx(const char* str, size_t size, size_t index)
+bool woort_u8stridx(const char* str, size_t size, size_t index, char32_t* out_ch)
 {
     size_t result_byte_len;
     const char* u8idx = woort_u8substr(
@@ -583,11 +583,9 @@ char32_t woort_u8stridx(const char* str, size_t size, size_t index)
     if (result_byte_len == 0
         || 0 == woort_u8combineu32(u8idx, result_byte_len, &ch))
     {
-        woort_panic(
-            WOORT_PANIC_INDEX_OUT_OF_RANGE,
-            "Index out of range.");
-
-        return 0;
+        // Index out of range.
+        return false;
     }
-    return ch;
+    *out_ch = ch;
+    return true;
 }

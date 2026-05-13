@@ -2003,14 +2003,16 @@ WOORT_NODISCARD bool woort_deserialize_vec(
 
 /* ========== String / Unicode Conversion API ========== */
 
-WOORT_NODISCARD char32_t woort_str_get_char(const char* str, size_t index)
+WOORT_NODISCARD bool woort_str_get_char(
+    const char* str, size_t index, char32_t* out_ch)
 {
-    return woort_strn_get_char(str, strlen(str), index);
+    return woort_strn_get_char(str, strlen(str), index, out_ch);
 }
 
-WOORT_NODISCARD char32_t woort_strn_get_char(const char* str, size_t size, size_t index)
+WOORT_NODISCARD bool woort_strn_get_char(
+    const char* str, size_t size, size_t index, char32_t* out_ch)
 {
-    return woort_u8stridx(str, size, index);
+    return woort_u8stridx(str, size, index, out_ch);
 }
 
 WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_str_to_wstr(const char* str)

@@ -3945,8 +3945,8 @@ typedef __CHAR32_TYPE__ char32_t;
  * @return The Unicode code point at the given position.
  * @note Panics if the index is out of range.
  */
-WOORT_NODISCARD WOORT_API char32_t woort_str_get_char(
-    const char* str, size_t index);
+WOORT_NODISCARD WOORT_API bool woort_str_get_char(
+    const char* str, size_t index, char32_t* out_ch);
 
 /**
  * @brief Get the Unicode code point at a byte index in a UTF-8 string with explicit length.
@@ -3957,7 +3957,7 @@ WOORT_NODISCARD WOORT_API char32_t woort_str_get_char(
  * @note Panics if the index is out of range.
  */
 WOORT_NODISCARD WOORT_API char32_t woort_strn_get_char(
-    const char* str, size_t size, size_t index);
+    const char* str, size_t size, size_t index, char32_t* out_ch);
 
 /**
  * @brief Convert a UTF-8 string to a wide-character string.

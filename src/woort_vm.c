@@ -2013,13 +2013,14 @@ _label_continue_execution:
             woort_GCVec* const gcvec =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_vec;
 
-            if (index >= gcvec->m_length)
-                WOORT_VM_THROW(index_out_of_range);
+            if (index < gcvec->m_length)
+            {
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic =
+                    gcvec->m_datas[index];
 
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic =
-                gcvec->m_datas[index];
-
-            break;
+                break;
+            }
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDSTRUCT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDX, 2):
@@ -2046,11 +2047,14 @@ _label_continue_execution:
             const woort_GCString* const gcstr =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string;
 
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
-                (woort_Int)woort_u8stridx(
-                    gcstr->m_content, gcstr->m_length, char_index);
-
-            break;
+            char32_t ch;
+            if (woort_u8stridx(
+                gcstr->m_content, gcstr->m_length, char_index, &ch))
+            {
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer = (woort_Int)ch;
+                break;
+            }
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 0):
@@ -2062,14 +2066,13 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_int(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_unbox_no_check(
+                    *val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+                break;
             }
-
-            woort_DynBox_unbox_no_check(
-                *val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 1):
@@ -2081,14 +2084,13 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_real(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_unbox_no_check(
+                    *val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+                break;
             }
-
-            woort_DynBox_unbox_no_check(
-                *val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTB
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 2):
@@ -2100,14 +2102,14 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_bool(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_unbox_no_check(
+                    *val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+                break;
             }
 
-            woort_DynBox_unbox_no_check(
-                *val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 3):
@@ -2121,14 +2123,14 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
             woort_DynBox val;
-            if (!woort_GCMap_get(gcmap, index, &val))
+            if (woort_GCMap_get(gcmap, index, &val))
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_unbox_no_check(
+                    val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
+                break;
             }
 
-            woort_DynBox_unbox_no_check(
-                val, &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)]);
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTIX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 0):
@@ -2140,12 +2142,13 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_int(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
+                break;
             }
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
-            break;
+
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTRX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 1):
@@ -2157,12 +2160,12 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_real(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
+                break;
             }
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTBX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 2):
@@ -2174,12 +2177,12 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_bool(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
+                break;
             }
-            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = *val;
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTXX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 3):
@@ -2192,14 +2195,14 @@ _label_continue_execution:
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_map;
 
-            if (!woort_GCMap_get(
+            if (woort_GCMap_get(
                 gcmap,
                 index,
                 &rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic))
             {
-                WOORT_VM_THROW(index_out_of_range);
+                break;
             }
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXVECEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 0):
@@ -2212,15 +2215,16 @@ _label_continue_execution:
 
             woort_GCVec* const gcvec = rt_sb[vec_reg].m_vec;
 
-            if (index >= gcvec->m_length)
-                WOORT_VM_THROW(index_out_of_range);
+            if (index < gcvec->m_length)
+            {
+                woort_DynBox_unbox_no_check(
+                    gcvec->m_datas[index],
+                    &rt_sb[result_reg]);
 
-            woort_DynBox_unbox_no_check(
-                gcvec->m_datas[index],
-                &rt_sb[result_reg]);
-
-            rt_ip += 2;
-            continue;
+                rt_ip += 2;
+                continue;
+            }
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXVECXEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 1):
@@ -2233,13 +2237,14 @@ _label_continue_execution:
 
             woort_GCVec* const gcvec = rt_sb[vec_reg].m_vec;
 
-            if (index >= gcvec->m_length)
-                WOORT_VM_THROW(index_out_of_range);
+            if (index < gcvec->m_length)
+            {
+                rt_sb[result_reg].m_dynamic = gcvec->m_datas[index];
 
-            rt_sb[result_reg].m_dynamic = gcvec->m_datas[index];
-
-            rt_ip += 2;
-            continue;
+                rt_ip += 2;
+                continue;
+            }
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDSTRUCTEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 2):
@@ -2269,12 +2274,16 @@ _label_continue_execution:
 
             const woort_GCString* const gcstr = rt_sb[str_reg].m_string;
 
-            rt_sb[result_reg].m_integer =
-                (woort_Int)woort_u8stridx(
-                    gcstr->m_content, gcstr->m_length, char_index);
+            char32_t ch;
+            if (woort_u8stridx(
+                gcstr->m_content, gcstr->m_length, char_index, &ch))
+            {
+                rt_sb[result_reg].m_integer = (woort_Int)ch;
 
-            rt_ip += 2;
-            continue;
+                rt_ip += 2;
+                continue;
+            }
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTIEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 0):
@@ -2288,15 +2297,15 @@ _label_continue_execution:
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_int(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_unbox_no_check(*val, &rt_sb[result_reg]);
+
+                rt_ip += 2;
+                continue;
             }
 
-            woort_DynBox_unbox_no_check(*val, &rt_sb[result_reg]);
-
-            rt_ip += 2;
-            continue;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTREXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 1):
@@ -2310,15 +2319,15 @@ _label_continue_execution:
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_real(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_unbox_no_check(*val, &rt_sb[result_reg]);
+
+                rt_ip += 2;
+                continue;
             }
 
-            woort_DynBox_unbox_no_check(*val, &rt_sb[result_reg]);
-
-            rt_ip += 2;
-            continue;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTBEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 2):
@@ -2332,15 +2341,14 @@ _label_continue_execution:
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_bool(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_unbox_no_check(*val, &rt_sb[result_reg]);
+
+                rt_ip += 2;
+                continue;
             }
-
-            woort_DynBox_unbox_no_check(*val, &rt_sb[result_reg]);
-
-            rt_ip += 2;
-            continue;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTXEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 3):
@@ -2354,15 +2362,14 @@ _label_continue_execution:
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
             woort_DynBox val;
-            if (!woort_GCMap_get(gcmap, index, &val))
+            if (woort_GCMap_get(gcmap, index, &val))
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_unbox_no_check(val, &rt_sb[result_reg]);
+
+                rt_ip += 2;
+                continue;
             }
-
-            woort_DynBox_unbox_no_check(val, &rt_sb[result_reg]);
-
-            rt_ip += 2;
-            continue;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTIXEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 0):
@@ -2376,14 +2383,14 @@ _label_continue_execution:
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_int(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
-            }
-            rt_sb[result_reg].m_dynamic = *val;
+                rt_sb[result_reg].m_dynamic = *val;
 
-            rt_ip += 2;
-            continue;
+                rt_ip += 2;
+                continue;
+            }
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTRXEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 1):
@@ -2397,14 +2404,14 @@ _label_continue_execution:
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_real(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
-            }
-            rt_sb[result_reg].m_dynamic = *val;
+                rt_sb[result_reg].m_dynamic = *val;
 
-            rt_ip += 2;
-            continue;
+                rt_ip += 2;
+                continue;
+            }
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTBXEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 2):
@@ -2418,14 +2425,15 @@ _label_continue_execution:
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
             woort_DynBox* const val = woort_GCMap_get_bucket_val_by_bool(gcmap, index);
-            if (val == NULL)
+            if (val != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
-            }
-            rt_sb[result_reg].m_dynamic = *val;
+                rt_sb[result_reg].m_dynamic = *val;
 
-            rt_ip += 2;
-            continue;
+                rt_ip += 2;
+                continue;
+            }
+
+            WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDXDICTXXEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 3):
@@ -2438,13 +2446,13 @@ _label_continue_execution:
 
             woort_GCMap* const gcmap = rt_sb[map_reg].m_map;
 
-            if (!woort_GCMap_get(gcmap, index, &rt_sb[result_reg].m_dynamic))
+            if (woort_GCMap_get(gcmap, index, &rt_sb[result_reg].m_dynamic))
             {
-                WOORT_VM_THROW(index_out_of_range);
+                rt_ip += 2;
+                continue;
             }
 
-            rt_ip += 2;
-            continue;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXVECI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 0):
@@ -2455,14 +2463,15 @@ _label_continue_execution:
             const size_t index =
                 (size_t)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
 
-            if (index >= gcvec->m_length)
-                WOORT_VM_THROW(index_out_of_range);
+            if (index < gcvec->m_length)
+            {
+                woort_GC_mixed_write_barrier_dynbox(
+                    &gcvec->m_datas[index],
+                    woort_DynBox_box_int(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
 
-            woort_GC_mixed_write_barrier_dynbox(
-                &gcvec->m_datas[index],
-                woort_DynBox_box_int(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
-
-            break;
+                break;
+            }
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXVECR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 1):
@@ -2473,14 +2482,15 @@ _label_continue_execution:
             const size_t index =
                 (size_t)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
 
-            if (index >= gcvec->m_length)
-                WOORT_VM_THROW(index_out_of_range);
+            if (index < gcvec->m_length)
+            {
+                woort_GC_mixed_write_barrier_dynbox(
+                    &gcvec->m_datas[index],
+                    woort_DynBox_box_real(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real));
 
-            woort_GC_mixed_write_barrier_dynbox(
-                &gcvec->m_datas[index],
-                woort_DynBox_box_real(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real));
-
-            break;
+                break;
+            }
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXVECB
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 2):
@@ -2491,14 +2501,15 @@ _label_continue_execution:
             const size_t index =
                 (size_t)rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer;
 
-            if (index >= gcvec->m_length)
-                WOORT_VM_THROW(index_out_of_range);
+            if (index < gcvec->m_length)
+            {
+                woort_GC_mixed_write_barrier_dynbox(
+                    &gcvec->m_datas[index],
+                    woort_DynBox_box_bool(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
 
-            woort_GC_mixed_write_barrier_dynbox(
-                &gcvec->m_datas[index],
-                woort_DynBox_box_bool(rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer));
-
-            break;
+                break;
+            }
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXVECX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 3):
@@ -2532,15 +2543,15 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_int(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_int_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+                break;
             }
 
-            woort_DynBox_box_int_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTIR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTI, 1):
@@ -2554,15 +2565,15 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_int(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_real_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
+
+                break;
             }
 
-            woort_DynBox_box_real_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTIB
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTI, 2):
@@ -2576,15 +2587,15 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_int(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_bool_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+                break;
             }
 
-            woort_DynBox_box_bool_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTIX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTI, 3):
@@ -2598,16 +2609,16 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_int(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                // NOTE: STIDXDICTIX 用于值类型为 dynamic 或者 gcunit 的情况
+                woort_GC_mixed_write_barrier_dynbox(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
+
+                break;
             }
 
-            // NOTE: STIDXDICTIX 用于值类型为 dynamic 或者 gcunit 的情况
-            woort_GC_mixed_write_barrier_dynbox(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTRI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTR, 0):
@@ -2621,15 +2632,15 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_real(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_int_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+                break;
             }
 
-            woort_DynBox_box_int_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTRR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTR, 1):
@@ -2643,15 +2654,15 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_real(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_real_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
+
+                break;
             }
 
-            woort_DynBox_box_real_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTRB
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTR, 2):
@@ -2665,15 +2676,15 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_real(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_bool_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+                break;
             }
 
-            woort_DynBox_box_bool_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTRX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTR, 3):
@@ -2687,16 +2698,15 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_real(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                // NOTE: STIDXDICTRX 用于值类型为 dynamic 或者 gcunit 的情况
+                woort_GC_mixed_write_barrier_dynbox(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
+
+                break;
             }
-
-            // NOTE: STIDXDICTRX 用于值类型为 dynamic 或者 gcunit 的情况
-            woort_GC_mixed_write_barrier_dynbox(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTBI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTB, 0):
@@ -2710,15 +2720,14 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_bool(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_int_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+                break;
             }
-
-            woort_DynBox_box_int_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTBR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTB, 1):
@@ -2732,15 +2741,14 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_bool(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_real_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
+
+                break;
             }
-
-            woort_DynBox_box_real_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTBB
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTB, 2):
@@ -2754,15 +2762,14 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_bool(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_bool_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+                break;
             }
-
-            woort_DynBox_box_bool_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTBX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTB, 3):
@@ -2776,16 +2783,16 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_bucket_val_by_bool(gcmap, key);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                // NOTE: STIDXDICTBX 用于值类型为 dynamic 或者 gcunit 的情况
+                woort_GC_mixed_write_barrier_dynbox(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
+
+                break;
             }
 
-            // NOTE: STIDXDICTBX 用于值类型为 dynamic 或者 gcunit 的情况
-            woort_GC_mixed_write_barrier_dynbox(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTXI
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTX, 0):
@@ -2797,15 +2804,14 @@ _label_continue_execution:
                 woort_GCMap_get_bucket_val_by_dynbox(
                     gcmap, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_int_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+                break;
             }
-
-            woort_DynBox_box_int_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTXR
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTX, 1):
@@ -2817,15 +2823,15 @@ _label_continue_execution:
                 woort_GCMap_get_bucket_val_by_dynbox(
                     gcmap, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_real_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
+
+                break;
             }
 
-            woort_DynBox_box_real_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_real);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTXB
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTX, 2):
@@ -2837,15 +2843,15 @@ _label_continue_execution:
                 woort_GCMap_get_bucket_val_by_dynbox(
                     gcmap, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                woort_DynBox_box_bool_with_barrier(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
+
+                break;
             }
 
-            woort_DynBox_box_bool_with_barrier(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_integer);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTXX
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTX, 3):
@@ -2857,16 +2863,16 @@ _label_continue_execution:
                 woort_GCMap_get_bucket_val_by_dynbox(
                     gcmap, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                // NOTE: STIDXDICTXX 用于键和值类型均为 dynamic 或者 gcunit 的情况
+                woort_GC_mixed_write_barrier_dynbox(
+                    val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
+
+                break;
             }
 
-            // NOTE: STIDXDICTXX 用于键和值类型均为 dynamic 或者 gcunit 的情况
-            woort_GC_mixed_write_barrier_dynbox(
-                val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
-
-            break;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXMAPII
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPI, 0):
@@ -3165,38 +3171,40 @@ _label_continue_execution:
 
             const size_t index = (size_t)rt_sb[index_reg].m_integer;
 
-            if (index >= gcvec->m_length)
-                WOORT_VM_THROW(index_out_of_range);
-
-            switch (value_type)
+            if (index < gcvec->m_length)
             {
-            case 0: // I
-                woort_GC_mixed_write_barrier_dynbox(
-                    &gcvec->m_datas[index],
-                    woort_DynBox_box_int(rt_sb[value_reg].m_integer));
-                break;
-            case 1: // R
-                woort_GC_mixed_write_barrier_dynbox(
-                    &gcvec->m_datas[index],
-                    woort_DynBox_box_real(rt_sb[value_reg].m_real));
-                break;
-            case 2: // B
-                woort_GC_mixed_write_barrier_dynbox(
-                    &gcvec->m_datas[index],
-                    woort_DynBox_box_bool(rt_sb[value_reg].m_integer));
-                break;
-            case 3: // X
-                // NOTE: STIDXVECX 用于值类型为 dynamic 或者 gcunit 的情况
-                woort_GC_mixed_write_barrier_dynbox(
-                    &gcvec->m_datas[index],
-                    rt_sb[value_reg].m_dynamic);
-                break;
-            default:
-                WOORT_VM_THROW(bad_command);
+                switch (value_type)
+                {
+                case 0: // I
+                    woort_GC_mixed_write_barrier_dynbox(
+                        &gcvec->m_datas[index],
+                        woort_DynBox_box_int(rt_sb[value_reg].m_integer));
+                    break;
+                case 1: // R
+                    woort_GC_mixed_write_barrier_dynbox(
+                        &gcvec->m_datas[index],
+                        woort_DynBox_box_real(rt_sb[value_reg].m_real));
+                    break;
+                case 2: // B
+                    woort_GC_mixed_write_barrier_dynbox(
+                        &gcvec->m_datas[index],
+                        woort_DynBox_box_bool(rt_sb[value_reg].m_integer));
+                    break;
+                case 3: // X
+                    // NOTE: STIDXVECX 用于值类型为 dynamic 或者 gcunit 的情况
+                    woort_GC_mixed_write_barrier_dynbox(
+                        &gcvec->m_datas[index],
+                        rt_sb[value_reg].m_dynamic);
+                    break;
+                default:
+                    WOORT_VM_THROW(bad_command);
+                }
+
+                rt_ip += 2;
+                continue;
             }
 
-            rt_ip += 2;
-            continue;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXDICTEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 1):
@@ -3234,36 +3242,36 @@ _label_continue_execution:
                 WOORT_VM_THROW(bad_command);
             }
 
-            if (val_ptr == NULL)
+            if (val_ptr != NULL)
             {
-                WOORT_VM_THROW(index_out_of_range);
+                switch (value_type)
+                {
+                case 0: // I
+                    woort_DynBox_box_int_with_barrier(
+                        val_ptr, rt_sb[value_reg].m_integer);
+                    break;
+                case 1: // R
+                    woort_DynBox_box_real_with_barrier(
+                        val_ptr, rt_sb[value_reg].m_real);
+                    break;
+                case 2: // B
+                    woort_DynBox_box_bool_with_barrier(
+                        val_ptr, rt_sb[value_reg].m_integer);
+                    break;
+                case 3: // X
+                    // NOTE: STIDXDICT*X 用于值类型为 dynamic 或者 gcunit 的情况
+                    woort_GC_mixed_write_barrier_dynbox(
+                        val_ptr, rt_sb[value_reg].m_dynamic);
+                    break;
+                default:
+                    WOORT_VM_THROW(bad_command);
+                }
+
+                rt_ip += 2;
+                continue;
             }
 
-            switch (value_type)
-            {
-            case 0: // I
-                woort_DynBox_box_int_with_barrier(
-                    val_ptr, rt_sb[value_reg].m_integer);
-                break;
-            case 1: // R
-                woort_DynBox_box_real_with_barrier(
-                    val_ptr, rt_sb[value_reg].m_real);
-                break;
-            case 2: // B
-                woort_DynBox_box_bool_with_barrier(
-                    val_ptr, rt_sb[value_reg].m_integer);
-                break;
-            case 3: // X
-                // NOTE: STIDXDICT*X 用于值类型为 dynamic 或者 gcunit 的情况
-                woort_GC_mixed_write_barrier_dynbox(
-                    val_ptr, rt_sb[value_reg].m_dynamic);
-                break;
-            default:
-                WOORT_VM_THROW(bad_command);
-            }
-
-            rt_ip += 2;
-            continue;
+            WOORT_VM_THROW(index_out_of_range);
         }
         // STIDXMAPEXT
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 2):
