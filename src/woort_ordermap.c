@@ -255,6 +255,77 @@ static woort_OrderMapNode* _woort_ordermap_find_node(
     return NULL;
 }
 
+/* 查找第一个键 >= key 的节点。没找到返回 NULL。 */
+/* OPTIONAL */
+static woort_OrderMapNode* _woort_ordermap_lower_bound_node(
+    woort_OrderMap* map, const void* key)
+{
+    woort_OrderMapNode* x = map->m_root;
+    woort_OrderMapNode* result = NULL;
+
+    while (x != map->m_nil)
+    {
+        const int cmp = map->m_compare_fn(key, _woort_ordermap_node_key(x));
+        if (cmp <= 0)
+        {
+            result = x;
+            x = x->m_left;
+        }
+        else
+            x = x->m_right;
+    }
+
+    return result;
+}
+
+/* 查找第一个键 > key 的节点。没找到返回 NULL。 */
+/* OPTIONAL */
+static woort_OrderMapNode* _woort_ordermap_upper_bound_node(
+    woort_OrderMap* map, const void* key)
+{
+    woort_OrderMapNode* x = map->m_root;
+    woort_OrderMapNode* result = NULL;
+
+    while (x != map->m_nil)
+    {
+        const int cmp = map->m_compare_fn(key, _woort_ordermap_node_key(x));
+        if (cmp < 0)
+        {
+            result = x;
+            x = x->m_left;
+        }
+        else
+            x = x->m_right;
+    }
+
+    return result;
+}
+
+/* 查找最后一个键 <= key 的节点。没找到返回 NULL。 */
+/* OPTIONAL */
+static woort_OrderMapNode* _woort_ordermap_find_le_node(
+    woort_OrderMap* map, const void* key)
+{
+    woort_OrderMapNode* x = map->m_root;
+    woort_OrderMapNode* result = NULL;
+
+    while (x != map->m_nil)
+    {
+        const int cmp = map->m_compare_fn(key, _woort_ordermap_node_key(x));
+        if (cmp == 0)
+            return x;
+        else if (cmp < 0)
+            x = x->m_left;
+        else
+        {
+            result = x;
+            x = x->m_right;
+        }
+    }
+
+    return result;
+}
+
 /* 获取子树中的最小节点 */
 static woort_OrderMapNode* _woort_ordermap_subtree_min(
     woort_OrderMap* map, woort_OrderMapNode* x)
@@ -688,5 +759,56 @@ WOORT_NODISCARD bool woort_ordermap_max(
         memcpy(out_key, _woort_ordermap_node_key(x), map->m_key_size);
 
     *out_value_addr = x->m_value;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_ordermap_lower_bound(
+    woort_OrderMap* map,
+    const void* key,
+    /* OPTIONAL */ void* out_key,
+    void** out_value_addr)
+{
+    woort_OrderMapNode* const node = _woort_ordermap_lower_bound_node(map, key);
+    if (node == NULL)
+        return false;
+
+    if (out_key != NULL)
+        memcpy(out_key, _woort_ordermap_node_key(node), map->m_key_size);
+
+    *out_value_addr = node->m_value;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_ordermap_upper_bound(
+    woort_OrderMap* map,
+    const void* key,
+    /* OPTIONAL */ void* out_key,
+    void** out_value_addr)
+{
+    woort_OrderMapNode* const node = _woort_ordermap_upper_bound_node(map, key);
+    if (node == NULL)
+        return false;
+
+    if (out_key != NULL)
+        memcpy(out_key, _woort_ordermap_node_key(node), map->m_key_size);
+
+    *out_value_addr = node->m_value;
+    return true;
+}
+
+WOORT_NODISCARD bool woort_ordermap_find_le(
+    woort_OrderMap* map,
+    const void* key,
+    /* OPTIONAL */ void* out_key,
+    void** out_value_addr)
+{
+    woort_OrderMapNode* const node = _woort_ordermap_find_le_node(map, key);
+    if (node == NULL)
+        return false;
+
+    if (out_key != NULL)
+        memcpy(out_key, _woort_ordermap_node_key(node), map->m_key_size);
+
+    *out_value_addr = node->m_value;
     return true;
 }

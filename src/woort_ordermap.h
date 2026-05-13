@@ -110,3 +110,24 @@ WOORT_NODISCARD bool woort_ordermap_max(
     woort_OrderMap* map,
     /* OPTIONAL */ void* out_key,
     void** out_value_addr);
+
+/* 二分查找：第一个键 >= key 的节点。未找到返回 false。 */
+WOORT_NODISCARD bool woort_ordermap_lower_bound(
+    woort_OrderMap* map,
+    const void* key,
+    /* OPTIONAL */ void* out_key,
+    void** out_value_addr);
+
+/* 二分查找：第一个键 > key 的节点。未找到返回 false。 */
+WOORT_NODISCARD bool woort_ordermap_upper_bound(
+    woort_OrderMap* map,
+    const void* key,
+    /* OPTIONAL */ void* out_key,
+    void** out_value_addr);
+
+/* 二分查找：最后一个键 <= key 的节点。未找到返回 false。 */
+WOORT_NODISCARD bool woort_ordermap_find_le(
+    woort_OrderMap* map,
+    const void* key,
+    /* OPTIONAL */ void* out_key,
+    void** out_value_addr);
