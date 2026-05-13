@@ -1,12 +1,12 @@
+#include "woort_ordermap.h"
+#include "woort_log.h"
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <memory.h>
 #include <assert.h>
-
-#include "woort_ordermap.h"
-#include "woort_log.h"
 
 #define WOORT_ORDERMAP_KEY_VALUE_MAX_ALIGN 8
 #define WOORT_ORDERMAP_KEY_VALUE_MAX_ALIGN_MASK (WOORT_ORDERMAP_KEY_VALUE_MAX_ALIGN - 1)
@@ -17,7 +17,6 @@ typedef enum woort_OrderMapColor
     WOORT_ORDERMAP_RED,
 } woort_OrderMapColor;
 
-/* 红黑树节点 */
 typedef struct woort_OrderMapNode
 {
     woort_OrderMapColor     m_color;
@@ -34,10 +33,31 @@ typedef struct woort_OrderMapNode
 
 } woort_OrderMapNode;
 
+struct woort_OrderMap
+{
+    /* NIL 哨兵节点，始终黑色。初始化后非 NULL。 */
+    /* OPTIONAL after init. */ struct woort_OrderMapNode* m_nil;
+    /* 树根节点。空树时指向 m_nil。 */
+    /* OPTIONAL after init. */ struct woort_OrderMapNode* m_root;
+    size_t              m_size;
+    /* 空闲节点链表，用于复用被删除的节点。 */
+    /* OPTIONAL */ struct woort_OrderMapNode* m_free_nodes;
+
+    /* 用户定义的键比较函数。
+       返回值 < 0 表示 key1 < key2，
+       返回值 = 0 表示 key1 == key2，
+       返回值 > 0 表示 key1 > key2。 */
+    int     (*m_compare_fn)(const void* key1, const void* key2);
+
+    /* 键和值的大小 */
+    size_t         m_key_size;
+    size_t         m_value_size;
+};
+
 /*
-============================================
+===========================================
 内部辅助函数
-============================================
+===========================================
 */
 
 /* 获取节点中键的地址 */
@@ -513,13 +533,7 @@ static inline woort_OrderMapNode* _woort_ordermap_find_insert_pos(
     return NULL;
 }
 
-/*
-============================================
-公共 API
-============================================
-*/
-
-void woort_ordermap_init(
+static void _woort_ordermap_init(
     woort_OrderMap* map,
     size_t key_size,
     size_t value_size,
@@ -545,7 +559,7 @@ void woort_ordermap_init(
     map->m_value_size = value_size;
 }
 
-void woort_ordermap_deinit(woort_OrderMap* map)
+static void _woort_ordermap_deinit(woort_OrderMap* map)
 {
     /* 释放空闲链表中的所有节点 */
     {
@@ -567,6 +581,40 @@ void woort_ordermap_deinit(woort_OrderMap* map)
         map->m_nil = NULL;
         map->m_root = NULL;
     }
+}
+
+/*
+===========================================
+公共 API
+===========================================
+*/
+
+WOORT_NODISCARD bool woort_ordermap_create(
+    size_t key_size,
+    size_t value_size,
+    int (*compare_fn)(const void* key1, const void* key2),
+    woort_OrderMap** out_map)
+{
+    woort_OrderMap* const map = (woort_OrderMap*)malloc(sizeof(woort_OrderMap));
+    if (map == NULL)
+    {
+        WOORT_DEBUG("Out of memory.");
+        return false;
+    }
+
+    _woort_ordermap_init(map, key_size, value_size, compare_fn);
+
+    *out_map = map;
+    return true;
+}
+
+void woort_ordermap_destroy(/* OPTIONAL */ woort_OrderMap* map)
+{
+    if (map == NULL)
+        return;
+
+    _woort_ordermap_deinit(map);
+    free(map);
 }
 
 WOORT_NODISCARD woort_ordermap_Result woort_ordermap_get_or_emplace(

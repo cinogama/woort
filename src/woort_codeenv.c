@@ -27,7 +27,7 @@
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
-    woort_OrderMap      m_codeenvs;
+    /* OPTIONAL */ woort_OrderMap*      m_codeenvs;
     woort_GCUnitProxy   m_proxy;
 
 } *_codeenv_global_ctx = NULL;
@@ -108,7 +108,7 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
         &_codeenv_global_ctx->m_codeenvs_lock);
 
     woort_ordermap_remove(
-        &_codeenv_global_ctx->m_codeenvs,
+        _codeenv_global_ctx->m_codeenvs,
         &code_env->m_code_begin);
 
     woort_rwspinlock_write_unlock(
@@ -169,9 +169,16 @@ WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
     woort_rwspinlock_init(&_codeenv_global_ctx->m_codeenvs_lock);
 
     // 初始化存储 CodeEnv 指针的 OrderMap
-    woort_ordermap_init(&_codeenv_global_ctx->m_codeenvs,
-        sizeof(const woort_Bytecode*), sizeof(woort_CodeEnv*),
-        &_compare_code_begin);
+    if (!woort_ordermap_create(
+            sizeof(const woort_Bytecode*), sizeof(woort_CodeEnv*),
+            &_compare_code_begin,
+            &_codeenv_global_ctx->m_codeenvs))
+    {
+        woort_rwspinlock_deinit(&_codeenv_global_ctx->m_codeenvs_lock);
+        free(_codeenv_global_ctx);
+        _codeenv_global_ctx = NULL;
+        return false;
+    }
 
     _codeenv_global_ctx->m_proxy.m_marker = NULL;
     _codeenv_global_ctx->m_proxy.m_destructor =
@@ -184,7 +191,7 @@ void woort_CodeEnv_shutdown(void)
     assert(_codeenv_global_ctx != NULL);
 
     // 清理存储 CodeEnv 指针的 OrderMap
-    woort_ordermap_deinit(&_codeenv_global_ctx->m_codeenvs);
+    woort_ordermap_destroy(_codeenv_global_ctx->m_codeenvs);
 
     woort_rwspinlock_deinit(&_codeenv_global_ctx->m_codeenvs_lock);
 
@@ -284,7 +291,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         // NOTE: 因为 woort_CodeEnv 使用 GC 管理，即便此处注册失败也不需要
         // 手动执行释放
         register_result = (WOORT_ORDERMAP_RESULT_OK == woort_ordermap_insert(
-            &_codeenv_global_ctx->m_codeenvs,
+            _codeenv_global_ctx->m_codeenvs,
             &code_env_instance->m_code_begin,
             &code_env_instance));
     }
@@ -348,7 +355,7 @@ void woort_CodeEnv_drop_all(void)
         &_codeenv_global_ctx->m_codeenvs_lock);
 
     (void)woort_ordermap_foreach(
-        &_codeenv_global_ctx->m_codeenvs,
+        _codeenv_global_ctx->m_codeenvs,
         &_codeenv_drop_callback,
         NULL);
 
@@ -386,7 +393,7 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
 
     bool found = false;
     if (woort_ordermap_find_le(
-            &_codeenv_global_ctx->m_codeenvs,
+            _codeenv_global_ctx->m_codeenvs,
             &addr,
             NULL,
             (void**)&value_addr))
@@ -410,7 +417,7 @@ void woort_CodeEnv_GC_mark_all_envs(void)
         &_codeenv_global_ctx->m_codeenvs_lock);
 
     (void)woort_ordermap_foreach(
-        &_codeenv_global_ctx->m_codeenvs,
+        _codeenv_global_ctx->m_codeenvs,
         &_codeenv_mark_callback,
         NULL);
 
@@ -829,7 +836,7 @@ void woort_CodeEnv_foreach(
 
     struct _CodeEnv_Foreach_Ctx ctx = { callback, user_data };
     (void)woort_ordermap_foreach(
-        &_codeenv_global_ctx->m_codeenvs,
+        _codeenv_global_ctx->m_codeenvs,
         &_codeenv_foreach_callback,
         &ctx);
 

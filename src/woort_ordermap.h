@@ -11,34 +11,15 @@ woort_ordermap.h
 #include <stddef.h>
 #include <stdbool.h>
 
-typedef struct woort_OrderMap
-{
-    /* NIL 哨兵节点，始终黑色。初始化后非 NULL。 */
-    /* OPTIONAL after init. */ struct woort_OrderMapNode* m_nil;
-    /* 树根节点。空树时指向 m_nil。 */
-    /* OPTIONAL after init. */ struct woort_OrderMapNode* m_root;
-    size_t              m_size;
-    /* 空闲节点链表，用于复用被删除的节点。 */
-    /* OPTIONAL */ struct woort_OrderMapNode* m_free_nodes;
+typedef struct woort_OrderMap woort_OrderMap;
 
-    /* 用户定义的键比较函数。
-       返回值 < 0 表示 key1 < key2，
-       返回值 = 0 表示 key1 == key2，
-       返回值 > 0 表示 key1 > key2。 */
-    int     (*m_compare_fn)(const void* key1, const void* key2);
-
-    /* 键和值的大小 */
-    size_t         m_key_size;
-    size_t         m_value_size;
-
-} woort_OrderMap;
-
-void woort_ordermap_init(
-    woort_OrderMap* map,
+WOORT_NODISCARD bool woort_ordermap_create(
     size_t key_size,
     size_t value_size,
-    int (*compare_fn)(const void* key1, const void* key2));
-void woort_ordermap_deinit(woort_OrderMap* map);
+    int (*compare_fn)(const void* key1, const void* key2),
+    woort_OrderMap** out_map);
+
+void woort_ordermap_destroy(/* OPTIONAL */ woort_OrderMap* map);
 
 typedef enum woort_ordermap_Result
 {
