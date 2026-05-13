@@ -39,20 +39,26 @@ label_reentry_for_debug_trap:;
         return c + 1;
     }
 
-    case WOORT_OPCODE_LOADEX:
+    case WOORT_OPCODE_LDSTEX:
     {
-        const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
-        const uint32_t src = (uint32_t)c[1];
-        callback("LOADEX      [SB %+d] = G[%u]\n", dst, src);
-        return c + 2;
-    }
-
-    case WOORT_OPCODE_STOREEX:
-    {
-        const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
-        const uint32_t dst = (uint32_t)c[1];
-        callback("STOREEX     G[%u] = [SB %+d]\n", dst, src);
-        return c + 2;
+        switch (m2)
+        {
+        case 0:
+        {
+            const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
+            const uint32_t src = (uint32_t)c[1];
+            callback("LOADEX      [SB %+d] = G[%u]\n", dst, src);
+            return c + 2;
+        }
+        case 1:
+        {
+            const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
+            const uint32_t dst = (uint32_t)c[1];
+            callback("STOREEX     G[%u] = [SB %+d]\n", dst, src);
+            return c + 2;
+        }
+        }
+        break;
     }
 
     case WOORT_OPCODE_MOV:

@@ -31,14 +31,14 @@
  * LOADEX [SB + bc16] = G[ex32]
  */
 #define woort_OpCode_LOADEX(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LOADEX, 0, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDSTEX, 0, bc16)
 
 /*
  * STOREEX - 扩展存储
  * STOREEX G[ex32] = [SB + bc16]
  */
 #define woort_OpCode_STOREEX(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_STOREEX, 0, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDSTEX, 1, bc16)
 
 /*
  * MOV - 移动

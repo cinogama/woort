@@ -236,12 +236,14 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
         vm->m_sb = rt_sb;                       \
         vm->m_env = rt_env;                     \
     }while(0)
+
 #define WOORT_VM_SYNC_STATE_WITHOUT_ENV()       \
     do{                                         \
         vm->m_ip = rt_ip;                       \
         vm->m_sp = rt_sp;                       \
         vm->m_sb = rt_sb;                       \
     }while(0)
+
 #define WOORT_VM_SYNC_STATE_RETURN()            \
     do{                                         \
         vm->m_ip = rt_ip;                       \
@@ -249,6 +251,7 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
         vm->m_sb = rt_sb;                       \
         vm->m_env = NULL;                       \
     }while(0)
+
 #define WOORT_VM_RESYNC_STATE_WITH_ENV()            \
     do{                                             \
         rt_ip = vm->m_ip;                           \
@@ -264,6 +267,7 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
             rt_env_data = rt_env->m_data_begin;     \
         }                                           \
     }while(0)
+
 #define WOORT_VM_RESYNC_STATE_WITHOUT_ENV()         \
     do{                                             \
         rt_ip = vm->m_ip;                           \
@@ -272,11 +276,7 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
         rt_sp = vm->m_sp;                           \
         rt_sb = vm->m_sb;                           \
     }while(0)
-#define WOORT_VM_SYNC_STATE_AND_PANIC(...)  \
-    do{                                     \
-        WOORT_VM_SYNC_STATE_WITH_ENV();     \
-        woort_panic(__VA_ARGS__);           \
-    }while(0)
+
 #define WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(OLD_VERSION)    \
     do{                                                                     \
         if (/* Unlikely */ OLD_VERSION != vm->m_stack_realloc_version)      \
@@ -294,11 +294,13 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
         WOORT_VM_SYNC_STATE_WITH_ENV();         \
         goto _label_exception_handler_##NAME;   \
     }while(0)
+
 #define WOORT_VM_HANDLED() \
     do{                                         \
         WOORT_VM_RESYNC_STATE_WITH_ENV();       \
         goto _label_continue_execution;         \
     }while(0)
+
 #define WOORT_VM_CHECKPOINT()                               \
     do {                                                    \
         if (/* Unlikely */ 0 != woort_atomic_load_explicit( \
@@ -309,6 +311,12 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
         }                                                   \
     } while (0)
 
+#define WOORT_VM_SYNC_STATE_AND_PANIC(...)  \
+    do{                                     \
+        WOORT_VM_SYNC_STATE_WITH_ENV();     \
+        woort_panic(__VA_ARGS__);           \
+        WOORT_VM_THROW(checkpoint);         \
+    }while(0)
     const woort_Bytecode* rt_ip = vm->m_ip;
 
     woort_CodeEnv* rt_env = vm->m_env;
@@ -360,7 +368,7 @@ _label_continue_execution:
             break;
         }
         // LOADEX
-        case WOORT_VM_CASE_OP6(WOORT_OPCODE_LOADEX):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDSTEX, 0):
         {
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] =
                 rt_env_data[rt_ip[1]];
@@ -369,7 +377,7 @@ _label_continue_execution:
             continue;
         }
         // STOREEX
-        case WOORT_VM_CASE_OP6(WOORT_OPCODE_STOREEX):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDSTEX, 1):
         {
             woort_Value src = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
             woort_GC_mixed_write_barrier_value(
@@ -3641,7 +3649,56 @@ _label_continue_execution:
             const woort_GCString* const msg =
                 rt_env_data[WOORT_BYTECODE(ABC24, c)].m_string;
             WOORT_VM_SYNC_STATE_AND_PANIC(
-                WOORT_PANIC_ABORTED, "%s", msg->m_content);
+                WOORT_PANIC_INTEGER_DIV_FAIL, "%s", msg->m_content);
+        }
+        // DIVICHKL
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DIVICHK, 0):
+        {
+            if (INT64_MIN != rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer)
+                break;
+
+            WOORT_VM_SYNC_STATE_AND_PANIC(
+                WOORT_PANIC_INTEGER_DIV_FAIL, "Division overflow.");
+        }
+        // DIVICHKR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DIVICHK, 1):
+        {
+            const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            if (-1 != dividend && 0 != dividend)
+                break;
+
+            if (0 == dividend)
+                WOORT_VM_SYNC_STATE_AND_PANIC(
+                    WOORT_PANIC_INTEGER_DIV_FAIL, "Dividend cannot be zero.");
+            else
+                WOORT_VM_SYNC_STATE_AND_PANIC(
+                    WOORT_PANIC_INTEGER_DIV_FAIL, "Division overflow.");
+        }
+        // DIVICHKRZ
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DIVICHK, 2):
+        {
+            const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            if (0 != dividend)
+                break;
+
+            WOORT_VM_SYNC_STATE_AND_PANIC(
+                WOORT_PANIC_INTEGER_DIV_FAIL, "Dividend cannot be zero.");
+        }
+        // DIVICHKLR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DIVICHK, 3):
+        {
+            const woort_Int divisor = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+
+            if (0 != dividend && (-1 != dividend || INT64_MIN != divisor))
+                break;
+
+            if (0 == dividend)
+                WOORT_VM_SYNC_STATE_AND_PANIC(
+                    WOORT_PANIC_INTEGER_DIV_FAIL, "Dividend cannot be zero.");
+            else
+                WOORT_VM_SYNC_STATE_AND_PANIC(
+                    WOORT_PANIC_INTEGER_DIV_FAIL, "Division overflow.");
         }
         default:
             // Unknown bytecode command.
@@ -4058,7 +4115,7 @@ void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace)
         if (trace->m_has_location)
             woort_log(
                 "    at %s (%s:%zu:%zu)\n",
-                func, 
+                func,
                 file,
                 line + 1,
                 col + 1);
@@ -4075,8 +4132,8 @@ void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace)
         if (line != 0)
             woort_log(
                 "    at <unknown> (%s:%zu:%zu)\n",
-                file, 
-                line + 1, 
+                file,
+                line + 1,
                 col + 1);
         else
             woort_log("    at <unknown> (%s)\n", file);
