@@ -3933,8 +3933,10 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
 
         if (!r)
         {
-            woort_panic(WOORT_PANIC_REENTRY_GC_SCOPE,
-                "VM %p already in running, cannot entry it again.", vm);
+            woort_log("VM %p already in running, cannot entry it again.", vm);
+
+            // Should not been here.
+            abort();
         }
         woort_VMRuntime_gc_checkpoint(vm);
     }

@@ -169,12 +169,8 @@ woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
         return result;
     }
     default:
-        woort_panic(WOORT_PANIC_BAD_TYPE, "Unexpceted box type.");
-
-        /* Return NIL. */
-        woort_DynBox result;
-        result.m_boxed = 0;
-        return result;
+        // Should not been here.
+        abort();
     }
 }
 
@@ -253,7 +249,8 @@ void woort_DynBox_box_with_barrier(woort_DynBox* dst, woort_Value val, woort_Box
         break;
     }
     default:
-        woort_panic(WOORT_PANIC_BAD_TYPE, "Unexpceted box type.");
+        // Should not been here.
+        abort();
     }
 }
 
@@ -319,8 +316,8 @@ WOORT_NODISCARD bool woort_DynBox_check(
     case WOORT_BOX_VALUE_TYPE_NIL:
         return val.m_boxed == 0;
     default:
-        woort_panic(WOORT_PANIC_BAD_TYPE, "Unexpceted box type.");
-        return false;
+        // Should not been here.
+        abort();
     }
 }
 
@@ -534,8 +531,8 @@ woort_DynBox_unbox_no_check_and_get_type(
     if (proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
         return WOORT_BOX_VALUE_TYPE_CLOSURE;
 
-    woort_panic(WOORT_PANIC_BAD_TYPE, "Unknown boxed type.");
-    return WOORT_BOX_VALUE_TYPE_NIL;
+    // Should not been here.
+    abort();
 }
 
 WOORT_NODISCARD size_t _woort_hash_int(woort_Int val)

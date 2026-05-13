@@ -889,6 +889,39 @@ label_reentry_for_debug_trap:;
         break;
     }
 
+    case WOORT_OPCODE_CHKDIVI:
+    {
+        switch (m2)
+        {
+        case 0:
+        {
+            const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
+            callback("CHKDIVIL    [SB %+d]\n", dst);
+            return c + 1;
+        }
+        case 1:
+        {
+            const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
+            callback("CHKDIVIR    [SB %+d]\n", dst);
+            return c + 1;
+        }
+        case 2:
+        {
+            const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
+            callback("CHKDIVIRZ   [SB %+d]\n", dst);
+            return c + 1;
+        }
+        case 3:
+        {
+            const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);
+            const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
+            callback("CHKDIVILR   [SB %+d], [SB %+d]\n", a, dst);
+            return c + 1;
+        }
+        }
+        break;
+    }
+
     case WOORT_OPCODE_OPCRASMD:
     {
         const int8_t a = (int8_t)WOORT_BYTECODE(A8, bc);

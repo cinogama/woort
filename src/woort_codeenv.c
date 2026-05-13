@@ -1694,7 +1694,8 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
         size_t bytes_read;
         if (!woort_vfile_read(f, header_buf, sizeof(header_buf), &bytes_read)
             || bytes_read != sizeof(header_buf))
-            return WOORT_CODEENV_RESTORE_FAIL_READ;
+            // File header doesn't match.
+            return WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH;
     }
 
     /* 解析头部 */
