@@ -48,6 +48,8 @@ void _woort_VMRuntime_destroy(woort_VMRuntime* vm)
 
     if (vm->m_hangup_cv != NULL)
         woort_condition_variable_destroy(vm->m_hangup_cv);
+
+    free(vm);
 }
 
 WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
