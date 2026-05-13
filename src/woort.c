@@ -60,6 +60,28 @@ void woort_init(int argc, char** argv)
         WOORT_DEBUG("Failed to bootup debugger support.");
         abort();
     }
+
+    /*
+     * Parse runtime-level command-line arguments.
+     */
+    {
+        bool enable_ctrl_c_to_debug = true;
+
+        for (int command_idx = 0; command_idx + 1 < argc; command_idx++)
+        {
+            const char* current_arg = argv[command_idx];
+            size_t arg_len = strlen(current_arg);
+            if (arg_len >= 2 && current_arg[0] == '-' && current_arg[1] == '-')
+            {
+                const char* setting = current_arg + 2;
+                if (strcmp(setting, "enable-ctrlc-debug") == 0)
+                    enable_ctrl_c_to_debug = (bool)atoi(argv[++command_idx]);
+            }
+        }
+
+        if (enable_ctrl_c_to_debug)
+            woort_ctrlc_setup();
+    }
 }
 void woort_shutdown(void)
 {
