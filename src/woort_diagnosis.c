@@ -1,9 +1,11 @@
 #include "woort_diagnosis.h"
 #include "woort_log.h"
 #include "woort_vm.h"
+#include "woort_vm_debugger_api.h"
 #include "woort_gc_string.h"
 
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -49,57 +51,132 @@ WOORT_NODISCARD bool woort_vpanic(
                 "WooRT Panic: Fatal runtime error(%X). "
                 "Program execution terminated:\n    ", reason);
 
+            va_list args_copy;
             if (panic_vm != NULL)
-            {
-                va_list args_copy;
                 va_copy(args_copy, args);
-                const woort_GCString* panic_str =
-                    woort_GCString_make_format_va(msgfmt, args_copy);
-                va_end(args_copy);
-
-                panic_vm->m_sp->m_string = panic_str;
-            }
 
             woort_vlog(msgfmt, args);
 
             woort_log("\nTrace:\n");
 
-            woort_VMRuntime_TraceCallstack_Iter trace_iter;
-            woort_VMRuntime_TraceCallstack trace;
-            woort_VMRuntime_TraceCallstack prev_trace;
-            size_t repeat_count = 0;
-            bool has_prev = false;
-
-            woort_VMRuntime_trace_begin(panic_vm, &trace_iter);
-            while (woort_VMRuntime_trace_next(&trace_iter, &trace))
+            if (panic_vm != NULL)
             {
-                if (has_prev
-                    && _woort_diagnosis_trace_equal(&prev_trace, &trace))
+                woort_VMRuntime_TraceCallstack_Iter trace_iter;
+                woort_VMRuntime_TraceCallstack trace;
+                woort_VMRuntime_TraceCallstack prev_trace;
+                size_t repeat_count = 0;
+                bool has_prev = false;
+
+                woort_VMRuntime_trace_begin(panic_vm, &trace_iter);
+                while (woort_VMRuntime_trace_next(&trace_iter, &trace))
                 {
-                    repeat_count++;
-                }
-                else
-                {
-                    if (has_prev)
+                    if (has_prev
+                        && _woort_diagnosis_trace_equal(&prev_trace, &trace))
                     {
-                        woort_VMRuntime_log_trace(&prev_trace);
-                        if (repeat_count > 0)
-                            woort_log("    ... (repeated %zu time%s)\n",
-                                repeat_count, repeat_count > 1 ? "s" : "");
+                        repeat_count++;
                     }
-                    prev_trace = trace;
-                    repeat_count = 0;
-                    has_prev = true;
+                    else
+                    {
+                        if (has_prev)
+                        {
+                            woort_VMRuntime_log_trace(&prev_trace);
+                            if (repeat_count > 0)
+                                woort_log("    ... (repeated %zu time%s)\n",
+                                    repeat_count, repeat_count > 1 ? "s" : "");
+                        }
+                        prev_trace = trace;
+                        repeat_count = 0;
+                        has_prev = true;
+                    }
+                }
+
+                if (has_prev)
+                {
+                    woort_VMRuntime_log_trace(&prev_trace);
+                    if (repeat_count > 0)
+                        woort_log("    ... (repeated %zu time%s)\n",
+                            repeat_count, repeat_count > 1 ? "s" : "");
                 }
             }
+            else
+                woort_log("    No vm running on this thread.\n");
 
-            if (has_prev)
+            woort_log("1) Abort whole program.\n");
+            woort_log("2) Ignore.\n");
+            if (panic_vm != NULL)
             {
-                woort_VMRuntime_log_trace(&prev_trace);
-                if (repeat_count > 0)
-                    woort_log("    ... (repeated %zu time%s)\n",
-                        repeat_count, repeat_count > 1 ? "s" : "");
+                woort_log("3) Terminate current vm.\n");
+                woort_log("4) Attach debuggee.\n");
             }
+
+            woort_log("Please input your choice: ");
+
+            bool option_selected = false;
+            do
+            {
+            label_reenter_to_skip_white_space:
+                int c = getchar();
+                switch (c)
+                {
+                case EOF:
+                    // Failed to read from stdin.
+                    woort_log("Failed to receive from STDIN.");
+                    abort();
+                case '\n':
+                case '\r':
+                case ' ':
+                    goto label_reenter_to_skip_white_space;
+                case '1':
+                    option_selected = true;
+                    abort();
+                    break;
+                case '2':
+                    option_selected = true;
+                    vm_has_been_aborted = false;
+                    if (panic_vm != NULL)
+                    {
+                        // Cancel WOORT_VMRUNTIME_CHECK_REQUEST_ABORT request to make vm continue.
+                        (void)woort_VMRuntime_request_accept(
+                            panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT);
+                    }
+                    break;
+                case '3':
+                    if (panic_vm != NULL)
+                    {
+                        option_selected = true;
+
+                        const woort_GCString* panic_str =
+                            woort_GCString_make_format_va(msgfmt, args_copy);
+                        va_end(args_copy);
+
+                        panic_vm->m_sp->m_string = panic_str;
+                        break;
+                    }
+                    /* fallthrough */
+                case '4':
+                    if (panic_vm != NULL)
+                    {
+                        option_selected = true;
+                        vm_has_been_aborted = false;
+
+                        // Cancel WOORT_VMRUNTIME_CHECK_REQUEST_ABORT request to make vm continue.
+                        (void)woort_VMRuntime_request_accept(
+                            panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT);
+                        (void)woort_VMRuntime_request_set(
+                            panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+
+                        (void)woort_WAIPO_Debugger_attach();
+                        break;
+                    }
+                    /* fallthrough */
+                default:
+                    woort_log("Invalid choice.");
+                    break;
+                }
+
+            } while (!option_selected);
+
+
         }
         /* else: This VM already aborted, skip. */
     }

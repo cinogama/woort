@@ -63,13 +63,14 @@ void woort_init(int argc, char** argv)
 }
 void woort_shutdown(void)
 {
+    woort_VMRuntime_Debugger_shutdown();
+
     woort_GC_shutdown();
     _woort_builtin_shutdown();
     _woort_dylib_shutdown();
     woort_CodeEnv_shutdown();
     _woort_path_shutdown();
     _woort_vfs_shutdown();
-    woort_VMRuntime_Debugger_shutdown();
     _woort_env_shutdown();
 }
 
