@@ -3916,6 +3916,27 @@ WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_attach(void);
  */
 WOORT_API void woort_VMRuntime_Debugger_breakdown_all_vm(void);
 
+/* ========== Ctrl+C Signal Handling ========== */
+
+/**
+ * @brief Register the Ctrl+C (SIGINT) signal handler.
+ *
+ * On the first SIGINT the WAIPO debugger is attached and every registered
+ * root VM receives a debug-callback request.  Consecutive SIGINT within a
+ * 2‑second window are counted; after 4 hits the process logs a message and
+ * calls abort().
+ *
+ * Call once during program startup (after woort_init) to enable interactive
+ * debugging via Ctrl+C.  Call woort_ctrlc_teardown() during shutdown to
+ * restore the default signal disposition.
+ */
+WOORT_API void woort_ctrlc_setup(void);
+
+/**
+ * @brief Restore the default SIGINT disposition (SIG_DFL).
+ */
+WOORT_API void woort_ctrlc_teardown(void);
+
 /* ========== String / Unicode Conversion API ========== */
 
 /*
