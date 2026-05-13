@@ -27,7 +27,7 @@
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
-    /* OPTIONAL */ woort_OrderMap*      m_codeenvs;
+    woort_OrderMap*     m_codeenvs;
     woort_GCUnitProxy   m_proxy;
 
 } *_codeenv_global_ctx = NULL;
@@ -107,7 +107,7 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     woort_rwspinlock_write_lock(
         &_codeenv_global_ctx->m_codeenvs_lock);
 
-    woort_ordermap_remove(
+    (void)woort_ordermap_remove(
         _codeenv_global_ctx->m_codeenvs,
         &code_env->m_code_begin);
 
