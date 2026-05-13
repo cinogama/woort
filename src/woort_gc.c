@@ -146,10 +146,10 @@ void _woort_GC_start_gc_callback(void* /* useless */_useless)
 void woort_GC_bootup(void)
 {
     woomem_init(
-        NULL, 
-        &_woort_GC_marker_callback, 
+        NULL,
+        &_woort_GC_marker_callback,
         &_woort_GC_destroier_callback,
-        &_woort_GC_start_gc_callback, 
+        &_woort_GC_start_gc_callback,
         NULL);
 
     woort_rwspinlock_init(&g_root_vms_to_mark_mx);
@@ -274,44 +274,43 @@ void woort_GC_shutdown(void)
     for (;;)
     {
         woort_rwspinlock_write_lock(&g_root_vms_to_mark_mx);
+        const bool already_no_vm_exists = g_root_vms_to_mark.m_size == 0;
         {
-            if (g_root_vms_to_mark.m_size == 0)
+            if (!already_no_vm_exists)
             {
-                woort_rwspinlock_write_unlock(&g_root_vms_to_mark_mx);
-                break;
-            }
 
-            /* 向所有存活的 VM 发送 ABORT 请求 */
-            (void)woort_hashmap_foreach(
-                &g_root_vms_to_mark,
-                &_woort_GC_shutdown_abort_vm_callback,
-                NULL);
-
-            /* 限速：每秒最多一次警告，且仅在数量变化时输出 */
-            const time_t now = time(NULL);
-            if ((last_warning_time == 0 || now != last_warning_time)
-                && g_root_vms_to_mark.m_size != last_warning_vm_count)
-            {
-                last_warning_time = now;
-                last_warning_vm_count = g_root_vms_to_mark.m_size;
-
-                woort_log(
-                    "WOORT: %zu VM(s) have not been closed during shutdown.\n",
-                    g_root_vms_to_mark.m_size);
-
-                _woort_GC_shutdown_dump_traces_context dump_ctx;
-                dump_ctx.m_remaining_quota = 3;
-                dump_ctx.m_total_vm_count = g_root_vms_to_mark.m_size;
-
+                /* 向所有存活的 VM 发送 ABORT 请求 */
                 (void)woort_hashmap_foreach(
                     &g_root_vms_to_mark,
-                    &_woort_GC_shutdown_dump_vm_trace_callback,
-                    &dump_ctx);
+                    &_woort_GC_shutdown_abort_vm_callback,
+                    NULL);
 
-                if (dump_ctx.m_total_vm_count > 3)
+                /* 限速：每秒最多一次警告，且仅在数量变化时输出 */
+                const time_t now = time(NULL);
+                if ((last_warning_time == 0 || now != last_warning_time)
+                    && g_root_vms_to_mark.m_size != last_warning_vm_count)
+                {
+                    last_warning_time = now;
+                    last_warning_vm_count = g_root_vms_to_mark.m_size;
+
                     woort_log(
-                        "    ... %zu more VM(s) not shown\n",
-                        dump_ctx.m_total_vm_count - 3);
+                        "WOORT: %zu VM(s) have not been closed during shutdown.\n",
+                        g_root_vms_to_mark.m_size);
+
+                    _woort_GC_shutdown_dump_traces_context dump_ctx;
+                    dump_ctx.m_remaining_quota = 3;
+                    dump_ctx.m_total_vm_count = g_root_vms_to_mark.m_size;
+
+                    (void)woort_hashmap_foreach(
+                        &g_root_vms_to_mark,
+                        &_woort_GC_shutdown_dump_vm_trace_callback,
+                        &dump_ctx);
+
+                    if (dump_ctx.m_total_vm_count > 3)
+                        woort_log(
+                            "    ... %zu more VM(s) not shown\n",
+                            dump_ctx.m_total_vm_count - 3);
+                }
             }
         }
         woort_rwspinlock_write_unlock(&g_root_vms_to_mark_mx);
@@ -319,8 +318,9 @@ void woort_GC_shutdown(void)
         /* 触发一次完整的 GC 回收（标记 → 终结 → 清扫） */
         woomem_gc_collect();
 
-        /* 短暂休眠，让 VM 析构器和 GC 终结器完成工作 */
-        woort_thread_sleep_ms(10);
+        if (already_no_vm_exists
+            && g_alive_unit_size_after_gc_scan == 0)
+            break;
     }
 
     woomem_shutdown();
