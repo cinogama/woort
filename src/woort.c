@@ -28,6 +28,8 @@
 #include <string.h>
 #include <assert.h>
 
+static bool woort_ctrl_c_callback_hooked = true;
+
 #undef woort_init
 void woort_init(int argc, char** argv)
 {
@@ -65,26 +67,29 @@ void woort_init(int argc, char** argv)
      * Parse runtime-level command-line arguments.
      */
     {
-        bool enable_ctrl_c_to_debug = true;
-
         for (int command_idx = 0; command_idx + 1 < argc; command_idx++)
         {
             const char* current_arg = argv[command_idx];
             size_t arg_len = strlen(current_arg);
-            if (arg_len >= 2 && current_arg[0] == '-' && current_arg[1] == '-')
+            if (arg_len >= 7 && strncmp(current_arg, "--woort", 7) == 0)
             {
                 const char* setting = current_arg + 2;
-                if (strcmp(setting, "enable-ctrlc-debug") == 0)
-                    enable_ctrl_c_to_debug = (bool)atoi(argv[++command_idx]);
+                if (strcmp(setting, "woort-enable-ctrlc-debug") == 0)
+                    woort_ctrl_c_callback_hooked = (bool)atoi(argv[++command_idx]);
+                else
+                    woort_log("WOORT: Unknown command line option named: `%s`.\n", current_arg);
             }
         }
 
-        if (enable_ctrl_c_to_debug)
+        if (woort_ctrl_c_callback_hooked)
             woort_ctrlc_setup();
     }
 }
 void woort_shutdown(void)
 {
+    if (woort_ctrl_c_callback_hooked)
+        woort_ctrlc_teardown();
+
     woort_VMRuntime_Debugger_shutdown();
 
     woort_GC_shutdown();
