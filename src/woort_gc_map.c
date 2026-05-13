@@ -99,7 +99,7 @@ void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
     const size_t realloc_size =
         capacity * (sizeof(woort_GCMap_Bucket) + sizeof(uint32_t));
 
-    woort_GC_mixed_write_barrier_gcaddr(
+    woort_GC_mixed_write_barrier_gcunit(
         (const void**)&gcmap->m_buckets,
         gcmap->m_buckets == NULL
             ? woort_GCUnit_alloc_attrib(A, realloc_size)
@@ -651,14 +651,15 @@ void woort_GCMap_swap(woort_GCMap* a, woort_GCMap* b)
     size_t tmp_size = a->m_size;
     uint32_t* tmp_entries = a->m_entries;
     woort_GCMap_Bucket* tmp_buckets = a->m_buckets;
+    woort_GC_delete_barrier_gcunit(a->m_buckets);
 
     a->m_mask = b->m_mask;
     a->m_size = b->m_size;
     a->m_entries = b->m_entries;
-    woort_GC_mixed_write_barrier_gcaddr((const void**)&a->m_buckets, b->m_buckets);
+    woort_GC_mixed_write_barrier_gcunit((const void**)&a->m_buckets, b->m_buckets);
 
     b->m_mask = tmp_mask;
     b->m_size = tmp_size;
     b->m_entries = tmp_entries;
-    woort_GC_mixed_write_barrier_gcaddr((const void**)&b->m_buckets, tmp_buckets);
+    woort_GC_mixed_write_barrier_gcunit((const void**)&b->m_buckets, tmp_buckets);
 }

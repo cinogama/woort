@@ -38,7 +38,7 @@ void _woort_GCVec_assure_vec_space(woort_GCVec* vec, size_t size)
         ? woort_GCUnit_alloc_attrib(A, new_space * sizeof(woort_DynBox))
         : woomem_realloc(vec->m_datas, new_space * sizeof(woort_DynBox));
 
-    woort_GC_mixed_write_barrier_gcaddr((const void**)&vec->m_datas, new_datas);
+    woort_GC_mixed_write_barrier_gcunit((const void**)&vec->m_datas, new_datas);
     vec->m_space = new_space;
 }
 
@@ -94,10 +94,10 @@ void woort_GCVec_pop_back(woort_GCVec* vec)
     vec->m_length--;
 }
 
-void woort_GCVec_insert(woort_GCVec* vec, size_t index, woort_DynBox boxed_value)
+WOORT_NODISCARD bool woort_GCVec_insert(woort_GCVec* vec, size_t index, woort_DynBox boxed_value)
 {
     if (index > vec->m_length)
-        woort_panic(WOORT_PANIC_INDEX_OUT_OF_RANGE, "vec insert index out of range");
+        return false;
 
     _woort_GCVec_assure_vec_space(vec, vec->m_length + 1);
 
@@ -110,12 +110,13 @@ void woort_GCVec_insert(woort_GCVec* vec, size_t index, woort_DynBox boxed_value
     woort_GC_mixed_write_barrier_dynbox(
         &vec->m_datas[index], boxed_value);
     vec->m_length++;
+    return true;
 }
 
-void woort_GCVec_erase(woort_GCVec* vec, size_t index)
+WOORT_NODISCARD bool woort_GCVec_erase(woort_GCVec* vec, size_t index)
 {
     if (index >= vec->m_length)
-        woort_panic(WOORT_PANIC_INDEX_OUT_OF_RANGE, "vec erase index out of range");
+        return false;
 
     woort_GC_delete_barrier_dynbox(
         vec->m_datas[index]);
@@ -128,6 +129,7 @@ void woort_GCVec_erase(woort_GCVec* vec, size_t index)
 
     vec->m_length--;
     vec->m_datas[vec->m_length].m_boxed = 0;
+    return true;
 }
 
 void woort_GCVec_clear(woort_GCVec* vec)
@@ -158,14 +160,15 @@ void woort_GCVec_swap(woort_GCVec* a, woort_GCVec* b)
     size_t tmp_space = a->m_space;
     size_t tmp_length = a->m_length;
     woort_DynBox* tmp_datas = a->m_datas;
+    woort_GC_delete_barrier_gcunit(a->m_datas);
 
     a->m_space = b->m_space;
     a->m_length = b->m_length;
-    woort_GC_mixed_write_barrier_gcaddr((const void**)&a->m_datas, b->m_datas);
+    woort_GC_mixed_write_barrier_gcunit((const void**)&a->m_datas, b->m_datas);
 
     b->m_space = tmp_space;
     b->m_length = tmp_length;
-    woort_GC_mixed_write_barrier_gcaddr((const void**)&b->m_datas, tmp_datas);
+    woort_GC_mixed_write_barrier_gcunit((const void**)&b->m_datas, tmp_datas);
 }
 
 

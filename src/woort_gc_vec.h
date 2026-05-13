@@ -32,8 +32,8 @@ WOORT_NODISCARD woort_DynBox* woort_GCVec_emplace_back(woort_GCVec* vec, size_t 
 WOORT_NODISCARD bool woort_GCVec_get(const woort_GCVec* vec, size_t index, woort_DynBox* out_boxval);
 WOORT_NODISCARD bool woort_GCVec_set(woort_GCVec* vec, size_t index, woort_DynBox boxed_value);
 void woort_GCVec_pop_back(woort_GCVec* vec);
-void woort_GCVec_insert(woort_GCVec* vec, size_t index, woort_DynBox boxed_value);
-void woort_GCVec_erase(woort_GCVec* vec, size_t index);
+WOORT_NODISCARD bool woort_GCVec_insert(woort_GCVec* vec, size_t index, woort_DynBox boxed_value);
+WOORT_NODISCARD bool woort_GCVec_erase(woort_GCVec* vec, size_t index);
 void woort_GCVec_clear(woort_GCVec* vec);
 
 void woort_GCVec_copy(woort_GCVec* dst, const woort_GCVec* src);

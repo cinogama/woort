@@ -3082,8 +3082,9 @@ WOORT_API void woort_vec_pop(woort_StackValue src);
  * @param src        Stack slot holding the vector.
  * @param index      Zero-based insertion position.
  * @param boxed_elem Stack slot holding the boxed element to insert.
+ * @return true on success, false if index is out of range.
  */
-WOORT_API void woort_vec_insert(
+WOORT_NODISCARD WOORT_API bool woort_vec_insert(
     woort_StackValue src,
     size_t index,
     woort_StackValue boxed_elem);
@@ -3092,8 +3093,9 @@ WOORT_API void woort_vec_insert(
  * @brief Remove the element at the given index, shifting subsequent elements.
  * @param src    Stack slot holding the vector.
  * @param index  Zero-based position of the element to remove.
+ * @return true on success, false if index is out of range.
  */
-WOORT_API void woort_vec_erase(
+WOORT_NODISCARD WOORT_API bool woort_vec_erase(
     woort_StackValue src,
     size_t index);
 

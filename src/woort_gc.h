@@ -78,6 +78,20 @@ static inline void woort_GC_mixed_write_barrier_dynbox(
     *modified_box = src_box;
 }
 
+static inline void woort_GC_delete_barrier_gcaddr(
+    const void* addr)
+{
+    if (g_gc_in_marking)
+        woomem_try_mark_unit((intptr_t)addr);
+}
+
+static inline void woort_GC_delete_barrier_gcunit(
+    const void* unit)
+{
+    if (g_gc_in_marking)
+        woomem_mark_unit_head(unit);
+}
+
 static inline void woort_GC_delete_barrier_value(
     woort_Value value)
 {

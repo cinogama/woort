@@ -2109,30 +2109,31 @@ static woort_api woort_builtin_array_shrink(void)
 static woort_api woort_builtin_array_insert_i(void)
 {
     woort_set_box_int(WOORT_RETURN_SLOT, woort_int(2));
-    woort_vec_insert(0, (size_t)woort_int(1), WOORT_RETURN_SLOT);
-
+    if (!woort_vec_insert(0, (size_t)woort_int(1), WOORT_RETURN_SLOT))
+        return woort_ret_panic("Index out of range.");
     return woort_ret_void();
 }
 
 static woort_api woort_builtin_array_insert_r(void)
 {
     woort_set_box_real(WOORT_RETURN_SLOT, woort_real(2));
-    woort_vec_insert(0, (size_t)woort_int(1), WOORT_RETURN_SLOT);
-
+    if (!woort_vec_insert(0, (size_t)woort_int(1), WOORT_RETURN_SLOT))
+        return woort_ret_panic("Index out of range.");
     return woort_ret_void();
 }
 
 static woort_api woort_builtin_array_insert_b(void)
 {
     woort_set_box_bool(WOORT_RETURN_SLOT, woort_bool(2));
-    woort_vec_insert(0, (size_t)woort_int(1), WOORT_RETURN_SLOT);
-
+    if (!woort_vec_insert(0, (size_t)woort_int(1), WOORT_RETURN_SLOT))
+        return woort_ret_panic("Index out of range.");
     return woort_ret_void();
 }
 
 static woort_api woort_builtin_array_insert_x(void)
 {
-    woort_vec_insert(0, (size_t)woort_int(1), 2);
+    if (!woort_vec_insert(0, (size_t)woort_int(1), 2))
+        return woort_ret_panic("Index out of range.");
     return woort_ret_void();
 }
 
@@ -2207,7 +2208,7 @@ static woort_api woort_builtin_array_dequeue_u(void)
 {
     if (woort_vec_get(WOORT_RETURN_SLOT, 0, 0))
     {
-        woort_vec_erase(0, 0);
+        (void)woort_vec_erase(0, 0);
         (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
 
         return woort_ret_option_value(WOORT_RETURN_SLOT);
@@ -2219,8 +2220,7 @@ static woort_api woort_builtin_array_dequeue_r(void)
 {
     if (woort_vec_get(WOORT_RETURN_SLOT, 0, 0))
     {
-        woort_vec_erase(0, 0);
-
+        (void)woort_vec_erase(0, 0);
         return woort_ret_option_value(WOORT_RETURN_SLOT);
     }
     return woort_ret_option_none();
@@ -2253,12 +2253,10 @@ static woort_api woort_builtin_array_pop_val_r(void)
 
 static woort_api woort_builtin_array_dequeue_val_u(void)
 {
-    size_t len = woort_vec_len(0);
-    if (len == 0)
+    if (!woort_vec_get(WOORT_RETURN_SLOT, 0, 0))
         return woort_ret_panic("Index out of range.");
 
-    (void)woort_vec_get(WOORT_RETURN_SLOT, 0, 0);
-    woort_vec_erase(0, 0);
+    (void)woort_vec_erase(0, 0);
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
 
     return woort_ret();
@@ -2266,12 +2264,10 @@ static woort_api woort_builtin_array_dequeue_val_u(void)
 
 static woort_api woort_builtin_array_dequeue_val_r(void)
 {
-    size_t len = woort_vec_len(0);
-    if (len == 0)
+    if (!woort_vec_get(WOORT_RETURN_SLOT, 0, 0))
         return woort_ret_panic("Index out of range.");
 
-    (void)woort_vec_get(WOORT_RETURN_SLOT, 0, 0);
-    woort_vec_erase(0, 0);
+    (void)woort_vec_erase(0, 0);
 
     return woort_ret();
 }
@@ -2281,11 +2277,7 @@ static woort_api woort_builtin_array_remove(void)
     size_t idx = (size_t)woort_int(1);
     size_t len = woort_vec_len(0);
 
-    if (idx >= len)
-        return woort_ret_bool(false);
-
-    woort_vec_erase(0, idx);
-    return woort_ret_bool(true);
+    return woort_ret_bool(woort_vec_erase(0, idx));
 }
 
 static woort_api woort_builtin_array_clear(void)

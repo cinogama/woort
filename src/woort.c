@@ -1306,7 +1306,7 @@ void woort_vec_pop(woort_StackValue src)
     woort_GCVec_pop_back(vec);
 }
 
-void woort_vec_insert(
+WOORT_NODISCARD bool woort_vec_insert(
     woort_StackValue src,
     size_t index,
     woort_StackValue boxed_elem)
@@ -1317,10 +1317,10 @@ void woort_vec_insert(
     woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
     assert(vec != NULL);
 
-    woort_GCVec_insert(vec, index, _WOORT_API_STACK(boxed_elem).m_dynamic);
+    return woort_GCVec_insert(vec, index, _WOORT_API_STACK(boxed_elem).m_dynamic);
 }
 
-void woort_vec_erase(
+WOORT_NODISCARD bool woort_vec_erase(
     woort_StackValue src,
     size_t index)
 {
@@ -1330,7 +1330,7 @@ void woort_vec_erase(
     woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
     assert(vec != NULL);
 
-    woort_GCVec_erase(vec, index);
+    return woort_GCVec_erase(vec, index);
 }
 
 void woort_vec_clear(woort_StackValue src)
