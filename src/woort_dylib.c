@@ -7,6 +7,7 @@
 #include "woort_util.h"
 #include "woort_threads.h"
 #include "woort_utf8.h"
+#include "woort_platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -20,8 +21,7 @@
 
 #ifndef WOORT_DYLIB_DISABLED
 
-#if defined(_WIN32) || defined(_WIN64)
-
+#ifdef WOORT_PLATFORM_OS_WINDOWS
 #   define WOORT_DYLIB_EXT ".dll"
 
 static void* _woort_dylib_os_loadlib(const char* path)
@@ -38,20 +38,17 @@ static void* _woort_dylib_os_loadlib(const char* path)
     free(wpath);
     return handle;
 }
-
 static void* _woort_dylib_os_loadfunc(void* handle, const char* name)
 {
     return (void*)GetProcAddress((HMODULE)handle, name);
 }
-
 static void _woort_dylib_os_freelib(void* handle)
 {
     FreeLibrary((HMODULE)handle);
 }
 
-#elif defined(__unix__) || defined(__unix) || defined(__APPLE__) || defined(__MACH__)
-
-#   if defined(__APPLE__)
+#else
+#   if defined(WOORT_PLATFORM_OS_MACOS) || defined(WOORT_PLATFORM_OS_IOS)
 #       define WOORT_DYLIB_EXT ".dylib"
 #   else
 #       define WOORT_DYLIB_EXT ".so"
@@ -79,6 +76,20 @@ static void _woort_dylib_os_freelib(void* handle)
 /* ================================================================
  * Helpers
  * ================================================================ */
+
+#ifdef _NDEBUG
+#   ifdef WOORT_PLATFORM_32
+#       define WOORT_DYLIB_SUFFIX ""
+#   else
+#       define WOORT_DYLIB_SUFFIX "32"
+#   endif
+#else
+#   ifdef WOORT_PLATFORM_32
+#       define WOORT_DYLIB_SUFFIX "32_debug"
+#   else
+#       define WOORT_DYLIB_SUFFIX "_debug"
+#   endif
+#endif
 
 static bool _woort_dylib_file_exists(const char* path)
 {
@@ -423,7 +434,9 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
 
     void* native_handle = NULL;
 
-    char* name_with_ext = _woort_dylib_append_ext(path, WOORT_DYLIB_EXT);
+    char* name_with_ext = _woort_dylib_append_ext(
+        path, WOORT_DYLIB_SUFFIX WOORT_DYLIB_EXT);
+
     if (name_with_ext == NULL)
     {
         woort_recursive_mutex_unlock(g_named_libs_mx);
