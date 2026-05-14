@@ -2422,6 +2422,9 @@ WOORT_API void woort_set_int(
 /** @brief Set a stack slot to an pointer (cast to integer). */
 #define woort_set_pointer(dst, src) (woort_set_int(dst, (woort_Int)(src)))
 
+/** @brief Set a stack slot to a boxed pointer (cast to integer). */
+#define woort_set_box_pointer(dst, src) (woort_set_box_int(dst, (woort_Int)(intptr_t)(src)))
+
 /** @brief Set a stack slot to a real (double) value. */
 WOORT_API void woort_set_real(
     woort_StackValue dst, woort_Real src);
@@ -2526,6 +2529,9 @@ WOORT_API void woort_set_union_nil(
 WOORT_API void woort_set_union_int(
     woort_StackValue dst, woort_Int id, woort_Int src);
 
+/** @brief Set union to a pointer variant (cast to integer). */
+#define woort_set_union_pointer(dst, id, src) (woort_set_union_int(dst, id, (woort_Int)(intptr_t)(src)))
+
 /** @brief Set union to a real variant. */
 WOORT_API void woort_set_union_real(
     woort_StackValue dst, woort_Int id, woort_Real src);
@@ -2583,6 +2589,9 @@ WOORT_API void woort_set_union_gcstruct(
 WOORT_API void woort_set_union_box_int(
     woort_StackValue dst, woort_Int id, woort_Int src);
 
+/** @brief Set union to a boxed pointer variant (cast to integer). */
+#define woort_set_union_box_pointer(dst, id, src) (woort_set_union_box_int(dst, id, (woort_Int)(intptr_t)(src)))
+
 /** @brief Set union to a boxed real variant. */
 WOORT_API void woort_set_union_box_real(
     woort_StackValue dst, woort_Int id, woort_Real src);
@@ -2611,6 +2620,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_set_option_void(dst) woort_set_union_void(dst, 0)
 /** @brief Set option::value(int). */
 #define woort_set_option_int(dst, src) woort_set_union_int(dst, 0, src)
+/** @brief Set option::value(pointer). */
+#define woort_set_option_pointer(dst, src) woort_set_union_pointer(dst, 0, src)
 /** @brief Set option::value(real). */
 #define woort_set_option_real(dst, src) woort_set_union_real(dst, 0, src)
 /** @brief Set option::value(float). */
@@ -2623,6 +2634,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_set_option_buffer(dst, src, len) woort_set_union_buffer(dst, 0, src, len)
 /** @brief Set option::value(box_int). */
 #define woort_set_option_box_int(dst, src) woort_set_union_box_int(dst, 0, src)
+/** @brief Set option::value(box_pointer). */
+#define woort_set_option_box_pointer(dst, src) woort_set_union_box_pointer(dst, 0, src)
 /** @brief Set option::value(box_real). */
 #define woort_set_option_box_real(dst, src) woort_set_union_box_real(dst, 0, src)
 /** @brief Set option::value(box_bool). */
@@ -2651,6 +2664,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_set_result_ok_void woort_set_option_void
 /** @brief Set Result::Ok(int). */
 #define woort_set_result_ok_int woort_set_option_int
+/** @brief Set Result::Ok(pointer). */
+#define woort_set_result_ok_pointer woort_set_option_pointer
 /** @brief Set Result::Ok(real). */
 #define woort_set_result_ok_real woort_set_option_real
 /** @brief Set Result::Ok(float). */
@@ -2663,6 +2678,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_set_result_ok_buffer woort_set_option_buffer
 /** @brief Set Result::Ok(box_int). */
 #define woort_set_result_ok_box_int woort_set_option_box_int
+/** @brief Set Result::Ok(box_pointer). */
+#define woort_set_result_ok_box_pointer woort_set_option_box_pointer
 /** @brief Set Result::Ok(box_real). */
 #define woort_set_result_ok_box_real woort_set_option_box_real
 /** @brief Set Result::Ok(box_bool). */
@@ -2688,6 +2705,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_set_result_err_void(dst) woort_set_union_void(dst, 1)
 /** @brief Set Result::Err(int). */
 #define woort_set_result_err_int(dst, src) woort_set_union_int(dst, 1, src)
+/** @brief Set Result::Err(pointer). */
+#define woort_set_result_err_pointer(dst, src) woort_set_union_pointer(dst, 1, src)
 /** @brief Set Result::Err(real). */
 #define woort_set_result_err_real(dst, src) woort_set_union_real(dst, 1, src)
 /** @brief Set Result::Err(float). */
@@ -2700,6 +2719,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_set_result_err_buffer(dst, src, len) woort_set_union_buffer(dst, 1, src, len)
 /** @brief Set Result::Err(box_int). */
 #define woort_set_result_err_box_int(dst, src) woort_set_union_box_int(dst, 1, src)
+/** @brief Set Result::Err(box_pointer). */
+#define woort_set_result_err_box_pointer(dst, src) woort_set_union_box_pointer(dst, 1, src)
 /** @brief Set Result::Err(box_real). */
 #define woort_set_result_err_box_real(dst, src) woort_set_union_box_real(dst, 1, src)
 /** @brief Set Result::Err(box_bool). */
@@ -2733,6 +2754,7 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_nil() (woort_set_nil(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return an integer. */
 #define woort_ret_int(src) (woort_set_int(WOORT_RETURN_SLOT, src), woort_ret())
+#define woort_ret_pointer(src) (woort_set_int(WOORT_RETURN_SLOT, (woort_Int)(intptr_t)(src)), woort_ret())
 /** @brief Return a real. */
 #define woort_ret_real(src) (woort_set_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a float. */
@@ -2745,6 +2767,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_buffer(src, len) (woort_set_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return a boxed integer. */
 #define woort_ret_box_int(src) (woort_set_box_int(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return a boxed pointer. */
+#define woort_ret_box_pointer(src) (woort_set_box_int(WOORT_RETURN_SLOT, (woort_Int)(intptr_t)(src)), woort_ret())
 /** @brief Return a boxed real. */
 #define woort_ret_box_real(src) (woort_set_box_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a boxed boolean. */
@@ -2774,6 +2798,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_union_void woort_ret_union_nil
 /** @brief Return a union with int payload. */
 #define woort_ret_union_int(id, src) (woort_set_union_int(WOORT_RETURN_SLOT, id, src), woort_ret())
+/** @brief Return a union with pointer payload. */
+#define woort_ret_union_pointer(id, src) (woort_set_union_int(WOORT_RETURN_SLOT, id, (woort_Int)(intptr_t)(src)), woort_ret())
 /** @brief Return a union with real payload. */
 #define woort_ret_union_real(id, src) (woort_set_union_real(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with float payload. */
@@ -2786,6 +2812,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_union_buffer(id, src, len) (woort_set_union_buffer(WOORT_RETURN_SLOT, id, src, len), woort_ret())
 /** @brief Return a union with boxed int payload. */
 #define woort_ret_union_box_int(id, src) (woort_set_union_box_int(WOORT_RETURN_SLOT, id, src), woort_ret())
+/** @brief Return a union with boxed pointer payload. */
+#define woort_ret_union_box_pointer(id, src) (woort_set_union_box_int(WOORT_RETURN_SLOT, id, (woort_Int)(intptr_t)(src)), woort_ret())
 /** @brief Return a union with boxed real payload. */
 #define woort_ret_union_box_real(id, src) (woort_set_union_box_real(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with boxed bool payload. */
@@ -2815,6 +2843,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_option_void() (woort_set_option_void(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return option::value(int). */
 #define woort_ret_option_int(src) (woort_set_option_int(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return option::value(pointer). */
+#define woort_ret_option_pointer(src) (woort_set_option_int(WOORT_RETURN_SLOT, (woort_Int)(intptr_t)(src)), woort_ret())
 /** @brief Return option::value(real). */
 #define woort_ret_option_real(src) (woort_set_option_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(float). */
@@ -2827,6 +2857,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_option_buffer(src, len) (woort_set_option_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return option::value(box_int). */
 #define woort_ret_option_box_int(src) (woort_set_option_box_int(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return option::value(box_pointer). */
+#define woort_ret_option_box_pointer(src) (woort_set_option_box_int(WOORT_RETURN_SLOT, (woort_Int)(intptr_t)(src)), woort_ret())
 /** @brief Return option::value(box_real). */
 #define woort_ret_option_box_real(src) (woort_set_option_box_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(box_bool). */
@@ -2855,6 +2887,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_result_ok_void() (woort_set_result_ok_void(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return Result::Ok(int). */
 #define woort_ret_result_ok_int(src) (woort_set_result_ok_int(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return Result::Ok(pointer). */
+#define woort_ret_result_ok_pointer(src) (woort_set_result_ok_int(WOORT_RETURN_SLOT, (woort_Int)(intptr_t)(src)), woort_ret())
 /** @brief Return Result::Ok(real). */
 #define woort_ret_result_ok_real(src) (woort_set_result_ok_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(float). */
@@ -2867,6 +2901,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_result_ok_buffer(src, len) (woort_set_result_ok_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return Result::Ok(box_int). */
 #define woort_ret_result_ok_box_int(src) (woort_set_result_ok_box_int(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return Result::Ok(box_pointer). */
+#define woort_ret_result_ok_box_pointer(src) (woort_set_result_ok_box_int(WOORT_RETURN_SLOT, (woort_Int)(intptr_t)(src)), woort_ret())
 /** @brief Return Result::Ok(box_real). */
 #define woort_ret_result_ok_box_real(src) (woort_set_result_ok_box_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(box_bool). */
@@ -2894,6 +2930,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_result_err_void() (woort_set_result_err_void(WOORT_RETURN_SLOT), woort_ret())
 /** @brief Return Result::Err(int). */
 #define woort_ret_result_err_int(src) (woort_set_result_err_int(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return Result::Err(pointer). */
+#define woort_ret_result_err_pointer(src) (woort_set_result_err_int(WOORT_RETURN_SLOT, (woort_Int)(intptr_t)(src)), woort_ret())
 /** @brief Return Result::Err(real). */
 #define woort_ret_result_err_real(src) (woort_set_result_err_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(float). */
@@ -2906,6 +2944,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_result_err_buffer(src, len) (woort_set_result_err_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return Result::Err(box_int). */
 #define woort_ret_result_err_box_int(src) (woort_set_result_err_box_int(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return Result::Err(box_pointer). */
+#define woort_ret_result_err_box_pointer(src) (woort_set_result_err_box_int(WOORT_RETURN_SLOT, (woort_Int)(intptr_t)(src)), woort_ret())
 /** @brief Return Result::Err(box_real). */
 #define woort_ret_result_err_box_real(src) (woort_set_result_err_box_real(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(box_bool). */
