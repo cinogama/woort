@@ -4250,7 +4250,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u32strn_to_str(
  */
 #ifdef _WIN32
 #   ifdef __cplusplus
-#       define WOORT_API extern "C" WO_EXPORT
+#       define WOORT_API extern "C" WOORT_EXPORT
 #   else
 #       define WOORT_API WOORT_EXPORT
 #   endif
