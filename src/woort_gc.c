@@ -25,7 +25,7 @@ typedef struct woort_GCContext
 
 static woort_GCContext s_gc_context;
 
-void _woort_GC_marker_callback(
+static void _woort_GC_marker_callback(
     woomem_UserContext /* useless */_useless, void* unit)
 {
     (void)_useless;
@@ -33,7 +33,7 @@ void _woort_GC_marker_callback(
     woort_GCUnit* gcunit = unit;
     gcunit->m_proxy->m_marker(gcunit);
 }
-void _woort_GC_destroier_callback(
+static void _woort_GC_destroier_callback(
     woomem_UserContext /* useless */_useless, void* unit)
 {
     (void)_useless;
@@ -42,7 +42,7 @@ void _woort_GC_destroier_callback(
     gcunit->m_proxy->m_destructor(gcunit);
 }
 
-bool _woort_GC_walk_through_to_start_gc_vm_mark(
+static bool _woort_GC_walk_through_to_start_gc_vm_mark(
     const void* key,
     void* value,
     void* user_data)
@@ -63,7 +63,7 @@ bool _woort_GC_walk_through_to_start_gc_vm_mark(
     return true;
 }
 
-void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool skip_weak)
+static void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool skip_weak)
 {
     while (woort_VMRuntime_request_check(
         vm_to_request_gc_mark,
@@ -93,7 +93,7 @@ void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool skip_w
                 避免出现奇怪的问题。
             */
             if (skip_weak
-                && vm_to_request_gc_mark->m_is_weak
+                && woort_atomic_load_explicit(&vm_to_request_gc_mark->m_is_weak, WOORT_ATOMIC_MEMORY_ORDER_RELAXED)
                 && WOORT_HASHMAP_RESULT_OK == woort_hashmap_insert(
                     &s_gc_context.m_not_been_marked_weak_vm, &vm_to_request_gc_mark, NULL))
             {
@@ -138,7 +138,7 @@ void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool skip_w
     }
 }
 
-bool _woort_GC_walk_through_to_sync_vm_mark(
+static bool _woort_GC_walk_through_to_sync_vm_mark(
     const void* key,
     void* value,
     void* user_data)
@@ -154,7 +154,7 @@ bool _woort_GC_walk_through_to_sync_vm_mark(
     return true;
 }
 
-void _woort_GC_start_callback(void* /* useless */_useless)
+static void _woort_GC_start_callback(void* /* useless */_useless)
 {
     (void)_useless;
 
@@ -175,7 +175,7 @@ void _woort_GC_start_callback(void* /* useless */_useless)
     woort_CodeEnv_GC_mark_all_envs();
 }
 
-bool _woort_GC_walk_through_to_abort_vm(
+static bool _woort_GC_walk_through_to_abort_vm(
     const void* key,
     void* value,
     void* user_data)
@@ -428,7 +428,7 @@ void woort_GC_unregister_root_vm(struct woort_VMRuntime* vmruntime)
 {
     woort_rwspinlock_write_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
-        if (vmruntime->m_is_weak)
+        if (woort_atomic_load_explicit(&vmruntime->m_is_weak, WOORT_ATOMIC_MEMORY_ORDER_RELAXED))
             (void)woort_hashmap_remove(&s_gc_context.m_not_been_marked_weak_vm, &vmruntime);
 
         if (!woort_hashmap_remove(&s_gc_context.m_root_vms_to_mark, &vmruntime))
@@ -470,20 +470,20 @@ void woort_GC_foreach_root_vm(
     ctx.m_callback = callback;
     ctx.m_user_data = user_data;
 
-    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_write_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
             &s_gc_context.m_root_vms_to_mark,
             &_woort_GC_foreach_root_vm_callback_adapter,
             &ctx);
     }
-    woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_write_unlock(&s_gc_context.m_root_vms_to_mark_mx);
 }
 
 void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
 {
     assert(g_gc_in_marking);
-    assert(vm->m_is_weak);
+    assert(woort_atomic_load_explicit(&vm->m_is_weak, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
 
     /* NOTE: 此处使用 _woort_GC_mark_vm_proxy 是为了确保：
 

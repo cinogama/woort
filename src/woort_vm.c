@@ -62,7 +62,7 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
     }
 
     vm->m_hangup_c = 0;
-    vm->m_is_weak = false;
+    woort_atomic_init(&vm->m_is_weak, 0);
 
     if (!woort_mutex_create(&vm->m_hangup_mx))
         vm->m_hangup_mx = NULL;
@@ -115,8 +115,7 @@ void woort_VMRuntime_destroy(woort_VMRuntime* vm)
     /* 离开当前作用域避免 GC 死锁 */
     woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
 
-    if (!vm->m_is_weak)
-        woort_GC_unregister_root_vm(vm);
+    woort_GC_unregister_root_vm(vm);
     _woort_VMRuntime_destroy(vm);
 
     if (last != vm)
@@ -125,9 +124,8 @@ void woort_VMRuntime_destroy(woort_VMRuntime* vm)
 
 void woort_VMRuntime_weaken(woort_VMRuntime* vm)
 {
-    assert(!vm->m_is_weak);
-
-    vm->m_is_weak = true;
+    assert(!woort_atomic_load_explicit(&vm->m_is_weak, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
+    woort_atomic_store_explicit(&vm->m_is_weak, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 }
 
 
