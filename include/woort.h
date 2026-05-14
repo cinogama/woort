@@ -68,14 +68,14 @@ extern "C" {
 #   define WOORT_EXPORT extern
 #endif
 
-#ifdef WOORT_AS_DYLIB
+#ifdef WOORT_STATIC_LIB
+#   define WOORT_API
+#else
 #   ifdef WOORT_IMPL
 #       define WOORT_API WOORT_EXPORT
 #   else
 #       define WOORT_API WOORT_IMPORT
 #   endif
-#else
-#   define WOORT_API
 #endif
 
 /**

@@ -5,9 +5,9 @@ project ("woort")
 add_library(woort_options INTERFACE)
 target_compile_features(woort_options INTERFACE c_std_11)
 
-if (BUILD_SHARED_LIBS)
+if (NOT BUILD_SHARED_LIBS)
     target_compile_definitions(woort_options 
-        INTERFACE -DWOORT_AS_DYLIB=1)
+        INTERFACE -DWOORT_STATIC_LIB=1)
 endif()
 
 if (MSVC)
