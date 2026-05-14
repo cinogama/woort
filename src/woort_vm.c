@@ -62,6 +62,7 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
     }
 
     vm->m_hangup_c = 0;
+    vm->m_is_weak = false;
 
     if (!woort_mutex_create(&vm->m_hangup_mx))
         vm->m_hangup_mx = NULL;
@@ -111,14 +112,22 @@ _label_failed_to_init:
 }
 void woort_VMRuntime_destroy(woort_VMRuntime* vm)
 {
-    // 离开当前作用域避免 GC 死锁
+    /* 离开当前作用域避免 GC 死锁 */
     woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
 
-    woort_GC_unregister_root_vm(vm);
+    if (!vm->m_is_weak)
+        woort_GC_unregister_root_vm(vm);
     _woort_VMRuntime_destroy(vm);
 
     if (last != vm)
         (void)woort_VMRuntime_swap(last);
+}
+
+void woort_VMRuntime_weaken(woort_VMRuntime* vm)
+{
+    assert(!vm->m_is_weak);
+
+    vm->m_is_weak = true;
 }
 
 

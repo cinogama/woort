@@ -16,8 +16,14 @@
 #include <stdlib.h>
 #include <time.h>
 
-static woort_RWSpinlock g_root_vms_to_mark_mx;
-static woort_HashMap /* struct woort_VMRuntime* */ g_root_vms_to_mark;
+typedef struct woort_GCContext
+{
+    woort_RWSpinlock m_root_vms_to_mark_mx;
+    woort_HashMap /* struct woort_VMRuntime* */ m_root_vms_to_mark;
+    woort_HashMap /* struct woort_VMRuntime* */ m_not_been_marked_weak_vm;
+} woort_GCContext;
+
+static woort_GCContext s_gc_context;
 
 void _woort_GC_marker_callback(
     woomem_UserContext /* useless */_useless, void* unit)
@@ -57,6 +63,81 @@ bool _woort_GC_walk_through_to_start_gc_vm_mark(
     return true;
 }
 
+void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool skip_weak)
+{
+    while (woort_VMRuntime_request_check(
+        vm_to_request_gc_mark,
+        WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
+    {
+        if (woort_VMRuntime_request_check(
+            vm_to_request_gc_mark,
+            WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE))
+        {
+            /* This vm has leaved, we will mark it here. */
+            if (!woort_VMRuntime_request_set(
+                vm_to_request_gc_mark,
+                WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+            {
+                /* 就在刚刚检查的一瞬间，VM 已经开始处于标记工作中，跳出循环，等待 VM 标记工作完成。*/
+                break;
+            }
+
+            /*
+            NOTE: 对于 Weak 的虚拟机，我们在此跳过代理标记，并且寄希望于其能够被其
+                实际持有者通过 woort_vm_mark_weak_manually 执行标记。
+
+            NOTE: 与旧 Woolang 不同，Woort 没有 VM 池机制，因此不必担心 Weak 标记撤回
+                导致的 Missing mark。
+
+            NOTE: 如果内存不足导致无法记录 m_not_been_marked_weak_vm，则直接代理标记
+                避免出现奇怪的问题。
+            */
+            if (skip_weak
+                && vm_to_request_gc_mark->m_is_weak
+                && WOORT_HASHMAP_RESULT_OK == woort_hashmap_insert(
+                    &s_gc_context.m_not_been_marked_weak_vm, &vm_to_request_gc_mark, NULL))
+            {
+                // 我们将在所有标记工作结束之后检查此清单，并为所有未标记的 Weak VM 执
+                // 行后续处理工作.
+                return;
+            }
+
+            if (woort_VMRuntime_request_accept(
+                vm_to_request_gc_mark,
+                WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
+            {
+                woort_VMRuntime_mark_vm_after_sync(vm_to_request_gc_mark);
+            }
+            /* else: 否则，注意，如果发现此情况，说明 VM 就在刚刚的一瞬间，全都标记完成了（因为
+            WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 能被成功设置，说明 VM 已经不在处理流程
+            中），立即取消 WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 流程。 */
+
+            if (!woort_VMRuntime_request_accept(
+                vm_to_request_gc_mark,
+                WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+            {
+                /* WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 已经被 VM 接收，拉起*/
+                woort_VMRuntime_wakeup(vm_to_request_gc_mark);
+            }
+
+            /* 代理标记结束（或者 VM 已经完成标记，不需要等待）*/
+            return;
+        }
+
+        /* Wait for some time.*/
+        woort_thread_yield();
+    }
+
+    /* 执行到此处，说明 VM 正在执行自标记，等待自标记完成*/
+    if (woort_VMRuntime_request_accept(
+        vm_to_request_gc_mark,
+        WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+    {
+        /* VM 正在标记流程中，等待直到标记完成*/
+        woort_VMRuntime_hangup(vm_to_request_gc_mark);
+    }
+}
+
 bool _woort_GC_walk_through_to_sync_vm_mark(
     const void* key,
     void* value,
@@ -68,93 +149,85 @@ bool _woort_GC_walk_through_to_sync_vm_mark(
     woort_VMRuntime* const vm_to_request_gc_mark =
         *(woort_VMRuntime* const*)key;
 
-    while (woort_VMRuntime_request_check(
-        vm_to_request_gc_mark,
-        WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
+    _woort_GC_mark_vm_proxy(vm_to_request_gc_mark, true);
+
+    return true;
+}
+
+void _woort_GC_start_callback(void* /* useless */_useless)
+{
+    (void)_useless;
+
+    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
-        if (woort_VMRuntime_request_check(
-            vm_to_request_gc_mark,
-            WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE))
-        {
-            // This vm has leaved, we will mark it here.
-            if (!woort_VMRuntime_request_set(
-                vm_to_request_gc_mark,
-                WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
-            {
-                // 就在刚刚检查的一瞬间，VM 已经开始处于标记工作中，跳出循环，等待 VM 标记工作完成。
-                break;
-            }
+        (void)woort_hashmap_foreach(
+            &s_gc_context.m_root_vms_to_mark,
+            &_woort_GC_walk_through_to_start_gc_vm_mark,
+            NULL);
 
-            if (woort_VMRuntime_request_accept(
-                vm_to_request_gc_mark,
-                WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
-            {
-                woort_VMRuntime_mark_vm_after_sync(vm_to_request_gc_mark);
-            }
-            // else: 否则，注意，如果发现此情况，说明 VM 就在刚刚的一瞬间，全都标记完成了（因为 
-            // WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 能被成功设置，说明 VM 已经不在处理流程
-            // 中），立即取消 WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 流程。
-
-            if (!woort_VMRuntime_request_accept(
-                vm_to_request_gc_mark,
-                WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
-            {
-                // WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 已经被 VM 接收，拉起
-                woort_VMRuntime_wakeup(vm_to_request_gc_mark);
-            }
-
-            // 代理标记结束（或者 VM 已经完成标记，不需要等待）
-            return true;
-        }
-
-        // Wait for some time.
-        woort_thread_sleep_ms(10);
+        (void)woort_hashmap_foreach(
+            &s_gc_context.m_root_vms_to_mark,
+            &_woort_GC_walk_through_to_sync_vm_mark,
+            NULL);
     }
+    woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
 
-    // 执行到此处，说明 VM 正在执行自标记，等待自标记完成
-    if (woort_VMRuntime_request_accept(
-        vm_to_request_gc_mark,
-        WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+    woort_CodeEnv_GC_mark_all_envs();
+}
+
+bool _woort_GC_walk_through_to_abort_vm(
+    const void* key,
+    void* value,
+    void* user_data)
+{
+    (void)user_data;
+    (void)value;
+
+    woort_VMRuntime* const vm_to_abort =
+        *(woort_VMRuntime* const*)key;
+
+    /* This vm no marked, abort it. */
+    if (woort_VMRuntime_request_accept(vm_to_abort, WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
     {
-        // VM 正在标记流程中，等待直到标记完成
-        woort_VMRuntime_hangup(vm_to_request_gc_mark);
+        (void)woort_VMRuntime_request_set(
+            vm_to_abort, WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE);
     }
 
     return true;
 }
 
-void _woort_GC_start_gc_callback(void* /* useless */_useless)
+void _woort_GC_stop_mark_callback(void* /* useless */_useless)
 {
-    (void)_useless;
-
-    woort_rwspinlock_read_lock(&g_root_vms_to_mark_mx);
+    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
-            &g_root_vms_to_mark,
-            &_woort_GC_walk_through_to_start_gc_vm_mark,
+            &s_gc_context.m_not_been_marked_weak_vm,
+            &_woort_GC_walk_through_to_abort_vm,
             NULL);
 
-        (void)woort_hashmap_foreach(
-            &g_root_vms_to_mark,
-            &_woort_GC_walk_through_to_sync_vm_mark,
-            NULL);
+        woort_hashmap_clear(&s_gc_context.m_not_been_marked_weak_vm);
     }
-    woort_rwspinlock_read_unlock(&g_root_vms_to_mark_mx);
-
-    woort_CodeEnv_GC_mark_all_envs();
+    woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
 }
+
 void woort_GC_bootup(void)
 {
     woomem_init(
         NULL,
         &_woort_GC_marker_callback,
         &_woort_GC_destroier_callback,
-        &_woort_GC_start_gc_callback,
-        NULL);
+        &_woort_GC_start_callback,
+        &_woort_GC_stop_mark_callback);
 
-    woort_rwspinlock_init(&g_root_vms_to_mark_mx);
+    woort_rwspinlock_init(&s_gc_context.m_root_vms_to_mark_mx);
     woort_hashmap_init(
-        &g_root_vms_to_mark,
+        &s_gc_context.m_root_vms_to_mark,
+        sizeof(struct woort_VMRuntime*),
+        0,
+        woort_util_ptr_hash,
+        woort_util_ptr_equal);
+    woort_hashmap_init(
+        &s_gc_context.m_not_been_marked_weak_vm,
         sizeof(struct woort_VMRuntime*),
         0,
         woort_util_ptr_hash,
@@ -250,14 +323,14 @@ static bool _woort_GC_debug_callback_vm_walk(
 
 void _woort_GC_debug_callback_all_vm(void)
 {
-    woort_rwspinlock_read_lock(&g_root_vms_to_mark_mx);
+    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
-            &g_root_vms_to_mark,
+            &s_gc_context.m_root_vms_to_mark,
             &_woort_GC_debug_callback_vm_walk,
             NULL);
     }
-    woort_rwspinlock_read_unlock(&g_root_vms_to_mark_mx);
+    woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
 }
 
 void woort_GC_shutdown(void)
@@ -273,36 +346,35 @@ void woort_GC_shutdown(void)
 
     for (;;)
     {
-        woort_rwspinlock_write_lock(&g_root_vms_to_mark_mx);
-        const bool already_no_vm_exists = g_root_vms_to_mark.m_size == 0;
+        woort_rwspinlock_write_lock(&s_gc_context.m_root_vms_to_mark_mx);
+        const bool already_no_vm_exists = s_gc_context.m_root_vms_to_mark.m_size == 0;
         {
             if (!already_no_vm_exists)
             {
-
                 /* 向所有存活的 VM 发送 ABORT 请求 */
                 (void)woort_hashmap_foreach(
-                    &g_root_vms_to_mark,
+                    &s_gc_context.m_root_vms_to_mark,
                     &_woort_GC_shutdown_abort_vm_callback,
                     NULL);
 
                 /* 限速：每秒最多一次警告，且仅在数量变化时输出 */
                 const time_t now = time(NULL);
                 if ((last_warning_time == 0 || now != last_warning_time)
-                    && g_root_vms_to_mark.m_size != last_warning_vm_count)
+                    && s_gc_context.m_root_vms_to_mark.m_size != last_warning_vm_count)
                 {
                     last_warning_time = now;
-                    last_warning_vm_count = g_root_vms_to_mark.m_size;
+                    last_warning_vm_count = s_gc_context.m_root_vms_to_mark.m_size;
 
                     woort_log(
                         "WOORT: %zu VM(s) have not been closed during shutdown.\n",
-                        g_root_vms_to_mark.m_size);
+                        s_gc_context.m_root_vms_to_mark.m_size);
 
                     _woort_GC_shutdown_dump_traces_context dump_ctx;
                     dump_ctx.m_remaining_quota = 3;
-                    dump_ctx.m_total_vm_count = g_root_vms_to_mark.m_size;
+                    dump_ctx.m_total_vm_count = s_gc_context.m_root_vms_to_mark.m_size;
 
                     (void)woort_hashmap_foreach(
-                        &g_root_vms_to_mark,
+                        &s_gc_context.m_root_vms_to_mark,
                         &_woort_GC_shutdown_dump_vm_trace_callback,
                         &dump_ctx);
 
@@ -313,7 +385,7 @@ void woort_GC_shutdown(void)
                 }
             }
         }
-        woort_rwspinlock_write_unlock(&g_root_vms_to_mark_mx);
+        woort_rwspinlock_write_unlock(&s_gc_context.m_root_vms_to_mark_mx);
 
         /* 触发一次完整的 GC 回收（标记 → 终结 → 清扫） */
         woomem_gc_collect();
@@ -325,16 +397,17 @@ void woort_GC_shutdown(void)
 
     woomem_shutdown();
 
-    woort_rwspinlock_deinit(&g_root_vms_to_mark_mx);
-    woort_hashmap_deinit(&g_root_vms_to_mark);
+    woort_rwspinlock_deinit(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_hashmap_deinit(&s_gc_context.m_root_vms_to_mark);
+    woort_hashmap_deinit(&s_gc_context.m_not_been_marked_weak_vm);
 }
 
 WOORT_NODISCARD bool woort_GC_register_root_vm(struct woort_VMRuntime* vmruntime)
 {
     bool result = true;
-    woort_rwspinlock_write_lock(&g_root_vms_to_mark_mx);
+    woort_rwspinlock_write_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
-        switch (woort_hashmap_insert(&g_root_vms_to_mark, &vmruntime, NULL))
+        switch (woort_hashmap_insert(&s_gc_context.m_root_vms_to_mark, &vmruntime, NULL))
         {
         case WOORT_HASHMAP_RESULT_OK:
             break;
@@ -348,20 +421,23 @@ WOORT_NODISCARD bool woort_GC_register_root_vm(struct woort_VMRuntime* vmruntime
             abort();
         }
     }
-    woort_rwspinlock_write_unlock(&g_root_vms_to_mark_mx);
+    woort_rwspinlock_write_unlock(&s_gc_context.m_root_vms_to_mark_mx);
     return result;
 }
 void woort_GC_unregister_root_vm(struct woort_VMRuntime* vmruntime)
 {
-    woort_rwspinlock_write_lock(&g_root_vms_to_mark_mx);
+    woort_rwspinlock_write_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
-        if (!woort_hashmap_remove(&g_root_vms_to_mark, &vmruntime))
+        if (vmruntime->m_is_weak)
+            (void)woort_hashmap_remove(&s_gc_context.m_not_been_marked_weak_vm, &vmruntime);
+
+        if (!woort_hashmap_remove(&s_gc_context.m_root_vms_to_mark, &vmruntime))
         {
             WOORT_DEBUG("Unexpected status, vm %p not been registered as root vm.", vmruntime);
             abort();
         }
     }
-    woort_rwspinlock_write_unlock(&g_root_vms_to_mark_mx);
+    woort_rwspinlock_write_unlock(&s_gc_context.m_root_vms_to_mark_mx);
 }
 
 typedef struct _woort_GC_ForeachContext
@@ -394,12 +470,50 @@ void woort_GC_foreach_root_vm(
     ctx.m_callback = callback;
     ctx.m_user_data = user_data;
 
-    woort_rwspinlock_read_lock(&g_root_vms_to_mark_mx);
+    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
-            &g_root_vms_to_mark,
+            &s_gc_context.m_root_vms_to_mark,
             &_woort_GC_foreach_root_vm_callback_adapter,
             &ctx);
     }
-    woort_rwspinlock_read_unlock(&g_root_vms_to_mark_mx);
+    woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+}
+
+void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
+{
+    assert(g_gc_in_marking);
+    assert(vm->m_is_weak);
+
+    /* NOTE: 此处使用 _woort_GC_mark_vm_proxy 是为了确保：
+
+            * 如果 VM 此时恰好进入 dispatch，并且正在自行标记；
+
+        想象此时：
+
+            * 如果 GC 线程此时完成最后一个灰色单元的 Fullmark
+
+        自行标记期间的单元可能发生 Missing Mark；因此，为了保证 GC
+        的 Gray2Black 标记流程正确收尾，需要确保此处的标记操作 VM 的
+        自行标记总是早于 woort_vm_mark_weak_manually 返回，做一个同步。
+    */
+    _woort_GC_mark_vm_proxy(vm, false);
+}
+
+void woort_GC_mark_value_manually(
+    const woort_Value* val)
+{
+    woomem_try_mark_unit((intptr_t)val->m_gcinstance);
+}
+
+void woort_GC_move_value_with_mixed_write_barrier(
+    woort_Value* dst, const woort_Value* val)
+{
+    woort_GC_mixed_write_barrier_value(dst, *val);
+}
+
+void woort_GC_value_delete_barrier(
+    const woort_Value* dst)
+{
+    woort_GC_delete_barrier_value(*dst);
 }

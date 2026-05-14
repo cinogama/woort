@@ -214,7 +214,13 @@ typedef enum woort_BoxValueType
 /** @brief Opaque handle to a VM runtime instance. */
 typedef struct woort_VMRuntime woort_VMRuntime;
 
-typedef union woort_Value woort_Value;
+typedef union woort_Value
+#ifndef WOORT_IMPL
+{
+    char _[8];
+}
+#endif
+woort_Value;
 
 /** @brief Index into the VM evaluation stack. Negative values are relative to the current frame base. */
 typedef int32_t woort_StackValue;
@@ -376,6 +382,71 @@ WOORT_NODISCARD WOORT_API bool woort_VMRuntime_create(
  */
 WOORT_API void woort_VMRuntime_destroy(
     woort_VMRuntime* vm);
+
+/**
+ * @brief Make a VM weak so the GC no longer treats it as a root object.
+ *
+ * NOTE: Before calling this function, ENSURE that the target VM can be
+ * correctly marked by the GC through other means (e.g. by calling
+ * woort_GC_mark_weak_vm_manually from a GCHandle mark callback).
+ *
+ * Once this function is called, the GC will skip automatic marking for
+ * this VM. If this function is called recklessly, the VM's GC objects
+ * may be collected unexpectedly.
+ *
+ * Must be called while the target VM is the current thread's active VM
+ * (i.e. within the VM's GC guard scope).
+ *
+ * @param vm  The VM handle to weaken. Must not be NULL.
+ */
+WOORT_API void woort_VMRuntime_weaken(
+    woort_VMRuntime* vm);
+
+/**
+ * @brief Manually mark a weak VM's stack and env during GC marking.
+ *
+ * This function marks the VM's env and all values on its stack as GC
+ * reachable, keeping the VM's objects alive for the current GC cycle.
+ *
+ * Must be called during the GC marking phase, typically from a GCHandle
+ * mark callback (woort_GCHandle_UserMarkFunction).
+ *
+ * @param vm  The weak VM handle to mark. Must not be NULL.
+ */
+WOORT_API void woort_GC_mark_weak_vm_manually(
+    woort_VMRuntime* vm);
+
+/**
+ * @brief Manually mark a value as GC reachable during the marking phase.
+ * @param val  The value to mark. Must not be NULL.
+ */
+WOORT_API void woort_GC_mark_value_manually(
+    const woort_Value* val);
+
+/**
+ * @brief Move a value into a destination with a mixed write barrier.
+ *
+ * Equivalent to writing *dst = *val with the appropriate GC write barrier.
+ * Must be used when writing a GC-managed value into a location that may be
+ * observed by the GC.
+ *
+ * @param dst  Destination address to write into. Must not be NULL.
+ * @param val  Source value to read from. Must not be NULL.
+ */
+WOORT_API void woort_GC_move_value_with_mixed_write_barrier(
+    woort_Value* dst, const woort_Value* val);
+
+/**
+ * @brief Issue a delete barrier for a value being overwritten or removed.
+ *
+ * Must be called before overwriting or removing a GC-managed value reference
+ * that is NOT covered by a write barrier. Ensures the GC does not lose track
+ * of the old value during the marking phase.
+ *
+ * @param dst  The value slot being overwritten or removed. Must not be NULL.
+ */
+WOORT_API void woort_GC_value_delete_barrier(
+    const woort_Value* dst);
 
 /**
  * @brief Swap the current thread-local VM instance with a new one.

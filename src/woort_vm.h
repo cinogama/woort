@@ -169,6 +169,8 @@ struct woort_VMRuntime
 
     woort_AtomicUInt32      m_check_request_mask;
 
+    bool                        m_is_weak;
+
     int8_t                      m_hangup_c;
     woort_Mutex*                m_hangup_mx;
     woort_ConditionVariable*    m_hangup_cv;
