@@ -3404,7 +3404,7 @@ typedef enum woort_SerializeFlag
 /**
  * @brief Serialize a boxed dynamic value to its Woolang literal string.
  *
- * The returned string is heap-allocated and must be freed by the caller with free().
+ * The returned string is heap-allocated and must be freed by the caller with woort_free().
  *
  * @param src    Source stack slot holding the boxed value.
  * @param flags  Bitmask of woort_SerializeFlag values.
@@ -3416,7 +3416,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_serialize_dynbox(
 /**
  * @brief Serialize a map to its Woolang literal string.
  *
- * The returned string is heap-allocated and must be freed by the caller with free().
+ * The returned string is heap-allocated and must be freed by the caller with woort_free().
  *
  * @param src    Source stack slot holding the map.
  * @param flags  Bitmask of woort_SerializeFlag values.
@@ -3428,7 +3428,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_serialize_map(
 /**
  * @brief Serialize a vec to its Woolang literal string.
  *
- * The returned string is heap-allocated and must be freed by the caller with free().
+ * The returned string is heap-allocated and must be freed by the caller with woort_free().
  *
  * @param src    Source stack slot holding the vec.
  * @param flags  Bitmask of woort_SerializeFlag values.
@@ -3530,14 +3530,14 @@ WOORT_API void woort_struct_set(
   * @brief Get the directory containing the executable.
   *
   * The result is cached after the first call. Returns a malloc'd string
-  * that the caller must free. Never returns NULL under normal operation.
+  * that the caller must `woort_free`. Never returns NULL under normal operation.
   */
 WOORT_NODISCARD WOORT_API char* woort_exe_path(void);
 
 /**
  * @brief Get the current working directory.
  *
- * Returns a malloc'd string that the caller must free.
+ * Returns a malloc'd string that the caller must woort_free.
  */
 WOORT_NODISCARD WOORT_API char* woort_work_path(void);
 
@@ -3982,105 +3982,129 @@ WOORT_NODISCARD WOORT_API bool woort_strn_get_char(
 
 /**
  * @brief Convert a UTF-8 string to a wide-character string.
- * @param str  The UTF-8 input string.
- * @return A heap-allocated wide-character string, or NULL on OOM. Caller must free().
+ * @param str    The UTF-8 input string.
+ * @param outbuf Output buffer for the wide-character result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in wchar_t units (including space for null terminator).
+ * @return The number of wchar_t units in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ wchar_t* woort_str_to_wstr(
-    const char* str);
+WOORT_NODISCARD WOORT_API size_t woort_str_to_wstr(
+    const char* str, /* OPTIONAL */ wchar_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-8 string (with explicit length) to a wide-character string.
- * @param str   The UTF-8 input string.
- * @param size  Length of the string in bytes.
- * @return A heap-allocated wide-character string, or NULL on OOM. Caller must free().
+ * @param str    The UTF-8 input string.
+ * @param size   Length of the string in bytes.
+ * @param outbuf Output buffer for the wide-character result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in wchar_t units (including space for null terminator).
+ * @return The number of wchar_t units in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ wchar_t* woort_strn_to_wstr(
-    const char* str, size_t size);
+WOORT_NODISCARD WOORT_API size_t woort_strn_to_wstr(
+    const char* str, size_t size, /* OPTIONAL */ wchar_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a wide-character string to a UTF-8 string.
- * @param str  The wide-character input string.
- * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ * @param str    The wide-character input string.
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in bytes (including space for null terminator).
+ * @return The number of bytes in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_wstr_to_str(
-    const wchar_t* str);
+WOORT_NODISCARD WOORT_API size_t woort_wstr_to_str(
+    const wchar_t* str, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /**
  * @brief Convert a wide-character string (with explicit length) to a UTF-8 string.
- * @param str   The wide-character input string.
- * @param size  Length of the string in wide characters.
- * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ * @param str    The wide-character input string.
+ * @param size   Length of the string in wide characters.
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in bytes (including space for null terminator).
+ * @return The number of bytes in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_wstrn_to_str(
-    const wchar_t* str, size_t size);
+WOORT_NODISCARD WOORT_API size_t woort_wstrn_to_str(
+    const wchar_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-8 string to a UTF-16 string.
- * @param str  The UTF-8 input string.
- * @return A heap-allocated UTF-16 string, or NULL on OOM. Caller must free().
+ * @param str    The UTF-8 input string.
+ * @param outbuf Output buffer for the UTF-16 result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in char16_t units (including space for null terminator).
+ * @return The number of char16_t units in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char16_t* woort_str_to_u16str(
-    const char* str);
+WOORT_NODISCARD WOORT_API size_t woort_str_to_u16str(
+    const char* str, /* OPTIONAL */ char16_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-8 string (with explicit length) to a UTF-16 string.
- * @param str   The UTF-8 input string.
- * @param size  Length of the string in bytes.
- * @return A heap-allocated UTF-16 string, or NULL on OOM. Caller must free().
+ * @param str    The UTF-8 input string.
+ * @param size   Length of the string in bytes.
+ * @param outbuf Output buffer for the UTF-16 result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in char16_t units (including space for null terminator).
+ * @return The number of char16_t units in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char16_t* woort_strn_to_u16str(
-    const char* str, size_t size);
+WOORT_NODISCARD WOORT_API size_t woort_strn_to_u16str(
+    const char* str, size_t size, /* OPTIONAL */ char16_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-16 string to a UTF-8 string.
- * @param str  The UTF-16 input string.
- * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ * @param str    The UTF-16 input string.
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in bytes (including space for null terminator).
+ * @return The number of bytes in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u16str_to_str(
-    const char16_t* str);
+WOORT_NODISCARD WOORT_API size_t woort_u16str_to_str(
+    const char16_t* str, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-16 string (with explicit length) to a UTF-8 string.
- * @param str   The UTF-16 input string.
- * @param size  Length of the string in UTF-16 code units.
- * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ * @param str    The UTF-16 input string.
+ * @param size   Length of the string in UTF-16 code units.
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in bytes (including space for null terminator).
+ * @return The number of bytes in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u16strn_to_str(
-    const char16_t* str, size_t size);
+WOORT_NODISCARD WOORT_API size_t woort_u16strn_to_str(
+    const char16_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-8 string to a UTF-32 string.
- * @param str  The UTF-8 input string.
- * @return A heap-allocated UTF-32 string, or NULL on OOM. Caller must free().
+ * @param str    The UTF-8 input string.
+ * @param outbuf Output buffer for the UTF-32 result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in char32_t units (including space for null terminator).
+ * @return The number of char32_t units in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char32_t* woort_str_to_u32str(
-    const char* str);
+WOORT_NODISCARD WOORT_API size_t woort_str_to_u32str(
+    const char* str, /* OPTIONAL */ char32_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-8 string (with explicit length) to a UTF-32 string.
- * @param str   The UTF-8 input string.
- * @param size  Length of the string in bytes.
- * @return A heap-allocated UTF-32 string, or NULL on OOM. Caller must free().
+ * @param str    The UTF-8 input string.
+ * @param size   Length of the string in bytes.
+ * @param outbuf Output buffer for the UTF-32 result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in char32_t units (including space for null terminator).
+ * @return The number of char32_t units in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char32_t* woort_strn_to_u32str(
-    const char* str, size_t size);
+WOORT_NODISCARD WOORT_API size_t woort_strn_to_u32str(
+    const char* str, size_t size, /* OPTIONAL */ char32_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-32 string to a UTF-8 string.
- * @param str  The UTF-32 input string.
- * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ * @param str    The UTF-32 input string.
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in bytes (including space for null terminator).
+ * @return The number of bytes in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u32str_to_str(
-    const char32_t* str);
+WOORT_NODISCARD WOORT_API size_t woort_u32str_to_str(
+    const char32_t* str, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-32 string (with explicit length) to a UTF-8 string.
- * @param str   The UTF-32 input string.
- * @param size  Length of the string in UTF-32 code units.
- * @return A heap-allocated UTF-8 string, or NULL on OOM. Caller must free().
+ * @param str    The UTF-32 input string.
+ * @param size   Length of the string in UTF-32 code units.
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
+ * @param buflen Size of outbuf in bytes (including space for null terminator).
+ * @return The number of bytes in the conversion result (excluding null terminator).
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u32strn_to_str(
-    const char32_t* str, size_t size);
+WOORT_NODISCARD WOORT_API size_t woort_u32strn_to_str(
+    const char32_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /* ========== ANSI Escape Code Macros ========== */
 

@@ -2043,76 +2043,166 @@ WOORT_NODISCARD bool woort_strn_get_char(
     return woort_u8stridx(str, size, index, out_ch);
 }
 
-WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_str_to_wstr(const char* str)
+WOORT_NODISCARD size_t woort_str_to_wstr(const char* str, /* OPTIONAL */ wchar_t* outbuf, size_t buflen)
 {
-    return woort_strn_to_wstr(str, strlen(str));
+    return woort_strn_to_wstr(str, strlen(str), outbuf, buflen);
 }
 
-WOORT_NODISCARD /* OPTIONAL */ wchar_t* woort_strn_to_wstr(const char* str, size_t size)
+WOORT_NODISCARD size_t woort_strn_to_wstr(const char* str, size_t size, /* OPTIONAL */ wchar_t* outbuf, size_t buflen)
 {
 #if defined(_WIN32)
-    return (wchar_t*)woort_strn_to_u16str(str, size);
+    return woort_strn_to_u16str(str, size, (char16_t*)outbuf, buflen);
 #else
-    return (wchar_t*)woort_strn_to_u32str(str, size);
+    return woort_strn_to_u32str(str, size, (char32_t*)outbuf, buflen);
 #endif
 }
 
-WOORT_NODISCARD /* OPTIONAL */ char* woort_wstr_to_str(const wchar_t* str)
+WOORT_NODISCARD size_t woort_wstr_to_str(const wchar_t* str, /* OPTIONAL */ char* outbuf, size_t buflen)
 {
-    return woort_wstrn_to_str(str, wcslen(str));
+    return woort_wstrn_to_str(str, wcslen(str), outbuf, buflen);
 }
 
-WOORT_NODISCARD /* OPTIONAL */ char* woort_wstrn_to_str(const wchar_t* str, size_t size)
+WOORT_NODISCARD size_t woort_wstrn_to_str(const wchar_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen)
 {
 #if defined(_WIN32)
-    return woort_u16strn_to_str((const char16_t*)str, size);
+    return woort_u16strn_to_str((const char16_t*)str, size, outbuf, buflen);
 #else
-    return woort_u32strn_to_str((const char32_t*)str, size);
+    return woort_u32strn_to_str((const char32_t*)str, size, outbuf, buflen);
 #endif
 }
 
-WOORT_NODISCARD /* OPTIONAL */ char16_t* woort_str_to_u16str(const char* str)
+WOORT_NODISCARD size_t woort_str_to_u16str(const char* str, /* OPTIONAL */ char16_t* outbuf, size_t buflen)
 {
-    return woort_strn_to_u16str(str, strlen(str));
+    return woort_strn_to_u16str(str, strlen(str), outbuf, buflen);
 }
 
-WOORT_NODISCARD /* OPTIONAL */ char16_t* woort_strn_to_u16str(const char* str, size_t size)
+WOORT_NODISCARD size_t woort_strn_to_u16str(const char* str, size_t size, /* OPTIONAL */ char16_t* outbuf, size_t buflen)
 {
-    size_t out_len;
-    return woort_u8strtou16(str, size, &out_len);
+    size_t count = 0;
+    const char* p = str;
+    size_t remaining = size;
+
+    while (remaining != 0)
+    {
+        char16_t u16buf[2];
+        size_t u16len = 0;
+        const size_t u8forward = woort_u8combineu16(p, remaining, u16buf, &u16len);
+
+        if (buflen != 0 && count + u16len < buflen)
+        {
+            for (size_t i = 0; i < u16len; ++i)
+                outbuf[count + i] = u16buf[i];
+        }
+
+        count += u16len;
+        p += u8forward;
+        remaining -= u8forward;
+    }
+
+    if (buflen != 0 && count < buflen)
+        outbuf[count] = 0;
+
+    return count;
 }
 
-WOORT_NODISCARD /* OPTIONAL */ char* woort_u16str_to_str(const char16_t* str)
+WOORT_NODISCARD size_t woort_u16str_to_str(const char16_t* str, /* OPTIONAL */ char* outbuf, size_t buflen)
 {
-    return woort_u16strn_to_str(str, woort_u16strcount(str));
+    return woort_u16strn_to_str(str, woort_u16strcount(str), outbuf, buflen);
 }
 
-WOORT_NODISCARD /* OPTIONAL */ char* woort_u16strn_to_str(const char16_t* str, size_t size)
+WOORT_NODISCARD size_t woort_u16strn_to_str(const char16_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen)
 {
-    size_t out_len;
-    return woort_u16strtou8(str, size, &out_len);
+    size_t count = 0;
+    const char16_t* p = str;
+    size_t remaining = size;
+
+    while (remaining != 0)
+    {
+        char u8buf[WOORT_UTF8MAXLEN];
+        size_t u8len = 0;
+        const size_t u16forward = woort_u16exractu8(p, remaining, u8buf, &u8len);
+
+        if (buflen != 0 && count + u8len < buflen)
+        {
+            for (size_t i = 0; i < u8len; ++i)
+                outbuf[count + i] = u8buf[i];
+        }
+
+        count += u8len;
+        p += u16forward;
+        remaining -= u16forward;
+    }
+
+    if (buflen != 0 && count < buflen)
+        outbuf[count] = 0;
+
+    return count;
 }
 
-WOORT_NODISCARD /* OPTIONAL */ char32_t* woort_str_to_u32str(const char* str)
+WOORT_NODISCARD size_t woort_str_to_u32str(const char* str, /* OPTIONAL */ char32_t* outbuf, size_t buflen)
 {
-    return woort_strn_to_u32str(str, strlen(str));
+    return woort_strn_to_u32str(str, strlen(str), outbuf, buflen);
 }
 
-WOORT_NODISCARD /* OPTIONAL */ char32_t* woort_strn_to_u32str(const char* str, size_t size)
+WOORT_NODISCARD size_t woort_strn_to_u32str(const char* str, size_t size, /* OPTIONAL */ char32_t* outbuf, size_t buflen)
 {
-    size_t out_len;
-    return woort_u8strtou32(str, size, &out_len);
+    size_t count = 0;
+    const char* p = str;
+    size_t remaining = size;
+
+    while (remaining != 0)
+    {
+        char32_t c32;
+        const size_t u8forward = woort_u8combineu32(p, remaining, &c32);
+
+        if (buflen != 0 && count < buflen)
+            outbuf[count] = c32;
+
+        ++count;
+        p += u8forward;
+        remaining -= u8forward;
+    }
+
+    if (buflen != 0 && count < buflen)
+        outbuf[count] = 0;
+
+    return count;
 }
 
-WOORT_NODISCARD /* OPTIONAL */ char* woort_u32str_to_str(const char32_t* str)
+WOORT_NODISCARD size_t woort_u32str_to_str(
+    const char32_t* str, /* OPTIONAL */ char* outbuf, size_t buflen)
 {
-    return woort_u32strn_to_str(str, woort_u32strcount(str));
+    return woort_u32strn_to_str(str, woort_u32strcount(str), outbuf, buflen);
 }
 
-WOORT_NODISCARD /* OPTIONAL */ char* woort_u32strn_to_str(const char32_t* str, size_t size)
+WOORT_NODISCARD size_t woort_u32strn_to_str(
+    const char32_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen)
 {
-    size_t out_len;
-    return woort_u32strtou8(str, size, &out_len);
+    size_t count = 0;
+    const char32_t* p = str;
+    size_t remaining = size;
+
+    while (remaining != 0)
+    {
+        char u8buf[WOORT_UTF8MAXLEN];
+        size_t u8len = 0;
+        woort_u32exractu8(*p, u8buf, &u8len);
+
+        if (buflen != 0 && count + u8len < buflen)
+        {
+            for (size_t i = 0; i < u8len; ++i)
+                outbuf[count + i] = u8buf[i];
+        }
+
+        count += u8len;
+        ++p;
+        --remaining;
+    }
+
+    if (buflen != 0 && count < buflen)
+        outbuf[count] = 0;
+
+    return count;
 }
 
 WOORT_NODISCARD woort_VmCallStatus woort_ret_panic(const char* fmt, ...)
