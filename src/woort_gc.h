@@ -12,7 +12,7 @@ woort_gc.h
 
 #include <stdbool.h>
 
-void woort_GC_bootup(void);
+void woort_GC_bootup(size_t max_chunk_memory, size_t max_huge_unit_memory);
 void woort_GC_shutdown(void);
 
 void _woort_GC_debug_callback_all_vm(void);

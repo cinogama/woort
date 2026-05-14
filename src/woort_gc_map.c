@@ -103,7 +103,7 @@ void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
         (const void**)&gcmap->m_buckets,
         gcmap->m_buckets == NULL
             ? woort_GCUnit_alloc_attrib(A, realloc_size)
-            : woomem_realloc(gcmap->m_buckets, realloc_size));
+            : woort_GCUnit_realloc(gcmap->m_buckets, realloc_size));
 
     gcmap->m_entries = (uint32_t*)(gcmap->m_buckets + capacity);
     gcmap->m_mask = capacity - 1;

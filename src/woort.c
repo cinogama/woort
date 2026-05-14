@@ -43,7 +43,33 @@ void woort_init(int argc, char** argv)
         abort();
     }
 
-    woort_GC_bootup();
+    /*
+        Parse runtime-level command-line arguments.
+    */
+    size_t max_chunk_memory = 0;
+    size_t max_huge_unit_memory = 0;
+    for (int command_idx = 0; command_idx + 1 < argc; command_idx++)
+    {
+        const char* current_arg = argv[command_idx];
+        size_t arg_len = strlen(current_arg);
+        if (arg_len >= 7 && strncmp(current_arg, "--woort", 7) == 0)
+        {
+            const char* setting = current_arg + 2;
+            if (strcmp(setting, "woort-enable-ctrlc-debug") == 0)
+                woort_ctrl_c_callback_hooked = (bool)atoi(argv[++command_idx]);
+            else if (strcmp(setting, "woort-gc-max-chunk-memory") == 0)
+                max_chunk_memory = (size_t)atoi(argv[++command_idx]);
+            else if (0 == strcmp(setting, "woort-gc-max-huge-unit-memory") == 0)
+                max_huge_unit_memory = (size_t)atoi(argv[++command_idx]);
+            else
+                woort_log("WOORT: Unknown command line option named: `%s`.\n", current_arg);
+        }
+    }
+
+    if (woort_ctrl_c_callback_hooked)
+        woort_ctrlc_setup();
+
+    woort_GC_bootup(max_chunk_memory * 1024 * 1024, max_huge_unit_memory * 1024 * 1024);
 
     if (!_woort_dylib_bootup())
     {
@@ -61,28 +87,6 @@ void woort_init(int argc, char** argv)
     {
         WOORT_DEBUG("Failed to bootup debugger support.");
         abort();
-    }
-
-    /*
-     * Parse runtime-level command-line arguments.
-     */
-    {
-        for (int command_idx = 0; command_idx + 1 < argc; command_idx++)
-        {
-            const char* current_arg = argv[command_idx];
-            size_t arg_len = strlen(current_arg);
-            if (arg_len >= 7 && strncmp(current_arg, "--woort", 7) == 0)
-            {
-                const char* setting = current_arg + 2;
-                if (strcmp(setting, "woort-enable-ctrlc-debug") == 0)
-                    woort_ctrl_c_callback_hooked = (bool)atoi(argv[++command_idx]);
-                else
-                    woort_log("WOORT: Unknown command line option named: `%s`.\n", current_arg);
-            }
-        }
-
-        if (woort_ctrl_c_callback_hooked)
-            woort_ctrlc_setup();
     }
 }
 void woort_shutdown(void)
@@ -2210,7 +2214,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_ret_panic(const char* fmt, ...)
     va_list args;
     va_start(args, fmt);
 
-    const bool vm_aborted = 
+    const bool vm_aborted =
         woort_vpanic(WOORT_PANIC_ABORTED, fmt, args);
 
     va_end(args);
@@ -2234,7 +2238,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_ret_yield(void)
 {
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
-   
+
     (void)woort_VMRuntime_request_set(
         vm,
         WOORT_VMRUNTIME_CHECK_REQUEST_YIELD);

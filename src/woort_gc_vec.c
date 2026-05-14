@@ -36,7 +36,7 @@ void _woort_GCVec_assure_vec_space(woort_GCVec* vec, size_t size)
     woort_DynBox* const new_datas = vec->m_datas == NULL
         // 此处假定分配必然成功，我们会在之后再处理其他情况
         ? woort_GCUnit_alloc_attrib(A, new_space * sizeof(woort_DynBox))
-        : woomem_realloc(vec->m_datas, new_space * sizeof(woort_DynBox));
+        : woort_GCUnit_realloc(vec->m_datas, new_space * sizeof(woort_DynBox));
 
     woort_GC_mixed_write_barrier_gcunit((const void**)&vec->m_datas, new_datas);
     vec->m_space = new_space;

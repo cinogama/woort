@@ -71,9 +71,11 @@ static woort_api woort_builtin_print(void)
                     WOORT_SERIALIZE_FLAG_NONE);
             if (str == NULL)
                 return woort_ret_panic("Out of memory.");
-
-            fputs(str, stdout);
-            free(str);
+            else
+            {
+                fputs(str, stdout);
+                free(str);
+            }
         }
     }
     return woort_ret_void();

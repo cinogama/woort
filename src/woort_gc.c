@@ -210,14 +210,16 @@ void _woort_GC_stop_mark_callback(void* /* useless */_useless)
     woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
 }
 
-void woort_GC_bootup(void)
+void woort_GC_bootup(size_t max_chunk_memory, size_t max_huge_unit_memory)
 {
     woomem_init(
         NULL,
         &_woort_GC_marker_callback,
         &_woort_GC_destroier_callback,
         &_woort_GC_start_callback,
-        &_woort_GC_stop_mark_callback);
+        &_woort_GC_stop_mark_callback,
+        max_chunk_memory,
+        max_huge_unit_memory);
 
     woort_rwspinlock_init(&s_gc_context.m_root_vms_to_mark_mx);
     woort_hashmap_init(
