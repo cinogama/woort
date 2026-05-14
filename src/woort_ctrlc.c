@@ -8,7 +8,6 @@
  */
 
 #include "woort.h"
-#include "woort_ctrlc.h"
 #include "woort_log.h"
 
 #include <signal.h>

@@ -4242,6 +4242,26 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u32strn_to_str(
 
 #undef WOORT_API
 
+/**
+ * @brief Redefine WOORT_API for dllexport.
+ *
+ * This definition is only active after the public API declarations are closed,
+ * and is used by the woolang implementation source files.
+ */
+#ifdef _WIN32
+#   ifdef __cplusplus
+#       define WOORT_API extern "C" WO_EXPORT
+#   else
+#       define WOORT_API WOORT_EXPORT
+#   endif
+#else
+#   ifdef __cplusplus
+#       define WOORT_API extern "C"
+#   else
+#       define WOORT_API WOORT_EXPORT
+#   endif
+#endif
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus
