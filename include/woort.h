@@ -2912,10 +2912,10 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_result_err_box_bool(src) (woort_set_result_err_box_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(gchandle). */
 #define woort_ret_result_err_gchandle(addr, hold, close, dylib, ...) \
-    (woort_set_result_err_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib, __VA_ARGS__), woort_ret())
+    (woort_set_result_err_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib,##__VA_ARGS__), woort_ret())
 /** @brief Return Result::Err(gcstruct). */
 #define woort_ret_result_err_gcstruct(addr, mark, close, dylib, ...) \
-    (woort_set_result_err_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib, __VA_ARGS__), woort_ret())
+    (woort_set_result_err_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib,##__VA_ARGS__), woort_ret())
 
 /** @} */ /* end Return Result::Err Macros */
 
