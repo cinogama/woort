@@ -2188,7 +2188,7 @@ static woort_api woort_builtin_array_pop_u(void)
         return woort_ret_option_none();
 
     (void)woort_vec_get(WOORT_RETURN_SLOT, 0, len - 1);
-    woort_vec_pop(0);
+    (void)woort_vec_pop(0);
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
 
     return woort_ret_option_value(WOORT_RETURN_SLOT);
@@ -2201,7 +2201,7 @@ static woort_api woort_builtin_array_pop_r(void)
         return woort_ret_option_none();
 
     (void)woort_vec_get(WOORT_RETURN_SLOT, 0, len - 1);
-    woort_vec_pop(0);
+    (void)woort_vec_pop(0);
 
     return woort_ret_option_value(WOORT_RETURN_SLOT);
 }
@@ -2235,7 +2235,7 @@ static woort_api woort_builtin_array_pop_val_u(void)
         return woort_ret_panic("Index out of range.");
 
     (void)woort_vec_get(WOORT_RETURN_SLOT, 0, len - 1);
-    woort_vec_pop(0);
+    (void)woort_vec_pop(0);
     (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
 
     return woort_ret();
@@ -2248,7 +2248,7 @@ static woort_api woort_builtin_array_pop_val_r(void)
         return woort_ret_panic("Index out of range.");
 
     (void)woort_vec_get(WOORT_RETURN_SLOT, 0, len - 1);
-    woort_vec_pop(0);
+    (void)woort_vec_pop(0);
 
     return woort_ret();
 }
@@ -3393,11 +3393,11 @@ static woort_api woort_builtin_debug_trace_callstack(void)
     {
         return woort_ret_panic("Stack overflow.");
     }
-    woort_StackValue temp_val    = temp_callstack + 1;
-    woort_StackValue temp_loc    = temp_callstack + 2;
+    woort_StackValue temp_val = temp_callstack + 1;
+    woort_StackValue temp_loc = temp_callstack + 2;
     woort_StackValue temp_inner1 = temp_callstack + 3;
     woort_StackValue temp_inner2 = temp_callstack + 4;
-    woort_StackValue temp_outer  = temp_callstack + 5;
+    woort_StackValue temp_outer = temp_callstack + 5;
     woort_StackValue temp_result = temp_callstack + 6;
 
     woort_set_vec(temp_result);
