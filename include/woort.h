@@ -2628,11 +2628,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Set option::value(box_bool). */
 #define woort_set_option_box_bool(dst, src) woort_set_union_box_bool(dst, 0, src)
 /** @brief Set option::value(gchandle). */
-#define woort_set_option_gchandle(dst, addr, hold, close, dylib) \
-    woort_set_union_gchandle(dst, 0, addr, hold, close, dylib)
+#define woort_set_option_gchandle(dst, addr, hold, close, dylib, ...) \
+    woort_set_union_gchandle(dst, 0, addr, hold, close, dylib,##__VA_ARGS__)
 /** @brief Set option::value(gcstruct). */
-#define woort_set_option_gcstruct(dst, addr, mark, close, dylib) \
-    woort_set_union_gcstruct(dst, 0, addr, mark, close, dylib)
+#define woort_set_option_gcstruct(dst, addr, mark, close, dylib, ...) \
+    woort_set_union_gcstruct(dst, 0, addr, mark, close, dylib,##__VA_ARGS__)
 
 /** @} */ /* end Option Setters */
 
@@ -2705,11 +2705,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Set Result::Err(box_bool). */
 #define woort_set_result_err_box_bool(dst, src) woort_set_union_box_bool(dst, 1, src)
 /** @brief Set Result::Err(gchandle). */
-#define woort_set_result_err_gchandle(dst, addr, hold, close, dylib) \
-    woort_set_union_gchandle(dst, 1, addr, hold, close, dylib)
+#define woort_set_result_err_gchandle(dst, addr, hold, close, dylib, ...) \
+    woort_set_union_gchandle(dst, 1, addr, hold, close, dylib,##__VA_ARGS__)
 /** @brief Set Result::Err(gcstruct). */
-#define woort_set_result_err_gcstruct(dst, addr, mark, close, dylib) \
-    woort_set_union_gcstruct(dst, 1, addr, mark, close, dylib)
+#define woort_set_result_err_gcstruct(dst, addr, mark, close, dylib, ...) \
+    woort_set_union_gcstruct(dst, 1, addr, mark, close, dylib,##__VA_ARGS__)
 
 /** @} */ /* end Result Err Setters */
 
@@ -2750,11 +2750,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Return a boxed boolean. */
 #define woort_ret_box_bool(src) (woort_set_box_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a GC handle. */
-#define woort_ret_gchandle(addr, hold, close, dylib) \
-    (woort_set_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib), woort_ret())
+#define woort_ret_gchandle(addr, hold, close, dylib, ...) \
+    (woort_set_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib,##__VA_ARGS__), woort_ret())
 /** @brief Return a GC struct. */
-#define woort_ret_gcstruct(addr, mark, close, dylib) \
-    (woort_set_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib), woort_ret())
+#define woort_ret_gcstruct(addr, mark, close, dylib, ...) \
+    (woort_set_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib,##__VA_ARGS__), woort_ret())
 
 /** @} */ /* end Return Macros (Plain) */
 
@@ -2791,11 +2791,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Return a union with boxed bool payload. */
 #define woort_ret_union_box_bool(id, src) (woort_set_union_box_bool(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with GC handle payload. */
-#define woort_ret_union_gchandle(id, addr, hold, close, dylib) \
-    (woort_set_union_gchandle(WOORT_RETURN_SLOT, id, addr, hold, close, dylib), woort_ret())
+#define woort_ret_union_gchandle(id, addr, hold, close, dylib, ...) \
+    (woort_set_union_gchandle(WOORT_RETURN_SLOT, id, addr, hold, close, dylib,##__VA_ARGS__), woort_ret())
 /** @brief Return a union with GC struct payload. */
-#define woort_ret_union_gcstruct(id, addr, mark, close, dylib) \
-    (woort_set_union_gcstruct(WOORT_RETURN_SLOT, id, addr, mark, close, dylib), woort_ret())
+#define woort_ret_union_gcstruct(id, addr, mark, close, dylib, ...) \
+    (woort_set_union_gcstruct(WOORT_RETURN_SLOT, id, addr, mark, close, dylib,##__VA_ARGS__), woort_ret())
 
 /** @} */ /* end Return Union Macros */
 
@@ -2832,11 +2832,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Return option::value(box_bool). */
 #define woort_ret_option_box_bool(src) (woort_set_option_box_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(gchandle). */
-#define woort_ret_option_gchandle(addr, hold, close, dylib) \
-    (woort_set_option_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib), woort_ret())
+#define woort_ret_option_gchandle(addr, hold, close, dylib, ...) \
+    (woort_set_option_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib,##__VA_ARGS__), woort_ret())
 /** @brief Return option::value(gcstruct). */
-#define woort_ret_option_gcstruct(addr, mark, close, dylib) \
-    (woort_set_option_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib), woort_ret())
+#define woort_ret_option_gcstruct(addr, mark, close, dylib, ...) \
+    (woort_set_option_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib,##__VA_ARGS__), woort_ret())
 
 /** @} */ /* end Return Option Macros */
 
@@ -2872,11 +2872,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Return Result::Ok(box_bool). */
 #define woort_ret_result_ok_box_bool(src) (woort_set_result_ok_box_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(gchandle). */
-#define woort_ret_result_ok_gchandle(addr, hold, close, dylib) \
-    (woort_set_result_ok_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib), woort_ret())
+#define woort_ret_result_ok_gchandle(addr, hold, close, dylib, ...) \
+    (woort_set_result_ok_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib,##__VA_ARGS__), woort_ret())
 /** @brief Return Result::Ok(gcstruct). */
-#define woort_ret_result_ok_gcstruct(addr, mark, close, dylib) \
-    (woort_set_result_ok_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib), woort_ret())
+#define woort_ret_result_ok_gcstruct(addr, mark, close, dylib, ...) \
+    (woort_set_result_ok_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib,##__VA_ARGS__), woort_ret())
 
 /** @} */ /* end Return Result::Ok Macros */
 
@@ -2911,11 +2911,11 @@ WOORT_API void woort_set_union_box_bool(
 /** @brief Return Result::Err(box_bool). */
 #define woort_ret_result_err_box_bool(src) (woort_set_result_err_box_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(gchandle). */
-#define woort_ret_result_err_gchandle(addr, hold, close, dylib) \
-    (woort_set_result_err_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib), woort_ret())
+#define woort_ret_result_err_gchandle(addr, hold, close, dylib, ...) \
+    (woort_set_result_err_gchandle(WOORT_RETURN_SLOT, addr, hold, close, dylib, __VA_ARGS__), woort_ret())
 /** @brief Return Result::Err(gcstruct). */
-#define woort_ret_result_err_gcstruct(addr, mark, close, dylib) \
-    (woort_set_result_err_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib), woort_ret())
+#define woort_ret_result_err_gcstruct(addr, mark, close, dylib, ...) \
+    (woort_set_result_err_gcstruct(WOORT_RETURN_SLOT, addr, mark, close, dylib, __VA_ARGS__), woort_ret())
 
 /** @} */ /* end Return Result::Err Macros */
 
