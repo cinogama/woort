@@ -836,7 +836,10 @@ WOORT_NODISCARD void* woort_gcpointer(woort_StackValue src)
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    return _WOORT_API_STACK(src).m_gchandle->m_user_handle;
+    void* const r = _WOORT_API_STACK(src).m_gchandle->m_user_handle;
+    if (r == NULL)
+        woort_panic(WOORT_PANIC_ALREADY_CLOSED, "This gchandle already closed.");
+    return r;
 }
 
 WOORT_NODISCARD bool woort_push_reserve(

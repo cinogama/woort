@@ -3846,14 +3846,13 @@ WOORT_NODISCARD WOORT_API bool woort_vfile_open_reader(
  * @param file           The file handle.
  * @param buffer         Destination buffer (may be NULL to skip/advance).
  * @param size           Maximum number of bytes to read.
- * @param out_bytes_read Receives the actual number of bytes read (may be NULL).
- * @return true on success (false if file is NULL).
+ * @param out_bytes_read Receives the actual number of bytes read .
+ * @return Fact readed byte count.
  */
-WOORT_NODISCARD WOORT_API bool woort_vfile_read(
+WOORT_NODISCARD WOORT_API size_t woort_vfile_read(
     woort_VFile* file,
     /* OPTIONAL */ void* buffer,
-    size_t size,
-    /* OPTIONAL */ size_t* out_bytes_read);
+    size_t size);
 
 /**
  * @brief Seek to a position within a streaming file handle.
@@ -3871,27 +3870,27 @@ WOORT_NODISCARD WOORT_API bool woort_vfile_seek(
 /**
  * @brief Get the current read position of a file handle.
  *
- * @param file  The file handle (may be NULL, returns -1).
+ * @param file  The file handle.
  * @return The current byte offset, or -1 on error.
  */
 WOORT_NODISCARD WOORT_API int64_t woort_vfile_tell(
-    /* OPTIONAL */ woort_VFile* file);
+    woort_VFile* file);
 
 /**
  * @brief Get the total size of a file handle.
  *
- * @param file  The file handle (may be NULL, returns -1).
+ * @param file  The file handle.
  * @return The file size in bytes, or -1 on error.
  */
 WOORT_NODISCARD WOORT_API int64_t woort_vfile_size(
-    /* OPTIONAL */ woort_VFile* file);
+    woort_VFile* file);
 
 /**
  * @brief Close a streaming file handle and release all resources.
  *
- * @param file  The file handle (may be NULL, no-op).
+ * @param file  The file handle.
  */
-WOORT_API void woort_vfile_close(/* OPTIONAL */ woort_VFile* file);
+WOORT_API void woort_vfile_close(woort_VFile* file);
 
 
 /* ================================================================

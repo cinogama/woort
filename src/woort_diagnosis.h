@@ -22,6 +22,7 @@ typedef enum woort_PanicReason
     WOORT_PANIC_USER = 0xD009,
     WOORT_PANIC_INTEGER_DIV_FAIL = 0xD00A,
     WOORT_PANIC_OUT_OF_MEMORY = 0xD00B,
+    WOORT_PANIC_ALREADY_CLOSED = 0xD00C,
 } woort_PanicReason;
 
 WOORT_NODISCARD bool woort_vpanic(

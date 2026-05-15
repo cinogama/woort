@@ -331,12 +331,11 @@ static void _woort_WAIPO_print_source_file(
     size_t current_line = 0;
     size_t line_idx = 0;
     char ch;
-    size_t bytes_read;
     bool prev_was_cr = false;
 
     for (;;)
     {
-        if (!woort_vfile_read(f, &ch, 1, &bytes_read) || bytes_read == 0)
+        if (woort_vfile_read(f, &ch, 1) == 0)
             break;
 
         if (ch == '\r')

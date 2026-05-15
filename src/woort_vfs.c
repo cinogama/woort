@@ -59,11 +59,11 @@ void _woort_vfs_shutdown(void)
  *  Internal helpers
  * ================================================================ */
 
-/*
-Find a VFS entry by filepath.
-Must be called with at least a read lock held.
-Returns the entry pointer, or NULL if not found.
-*/
+ /*
+ Find a VFS entry by filepath.
+ Must be called with at least a read lock held.
+ Returns the entry pointer, or NULL if not found.
+ */
 static /* OPTIONAL */ woort_VFSEntry* _woort_vfs_find_entry(
     const char* filepath)
 {
@@ -343,10 +343,10 @@ WOORT_NODISCARD bool woort_fs_is_file_readable(const char* path)
  *  Path resolution
  * ================================================================ */
 
-/*
-Walk through a list of search directories and try to resolve filepath.
-For each directory, try both virtual and real file lookups.
-*/
+ /*
+ Walk through a list of search directories and try to resolve filepath.
+ For each directory, try both virtual and real file lookups.
+ */
 static bool _woort_vfs_try_search_dir(
     const char* filepath,
     const char* search_dir,
@@ -357,8 +357,8 @@ static bool _woort_vfs_try_search_dir(
 
     /* Build: search_dir + "/" + filepath */
     size_t dir_len = strlen(search_dir);
-    size_t fn_len  = strlen(filepath);
-    size_t total    = dir_len + 1 + fn_len + 1;
+    size_t fn_len = strlen(filepath);
+    size_t total = dir_len + 1 + fn_len + 1;
     char* candidate = (char*)malloc(total);
     if (candidate == NULL)
         return false;
@@ -485,8 +485,8 @@ WOORT_NODISCARD bool woort_vfs_resolve_path(
     /* 5) Try: WOORT_VFS_SCHEME + filepath (VFS lookup without scheme prefix) */
     {
         size_t scheme_len = WOORT_VFS_SCHEME_LEN;
-        size_t fn_len     = strlen(filepath);
-        char*  vfs_path   = (char*)malloc(scheme_len + fn_len + 1);
+        size_t fn_len = strlen(filepath);
+        char* vfs_path = (char*)malloc(scheme_len + fn_len + 1);
         if (vfs_path != NULL)
         {
             memcpy(vfs_path, WOORT_VFS_SCHEME, scheme_len);
@@ -514,16 +514,16 @@ WOORT_NODISCARD bool woort_vfs_resolve_path(
  *  Streaming virtual file handle
  * ================================================================ */
 
-/*
-Platform-specific 64-bit seek/tell wrappers so the vfile API
-can handle large files portably.
-*/
+ /*
+ Platform-specific 64-bit seek/tell wrappers so the vfile API
+ can handle large files portably.
+ */
 #if defined(_MSC_VER)
-    #define _WOORT_VFILE_FSEEK _fseeki64
-    #define _WOORT_VFILE_FTELL _ftelli64
+#   define _WOORT_VFILE_FSEEK _fseeki64
+#   define _WOORT_VFILE_FTELL _ftelli64
 #else
-    #define _WOORT_VFILE_FSEEK fseeko
-    #define _WOORT_VFILE_FTELL ftello
+#   define _WOORT_VFILE_FSEEK fseeko
+#   define _WOORT_VFILE_FTELL ftello
 #endif
 
 WOORT_NODISCARD bool woort_vfile_open_reader(
@@ -537,10 +537,10 @@ WOORT_NODISCARD bool woort_vfile_open_reader(
     if (file == NULL)
         return false;
 
-    file->m_type          = WOORT_VFILE_TYPE_READER;
+    file->m_type = WOORT_VFILE_TYPE_READER;
     file->m_reader.m_data = buf;
     file->m_reader.m_size = buflen;
-    file->m_reader.m_pos  = 0;
+    file->m_reader.m_pos = 0;
 
     *out_file = file;
     return true;
@@ -560,7 +560,7 @@ WOORT_NODISCARD bool woort_vfile_open(
     {
         file->m_type = WOORT_VFILE_TYPE_VIRTUAL;
 
-        char*  data   = NULL;
+        char* data = NULL;
         size_t length = 0;
         if (!woort_vfs_read(filepath, &data, &length))
         {
@@ -570,11 +570,11 @@ WOORT_NODISCARD bool woort_vfile_open(
 
         file->m_virtual.m_data = data;
         file->m_virtual.m_size = length;
-        file->m_virtual.m_pos  = 0;
+        file->m_virtual.m_pos = 0;
     }
     else
     {
-        file->m_type      = WOORT_VFILE_TYPE_REAL;
+        file->m_type = WOORT_VFILE_TYPE_REAL;
         file->m_real_file = fopen(filepath, "rb");
         if (file->m_real_file == NULL)
         {
@@ -587,25 +587,18 @@ WOORT_NODISCARD bool woort_vfile_open(
     return true;
 }
 
-WOORT_NODISCARD bool woort_vfile_read(
+WOORT_NODISCARD size_t woort_vfile_read(
     woort_VFile* file,
     /* OPTIONAL */ void* buffer,
-    size_t size,
-    /* OPTIONAL */ size_t* out_bytes_read)
+    size_t size)
 {
     size_t total_read = 0;
-
-    if (file == NULL)
-    {
-        if (out_bytes_read != NULL)
-            *out_bytes_read = 0;
-        return false;
-    }
+    assert(file != NULL);
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
     {
         size_t available = file->m_virtual.m_size - file->m_virtual.m_pos;
-        size_t to_read   = (size < available) ? size : available;
+        size_t to_read = (size < available) ? size : available;
 
         if (buffer != NULL && to_read > 0)
             memcpy(buffer, file->m_virtual.m_data + file->m_virtual.m_pos, to_read);
@@ -616,7 +609,7 @@ WOORT_NODISCARD bool woort_vfile_read(
     else if (file->m_type == WOORT_VFILE_TYPE_READER)
     {
         size_t available = file->m_reader.m_size - file->m_reader.m_pos;
-        size_t to_read   = (size < available) ? size : available;
+        size_t to_read = (size < available) ? size : available;
 
         if (buffer != NULL && to_read > 0)
             memcpy(buffer, (const char*)file->m_reader.m_data + file->m_reader.m_pos, to_read);
@@ -631,11 +624,7 @@ WOORT_NODISCARD bool woort_vfile_read(
             total_read = fread(buffer, 1, size, file->m_real_file);
         }
     }
-
-    if (out_bytes_read != NULL)
-        *out_bytes_read = total_read;
-
-    return true;
+    return total_read;
 }
 
 WOORT_NODISCARD bool woort_vfile_seek(
@@ -643,8 +632,7 @@ WOORT_NODISCARD bool woort_vfile_seek(
     int64_t offset,
     int whence)
 {
-    if (file == NULL)
-        return false;
+    assert(file != NULL);
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
     {
@@ -709,8 +697,7 @@ WOORT_NODISCARD bool woort_vfile_seek(
 
 WOORT_NODISCARD int64_t woort_vfile_tell(/* OPTIONAL */ woort_VFile* file)
 {
-    if (file == NULL)
-        return -1;
+    assert(file != NULL);
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
         return (int64_t)file->m_virtual.m_pos;
@@ -721,10 +708,9 @@ WOORT_NODISCARD int64_t woort_vfile_tell(/* OPTIONAL */ woort_VFile* file)
     return (int64_t)_WOORT_VFILE_FTELL(file->m_real_file);
 }
 
-WOORT_NODISCARD int64_t woort_vfile_size(/* OPTIONAL */ woort_VFile* file)
+WOORT_NODISCARD int64_t woort_vfile_size(woort_VFile* file)
 {
-    if (file == NULL)
-        return -1;
+    assert(file != NULL);
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
         return (int64_t)file->m_virtual.m_size;
@@ -748,10 +734,9 @@ WOORT_NODISCARD int64_t woort_vfile_size(/* OPTIONAL */ woort_VFile* file)
     }
 }
 
-void woort_vfile_close(/* OPTIONAL */ woort_VFile* file)
+void woort_vfile_close(woort_VFile* file)
 {
-    if (file == NULL)
-        return;
+    assert(file != NULL);
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
     {

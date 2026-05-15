@@ -1074,9 +1074,8 @@ static bool _bin_read_raw(_BinReader* r, void* out, size_t len)
         return false;
     if (r->m_file != NULL)
     {
-        size_t bytes_read = 0;
-        if (!woort_vfile_read(r->m_file, out, len, &bytes_read)
-            || bytes_read != len)
+        const size_t bytes_read = woort_vfile_read(r->m_file, out, len);
+        if (bytes_read != len)
             return false;
     }
     else
@@ -1691,9 +1690,9 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     /* 读取头部 24 字节到栈上缓冲区 */
     unsigned char header_buf[24];
     {
-        size_t bytes_read;
-        if (!woort_vfile_read(f, header_buf, sizeof(header_buf), &bytes_read)
-            || bytes_read != sizeof(header_buf))
+        const size_t bytes_read =
+            woort_vfile_read(f, header_buf, sizeof(header_buf));
+        if (bytes_read != sizeof(header_buf))
             // File header doesn't match.
             return WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH;
     }
@@ -1745,9 +1744,8 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
         if (codes_from_bin == NULL)
             return WOORT_CODEENV_RESTORE_FAIL_ALLOC;
         {
-            size_t bytes_read;
-            if (!woort_vfile_read(f, codes_from_bin, code_bytes, &bytes_read)
-                || bytes_read != code_bytes)
+            const size_t bytes_read = woort_vfile_read(f, codes_from_bin, code_bytes);
+            if (bytes_read != code_bytes)
             {
                 free(codes_from_bin);
                 return WOORT_CODEENV_RESTORE_FAIL_READ;
@@ -1778,9 +1776,8 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     {
         uint64_t strpool_size;
         {
-            size_t bytes_read;
-            if (!woort_vfile_read(f, &strpool_size, sizeof(strpool_size), &bytes_read)
-                || bytes_read != sizeof(strpool_size))
+            const size_t bytes_read = woort_vfile_read(f, &strpool_size, sizeof(strpool_size));
+            if (bytes_read != sizeof(strpool_size))
             {
                 result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                 goto _restore_fail_after_create;
@@ -1797,9 +1794,8 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 goto _restore_fail_after_create;
             }
             {
-                size_t bytes_read;
-                if (!woort_vfile_read(f, strpool_buf, (size_t)strpool_size, &bytes_read)
-                    || bytes_read != (size_t)strpool_size)
+                const size_t bytes_read = woort_vfile_read(f, strpool_buf, (size_t)strpool_size);
+                if (bytes_read != (size_t)strpool_size)
                 {
                     result = WOORT_CODEENV_RESTORE_FAIL_READ;
                     goto _restore_fail_after_create;
