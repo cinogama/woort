@@ -1978,7 +1978,7 @@ static void test_vector_detailed_ops(void)
     size_t len = woort_vec_len(sv);
     TEST_ASSERT(len == 3);
 
-    woort_vec_pop(sv);
+    (void)woort_vec_pop(sv);
     len = woort_vec_len(sv);
     TEST_ASSERT(len == 2);
 
