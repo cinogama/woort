@@ -502,6 +502,12 @@ void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
     _woort_GC_mark_vm_proxy(vm, false);
 }
 
+WOORT_API void woort_GC_mark_droped_env_manually(
+    const woort_CodeEnv* env)
+{
+    woomem_mark_unit_head(env);
+}
+
 void woort_GC_mark_value_manually(
     const woort_Value* val)
 {

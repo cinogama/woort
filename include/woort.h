@@ -417,6 +417,13 @@ WOORT_API void woort_GC_mark_weak_vm_manually(
     woort_VMRuntime* vm);
 
 /**
+ * @brief Manually mark a dropped CodeEnv as GC reachable during the marking phase.
+ * @param env  The CodeEnv to mark. Must not be NULL.
+ */
+WOORT_API void woort_GC_mark_droped_env_manually(
+    const woort_CodeEnv* env);
+
+/**
  * @brief Manually mark a value as GC reachable during the marking phase.
  * @param val  The value to mark. Must not be NULL.
  */
