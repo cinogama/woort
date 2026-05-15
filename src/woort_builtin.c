@@ -337,6 +337,11 @@ static woort_api woort_builtin_make_dup(void)
     return woort_ret();
 }
 
+static woort_api woort_builtin_clock(void)
+{
+    return woort_ret_real(clock() / (woort_Real)CLOCKS_PER_SEC);
+}
+
 static woort_api woort_builtin_serialize_dynamic(void)
 {
     char* const result = woort_serialize_dynbox(0, WOORT_SERIALIZE_FLAG_STRICT);
@@ -3496,6 +3501,7 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(sleep),
     WOORT_BUILTIN_FUNC(is_same),
     WOORT_BUILTIN_FUNC(make_dup),
+    WOORT_BUILTIN_FUNC(clock),
 
     WOORT_BUILTIN_FUNC(serialize_dynamic),
     WOORT_BUILTIN_FUNC(deserialize_dynamic),
