@@ -156,17 +156,17 @@ void woort_CodeEnv_set_const_real(
         WOORT_CONST_TYPE_REAL, NULL, NULL);
 }
 
-void woort_CodeEnv_set_const_string(
+WOORT_API void woort_CodeEnv_set_const_buffer(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
-    woort_U8CString val)
+    const void* buf,
+    size_t buflen)
 {
     assert(code_env != NULL);
     assert((size_t)cidx < code_env->m_data_count);
-    assert(val != NULL);
+    assert(buf != NULL);
 
-    size_t len = strlen(val);
-    const woort_GCString* str = woort_GCString_make_string(val, len);
+    const woort_GCString* str = woort_GCString_make_string(buf, buflen);
     assert(str != NULL);
 
     woort_Value v;

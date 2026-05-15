@@ -688,7 +688,7 @@ _label_continue_execution:
                 break;
             case WOORT_BOX_VALUE_TYPE_STRUCT:
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
-                    woort_GCString_make_string("<struct>", 10);
+                    woort_GCString_make_string("<struct>", 8);
                 break;
             case WOORT_BOX_VALUE_TYPE_GCHANDLE:
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
@@ -699,6 +699,7 @@ _label_continue_execution:
                     woort_GCString_make_string("<function>", 10);
                 break;
             }
+            break;
         }
         // CASTDYN
         // CASTDYN: boxed -> unboxed
@@ -843,7 +844,7 @@ _label_continue_execution:
                     break;
                 case WOORT_BOX_VALUE_TYPE_STRUCT:
                     rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
-                        woort_GCString_make_string("<struct>", 10);
+                        woort_GCString_make_string("<struct>", 8);
                     break;
                 case WOORT_BOX_VALUE_TYPE_GCHANDLE:
                     rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =

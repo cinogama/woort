@@ -653,8 +653,8 @@ static void test_ir_string_comparisons(void)
     const woort_Bytecode* entry_addr;
     (void)woort_CodeEnv_query_function(cenv, f, &entry_addr);
     woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_string(cenv, c_s1, "apple");
-    woort_CodeEnv_set_const_string(cenv, c_s2, "banana");
+    woort_CodeEnv_set_const_buffer(cenv, c_s1, "apple", strlen("apple"));
+    woort_CodeEnv_set_const_buffer(cenv, c_s2, "banana", strlen("banana"));
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);
 
@@ -706,8 +706,8 @@ static void test_ir_string_concat(void)
     const woort_Bytecode* entry_addr;
     (void)woort_CodeEnv_query_function(cenv, f, &entry_addr);
     woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_string(cenv, c_s1, "Hello, ");
-    woort_CodeEnv_set_const_string(cenv, c_s2, "World!");
+    woort_CodeEnv_set_const_buffer(cenv, c_s1, "Hello, ", strlen("Hello, "));
+    woort_CodeEnv_set_const_buffer(cenv, c_s2, "World!", strlen("World!"));
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);
 
@@ -2077,9 +2077,9 @@ static void test_struct_detailed_ops(void)
     const woort_Bytecode* entry_addr;
     (void)woort_CodeEnv_query_function(cenv, f, &entry_addr);
     woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_string(cenv, c_key1, "key1");
+    woort_CodeEnv_set_const_buffer(cenv, c_key1, "key1", strlen("key1"));
     woort_CodeEnv_set_const_int(cenv, c_val1, 100);
-    woort_CodeEnv_set_const_string(cenv, c_key2, "key2");
+    woort_CodeEnv_set_const_buffer(cenv, c_key2, "key2", strlen("key2"));
     woort_CodeEnv_set_const_int(cenv, c_val2, 200);
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);

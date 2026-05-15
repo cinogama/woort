@@ -2215,15 +2215,17 @@ WOORT_API void woort_CodeEnv_set_const_real(
     woort_Real val);
 
 /**
- * @brief Set a constant pool entry to a string value.
+ * @brief Set a constant pool entry to a buffer value.
  * @param code_env  The locked code environment.
  * @param cidx      The constant pool index (must be allocated before finish).
- * @param val       The NUL-terminated string to store (a GCString is created).
+ * @param buf       The buffer data to store (a GCString is created).
+ * @param buflen    The length of the buffer in bytes.
  */
-WOORT_API void woort_CodeEnv_set_const_string(
+WOORT_API void woort_CodeEnv_set_const_buffer(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
-    woort_U8CString val);
+    const void* buf,
+    size_t buflen);
 
 /**
  * @brief Set a constant pool entry to a script function entry point.

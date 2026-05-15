@@ -799,9 +799,9 @@ static void test_ir_mkmap_multi(void)
     (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_string(cenv, c_k1, "alpha");
+    woort_CodeEnv_set_const_buffer(cenv, c_k1, "alpha", strlen("alpha"));
     woort_CodeEnv_set_const_box_int(cenv, c_v1, 100);
-    woort_CodeEnv_set_const_string(cenv, c_k2, "beta");
+    woort_CodeEnv_set_const_buffer(cenv, c_k2, "beta", strlen("beta"));
     woort_CodeEnv_set_const_box_int(cenv, c_v2, 200);
     woort_CodeEnv_set_const_int(cenv, c_ok, 42);
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, addr);
@@ -1631,8 +1631,8 @@ static void test_string_in_if_else(void)
     (void)woort_CodeEnv_query_function(cenv, f, &addr);
 
     woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_string(cenv, c_s1, "hello");
-    woort_CodeEnv_set_const_string(cenv, c_s2, "world");
+    woort_CodeEnv_set_const_buffer(cenv, c_s1, "hello", strlen("hello"));
+    woort_CodeEnv_set_const_buffer(cenv, c_s2, "world", strlen("world"));
     woort_CodeEnv_set_const_int(cenv, c1, 1);
     woort_CodeEnv_set_const_int(cenv, c0, 0);
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, addr);

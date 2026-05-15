@@ -1333,11 +1333,9 @@ static woort_api woort_builtin_string_trim(void)
     const char* p = str;
     for (size_t i = 0; i < ibeg; i++)
     {
-        size_t chsz = 0;
-        woort_u8combineu32(p, len - (size_t)(p - str), NULL);
         /* Advance by actual UTF-8 char size */
         char32_t dummy;
-        chsz = woort_u8combineu32(p, len - (size_t)(p - str), &dummy);
+        const size_t chsz = woort_u8combineu32(p, len - (size_t)(p - str), &dummy);
         p += chsz;
     }
     byte_begin = (size_t)(p - str);
@@ -1346,7 +1344,7 @@ static woort_api woort_builtin_string_trim(void)
     for (size_t i = ibeg; i < iend; i++)
     {
         char32_t dummy;
-        size_t chsz = woort_u8combineu32(p, len - (size_t)(p - str), &dummy);
+        const size_t chsz = woort_u8combineu32(p, len - (size_t)(p - str), &dummy);
         p += chsz;
     }
     byte_end = (size_t)(p - str);

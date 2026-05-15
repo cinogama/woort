@@ -502,6 +502,7 @@ void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
     _woort_GC_mark_vm_proxy(vm, false);
 }
 
+
 void woort_GC_mark_droped_env_manually(
     const woort_CodeEnv* env)
 {
