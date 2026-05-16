@@ -59,7 +59,7 @@ void woort_init(int argc, char** argv)
                 woort_ctrl_c_callback_hooked = (bool)atoi(argv[++command_idx]);
             else if (strcmp(setting, "woort-gc-max-chunk-memory") == 0)
                 max_chunk_memory = (size_t)atoi(argv[++command_idx]);
-            else if (0 == strcmp(setting, "woort-gc-max-huge-unit-memory") == 0)
+            else if (strcmp(setting, "woort-gc-max-huge-unit-memory") == 0)
                 max_huge_unit_memory = (size_t)atoi(argv[++command_idx]);
             else
                 woort_log("WOORT: Unknown command line option named: `%s`.\n", current_arg);
@@ -156,7 +156,7 @@ void woort_CodeEnv_set_const_real(
         WOORT_CONST_TYPE_REAL, NULL, NULL);
 }
 
-WOORT_API void woort_CodeEnv_set_const_buffer(
+void woort_CodeEnv_set_const_buffer(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
     const void* buf,
@@ -166,7 +166,9 @@ WOORT_API void woort_CodeEnv_set_const_buffer(
     assert((size_t)cidx < code_env->m_data_count);
     assert(buf != NULL);
 
-    const woort_GCString* str = woort_GCString_make_string(buf, buflen);
+    const woort_GCString* str =
+        woort_GCString_make_string_for_env_constant(code_env, buf, buflen);
+
     assert(str != NULL);
 
     woort_Value v;
@@ -217,7 +219,10 @@ void woort_CodeEnv_set_const_script_closure(
     assert(code_env != NULL);
     assert((size_t)cidx < code_env->m_data_count);
 
-    woort_GCClosure* closure = woort_GCClosure_new_script_func(val);
+    woort_GCClosure* const closure =
+        woort_GCClosure_new_script_func_for_env_constant(
+            code_env, val);
+
     assert(closure != NULL);
 
     woort_Value v;
@@ -236,7 +241,10 @@ void woort_CodeEnv_set_const_extern_closure(
     assert(code_env != NULL);
     assert((size_t)cidx < code_env->m_data_count);
 
-    woort_GCClosure* closure = woort_GCClosure_new_native_func(val);
+    woort_GCClosure* const closure =
+        woort_GCClosure_new_native_func_for_env_constant(
+            code_env, val);
+
     assert(closure != NULL);
 
     woort_Value v;
@@ -255,7 +263,7 @@ void woort_CodeEnv_set_const_box_int(
     assert(code_env != NULL);
     assert((size_t)cidx < code_env->m_data_count);
 
-    woort_DynBox boxed = woort_DynBox_box_int(val);
+    woort_DynBox boxed = woort_DynBox_box_int_for_env_constant(code_env, val);
     woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
     (void)woort_CodeEnv_set_const_record(code_env, cidx,
         WOORT_CONST_TYPE_BOX_INT, NULL, NULL);
@@ -269,7 +277,7 @@ void woort_CodeEnv_set_const_box_real(
     assert(code_env != NULL);
     assert((size_t)cidx < code_env->m_data_count);
 
-    woort_DynBox boxed = woort_DynBox_box_real(val);
+    woort_DynBox boxed = woort_DynBox_box_real_for_env_constant(code_env, val);
     woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
     (void)woort_CodeEnv_set_const_record(code_env, cidx,
         WOORT_CONST_TYPE_BOX_REAL, NULL, NULL);
@@ -299,7 +307,9 @@ void woort_CodeEnv_set_const_struct(
     assert((size_t)cidx < code_env->m_data_count);
     assert(member_count == 0 || members != NULL);
 
-    woort_GCStruct* const s = woort_GCStruct_new(member_count);
+    woort_GCStruct* const s = 
+        woort_GCStruct_new_for_env_constant(code_env, member_count);
+
     assert(s != NULL);
 
     for (size_t i = 0; i < member_count; ++i) {

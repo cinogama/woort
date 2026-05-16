@@ -38,6 +38,9 @@ WOORT_THREAD_LOCAL woort_VMRuntime* WOORT_t_this_thread_vm;
 const size_t WOORT_VM_DEFAULT_STACK_BEGIN_SIZE = 32;
 const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
 
+const uint8_t WOORT_VM_SHRINK_STACK_COUNT = 3;
+const uint8_t WOORT_VM_SHRINK_STACK_MAX_EDGE = 16;
+
 void _woort_VMRuntime_destroy(woort_VMRuntime* vm)
 {
     if (vm->m_stack != NULL)
@@ -69,6 +72,9 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
 
     if (!woort_condition_variable_create(&vm->m_hangup_cv))
         vm->m_hangup_cv = NULL;
+
+    vm->m_shrink_stack_count = 0;
+    vm->m_shrink_stack_edge = WOORT_VM_SHRINK_STACK_COUNT;
 
     // Init stack state.
     vm->m_stack_realloc_version = 0;
@@ -186,6 +192,75 @@ WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
         WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING);
 
     return extern_ok;
+}
+
+WOORT_NODISCARD static bool _woort_VMRuntime_shrink_stack(
+    woort_VMRuntime* vm)
+{
+    const size_t current_stack_size = vm->m_stack_end - vm->m_stack;
+    const size_t new_stack_size = current_stack_size / 2;
+
+    /* Do not shrink below the default initial size. */
+    if (new_stack_size < WOORT_VM_DEFAULT_STACK_BEGIN_SIZE)
+        return false;
+
+    const size_t used_stack_size = vm->m_stack_end - vm->m_sp;
+
+    /* Reject if new size is too small for current usage
+       (needs at least 2x headroom). */
+    if (used_stack_size * 2 > new_stack_size)
+        return false;
+
+    while (woort_VMRuntime_request_set(
+        vm,
+        WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING))
+        ; /* Wait until occupying finished. */
+
+    woort_Value* const new_stack =
+        malloc(new_stack_size * sizeof(woort_Value));
+
+    if (new_stack == NULL)
+    {
+        (void)woort_VMRuntime_request_accept(
+            vm,
+            WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING);
+        return false;
+    }
+
+    /* Copy used portion to the tail of the new buffer. */
+    memcpy(
+        new_stack + new_stack_size - used_stack_size,
+        vm->m_sp,
+        used_stack_size * sizeof(woort_Value));
+
+    free(vm->m_stack);
+
+    /* Update vm state. */
+    woort_Value* const new_stack_end = new_stack + new_stack_size;
+    vm->m_sp = new_stack_end - used_stack_size;
+    vm->m_sb = new_stack_end - (vm->m_stack_end - vm->m_sb);
+    vm->m_stack = new_stack;
+    vm->m_stack_end = new_stack_end;
+
+    ++vm->m_stack_realloc_version;
+
+    (void)woort_VMRuntime_request_accept(
+        vm,
+        WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING);
+
+    return true;
+}
+
+WOORT_NODISCARD bool woort_VMRuntime_advise_shrink_stack(
+    woort_VMRuntime* vm)
+{
+    return ++vm->m_shrink_stack_count >= vm->m_shrink_stack_edge;
+}
+
+void woort_VMRuntime_reset_shrink_stack_count(
+    woort_VMRuntime* vm)
+{
+    vm->m_shrink_stack_count = 0;
 }
 
 void woort_VMRuntime_hangup(woort_VMRuntime* vm)
@@ -3772,6 +3847,18 @@ _label_continue_execution:
                         WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
                 }
             }
+            else if (request_mask
+                & WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK)
+            {
+                if (woort_VMRuntime_request_accept(
+                    vm,
+                    WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK))
+                {
+                    if (_woort_VMRuntime_shrink_stack(vm))
+                        vm->m_shrink_stack_edge =
+                            WOORT_VM_SHRINK_STACK_COUNT;
+                }
+            }
             else
             {
                 WOORT_VM_SYNC_STATE_AND_PANIC(
@@ -3791,6 +3878,10 @@ _label_continue_execution:
     }
     WOORT_VM_EXCEPTION_LABEL(stack_overflow) :
     {
+        /* Increase shrink edge as adaptive backoff. */
+        if (vm->m_shrink_stack_edge < WOORT_VM_SHRINK_STACK_MAX_EDGE)
+            ++vm->m_shrink_stack_edge;
+
         // Stack used up, try extern.
         if (/* UNLIKELY */ !_woort_VMRuntime_extern_stack(vm))
         {
@@ -3866,6 +3957,27 @@ void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
     // TODO: Optimize for fast marking.
     for (void** p = (void**)vm->m_sp; p != (void**)vm->m_stack_end; ++p)
         woomem_try_mark_unit((intptr_t)*p);
+
+    /* Check stack utilization and advise shrink if appropriate. */
+    {
+        const size_t current_vm_stack_usage =
+            vm->m_stack_end - vm->m_sp;
+        const size_t current_stack_size =
+            vm->m_stack_end - vm->m_stack;
+
+        if (current_vm_stack_usage * 4 < current_stack_size
+            && current_stack_size >= 2 * WOORT_VM_DEFAULT_STACK_BEGIN_SIZE)
+        {
+            if (woort_VMRuntime_advise_shrink_stack(vm))
+                (void)woort_VMRuntime_request_set(
+                    vm,
+                    WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK);
+        }
+        else
+        {
+            woort_VMRuntime_reset_shrink_stack_count(vm);
+        }
+    }
 }
 
 void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)

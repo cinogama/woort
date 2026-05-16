@@ -28,9 +28,16 @@ static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
     woort_OrderMap*     m_codeenvs;
-    woort_GCUnitProxy   m_proxy;
+    woort_GCUnitProxy   m_env_proxy;
 
 } *_codeenv_global_ctx = NULL;
+
+typedef struct woort_CodeEnv_Code
+{
+    woort_CodeEnv* m_code_env;
+    woort_Bytecode m_codes[0];
+
+} woort_CodeEnv_Code;
 
 static bool _extern_constants_free_key(
     const void* key,
@@ -98,10 +105,13 @@ static bool _codeenv_foreach_callback(
     return ctx->m_callback(code_env, ctx->m_user_data);
 }
 
+void _woort_CodeEnv_GC_mark_code(woort_GCUnit* unit)
+{}
+
 void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 {
     woort_CodeEnv* const code_env = (woort_CodeEnv*)unit;
-    assert(code_env->m_gc_unit.m_proxy == &_codeenv_global_ctx->m_proxy);
+    assert(code_env->m_gc_unit.m_proxy == &_codeenv_global_ctx->m_env_proxy);
 
     // 先从全局容器中移除该 CodeEnv
     woort_rwspinlock_write_lock(
@@ -170,9 +180,9 @@ WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
 
     // 初始化存储 CodeEnv 指针的 OrderMap
     if (!woort_ordermap_create(
-            sizeof(const woort_Bytecode*), sizeof(woort_CodeEnv*),
-            &_compare_code_begin,
-            &_codeenv_global_ctx->m_codeenvs))
+        sizeof(const woort_Bytecode*), sizeof(woort_CodeEnv*),
+        &_compare_code_begin,
+        &_codeenv_global_ctx->m_codeenvs))
     {
         woort_rwspinlock_deinit(&_codeenv_global_ctx->m_codeenvs_lock);
         free(_codeenv_global_ctx);
@@ -180,8 +190,8 @@ WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
         return false;
     }
 
-    _codeenv_global_ctx->m_proxy.m_marker = NULL;
-    _codeenv_global_ctx->m_proxy.m_destructor =
+    _codeenv_global_ctx->m_env_proxy.m_marker = NULL;
+    _codeenv_global_ctx->m_env_proxy.m_destructor =
         &_woort_CodeEnv_GC_destroy;
 
     return true;
@@ -212,91 +222,105 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     // 提前上锁，确保 code_env_instance 不会 Missing mark.
     woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
 
-    woort_CodeEnv* code_env_instance = NULL;
-    woort_Bytecode* const codes =
-        woort_GCUnit_alloc_attrib(
-            O, bytecodes_count * sizeof(woort_Bytecode));
+    woort_CodeEnv_Code* codes;
+    woort_CodeEnv* code_env_instance;
 
-    if (codes != NULL)
+    do
     {
-        code_env_instance =
-            woort_GCUnit_alloc_attrib(
-                AF,
-                sizeof(woort_CodeEnv)
-                + constant_and_static_storage_count * sizeof(woort_Value));
-    }
+        codes = woort_GCUnit_alloc_attrib_may_fail(
+            A,
+            sizeof(woort_CodeEnv_Code)
+            + bytecodes_count * sizeof(woort_Bytecode));
 
-    bool register_result = false;
-
-    if (code_env_instance != NULL)
-    {
-        code_env_instance->m_gc_unit.m_proxy =
-            &_codeenv_global_ctx->m_proxy;
-
-        code_env_instance->m_hold = true;
-
-        code_env_instance->m_mutex = NULL;
-
-        code_env_instance->m_code_begin = codes;
-        code_env_instance->m_code_end =
-            code_env_instance->m_code_begin + bytecodes_count;
-
-        memcpy(
-            codes,
-            bytecodes,
-            bytecodes_count * sizeof(woort_Bytecode));
-
-        /* 初始化源码映射为空 */
-        code_env_instance->m_source_map.m_entries = NULL;
-        code_env_instance->m_source_map.m_entry_count = 0;
-        woort_StringPool_init(&code_env_instance->m_srcloc_string_pool);
-
-        /* 初始化函数边界为空 */
-        woort_vector_init(&code_env_instance->m_function_boundaries,
-            sizeof(woort_FunctionBoundary));
-
-        code_env_instance->m_data_count = constant_and_static_storage_count;
-
-        woort_vector_init(&code_env_instance->m_const_records, sizeof(woort_ConstRecord));
-
-        /* 预填充 m_const_records 为 NIL 类型 */
+        if (codes != NULL)
         {
-            void* buffer;
-            _Static_assert(WOORT_CONST_TYPE_NIL == 0, "WOORT_CONST_TYPE_NIL should be 0.");
-
-            if (!woort_vector_emplace_back(
-                &code_env_instance->m_const_records,
-                constant_and_static_storage_count,
-                &buffer))
-            {
-                /* OOM: 不影响正常运行，但序列化将失败 */
-                WOORT_DEBUG("Out of memory filling const_records.");
-            }
-            else
-            {
-                memset(buffer, 0, sizeof(woort_ConstRecord) * constant_and_static_storage_count);
-            }
+            code_env_instance =
+                woort_GCUnit_alloc_attrib_may_fail(
+                    AF,
+                    sizeof(woort_CodeEnv)
+                    + constant_and_static_storage_count * sizeof(woort_Value));
         }
 
-        woort_vector_init(&code_env_instance->m_extern_libs, sizeof(woort_Dylib*));
+        if (codes == NULL || code_env_instance == NULL)
+        {
+            // Failed to allocate.
+            woort_rwspinlock_write_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
+            {
+                _woort_GCUnit_alloc_failed();
+            }
+            woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
+        }
+        else
+            break;
 
-        // Fill 0 for static storage:
-        memset(
-            code_env_instance->m_data_begin,
-            0,
-            constant_and_static_storage_count * sizeof(woort_Value));
+    } while (true);
 
-        // 将新创建的 CodeEnv 注册到全局容器
-        // 
-        // NOTE: 因为 woort_CodeEnv 使用 GC 管理，即便此处注册失败也不需要
-        // 手动执行释放
-        register_result = (WOORT_ORDERMAP_RESULT_OK == woort_ordermap_insert(
-            _codeenv_global_ctx->m_codeenvs,
-            &code_env_instance->m_code_begin,
-            &code_env_instance));
+    assert(code_env_instance != NULL);
+
+    code_env_instance->m_gc_unit.m_proxy =
+        &_codeenv_global_ctx->m_env_proxy;
+
+    code_env_instance->m_hold = true;
+
+    code_env_instance->m_mutex = NULL;
+
+    code_env_instance->m_code_begin = codes->m_codes;
+    code_env_instance->m_code_end =
+        code_env_instance->m_code_begin + bytecodes_count;
+
+    memcpy(
+        codes->m_codes,
+        bytecodes,
+        bytecodes_count * sizeof(woort_Bytecode));
+
+    /* 初始化源码映射为空 */
+    code_env_instance->m_source_map.m_entries = NULL;
+    code_env_instance->m_source_map.m_entry_count = 0;
+    woort_StringPool_init(&code_env_instance->m_srcloc_string_pool);
+
+    /* 初始化函数边界为空 */
+    woort_vector_init(&code_env_instance->m_function_boundaries,
+        sizeof(woort_FunctionBoundary));
+
+    code_env_instance->m_data_count = constant_and_static_storage_count;
+
+    woort_vector_init(&code_env_instance->m_const_records, sizeof(woort_ConstRecord));
+
+    /* 预填充 m_const_records 为 NIL 类型 */
+    {
+        void* buffer;
+        _Static_assert(WOORT_CONST_TYPE_NIL == 0, "WOORT_CONST_TYPE_NIL should be 0.");
+
+        if (!woort_vector_emplace_back(
+            &code_env_instance->m_const_records,
+            constant_and_static_storage_count,
+            &buffer))
+        {
+            /* OOM: 不影响正常运行，但序列化将失败 */
+            WOORT_DEBUG("Out of memory filling const_records.");
+        }
+        else
+        {
+            memset(buffer, 0, sizeof(woort_ConstRecord) * constant_and_static_storage_count);
+        }
     }
-    else
-        WOORT_DEBUG("Out of memory.");
+
+    woort_vector_init(&code_env_instance->m_extern_libs, sizeof(woort_Dylib*));
+
+    // Fill 0 for static storage:
+    memset(
+        code_env_instance->m_data_begin,
+        0,
+        constant_and_static_storage_count * sizeof(woort_Value));
+
+    // 将新创建的 CodeEnv 注册到全局容器
+    // 
+    // NOTE: 因为 woort_CodeEnv 使用 GC 管理，即便此处注册失败也不需要
+    // 手动执行释放
+    const bool register_result = (WOORT_ORDERMAP_RESULT_OK == woort_ordermap_insert(
+        _codeenv_global_ctx->m_codeenvs,
+        &code_env_instance->m_code_begin,
+        &code_env_instance));
 
     woort_rwspinlock_write_unlock(
         &_codeenv_global_ctx->m_codeenvs_lock);
@@ -393,10 +417,10 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
 
     bool found = false;
     if (woort_ordermap_find_le(
-            _codeenv_global_ctx->m_codeenvs,
-            &addr,
-            NULL,
-            (void**)&value_addr))
+        _codeenv_global_ctx->m_codeenvs,
+        &addr,
+        NULL,
+        (void**)&value_addr))
     {
         woort_CodeEnv* const code_env = *value_addr;
         if (addr < code_env->m_code_end)
@@ -853,9 +877,9 @@ void woort_CodeEnv_foreach(
 #define WOORT_CODEENV_BINARY_MAGIC   0x30314345u  /* "EC10" */
 #define WOORT_CODEENV_BINARY_VERSION 2u
 
-/* ================================================================
- * 序列化期间的字符串池（本地使用）
- * ================================================================ */
+  /* ================================================================
+   * 序列化期间的字符串池（本地使用）
+   * ================================================================ */
 
 typedef struct _CodeEnvBinStrPool
 {
@@ -1516,42 +1540,60 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
                     {
                     case WOORT_CONST_TYPE_NIL:
                         if (mv->m_gcinstance == cv->m_gcinstance)
-                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        {
+                            found_idx = (woort_IRConstantIndex)j; found = true;
+                        }
                         break;
                     case WOORT_CONST_TYPE_INT:
                         if (mv->m_integer == cv->m_integer)
-                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        {
+                            found_idx = (woort_IRConstantIndex)j; found = true;
+                        }
                         break;
                     case WOORT_CONST_TYPE_REAL:
                         if (mv->m_real == cv->m_real)
-                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        {
+                            found_idx = (woort_IRConstantIndex)j; found = true;
+                        }
                         break;
                     case WOORT_CONST_TYPE_STRING:
                         if (mv->m_gcinstance == cv->m_gcinstance)
-                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        {
+                            found_idx = (woort_IRConstantIndex)j; found = true;
+                        }
                         break;
                     case WOORT_CONST_TYPE_SCRIPT_FUNC:
                         if (mv->m_script_function == cv->m_script_function)
-                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        {
+                            found_idx = (woort_IRConstantIndex)j; found = true;
+                        }
                         break;
                     case WOORT_CONST_TYPE_EXTERN_FUNC:
                         if (mv->m_native_function == cv->m_native_function)
-                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        {
+                            found_idx = (woort_IRConstantIndex)j; found = true;
+                        }
                         break;
                     case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
                     case WOORT_CONST_TYPE_EXTERN_CLOSURE:
                         if (mv->m_gcinstance == cv->m_gcinstance)
-                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        {
+                            found_idx = (woort_IRConstantIndex)j; found = true;
+                        }
                         break;
                     case WOORT_CONST_TYPE_BOX_INT:
                     case WOORT_CONST_TYPE_BOX_REAL:
                     case WOORT_CONST_TYPE_BOX_BOOL:
                         if (mv->m_dynamic.m_boxed == cv->m_dynamic.m_boxed)
-                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        {
+                            found_idx = (woort_IRConstantIndex)j; found = true;
+                        }
                         break;
                     case WOORT_CONST_TYPE_STRUCT:
                         if (mv->m_gcinstance == cv->m_gcinstance)
-                        { found_idx = (woort_IRConstantIndex)j; found = true; }
+                        {
+                            found_idx = (woort_IRConstantIndex)j; found = true;
+                        }
                         break;
                     default:
                         break;
@@ -1771,10 +1813,10 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     /* 创建 CodeEnv (内部会复制字节码，故临时缓冲区可随后释放) */
     woort_CodeEnv* cenv = NULL;
     if (!woort_CodeEnv_create(
-            codes_from_bin,
-            (size_t)code_size,
-            (size_t)data_count,
-            &cenv)
+        codes_from_bin,
+        (size_t)code_size,
+        (size_t)data_count,
+        &cenv)
         || cenv == NULL)
     {
         free(codes_from_bin);
@@ -1827,7 +1869,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
         /* 剩余大小 = 文件总大小 - 已读部分 */
         {
             size_t read_so_far = sizeof(header_buf) + code_bytes
-                               + sizeof(strpool_size) + (size_t)strpool_size;
+                + sizeof(strpool_size) + (size_t)strpool_size;
             r.m_size = (total_size > read_so_far) ? total_size - read_so_far : 0;
         }
 
@@ -2195,7 +2237,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 fb.m_name = name;
 
                 if (!woort_vector_push_back(
-                        &cenv->m_function_boundaries, 1, &fb))
+                    &cenv->m_function_boundaries, 1, &fb))
                 {
                     result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
                     goto _restore_fail_after_create;

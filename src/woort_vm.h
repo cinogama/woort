@@ -123,6 +123,8 @@ typedef enum woort_VMRuntime_CheckRequestMask
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE = 1 << 7,
 
+    WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK = 1 << 8,
+
 }woort_VMRuntime_CheckRequestMask;
 
 struct woort_VMRuntime
@@ -175,6 +177,9 @@ struct woort_VMRuntime
     woort_Mutex*                m_hangup_mx;
     woort_ConditionVariable*    m_hangup_cv;
 
+    uint8_t                 m_shrink_stack_count;
+    uint8_t                 m_shrink_stack_edge;
+
 };
 
 /////////////////////////////////////////////////////////
@@ -201,6 +206,10 @@ void woort_VMRuntime_hangup(woort_VMRuntime* vm);
 void woort_VMRuntime_wakeup(woort_VMRuntime* vm);
 
 WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm);
+
+WOORT_NODISCARD bool woort_VMRuntime_advise_shrink_stack(woort_VMRuntime* vm);
+
+void woort_VMRuntime_reset_shrink_stack_count(woort_VMRuntime* vm);
 
 WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
     woort_VMRuntime* vm);

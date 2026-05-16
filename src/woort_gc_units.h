@@ -70,9 +70,14 @@ inline static void* woort_GCUnit_realloc(void* ptr, size_t sz)
 }
 
 // Before using this macro, you must include "woomem.h".
-// TODO: 暂时先假定 woort_GCUnit_alloc_attrib 绝不失败，我们会在之后处理这种情况
-#define woort_GCUnit_alloc_attrib(ATTRIB, SIZE) \
-    _woort_GCUnit_alloc_attrib(                        \
-        (SIZE),                                 \
-        WOOMEM_GC_UNIT_TYPE_NEED_SWEEP          \
+#define woort_GCUnit_alloc_attrib(ATTRIB, SIZE)             \
+    _woort_GCUnit_alloc_attrib(                             \
+        (SIZE),                                             \
+        WOOMEM_GC_UNIT_TYPE_NEED_SWEEP                      \
+        | (WOORT_GCUNIT_ALLOC_ATTRIB_##ATTRIB))
+
+#define woort_GCUnit_alloc_attrib_may_fail(ATTRIB, SIZE)    \
+    woomem_alloc_attrib(                                    \
+        (SIZE),                                             \
+        WOOMEM_GC_UNIT_TYPE_NEED_SWEEP                      \
         | (WOORT_GCUNIT_ALLOC_ATTRIB_##ATTRIB))

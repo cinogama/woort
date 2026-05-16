@@ -145,6 +145,72 @@ woort_DynBox woort_DynBox_box_bool(bool val)
     return result;
 }
 
+woort_DynBox woort_DynBox_box_real_for_env_constant(woort_CodeEnv* cenv, woort_Real val)
+{
+    woort_DynBox result;
+    if (!_woort_try_box_float63(val, &result.m_boxed))
+    {
+        woort_BoxedExValue* ex_box;
+
+        do
+        {
+            ex_box = woort_GCUnit_alloc_attrib_may_fail(
+                O, sizeof(woort_BoxedExValue));
+
+            if (ex_box != NULL)
+                break;
+
+            woort_CodeEnv_unlock(cenv);
+            {
+                _woort_GCUnit_alloc_failed();
+            }
+            woort_CodeEnv_lock(cenv);
+
+        } while (true);
+
+        ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
+
+        ex_box->m_is_int = false;
+        ex_box->m_real = val;
+
+        result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
+    }
+    return result;
+}
+
+woort_DynBox woort_DynBox_box_int_for_env_constant(woort_CodeEnv* cenv, woort_Int val)
+{
+    woort_DynBox result;
+    if (!_woort_try_box_int62(val, &result.m_boxed))
+    {
+        woort_BoxedExValue* ex_box;
+
+        do
+        {
+            ex_box = woort_GCUnit_alloc_attrib_may_fail(
+                O, sizeof(woort_BoxedExValue));
+
+            if (ex_box != NULL)
+                break;
+
+            woort_CodeEnv_unlock(cenv);
+            {
+                _woort_GCUnit_alloc_failed();
+            }
+            woort_CodeEnv_lock(cenv);
+
+        } while (true);
+
+        ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
+
+        ex_box->m_is_int = true;
+        ex_box->m_int = val;
+
+        result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
+    }
+    return result;
+}
+
 woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
 {
     switch (type)

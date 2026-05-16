@@ -35,5 +35,12 @@ WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_script_func(
 WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_native_func(
     woort_NativeFunction func);
 
+WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_script_func_for_env_constant(
+    woort_CodeEnv* cenv,
+    const woort_Bytecode* func);
+WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_native_func_for_env_constant(
+    woort_CodeEnv* cenv,
+    woort_NativeFunction func);
+
 WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new(
     const woort_GCClosure* func, size_t captured_count);

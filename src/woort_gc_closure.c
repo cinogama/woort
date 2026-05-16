@@ -24,6 +24,32 @@ WOORT_NODISCARD woort_GCClosure* _woort_GCClosure_new(size_t captured_count)
 
     return gcclosure;
 }
+WOORT_NODISCARD woort_GCClosure* _woort_GCClosure_new_for_env_constant(
+    woort_CodeEnv* cenv)
+{
+    woort_GCClosure* gcclosure;
+    do
+    {
+        gcclosure = woort_GCUnit_alloc_attrib_may_fail(
+            O, sizeof(woort_GCClosure));
+
+        if (gcclosure != NULL)
+            break;
+
+        woort_CodeEnv_unlock(cenv);
+        {
+            _woort_GCUnit_alloc_failed();
+        }
+        woort_CodeEnv_lock(cenv);
+
+    } while (true);
+
+    gcclosure->m_gc_unit.m_proxy = &WOORT_GCCLOSURE_UNIT_PROXY;
+
+    gcclosure->m_size = 0;
+
+    return gcclosure;
+}
 
 WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_script_func(
     const woort_Bytecode* func)
@@ -39,6 +65,32 @@ WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_native_func(
     woort_NativeFunction func)
 {
     woort_GCClosure* const gcclosure = _woort_GCClosure_new(0);
+
+    gcclosure->m_script_function = NULL;
+    gcclosure->m_native_function = func;
+
+    return gcclosure;
+}
+
+WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_script_func_for_env_constant(
+    woort_CodeEnv* cenv,
+    const woort_Bytecode* func)
+{
+    woort_GCClosure* const gcclosure = 
+        _woort_GCClosure_new_for_env_constant(cenv);
+
+    gcclosure->m_script_function = func;
+    gcclosure->m_jit_function = NULL;
+
+    return gcclosure;
+}
+
+WOORT_NODISCARD woort_GCClosure* woort_GCClosure_new_native_func_for_env_constant(
+    woort_CodeEnv* cenv,
+    woort_NativeFunction func)
+{
+    woort_GCClosure* const gcclosure = 
+        _woort_GCClosure_new_for_env_constant(cenv);
 
     gcclosure->m_script_function = NULL;
     gcclosure->m_native_function = func;

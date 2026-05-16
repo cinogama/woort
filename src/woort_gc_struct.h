@@ -22,4 +22,8 @@ struct woort_GCStruct
 
 extern const woort_GCUnitProxy WOORT_GCSTRUCT_UNIT_PROXY;
 
+struct woort_CodeEnv;
+
 woort_GCStruct* woort_GCStruct_new(size_t struct_size);
+WOORT_NODISCARD woort_GCStruct* woort_GCStruct_new_for_env_constant(
+    woort_CodeEnv* cenv, size_t struct_size);
