@@ -77,11 +77,11 @@ static void _woort_dylib_os_freelib(void* handle)
  * Helpers
  * ================================================================ */
 
-#ifdef _NDEBUG
+#ifdef NDEBUG
 #   ifdef WOORT_PLATFORM_32
-#       define WOORT_DYLIB_SUFFIX ""
-#   else
 #       define WOORT_DYLIB_SUFFIX "32"
+#   else
+#       define WOORT_DYLIB_SUFFIX ""
 #   endif
 #else
 #   ifdef WOORT_PLATFORM_32

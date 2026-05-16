@@ -30,13 +30,13 @@
 #include <assert.h>
 #include <limits.h>
 
-/* ========================================================================
- * 私有类型
- * ======================================================================== */
+ /* ========================================================================
+  * 私有类型
+  * ======================================================================== */
 
-/*
- * 常量加载放置信息（与 woort_ir_function.c 中的定义一致）
- */
+  /*
+   * 常量加载放置信息（与 woort_ir_function.c 中的定义一致）
+   */
 typedef struct _woort_ConstLoadInfo
 {
     woort_IRConstantIndex m_const_index;
@@ -77,14 +77,14 @@ typedef struct _woort_InsertionEvent
 #define WOORT_UINT24_MAX_VAL  ((1u << 24) - 1)
 #define WOORT_UINT26_MAX_VAL  ((1u << 26) - 1)
 
-/* ========================================================================
- * 辅助函数：栈偏移转换
- * ======================================================================== */
+ /* ========================================================================
+  * 辅助函数：栈偏移转换
+  * ======================================================================== */
 
-/*
- * 将虚拟寄存器的栈偏移转为实际偏移。
- * 对于 <= -126 的偏移，额外偏移 3 以避开临时槽 -126/-127/-128。
- */
+  /*
+   * 将虚拟寄存器的栈偏移转为实际偏移。
+   * 对于 <= -126 的偏移，额外偏移 3 以避开临时槽 -126/-127/-128。
+   */
 static int32_t _get_fact_offset(int32_t place)
 {
     if (place <= -126)
@@ -111,11 +111,11 @@ static bool _emit_bc_ex32(woort_IRBlock* blk, woort_Bytecode bc, uint32_t ex32)
  * 辅助函数：操作数加载到 S8 临时槽
  * ======================================================================== */
 
-/*
- * 将 vreg 的值加载到 S8 可寻址的位置。
- * 如果 vreg 的实际偏移在 S8 范围内，直接返回该偏移。
- * 否则，发射 MOV 到临时槽（temp_slot），返回临时槽偏移。
- */
+ /*
+  * 将 vreg 的值加载到 S8 可寻址的位置。
+  * 如果 vreg 的实际偏移在 S8 范围内，直接返回该偏移。
+  * 否则，发射 MOV 到临时槽（temp_slot），返回临时槽偏移。
+  */
 static bool _load_to_s8(
     woort_IRBlock* blk,
     const woort_IRValue* v,
@@ -327,8 +327,8 @@ static bool _emit_static_store(
  * LD 变体: a8=dst(S8), bc16=src(S16)
  * ======================================================================== */
 
-typedef woort_Bytecode (*_CastSTFunc)(int8_t a8, int16_t bc16);
-typedef woort_Bytecode (*_CastLDFunc)(int8_t a8, int16_t bc16);
+typedef woort_Bytecode(*_CastSTFunc)(int8_t a8, int16_t bc16);
+typedef woort_Bytecode(*_CastLDFunc)(int8_t a8, int16_t bc16);
 
 /*
  * 使用宏包装 opcode builder 宏为普通函数指针是不可行的（宏不是函数），
@@ -387,12 +387,12 @@ typedef woort_Bytecode (*_CastLDFunc)(int8_t a8, int16_t bc16);
         } \
     } while(0)
 
-/* ========================================================================
- * 辅助函数：二元运算发射
- *
- * 可交换运算(ADDI/MULI/ADDR/MULR/LAND/LOR): dst==src0 或 dst==src1 均可使用复合形式
- * 不可交换运算(SUBI/DIVI/MODI/SUBR/DIVR/MODR): 仅 dst==src0 时可使用复合形式
- * ======================================================================== */
+ /* ========================================================================
+  * 辅助函数：二元运算发射
+  *
+  * 可交换运算(ADDI/MULI/ADDR/MULR/LAND/LOR): dst==src0 或 dst==src1 均可使用复合形式
+  * 不可交换运算(SUBI/DIVI/MODI/SUBR/DIVR/MODR): 仅 dst==src0 时可使用复合形式
+  * ======================================================================== */
 
 #define _EMIT_BINOP_COMMUTATIVE(blk, op, c, OP_MACRO, COP_MACRO) \
     do { \
@@ -451,7 +451,7 @@ typedef woort_Bytecode (*_CastLDFunc)(int8_t a8, int16_t bc16);
         return _apply_store(blk, op->m_dst, w); \
     } while(0)
 
-/* 纯三地址二元比较运算（无复合形式） */
+  /* 纯三地址二元比较运算（无复合形式） */
 #define _EMIT_BINOP_CMP(blk, op, c, OP_MACRO) \
     do { \
         (void)(c); \
@@ -490,12 +490,12 @@ typedef woort_Bytecode (*_CastLDFunc)(int8_t a8, int16_t bc16);
         if (!_load_to_s8(blk, op->m_src[1], -127, &r2)) \
             return false; \
         const int8_t w = _get_store_s8(op->m_dst, -126); \
-        if (!_emit_bc(blk, OP_MACRO(r2, r1, w))) \
+        if (!_emit_bc(blk, OP_MACRO(r1, r2, w))) \
             return false; \
         return _apply_store(blk, op->m_dst, w); \
     } while(0)
 
-/* 索引存储专用：VM 约定 A=container B=val C=idx，需交换 r2/r3 */
+/* 索引存储专用：VM 约定 A=container B=idx C=val */
 #define _EMIT_STORE_IDX_3SRC_VM(blk, op, c, OP_MACRO) \
     do { \
         (void)(c); \
@@ -506,7 +506,7 @@ typedef woort_Bytecode (*_CastLDFunc)(int8_t a8, int16_t bc16);
             return false; \
         if (!_load_to_s8(blk, op->m_src[2], -126, &r3)) \
             return false; \
-        return _emit_bc(blk, OP_MACRO(r1, r3, r2)); \
+        return _emit_bc(blk, OP_MACRO(r1, r2, r3)); \
     } while(0)
 
 /* ========================================================================
@@ -546,12 +546,12 @@ static bool _emit_op(
 {
     switch (op->m_op)
     {
-    /* ============ LABEL & EMPTY: 跳过 ============ */
+        /* ============ LABEL & EMPTY: 跳过 ============ */
     case WOORT_IROP_KIND_LABEL:
     case WOORT_IROP_KIND_EMPTY:
         return true;
 
-    /* ============ NOP ============ */
+        /* ============ NOP ============ */
     case WOORT_IROP_KIND_NOP:
     {
         (void)c;
@@ -691,7 +691,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_RTOS:
         _EMIT_CAST_BODY(blk, op, c, woort_OpCode_RTOSST, woort_OpCode_RTOSLD);
 
-    /* ============ 函数调用 ============ */
+        /* ============ 函数调用 ============ */
     case WOORT_IROP_KIND_CALLNWO:
     {
         (void)c;
@@ -720,7 +720,7 @@ static bool _emit_op(
         goto _handle_call_result;
     }
 
-    _handle_call_result:
+_handle_call_result:
     {
         if (op->m_dst != NULL)
         {
@@ -1055,7 +1055,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_NEI:
         _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_NEI);
 
-    /* ============ 实数算术 ============ */
+        /* ============ 实数算术 ============ */
     case WOORT_IROP_KIND_ADDR:
         _EMIT_BINOP_COMMUTATIVE(blk, op, c, woort_OpCode_ADDR, woort_OpCode_CADDR);
 
@@ -1097,7 +1097,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_NER:
         _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_NER);
 
-    /* ============ 字符串 ============ */
+        /* ============ 字符串 ============ */
     case WOORT_IROP_KIND_ADDS:
     {
         /*
@@ -1150,7 +1150,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_NES:
         _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_NES);
 
-    /* ============ 逻辑运算 ============ */
+        /* ============ 逻辑运算 ============ */
     case WOORT_IROP_KIND_LAND:
         _EMIT_BINOP_COMMUTATIVE(blk, op, c, woort_OpCode_LAND, woort_OpCode_CLAND);
 
@@ -1216,7 +1216,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_LDIDXDICTXX:
         _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXDICTXX);
 
-    /* ============ 索引存储 - vec ============ */
+        /* ============ 索引存储 - vec ============ */
     case WOORT_IROP_KIND_SDIDXVECI:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXVEC_I);
     case WOORT_IROP_KIND_SDIDXVECR:
@@ -1226,7 +1226,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_SDIDXVECX:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXVEC_X);
 
-    /* ============ 索引存储 - dict (int key) ============ */
+        /* ============ 索引存储 - dict (int key) ============ */
     case WOORT_IROP_KIND_SDIDXDICTII:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTII);
     case WOORT_IROP_KIND_SDIDXDICTIR:
@@ -1236,7 +1236,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_SDIDXDICTIX:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTIX);
 
-    /* ============ 索引存储 - dict (real key) ============ */
+        /* ============ 索引存储 - dict (real key) ============ */
     case WOORT_IROP_KIND_SDIDXDICTRI:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTRI);
     case WOORT_IROP_KIND_SDIDXDICTRR:
@@ -1246,7 +1246,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_SDIDXDICTRX:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTRX);
 
-    /* ============ 索引存储 - dict (bool key) ============ */
+        /* ============ 索引存储 - dict (bool key) ============ */
     case WOORT_IROP_KIND_SDIDXDICTBI:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTBI);
     case WOORT_IROP_KIND_SDIDXDICTBR:
@@ -1256,7 +1256,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_SDIDXDICTBX:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTBX);
 
-    /* ============ 索引存储 - dict (dynamic key) ============ */
+        /* ============ 索引存储 - dict (dynamic key) ============ */
     case WOORT_IROP_KIND_SDIDXDICTXI:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTXI);
     case WOORT_IROP_KIND_SDIDXDICTXR:
@@ -1266,7 +1266,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_SDIDXDICTXX:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTXX);
 
-    /* ============ 索引存储 - map (int key) ============ */
+        /* ============ 索引存储 - map (int key) ============ */
     case WOORT_IROP_KIND_SDIDXMAPII:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPII);
     case WOORT_IROP_KIND_SDIDXMAPIR:
@@ -1276,7 +1276,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_SDIDXMAPIX:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPIX);
 
-    /* ============ 索引存储 - map (real key) ============ */
+        /* ============ 索引存储 - map (real key) ============ */
     case WOORT_IROP_KIND_SDIDXMAPRI:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPRI);
     case WOORT_IROP_KIND_SDIDXMAPRR:
@@ -1286,7 +1286,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_SDIDXMAPRX:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPRX);
 
-    /* ============ 索引存储 - map (bool key) ============ */
+        /* ============ 索引存储 - map (bool key) ============ */
     case WOORT_IROP_KIND_SDIDXMAPBI:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPBI);
     case WOORT_IROP_KIND_SDIDXMAPBR:
@@ -1296,7 +1296,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_SDIDXMAPBX:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPBX);
 
-    /* ============ 索引存储 - map (dynamic key) ============ */
+        /* ============ 索引存储 - map (dynamic key) ============ */
     case WOORT_IROP_KIND_SDIDXMAPXI:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPXI);
     case WOORT_IROP_KIND_SDIDXMAPXR:
@@ -1306,7 +1306,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_SDIDXMAPXX:
         _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPXX);
 
-    /* ============ 索引存储 - struct ============ */
+        /* ============ 索引存储 - struct ============ */
     case WOORT_IROP_KIND_SDIDXSTRUCT:
     {
         /* STIDSTRUCT MA10=idx, B8=struct, C8=val: struct.field_M10 = [SB+C8] */
@@ -1834,7 +1834,7 @@ static bool _patch_jumps(
                 *bc_ptr = woort_OpCode_JIFINITED(target_addr);
             }
             else if (patch->m_kind == WOORT_IROP_KIND_JCC ||
-                     patch->m_kind == WOORT_IROP_KIND_JCCZ)
+                patch->m_kind == WOORT_IROP_KIND_JCCZ)
             {
                 /* 条件跳转 NZ/Z: 相对偏移 U16 */
                 bool is_forward = (target_addr >= source_addr);
@@ -2055,14 +2055,14 @@ static bool _patch_jumps(
  * Source Map 偏移修正
  * ======================================================================== */
 
-/*
- * _emit_function 在发射字节码时记录了 source_map_entries，
- * 但 _patch_jumps 可能插入额外字节码（跳转溢出展开），
- * 导致已记录的偏移量发生偏差。此函数根据插入事件修正偏移。
- *
- * 同时将 PUSHRCHK 的 1 槽偏移计入（若有），使条目偏移
- * 相对于函数起始位置（f->m_code_offset）而非第一个 block。
- */
+ /*
+  * _emit_function 在发射字节码时记录了 source_map_entries，
+  * 但 _patch_jumps 可能插入额外字节码（跳转溢出展开），
+  * 导致已记录的偏移量发生偏差。此函数根据插入事件修正偏移。
+  *
+  * 同时将 PUSHRCHK 的 1 槽偏移计入（若有），使条目偏移
+  * 相对于函数起始位置（f->m_code_offset）而非第一个 block。
+  */
 static void _fixup_source_map_offsets(
     woort_IRFunction* f,
     woort_Vector* source_map_entries,
@@ -2240,7 +2240,9 @@ static bool _compile_function(
     if (stack_space > 0)
     {
         assert(stack_space <= WOORT_UINT24_MAX_VAL);
-        woort_Bytecode bc = woort_OpCode_PUSHRCHK((uint32_t)stack_space);
+
+        woort_Bytecode bc = woort_OpCode_PUSHRCHK(
+            (uint32_t)(stack_space > 125 ? stack_space + 3 : stack_space));
         if (!woort_vector_push_back(&c->m_commited_codes, 1, &bc))
             return false;
 
@@ -2344,7 +2346,7 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
      * 编译完成后统一转移到 CodeEnv。
      */
 
-    /* 计算函数数量 */
+     /* 计算函数数量 */
     uint32_t func_count = 0;
     for (woort_IRFunction* f = woort_linklist_iter(&c->m_ir_functions);
         f != NULL;

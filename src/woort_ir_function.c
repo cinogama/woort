@@ -951,7 +951,8 @@ static bool _phase3_stack_allocation(
 
     if (vreg_count == 0)
     {
-        *out_stack_space = f->m_captured_count;
+        // NOTE: No need to reserve for captured, them will be expand in call.
+        *out_stack_space = 0 /*f->m_captured_count*/;
         return true;
     }
 
@@ -1219,8 +1220,8 @@ static bool _phase3_stack_allocation(
     /* 将栈槽分配结果写回 vreg */
     for (uint32_t i = 0; i < interval_count; ++i)
     {
-        uint32_t id = intervals[i].m_vreg_id;
-        int32_t slot = intervals[i].m_assigned_slot;
+        const uint32_t id = intervals[i].m_vreg_id;
+        const int32_t slot = intervals[i].m_assigned_slot;
         woort_IRValue* v = vreg_by_id[id];
         assert(v != NULL);
         /* slot 0 → offset 0, slot 1 → offset -1, slot 2 → offset -2, ... */
@@ -1230,7 +1231,8 @@ static bool _phase3_stack_allocation(
     free(intervals);
     free(vreg_by_id);
 
-    *out_stack_space = max_slots + f->m_captured_count;
+    // NOTE: No need to reserve for captured, them will be expand in call.
+    *out_stack_space = max_slots /*+ f->m_captured_count*/;
     return true;
 }
 

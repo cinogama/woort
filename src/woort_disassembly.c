@@ -1002,16 +1002,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("LDIDXVEC    [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXVEC    [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            callback("LDIDXVECX   [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXVECX   [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
             callback("LDIDSTRUCT  [SB %+d].%u -> [SB %+d]\n", b, (uint8_t)a, dst);
             return c + 1;
         case 3:
-            callback("LDIDSTRING  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDSTRING  [[SB %+d].[SB %+d]] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -1025,16 +1025,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("LDIDXDICTI  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTI  [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            callback("LDIDXDICTR  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTR  [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            callback("LDIDXDICTB  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTB  [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 3:
-            callback("LDIDXDICTX  [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTX  [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -1048,16 +1048,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("LDIDXDICTIX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTIX [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 1:
-            callback("LDIDXDICTRX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTRX [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 2:
-            callback("LDIDXDICTBX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTBX [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         case 3:
-            callback("LDIDXDICTXX [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTXX [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 1;
         }
         break;
@@ -1071,16 +1071,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("LDIDXVECEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXVECEXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 1:
-            callback("LDIDXVECXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXVECXEXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 2:
             callback("LDIDSTRUCTEXT [SB %+d].%u -> [SB %+d]\n", b, (uint32_t)a, dst);
             return c + 2;
         case 3:
-            callback("LDIDSTRINGEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDSTRINGEXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         }
         break;
@@ -1094,16 +1094,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("LDIDXDICTIEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTIEXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 1:
-            callback("LDIDXDICTREXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTREXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 2:
-            callback("LDIDXDICTBEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTBEXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 3:
-            callback("LDIDXDICTXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTXEXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         }
         break;
@@ -1117,16 +1117,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("LDIDXDICTIXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTIXEXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 1:
-            callback("LDIDXDICTRXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTRXEXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 2:
-            callback("LDIDXDICTBXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTBXEXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         case 3:
-            callback("LDIDXDICTXXEXT [[SB %+d] + [SB %+d]] -> [SB %+d]\n", a, b, dst);
+            callback("LDIDXDICTXXEXT [SB %+d].[SB %+d] -> [SB %+d]\n", a, b, dst);
             return c + 2;
         }
         break;
@@ -1140,16 +1140,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("STIDXVECI   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXVECI   [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            callback("STIDXVECR   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXVECR   [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            callback("STIDXVECB   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXVECB   [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            callback("STIDXVECX   [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXVECX   [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1163,16 +1163,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("STIDXDICTII [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTII [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            callback("STIDXDICTIR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTIR [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            callback("STIDXDICTIB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTIB [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            callback("STIDXDICTIX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTIX [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1186,16 +1186,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("STIDXDICTRI [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTRI [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            callback("STIDXDICTRR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTRR [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            callback("STIDXDICTRB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTRB [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            callback("STIDXDICTRX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTRX [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1209,16 +1209,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("STIDXDICTBI [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTBI [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            callback("STIDXDICTBR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTBR [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            callback("STIDXDICTBB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTBB [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            callback("STIDXDICTBX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTBX [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1232,16 +1232,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("STIDXDICTXI [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTXI [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            callback("STIDXDICTXR [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTXR [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            callback("STIDXDICTXB [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTXB [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            callback("STIDXDICTXX [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXDICTXX [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1255,16 +1255,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("STIDXMAPII  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPII  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            callback("STIDXMAPIR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPIR  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            callback("STIDXMAPIB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPIB  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            callback("STIDXMAPIX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPIX  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1278,16 +1278,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("STIDXMAPRI  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPRI  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            callback("STIDXMAPRR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPRR  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            callback("STIDXMAPRB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPRB  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            callback("STIDXMAPRX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPRX  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1301,16 +1301,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("STIDXMAPBI  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPBI  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            callback("STIDXMAPBR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPBR  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            callback("STIDXMAPBB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPBB  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            callback("STIDXMAPBX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPBX  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1324,16 +1324,16 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("STIDXMAPXI  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPXI  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 1:
-            callback("STIDXMAPXR  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPXR  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 2:
-            callback("STIDXMAPXB  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPXB  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         case 3:
-            callback("STIDXMAPXX  [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, c8);
+            callback("STIDXMAPXX  [SB %+d].[SB %+d] = [SB %+d]\n", a, b, c8);
             return c + 1;
         }
         break;
@@ -1356,13 +1356,13 @@ label_reentry_for_debug_trap:;
         switch (m2)
         {
         case 0:
-            callback("STIDXVECEXT [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, dst);
+            callback("STIDXVECEXT [SB %+d].[SB %+d] = [SB %+d]\n", a, b, dst);
             return c + 2;
         case 1:
-            callback("STIDXDICTEXT [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, dst);
+            callback("STIDXDICTEXT [SB %+d].[SB %+d] = [SB %+d]\n", a, b, dst);
             return c + 2;
         case 2:
-            callback("STIDXMAPEXT [[SB %+d] + [SB %+d]] = [SB %+d]\n", a, b, dst);
+            callback("STIDXMAPEXT [SB %+d].[SB %+d] = [SB %+d]\n", a, b, dst);
             return c + 2;
         case 3:
             callback("STIDSTRUCTEXT [SB %+d].%u = [SB %+d]\n", b, (uint32_t)a, dst);

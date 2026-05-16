@@ -511,10 +511,10 @@
 
 /*
  * LDIDX - 索引加载
- * LDIDXVEC    (mode=0): [SB + b8][[SB + a8]] -> [SB + c8], idx in [SB + a8], vec in [SB + b8]
- * LDIDXVECX   (mode=1): [SB + b8][[SB + a8]] -> [SB + c8] (dynamic), idx in [SB + a8], vec in [SB + b8]
+ * LDIDXVEC    (mode=0): [SB + a8][[SB + b8]] -> [SB + c8], vec in [SB + a8], idx in [SB + b8]
+ * LDIDXVECX   (mode=1): [SB + a8][[SB + b8]] -> [SB + c8] (dynamic), vec in [SB + a8], idx in [SB + b8]
  * LDIDSTRUCT  (mode=2): [SB + b8].field_n8 -> [SB + c8], struct in [SB + b8]
- * LDIDSTRING  (mode=3): [SB + b8][[SB + a8]] -> [SB + c8], idx in [SB + a8], str in [SB + b8]
+ * LDIDSTRING  (mode=3): [SB + a8][[SB + b8]] -> [SB + c8], str in [SB + a8], idx in [SB + b8]
  */
 #define woort_OpCode_LDIDXVEC(a8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDX, 0, a8, b8, c8)
@@ -527,10 +527,10 @@
 
 /*
  * LDIDXDICT - 字典索引加载（按键类型）
- * LDIDXDICTI (mode=0): [SB + b8][[SB + a8]] -> [SB + c8], int key in [SB + a8], dict in [SB + b8]
- * LDIDXDICTR (mode=1): [SB + b8][[SB + a8]] -> [SB + c8], real key in [SB + a8], dict in [SB + b8]
- * LDIDXDICTB (mode=2): [SB + b8][[SB + a8]] -> [SB + c8], bool key in [SB + a8], dict in [SB + b8]
- * LDIDXDICTX (mode=3): [SB + b8][[SB + a8]] -> [SB + c8], dynamic key in [SB + a8], dict in [SB + b8]
+ * LDIDXDICTI (mode=0): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], int key in [SB + b8]
+ * LDIDXDICTR (mode=1): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], real key in [SB + b8]
+ * LDIDXDICTB (mode=2): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], bool key in [SB + b8]
+ * LDIDXDICTX (mode=3): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], dynamic key in [SB + b8]
  */
 #define woort_OpCode_LDIDXDICTI(a8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICT, 0, a8, b8, c8)
@@ -543,10 +543,10 @@
 
 /*
  * STIDXVEC - 向量索引存储
- * STIDXVECI (mode=0): vec in [SB + a8], val in [SB + b8], idx in [SB + c8]; vec[[SB + c8]] = (int)[SB + b8]
- * STIDXVECR (mode=1): vec in [SB + a8], val in [SB + b8], idx in [SB + c8]; vec[[SB + c8]] = (real)[SB + b8]
- * STIDXVECB (mode=2): vec in [SB + a8], val in [SB + b8], idx in [SB + c8]; vec[[SB + c8]] = (bool)[SB + b8]
- * STIDXVECX (mode=3): vec in [SB + a8], val in [SB + b8], idx in [SB + c8]; vec[[SB + c8]] = (dyn)[SB + b8]
+ * STIDXVECI (mode=0): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (int)[SB + c8]
+ * STIDXVECR (mode=1): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (real)[SB + c8]
+ * STIDXVECB (mode=2): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (bool)[SB + c8]
+ * STIDXVECX (mode=3): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (dyn)[SB + c8]
  */
 #define woort_OpCode_STIDXVEC_I(a8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXVEC, 0, a8, b8, c8)
@@ -559,7 +559,7 @@
 
 /*
  * STIDXDICTI - 字典存储（int键）
- * STIDXDICTII/IR/IB/IX: map in [SB + a8], val in [SB + b8], key in [SB + c8]; map[C8] = B8
+ * STIDXDICTII/IR/IB/IX: map in [SB + a8], key in [SB + b8], val in [SB + c8]; map[B8] = C8
  */
 #define woort_OpCode_STIDXDICTII(a8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTI, 0, a8, b8, c8)
@@ -572,7 +572,7 @@
 
 /*
  * STIDXDICTR - 字典存储（real键）
- * 同 STIDXDICTI，但 key 在 C8 为 real 类型
+ * 同 STIDXDICTI，但 key 在 B8 为 real 类型
  */
 #define woort_OpCode_STIDXDICTRI(a8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTR, 0, a8, b8, c8)
@@ -585,7 +585,7 @@
 
 /*
  * STIDXDICTB - 字典存储（bool键）
- * 同 STIDXDICTI，但 key 在 C8 为 bool 类型
+ * 同 STIDXDICTI，但 key 在 B8 为 bool 类型
  */
 #define woort_OpCode_STIDXDICTBI(a8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTB, 0, a8, b8, c8)
@@ -598,7 +598,7 @@
 
 /*
  * STIDXDICTX - 字典存储（dynamic键）
- * 同 STIDXDICTI，但 key 在 C8 为 dynamic 类型
+ * 同 STIDXDICTI，但 key 在 B8 为 dynamic 类型
  */
 #define woort_OpCode_STIDXDICTXI(a8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTX, 0, a8, b8, c8)
@@ -618,10 +618,10 @@
 
 /*
  * LDIDXDICTX - 字典索引加载（带动态值类型，按键类型）
- * LDIDXDICTIX (mode=0): [SB + b8][[SB + a8]] -> [SB + c8] (dyn), int key in [SB + a8], dict in [SB + b8]
- * LDIDXDICTRX (mode=1): [SB + b8][[SB + a8]] -> [SB + c8] (dyn), real key in [SB + a8], dict in [SB + b8]
- * LDIDXDICTBX (mode=2): [SB + b8][[SB + a8]] -> [SB + c8] (dyn), bool key in [SB + a8], dict in [SB + b8]
- * LDIDXDICTXX (mode=3): [SB + b8][[SB + a8]] -> [SB + c8] (dyn), dynamic key in [SB + a8], dict in [SB + b8]
+ * LDIDXDICTIX (mode=0): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], int key in [SB + b8]
+ * LDIDXDICTRX (mode=1): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], real key in [SB + b8]
+ * LDIDXDICTBX (mode=2): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], bool key in [SB + b8]
+ * LDIDXDICTXX (mode=3): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], dynamic key in [SB + b8]
  */
 #define woort_OpCode_LDIDXDICTIX(a8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICTX, 0, a8, b8, c8)
@@ -675,7 +675,7 @@
 
 /*
  * STIDXMAPI - Map存储（int键）
- * STIDXMAPII/IR/IB/IX: map in [SB + a8], val in [SB + b8], key in [SB + c8]; map[C8] = B8 (create if missing)
+ * STIDXMAPII/IR/IB/IX: map in [SB + a8], key in [SB + b8], val in [SB + c8]; map[B8] = C8 (create if missing)
  */
 #define woort_OpCode_STIDXMAPII(a8, b8, c8) \
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPI, 0, a8, b8, c8)
