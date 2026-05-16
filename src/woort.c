@@ -314,7 +314,7 @@ void woort_CodeEnv_set_const_struct(
 
     for (size_t i = 0; i < member_count; ++i) {
         assert((size_t)members[i] < code_env->m_data_count);
-        woort_GC_mixed_write_barrier_value(
+        woort_GC_init_write_barrier_value(
             &s->m_datas[i], code_env->m_data_begin[members[i]]);
     }
 
@@ -580,7 +580,7 @@ void woort_set_union_value(
     // of assignment.
     woort_GCStruct* const s = woort_GCStruct_new(2);
     s->m_datas[0].m_integer = id;
-    woort_GC_mixed_write_barrier_value(&s->m_datas[1], _WOORT_API_STACK(val));
+    woort_GC_init_write_barrier_value(&s->m_datas[1], _WOORT_API_STACK(val));
 
     _WOORT_API_STACK(dst).m_struct = s;
 }

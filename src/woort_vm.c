@@ -1492,7 +1492,7 @@ _label_continue_execution:
             woort_GCVec_resize(gcvec, size);
 
             for (size_t i = 1; i <= size; ++i)
-                woort_GC_mixed_write_barrier_dynbox(
+                woort_GC_init_write_barrier_dynbox(
                     &gcvec->m_datas[size - i], rt_sp[i].m_dynamic);
 
             rt_sp += size;
@@ -1528,7 +1528,7 @@ _label_continue_execution:
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
 
             for (size_t i = 1; i <= size; ++i)
-                woort_GC_mixed_write_barrier_value(
+                woort_GC_init_write_barrier_value(
                     &gcstruct->m_datas[size - i], rt_sp[i]);
 
             rt_sp += size;
@@ -1543,7 +1543,7 @@ _label_continue_execution:
             rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_struct = gcstruct;
 
             gcstruct->m_datas[0].m_integer = idx;
-            woort_GC_mixed_write_barrier_value(
+            woort_GC_init_write_barrier_value(
                 &gcstruct->m_datas[1], rt_sb[(int8_t)WOORT_BYTECODE(B8, c)]);
 
             break;
@@ -1559,7 +1559,7 @@ _label_continue_execution:
             woort_GCVec_resize(gcvec, size);
 
             for (size_t i = 1; i <= size; ++i)
-                woort_GC_mixed_write_barrier_dynbox(
+                woort_GC_init_write_barrier_dynbox(
                     &gcvec->m_datas[size - i], rt_sp[i].m_dynamic);
 
             rt_sp += size;
@@ -1596,7 +1596,7 @@ _label_continue_execution:
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
 
             for (size_t i = 1; i <= size; ++i)
-                woort_GC_mixed_write_barrier_value(
+                woort_GC_init_write_barrier_value(
                     &gcstruct->m_datas[size - i], rt_sp[i]);
 
             rt_sp += size;
@@ -1612,7 +1612,7 @@ _label_continue_execution:
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
 
             gcstruct->m_datas[0].m_integer = idx;
-            woort_GC_mixed_write_barrier_value(
+            woort_GC_init_write_barrier_value(
                 &gcstruct->m_datas[1], rt_sb[(int8_t)WOORT_BYTECODE(A8, c)]);
 
             rt_ip += 2;
@@ -3738,7 +3738,7 @@ _label_continue_execution:
             const woort_GCString* const msg =
                 rt_env_data[WOORT_BYTECODE(ABC24, c)].m_string;
             WOORT_VM_SYNC_STATE_AND_PANIC(
-                WOORT_PANIC_INTEGER_DIV_FAIL, "%s", msg->m_content);
+                WOORT_PANIC_ABORTED, "%s", msg->m_content);
         }
         // CHKDIVIL
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 0):

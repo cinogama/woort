@@ -254,7 +254,13 @@ static woort_api woort_builtin_sleep(void)
     const woort_Real tm = woort_real(0);
 
     if (tm >= 0.0)
-        woort_thread_sleep_ms((uint32_t)(tm * 1000.0));
+    {
+        woort_VMRuntime* const last_vm = woort_vm_swap(NULL);
+        {
+            woort_thread_sleep_ms((uint32_t)(tm * 1000.0));
+        }
+        (void)woort_vm_swap(last_vm);
+    }
 
     return woort_ret_void();
 }

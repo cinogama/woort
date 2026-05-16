@@ -108,3 +108,47 @@ static inline void woort_GC_delete_barrier_dynbox(
         woomem_mark_unit_head(_woort_boxed_to_gcunit(box.m_boxed));
     }
 }
+
+static inline void woort_GC_init_write_barrier_gcaddr(
+    const void** modified_unit_addr, const void* src_unit)
+{
+    if (g_gc_in_marking)
+    {
+        woomem_try_mark_unit((intptr_t)src_unit);
+    }
+    *modified_unit_addr = src_unit;
+}
+
+static inline void woort_GC_init_write_barrier_gcunit(
+    const void** modified_unit_addr, const void* src_unit)
+{
+    if (g_gc_in_marking)
+    {
+        woomem_mark_unit_head(src_unit);
+    }
+    *modified_unit_addr = src_unit;
+}
+
+static inline void woort_GC_init_write_barrier_value(
+    woort_Value* modified_value, woort_Value src_value)
+{
+    if (g_gc_in_marking)
+    {
+        woomem_try_mark_unit((intptr_t)src_value.m_gcinstance);
+    }
+    *modified_value = src_value;
+}
+
+static inline void woort_GC_init_write_barrier_dynbox(
+    woort_DynBox* modified_box, woort_DynBox src_box)
+{
+    if (g_gc_in_marking)
+    {
+        if (src_box.m_boxed != 0
+            && 0 == (src_box.m_boxed & 0b0111))
+        {
+            woomem_mark_unit_head(_woort_boxed_to_gcunit(src_box.m_boxed));
+        }
+    }
+    *modified_box = src_box;
+}

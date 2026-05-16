@@ -6,6 +6,7 @@
 #include "woomem.h"
 #include "woort_gc_gchandle.h"
 #include "woort_diagnosis.h"
+#include "woort_gc.h"
 
 void _woort_GCStruct_close_impl(woort_GCHandle* gcstruct)
 {
@@ -50,7 +51,7 @@ const woort_GCHandle* woort_GCHandle_new(
     gchandle->m_gc_unit.m_proxy = &WOORT_GCHANDLE_UNIT_PROXY;
 
     if (holding != NULL)
-        gchandle->m_hold_value = *holding;
+        woort_GC_init_write_barrier_value(&gchandle->m_hold_value, *holding);
     else
         gchandle->m_hold_value.m_integer = 0;
 
