@@ -115,7 +115,11 @@ WOORT_NODISCARD bool woort_vpanic(
             do
             {
             label_reenter_to_skip_white_space:
+
+                woort_VMRuntime* const last_vm = woort_VMRuntime_swap(NULL);
                 int c = getchar();
+                (void)woort_VMRuntime_swap(last_vm);
+
                 switch (c)
                 {
                 case EOF:
