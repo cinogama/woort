@@ -44,8 +44,7 @@ const woort_GCHandle* woort_GCHandle_new(
 {
     assert(addr != NULL);
 
-    woort_GCHandle* const gchandle = woort_GCUnit_alloc_attrib(
-        AF,
+    woort_GCHandle* const gchandle = woort_GCUnit_alloc_delay_init(
         sizeof(woort_GCHandle));
 
     gchandle->m_gc_unit.m_proxy = &WOORT_GCHANDLE_UNIT_PROXY;
@@ -61,6 +60,8 @@ const woort_GCHandle* woort_GCHandle_new(
         woort_dylib_keep(dylib);
     gchandle->m_dylib = dylib;
 
+    woort_GCUnit_init_delay_alloc(AF, gchandle);
+
     return gchandle;
 }
 
@@ -72,8 +73,7 @@ const woort_GCHandle* woort_GCHandle_new_with_marker(
 {
     assert(addr != NULL);
 
-    woort_GCHandle* const gcstruct = woort_GCUnit_alloc_attrib(
-        MF,
+    woort_GCHandle* const gcstruct = woort_GCUnit_alloc_delay_init(
         sizeof(woort_GCHandle));
 
     gcstruct->m_gc_unit.m_proxy = &WOORT_GCHANDLE_UNIT_PROXY;
@@ -84,6 +84,8 @@ const woort_GCHandle* woort_GCHandle_new_with_marker(
     if (dylib != NULL)
         woort_dylib_keep(dylib);
     gcstruct->m_dylib = dylib;
+
+    woort_GCUnit_init_delay_alloc(MF, gcstruct);
 
     return gcstruct;
 }

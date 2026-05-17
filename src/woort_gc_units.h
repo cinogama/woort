@@ -68,6 +68,19 @@ inline static void* woort_GCUnit_realloc(void* ptr, size_t sz)
 
     } while (1);
 }
+inline static void* woort_GCUnit_alloc_delay_init(size_t sz)
+{
+    do
+    {
+        void* p = woomem_alloc_delay_init(sz);
+        if (p != NULL)
+            return p;
+
+        // Out of memory.
+        _woort_GCUnit_alloc_failed();
+
+    } while (1);
+}
 
 // Before using this macro, you must include "woomem.h".
 #define woort_GCUnit_alloc_attrib(ATTRIB, SIZE)             \
@@ -79,5 +92,11 @@ inline static void* woort_GCUnit_realloc(void* ptr, size_t sz)
 #define woort_GCUnit_alloc_attrib_may_fail(ATTRIB, SIZE)    \
     woomem_alloc_attrib(                                    \
         (SIZE),                                             \
+        WOOMEM_GC_UNIT_TYPE_NEED_SWEEP                      \
+        | (WOORT_GCUNIT_ALLOC_ATTRIB_##ATTRIB))
+
+#define woort_GCUnit_init_delay_alloc(ATTRIB, PTR)            \
+    woomem_init_delay_alloc_attrib(                         \
+        PTR,                                                  \
         WOOMEM_GC_UNIT_TYPE_NEED_SWEEP                      \
         | (WOORT_GCUNIT_ALLOC_ATTRIB_##ATTRIB))
