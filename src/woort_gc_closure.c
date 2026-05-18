@@ -31,7 +31,7 @@ WOORT_NODISCARD woort_GCClosure* _woort_GCClosure_new_for_env_constant(
     do
     {
         gcclosure = woort_GCUnit_alloc_attrib_may_fail(
-            O, sizeof(woort_GCClosure));
+            A, sizeof(woort_GCClosure));
 
         if (gcclosure != NULL)
             break;

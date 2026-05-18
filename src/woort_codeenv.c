@@ -29,11 +29,14 @@ static struct _woort_CodeEnv_GlobalCtx
     woort_RWSpinlock    m_codeenvs_lock;
     woort_OrderMap*     m_codeenvs;
     woort_GCUnitProxy   m_env_proxy;
+    woort_GCUnitProxy   m_code_proxy;
 
 } *_codeenv_global_ctx = NULL;
 
 typedef struct woort_CodeEnv_Code
 {
+    woort_GCUnit m_gc_unit;
+
     woort_CodeEnv* m_code_env;
     woort_Bytecode m_codes[0];
 
@@ -106,7 +109,12 @@ static bool _codeenv_foreach_callback(
 }
 
 void _woort_CodeEnv_GC_mark_code(woort_GCUnit* unit)
-{}
+{
+    woort_CodeEnv_Code* const code = (woort_CodeEnv_Code*)unit;
+    assert(code->m_gc_unit.m_proxy == &_codeenv_global_ctx->m_code_proxy);
+
+    woomem_mark_unit_head(code->m_code_env);
+}
 
 void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 {
@@ -194,6 +202,10 @@ WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
     _codeenv_global_ctx->m_env_proxy.m_destructor =
         &_woort_CodeEnv_GC_destroy;
 
+    _codeenv_global_ctx->m_code_proxy.m_marker = 
+        &_woort_CodeEnv_GC_mark_code;
+    _codeenv_global_ctx->m_code_proxy.m_destructor = NULL;
+    
     return true;
 }
 void woort_CodeEnv_shutdown(void)
@@ -228,7 +240,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     do
     {
         codes = woort_GCUnit_alloc_attrib_may_fail(
-            A,
+            M,
             sizeof(woort_CodeEnv_Code)
             + bytecodes_count * sizeof(woort_Bytecode));
 
@@ -255,23 +267,25 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
     } while (true);
 
-    assert(code_env_instance != NULL);
+    assert(codes != NULL && code_env_instance != NULL);
 
-    code_env_instance->m_gc_unit.m_proxy =
-        &_codeenv_global_ctx->m_env_proxy;
-
-    code_env_instance->m_hold = true;
-
-    code_env_instance->m_mutex = NULL;
-
-    code_env_instance->m_code_begin = codes->m_codes;
-    code_env_instance->m_code_end =
-        code_env_instance->m_code_begin + bytecodes_count;
+    codes->m_gc_unit.m_proxy =
+        &_codeenv_global_ctx->m_code_proxy;
+    codes->m_code_env = code_env_instance;
 
     memcpy(
         codes->m_codes,
         bytecodes,
         bytecodes_count * sizeof(woort_Bytecode));
+
+    code_env_instance->m_gc_unit.m_proxy =
+        &_codeenv_global_ctx->m_env_proxy;
+    code_env_instance->m_hold = true;
+    code_env_instance->m_mutex = NULL;
+
+    code_env_instance->m_code_begin = codes->m_codes;
+    code_env_instance->m_code_end =
+        code_env_instance->m_code_begin + bytecodes_count;
 
     /* 初始化源码映射为空 */
     code_env_instance->m_source_map.m_entries = NULL;
