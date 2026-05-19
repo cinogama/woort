@@ -20,7 +20,7 @@
   * 二进制格式版本号与魔数。
   */
 #define WOORT_CODEENV_BINARY_MAGIC   0x30314345u  /* "EC10" */
-#define WOORT_CODEENV_BINARY_VERSION 3u
+#define WOORT_CODEENV_BINARY_VERSION 4u
 
   /* ================================================================
    * 序列化期间的字符串池（本地使用）
@@ -314,10 +314,12 @@ static bool _write_extern_const(
     struct _WriteExternConstCtx* ctx =
         (struct _WriteExternConstCtx*)user_data;
     uint32_t name_off;
+    uint32_t name_len = (uint32_t)strlen(*(const char**)key);
     *ctx->m_ok = *ctx->m_ok
         && _bin_strpool_insert(ctx->m_sp, *(const char**)key,
-            strlen(*(const char**)key), &name_off);
+            name_len, &name_off);
     *ctx->m_ok = *ctx->m_ok && _bin_write_u32(ctx->m_w, name_off);
+    *ctx->m_ok = *ctx->m_ok && _bin_write_u32(ctx->m_w, name_len);
     *ctx->m_ok = *ctx->m_ok
         && _bin_write_u32(ctx->m_w, *(woort_IRConstantIndex*)value);
     return *ctx->m_ok;
@@ -533,15 +535,15 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
                 &code_env->m_extern_libs, i);
 
             ok = ok && _bin_strpool_insert(&strpool,
-                lib->m_name, strlen(lib->m_name) + 1, NULL);
+                lib->m_name, strlen(lib->m_name), NULL);
 
             ok = ok && _bin_strpool_insert(&strpool,
-                lib->m_path, strlen(lib->m_path) + 1, NULL);
+                lib->m_path, strlen(lib->m_path), NULL);
 
             if (lib->m_script_path != NULL)
             {
                 ok = ok && _bin_strpool_insert(&strpool,
-                    lib->m_script_path, strlen(lib->m_script_path) + 1, NULL);
+                    lib->m_script_path, strlen(lib->m_script_path), NULL);
             }
         }
     }
@@ -564,26 +566,33 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
         {
             woort_Dylib* lib = *(woort_Dylib**)woort_vector_at(
                 &code_env->m_extern_libs, i);
-            uint32_t name_off;
+            uint32_t name_off, name_len;
+            name_len = (uint32_t)strlen(lib->m_name);
             ok = ok && _bin_strpool_insert(&strpool,
-                lib->m_name, strlen(lib->m_name) + 1, &name_off);
+                lib->m_name, name_len, &name_off);
             ok = ok && _bin_write_u32(&w, name_off);
+            ok = ok && _bin_write_u32(&w, name_len);
 
-            uint32_t path_off;
+            uint32_t path_off, path_len;
+            path_len = (uint32_t)strlen(lib->m_path);
             ok = ok && _bin_strpool_insert(&strpool,
-                lib->m_path, strlen(lib->m_path) + 1, &path_off);
+                lib->m_path, path_len, &path_off);
             ok = ok && _bin_write_u32(&w, path_off);
+            ok = ok && _bin_write_u32(&w, path_len);
 
             if (lib->m_script_path != NULL)
             {
-                uint32_t script_path_off;
+                uint32_t script_path_off, script_path_len;
+                script_path_len = (uint32_t)strlen(lib->m_script_path);
                 ok = ok && _bin_strpool_insert(&strpool,
-                    lib->m_script_path, strlen(lib->m_script_path) + 1, &script_path_off);
+                    lib->m_script_path, script_path_len, &script_path_off);
                 ok = ok && _bin_write_u32(&w, script_path_off);
+                ok = ok && _bin_write_u32(&w, script_path_len);
             }
             else
             {
                 ok = ok && _bin_write_u32(&w, UINT32_MAX);
+                ok = ok && _bin_write_u32(&w, 0);
             }
         }
     }
@@ -623,10 +632,12 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
                     ok = ok && _bin_strpool_insert(&strpool,
                         gcs->m_content, gcs->m_length, &off);
                     ok = ok && _bin_write_u32(&w, off);
+                    ok = ok && _bin_write_u32(&w, (uint32_t)gcs->m_length);
                 }
                 else
                 {
                     ok = ok && _bin_write_u32(&w, UINT32_MAX);
+                    ok = ok && _bin_write_u32(&w, 0);
                 }
                 break;
             }
@@ -688,12 +699,16 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
                 }
 
                 uint32_t lib_off, func_off;
+                uint32_t lib_len = (uint32_t)strlen(lib_name);
+                uint32_t func_len = (uint32_t)strlen(func_name);
                 ok = ok && _bin_strpool_insert(&strpool,
-                    lib_name, strlen(lib_name) + 1, &lib_off);
+                    lib_name, lib_len, &lib_off);
                 ok = ok && _bin_strpool_insert(&strpool,
-                    func_name, strlen(func_name) + 1, &func_off);
+                    func_name, func_len, &func_off);
                 ok = ok && _bin_write_u32(&w, lib_off);
+                ok = ok && _bin_write_u32(&w, lib_len);
                 ok = ok && _bin_write_u32(&w, func_off);
+                ok = ok && _bin_write_u32(&w, func_len);
                 break;
             }
 
@@ -856,10 +871,12 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
             ok = ok && _bin_write_u32(&w, fb->m_offset_begin);
             ok = ok && _bin_write_u32(&w, fb->m_code_length);
 
-            uint32_t name_off;
+            uint32_t name_off, name_len;
+            name_len = (uint32_t)strlen(fb->m_name);
             ok = ok && _bin_strpool_insert(&strpool,
-                fb->m_name, strlen(fb->m_name), &name_off);
+                fb->m_name, name_len, &name_off);
             ok = ok && _bin_write_u32(&w, name_off);
+            ok = ok && _bin_write_u32(&w, name_len);
         }
     }
 
@@ -875,11 +892,13 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
             const woort_SourceMap_Entry* entry = &code_env->m_source_map.m_entries[i];
             ok = ok && _bin_write_u32(&w, entry->m_bytecode_offset);
 
-            uint32_t fp_off;
+            uint32_t fp_off, fp_len;
+            fp_len = (uint32_t)strlen(entry->m_location.m_filepath);
             ok = ok && _bin_strpool_insert(&strpool,
                 entry->m_location.m_filepath,
-                strlen(entry->m_location.m_filepath), &fp_off);
+                fp_len, &fp_off);
             ok = ok && _bin_write_u32(&w, fp_off);
+            ok = ok && _bin_write_u32(&w, fp_len);
 
             ok = ok && _bin_write_u32(&w, entry->m_location.m_begin_line);
             ok = ok && _bin_write_u32(&w, entry->m_location.m_begin_column);
@@ -916,6 +935,64 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     woort_CodeEnv_unlock(code_env);
 
     return ok;
+}
+
+/* ================================================================
+ * 反序列化辅助：字符串追踪器
+ *
+ * 反序列化时，从二进制引用读出 (offset, length) 对后，需要创建
+ * 以空字符结尾的 C 字符串副本。本追踪器收集所有副本，统一释放。
+ * ================================================================ */
+
+typedef struct _RestoreStrTracker
+{
+    woort_Vector m_copies;  /* char* 列表 */
+} _RestoreStrTracker;
+
+static void _rst_strtracker_init(_RestoreStrTracker* t)
+{
+    woort_vector_init(&t->m_copies, sizeof(char*));
+}
+
+static void _rst_strtracker_deinit(_RestoreStrTracker* t)
+{
+    char** copies = (char**)t->m_copies.m_data;
+    for (size_t i = 0; i < t->m_copies.m_size; ++i)
+        free(copies[i]);
+    woort_vector_deinit(&t->m_copies);
+}
+
+/*
+ * 从字符串池中取数据，创建以空字符结尾的副本并登记到追踪器。
+ * off 和 len 来自二进制引用（序列化时写入）。
+ * 如果 off == UINT32_MAX，返回 NULL。
+ */
+static /* OPTIONAL */ const char* _rst_make_cstr(
+    _RestoreStrTracker* t,
+    /* OPTIONAL */ const char* strpool_data,
+    uint32_t off, uint32_t len)
+{
+    if (off == UINT32_MAX || strpool_data == NULL)
+        return NULL;
+
+    {
+        const char* data = _bin_strpool_get(strpool_data, off, NULL);
+        if (data == NULL)
+            return NULL;
+
+        char* copy = (char*)malloc(len + 1);
+        if (copy == NULL)
+            return NULL;
+        memcpy(copy, data, len);
+        copy[len] = '\0';
+
+        if (!woort_vector_push_back(&t->m_copies, 1, &copy))
+        {
+            free(copy);
+            return NULL;
+        }
+        return copy;
+    }
 }
 
 /* ================================================================
@@ -1024,6 +1101,9 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     free(codes_from_bin);
     codes_from_bin = NULL;
 
+    _RestoreStrTracker str_tracker;
+    _rst_strtracker_init(&str_tracker);
+
     woort_HashMap /* const char* -> woort_Dylib* */ lib_map;
     woort_hashmap_init(
         &lib_map,
@@ -1079,9 +1159,9 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
             r.m_size = (total_size > read_so_far) ? total_size - read_so_far : 0;
         }
 
-        /* 辅助宏：从字符串池中读取字符串指针（不关心长度） */
-#define _RESTORE_STR(off) \
-        ((off) == UINT32_MAX ? NULL : _bin_strpool_get(strpool_data, (off), NULL))
+        /* 辅助宏：从二进制引用 (offset, length) 创建以空字符结尾的 C 字符串 */
+#define _RESTORE_CSTR(off, len) \
+        _rst_make_cstr(&str_tracker, strpool_data, (off), (len))
 
         /*
          * 读取外部库列表，形成 HashMap 以便后续查询。
@@ -1095,20 +1175,23 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
             }
             for (uint64_t li = 0; li < lib_count; ++li)
             {
-                uint32_t name_off;
-                uint32_t path_off;
-                uint32_t script_path_off;
+                uint32_t name_off, name_len;
+                uint32_t path_off, path_len;
+                uint32_t script_path_off, script_path_len;
                 if (!_bin_read_u32(&r, &name_off)
+                    || !_bin_read_u32(&r, &name_len)
                     || !_bin_read_u32(&r, &path_off)
-                    || !_bin_read_u32(&r, &script_path_off))
+                    || !_bin_read_u32(&r, &path_len)
+                    || !_bin_read_u32(&r, &script_path_off)
+                    || !_bin_read_u32(&r, &script_path_len))
                 {
                     result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                     goto _restore_fail_after_create;
                 }
 
-                const char* lib_name = _RESTORE_STR(name_off);
-                const char* lib_path = _RESTORE_STR(path_off);
-                const char* lib_script_path = _RESTORE_STR(script_path_off);
+                const char* lib_name = _RESTORE_CSTR(name_off, name_len);
+                const char* lib_path = _RESTORE_CSTR(path_off, path_len);
+                const char* lib_script_path = _RESTORE_CSTR(script_path_off, script_path_len);
                 if (lib_name != NULL)
                 {
                     woort_Dylib* const lib = woort_dylib_load(
@@ -1177,17 +1260,18 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 case WOORT_CONST_TYPE_STRING:
                 {
                     uint32_t off;
-                    if (!_bin_read_u32(&r, &off))
+                    uint32_t slen;
+                    if (!_bin_read_u32(&r, &off)
+                        || !_bin_read_u32(&r, &slen))
                     {
                         result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                         goto _restore_fail_after_create;
                     }
-                    size_t slen = 0;
                     const char* s = (off == UINT32_MAX)
                         ? NULL
-                        : _bin_strpool_get(strpool_data, off, &slen);
+                        : _bin_strpool_get(strpool_data, off, NULL);
                     woort_CodeEnv_set_const_buffer(cenv, (woort_IRConstantIndex)i,
-                        s != NULL ? (const void*)s : "", s != NULL ? slen : 0);
+                        s != NULL ? (const void*)s : "", s != NULL ? (size_t)slen : 0);
                     (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_STRING, NULL, NULL);
                     break;
@@ -1211,16 +1295,18 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
                 case WOORT_CONST_TYPE_EXTERN_FUNC:
                 {
-                    uint32_t lib_off, func_off;
+                    uint32_t lib_off, lib_len, func_off, func_len;
                     if (!_bin_read_u32(&r, &lib_off)
-                        || !_bin_read_u32(&r, &func_off))
+                        || !_bin_read_u32(&r, &lib_len)
+                        || !_bin_read_u32(&r, &func_off)
+                        || !_bin_read_u32(&r, &func_len))
                     {
                         result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                         goto _restore_fail_after_create;
                     }
 
-                    const char* lib_name = _RESTORE_STR(lib_off);
-                    const char* func_name = _RESTORE_STR(func_off);
+                    const char* lib_name = _RESTORE_CSTR(lib_off, lib_len);
+                    const char* func_name = _RESTORE_CSTR(func_off, func_len);
 
                     if (lib_name == NULL || func_name == NULL)
                     {
@@ -1228,16 +1314,15 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         goto _restore_fail_after_create;
                     }
 
-                    woort_Dylib* lib = NULL;
-                    if (!woort_hashmap_find(&lib_map, &lib_name, (void**)&lib)
-                        || lib == NULL)
+                    woort_Dylib** lib = NULL;
+                    if (!woort_hashmap_find(&lib_map, &lib_name, (void**)&lib))
                     {
                         WOORT_DEBUG("CodeEnv restore: cannot find lib '%s' in lib_map.", lib_name);
                         result = WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE;
                         goto _restore_fail_after_create;
                     }
 
-                    woort_NativeFunction nf = (woort_NativeFunction)woort_dylib_load_func(lib, func_name);
+                    woort_NativeFunction nf = (woort_NativeFunction)woort_dylib_load_func(*lib, func_name);
                     if (nf == NULL)
                     {
                         WOORT_DEBUG("CodeEnv restore: cannot find func '%s' in lib '%s'.", func_name, lib_name);
@@ -1269,32 +1354,33 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
                 case WOORT_CONST_TYPE_EXTERN_CLOSURE:
                 {
-                    uint32_t lib_off, func_off;
+                    uint32_t lib_off, lib_len, func_off, func_len;
                     if (!_bin_read_u32(&r, &lib_off)
-                        || !_bin_read_u32(&r, &func_off))
+                        || !_bin_read_u32(&r, &lib_len)
+                        || !_bin_read_u32(&r, &func_off)
+                        || !_bin_read_u32(&r, &func_len))
                     {
                         result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                         goto _restore_fail_after_create;
                     }
 
-                    const char* lib_name = _RESTORE_STR(lib_off);
-                    const char* func_name = _RESTORE_STR(func_off);
+                    const char* lib_name = _RESTORE_CSTR(lib_off, lib_len);
+                    const char* func_name = _RESTORE_CSTR(func_off, func_len);
                     if (lib_name == NULL || func_name == NULL)
                     {
                         result = WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET;
                         goto _restore_fail_after_create;
                     }
 
-                    woort_Dylib* lib = NULL;
-                    if (!woort_hashmap_find(&lib_map, &lib_name, (void**)&lib)
-                        || lib == NULL)
+                    woort_Dylib** lib = NULL;
+                    if (!woort_hashmap_find(&lib_map, &lib_name, (void**)&lib))
                     {
                         WOORT_DEBUG("CodeEnv restore: cannot find lib '%s' in lib_map.", lib_name);
                         result = WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE;
                         goto _restore_fail_after_create;
                     }
 
-                    woort_NativeFunction nf = (woort_NativeFunction)woort_dylib_load_func(lib, func_name);
+                    woort_NativeFunction nf = (woort_NativeFunction)woort_dylib_load_func(*lib, func_name);
                     if (nf == NULL)
                     {
                         WOORT_DEBUG("CodeEnv restore: cannot find func '%s' in lib '%s'.", func_name, lib_name);
@@ -1412,16 +1498,17 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
             }
             for (uint64_t ei = 0; ei < extern_count; ++ei)
             {
-                uint32_t name_off;
+                uint32_t name_off, name_len;
                 uint32_t cidx;
                 if (!_bin_read_u32(&r, &name_off)
+                    || !_bin_read_u32(&r, &name_len)
                     || !_bin_read_u32(&r, &cidx))
                 {
                     result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                     goto _restore_fail_after_create;
                 }
 
-                const char* name = _RESTORE_STR(name_off);
+                const char* name = _RESTORE_CSTR(name_off, name_len);
                 if (name != NULL)
                     (void)woort_CodeEnv_register_extern_constant(cenv, name, cidx);
             }
@@ -1440,16 +1527,17 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
             for (uint64_t fi = 0; fi < fb_count; ++fi)
             {
                 woort_FunctionBoundary fb;
-                uint32_t name_off;
+                uint32_t name_off, name_len;
                 if (!_bin_read_u32(&r, &fb.m_offset_begin)
                     || !_bin_read_u32(&r, &fb.m_code_length)
-                    || !_bin_read_u32(&r, &name_off))
+                    || !_bin_read_u32(&r, &name_off)
+                    || !_bin_read_u32(&r, &name_len))
                 {
                     result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                     goto _restore_fail_after_create;
                 }
 
-                const char* name = _RESTORE_STR(name_off);
+                const char* name = _RESTORE_CSTR(name_off, name_len);
                 /* intern into CodeEnv string pool for lifetime management */
                 if (name != NULL)
                     name = woort_StringPool_intern(&cenv->m_srcloc_string_pool, name);
@@ -1486,9 +1574,10 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
                 for (uint64_t si = 0; si < sm_count; ++si)
                 {
-                    uint32_t fp_off;
+                    uint32_t fp_off, fp_len;
                     if (!_bin_read_u32(&r, &entries[si].m_bytecode_offset)
                         || !_bin_read_u32(&r, &fp_off)
+                        || !_bin_read_u32(&r, &fp_len)
                         || !_bin_read_u32(&r, &entries[si].m_location.m_begin_line)
                         || !_bin_read_u32(&r, &entries[si].m_location.m_begin_column)
                         || !_bin_read_u32(&r, &entries[si].m_location.m_end_line)
@@ -1499,7 +1588,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         goto _restore_fail_after_create;
                     }
 
-                    const char* fp = _RESTORE_STR(fp_off);
+                    const char* fp = _RESTORE_CSTR(fp_off, fp_len);
                     if (fp != NULL)
                         fp = woort_StringPool_intern(&cenv->m_srcloc_string_pool, fp);
                     entries[si].m_location.m_filepath = fp;
@@ -1544,6 +1633,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
         }
     }
 
+    _rst_strtracker_deinit(&str_tracker);
     free(strpool_buf);
     woort_hashmap_deinit(&lib_map);
     woort_CodeEnv_unlock(cenv);
@@ -1552,6 +1642,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     return WOORT_CODEENV_RESTORE_OK;
 
 _restore_fail_after_create:
+    _rst_strtracker_deinit(&str_tracker);
     free(strpool_buf);
     woort_hashmap_deinit(&lib_map);
     woort_CodeEnv_unlock(cenv);
@@ -1593,4 +1684,4 @@ WOORT_NODISCARD const char* woort_CodeEnv_restore_failed_desc(
     }
 }
 
-#undef _RESTORE_STR
+#undef _RESTORE_CSTR
