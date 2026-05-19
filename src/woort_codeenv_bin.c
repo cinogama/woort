@@ -478,7 +478,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
             &_save_strpool_add_key, &ctx);
     }
 
-    /* 遍历 extern libs 名称 */
+    /* 遍历 extern libs 名称、路径、脚本路径 */
     if (ok)
     {
         for (size_t i = 0; i < code_env->m_extern_libs.m_size; ++i)
@@ -487,6 +487,12 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
                 &code_env->m_extern_libs, i);
             ok = ok && _bin_strpool_insert(&strpool,
                 lib->m_name, strlen(lib->m_name), NULL);
+            if (lib->m_path != NULL)
+                ok = ok && _bin_strpool_insert(&strpool,
+                    lib->m_path, strlen(lib->m_path), NULL);
+            if (lib->m_script_path != NULL)
+                ok = ok && _bin_strpool_insert(&strpool,
+                    lib->m_script_path, strlen(lib->m_script_path), NULL);
         }
     }
 
@@ -785,8 +791,25 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
                 &code_env->m_extern_libs, i);
             uint32_t name_off;
             ok = ok && _bin_strpool_insert(&strpool,
-                lib->m_name, strlen(lib->m_name), &name_off);
+                lib->m_name, strlen(lib->m_name) + 1, &name_off);
             ok = ok && _bin_write_u32(&w, name_off);
+
+            uint32_t path_off;
+            ok = ok && _bin_strpool_insert(&strpool,
+                lib->m_path, strlen(lib->m_path) + 1, &path_off);
+            ok = ok && _bin_write_u32(&w, path_off);
+
+            if (lib->m_script_path != NULL)
+            {
+                uint32_t script_path_off;
+                ok = ok && _bin_strpool_insert(&strpool,
+                    lib->m_script_path, strlen(lib->m_script_path) + 1, &script_path_off);
+                ok = ok && _bin_write_u32(&w, script_path_off);
+            }
+            else
+            {
+                ok = ok && _bin_write_u32(&w, UINT32_MAX);
+            }
         }
     }
 
@@ -1117,6 +1140,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
                     const char* lib_name = _RESTORE_STR(lib_off);
                     const char* func_name = _RESTORE_STR(func_off);
+
                     if (lib_name == NULL || func_name == NULL)
                     {
                         result = WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET;
@@ -1336,16 +1360,25 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
             for (uint64_t li = 0; li < lib_count; ++li)
             {
                 uint32_t name_off;
-                if (!_bin_read_u32(&r, &name_off))
+                uint32_t path_off;
+                uint32_t script_path_off;
+                if (!_bin_read_u32(&r, &name_off)
+                    || !_bin_read_u32(&r, &path_off)
+                    || !_bin_read_u32(&r, &script_path_off))
                 {
                     result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                     goto _restore_fail_after_create;
                 }
 
                 const char* lib_name = _RESTORE_STR(name_off);
+                const char* lib_path = _RESTORE_STR(path_off);
+                const char* lib_script_path = _RESTORE_STR(script_path_off);
                 if (lib_name != NULL)
                 {
-                    woort_Dylib* lib = woort_dylib_load(lib_name, lib_name, NULL, false);
+                    woort_Dylib* lib = woort_dylib_load(
+                        lib_name,
+                        lib_path,
+                        lib_script_path, false);
                     if (lib != NULL)
                         (void)woort_CodeEnv_add_extern_lib(cenv, lib);
                 }
