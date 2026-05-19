@@ -232,6 +232,9 @@ static void _woort_dylib_close(woort_Dylib* dylib)
     woort_rwspinlock_deinit(&dylib->m_resolved_lock);
 
     free(dylib->m_name);
+    free(dylib->m_path);
+    if (dylib->m_script_path != NULL)
+        free(dylib->m_script_path);
     free(dylib);
 }
 
@@ -315,8 +318,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
     const woort_ExternLibFunc* funcs,
     /* OPTIONAL */ woort_Dylib* dependence_dylib)
 {
-    if (libname == NULL || funcs == NULL)
-        return NULL;
+    assert(libname != NULL && funcs != NULL);
 
     woort_recursive_mutex_lock(g_named_libs_mx);
 
@@ -347,6 +349,18 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
         return NULL;
     }
     strcpy(dylib->m_name, libname);
+
+    dylib->m_path = (char*)malloc(strlen(libname) + 1);
+    if (dylib->m_path == NULL)
+    {
+        free(dylib->m_name);
+        free(dylib);
+        woort_recursive_mutex_unlock(g_named_libs_mx);
+        return NULL;
+    }
+    strcpy(dylib->m_path, libname);
+    dylib->m_script_path = NULL;
+
     woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
     woort_rwspinlock_init(&dylib->m_resolved_lock);
@@ -371,6 +385,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
             (count + 1) * sizeof(woort_ExternLibFunc));
         if (copy == NULL)
         {
+            free(dylib->m_path);
             free(dylib->m_name);
             free(dylib);
             woort_recursive_mutex_unlock(g_named_libs_mx);
@@ -386,6 +401,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
                 for (size_t j = 0; j < i; ++j)
                     free((void*)copy[j].m_name);
                 free(copy);
+                free(dylib->m_path);
                 free(dylib->m_name);
                 free(dylib);
                 woort_recursive_mutex_unlock(g_named_libs_mx);
@@ -543,6 +559,45 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
         return NULL;
     }
     strcpy(dylib->m_name, libname);
+
+    {
+        size_t path_len = strlen(path);
+        dylib->m_path = (char*)malloc(path_len + 1);
+        if (dylib->m_path == NULL)
+        {
+            _woort_dylib_os_freelib(native_handle);
+            free(dylib->m_name);
+            free(dylib);
+            woort_recursive_mutex_unlock(g_named_libs_mx);
+            if (panic_when_fail)
+                woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
+            return NULL;
+        }
+        memcpy(dylib->m_path, path, path_len + 1);
+    }
+
+    if (script_path != NULL)
+    {
+        size_t sp_len = strlen(script_path);
+        dylib->m_script_path = (char*)malloc(sp_len + 1);
+        if (dylib->m_script_path == NULL)
+        {
+            _woort_dylib_os_freelib(native_handle);
+            free(dylib->m_path);
+            free(dylib->m_name);
+            free(dylib);
+            woort_recursive_mutex_unlock(g_named_libs_mx);
+            if (panic_when_fail)
+                woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
+            return NULL;
+        }
+        memcpy(dylib->m_script_path, script_path, sp_len + 1);
+    }
+    else
+    {
+        dylib->m_script_path = NULL;
+    }
+
     woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
     woort_rwspinlock_init(&dylib->m_resolved_lock);

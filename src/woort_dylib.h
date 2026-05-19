@@ -21,10 +21,12 @@ woort_dylib.h
 
 struct woort_Dylib
 {
-    /* OPTIONAL */ void*                         m_native_handle;
-    /* OPTIONAL */ woort_ExternLibFunc*          m_fake_funcs;
-    /* OPTIONAL */ woort_Dylib*                  m_dependenced;
+    /* OPTIONAL */ void*                        m_native_handle;
+    /* OPTIONAL */ woort_ExternLibFunc*         m_fake_funcs;
+    /* OPTIONAL */ woort_Dylib*                 m_dependenced;
     char*                                       m_name;
+    char*                                       m_path;
+    /* OPTIONAL */ char*                        m_script_path;
     woort_AtomicUInt64                          m_use_count;
     woort_HashMap                               m_resolved_funcs;
     woort_RWSpinlock                            m_resolved_lock;
