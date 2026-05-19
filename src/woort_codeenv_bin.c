@@ -9,6 +9,7 @@
 #include "woort_gc_closure.h"
 #include "woort_gc_struct.h"
 #include "woort_log.h"
+#include "woort_util.h"
 #include "woort_vfs.h"
 
 /* ========================================================================
@@ -688,9 +689,9 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
 
                 uint32_t lib_off, func_off;
                 ok = ok && _bin_strpool_insert(&strpool,
-                    lib_name, strlen(lib_name), &lib_off);
+                    lib_name, strlen(lib_name) + 1, &lib_off);
                 ok = ok && _bin_strpool_insert(&strpool,
-                    func_name, strlen(func_name), &func_off);
+                    func_name, strlen(func_name) + 1, &func_off);
                 ok = ok && _bin_write_u32(&w, lib_off);
                 ok = ok && _bin_write_u32(&w, func_off);
                 break;
@@ -1023,6 +1024,14 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     free(codes_from_bin);
     codes_from_bin = NULL;
 
+    woort_HashMap /* const char* -> woort_Dylib* */ lib_map;
+    woort_hashmap_init(
+        &lib_map,
+        sizeof(const char*),
+        sizeof(woort_Dylib*),
+        woort_util_cstr_hash,
+        woort_util_cstr_equal);
+
     woort_CodeEnv_lock(cenv);
 
     /* 增量读取字符串池 */
@@ -1075,7 +1084,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
         ((off) == UINT32_MAX ? NULL : _bin_strpool_get(strpool_data, (off), NULL))
 
         /*
-         * 读取外部库列表。
+         * 读取外部库列表，形成 HashMap 以便后续查询。
          */
         {
             uint64_t lib_count;
@@ -1108,7 +1117,10 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         lib_script_path, false);
 
                     if (lib != NULL)
+                    {
                         (void)woort_CodeEnv_add_extern_lib(cenv, lib);
+                        (void)woort_hashmap_insert(&lib_map, &lib_name, &lib);
+                    }
                 }
             }
         }
@@ -1216,11 +1228,11 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         goto _restore_fail_after_create;
                     }
 
-                    /* 尝试解析 */
-                    woort_Dylib* lib = woort_dylib_load(lib_name, lib_name, NULL, false);
-                    if (lib == NULL)
+                    woort_Dylib* lib = NULL;
+                    if (!woort_hashmap_find(&lib_map, &lib_name, (void**)&lib)
+                        || lib == NULL)
                     {
-                        WOORT_DEBUG("CodeEnv restore: cannot load lib '%s'.", lib_name);
+                        WOORT_DEBUG("CodeEnv restore: cannot find lib '%s' in lib_map.", lib_name);
                         result = WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE;
                         goto _restore_fail_after_create;
                     }
@@ -1236,7 +1248,6 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     woort_CodeEnv_set_const_extern_function(cenv, (woort_IRConstantIndex)i, nf);
                     (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_EXTERN_FUNC, lib_name, func_name);
-                    (void)woort_CodeEnv_add_extern_lib(cenv, lib);
                     break;
                 }
 
@@ -1274,10 +1285,11 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         goto _restore_fail_after_create;
                     }
 
-                    woort_Dylib* lib = woort_dylib_load(lib_name, lib_name, NULL, false);
-                    if (lib == NULL)
+                    woort_Dylib* lib = NULL;
+                    if (!woort_hashmap_find(&lib_map, &lib_name, (void**)&lib)
+                        || lib == NULL)
                     {
-                        WOORT_DEBUG("CodeEnv restore: cannot load lib '%s'.", lib_name);
+                        WOORT_DEBUG("CodeEnv restore: cannot find lib '%s' in lib_map.", lib_name);
                         result = WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE;
                         goto _restore_fail_after_create;
                     }
@@ -1293,7 +1305,6 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     woort_CodeEnv_set_const_extern_closure(cenv, (woort_IRConstantIndex)i, nf);
                     (void)woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
                         WOORT_CONST_TYPE_EXTERN_CLOSURE, lib_name, func_name);
-                    (void)woort_CodeEnv_add_extern_lib(cenv, lib);
                     break;
                 }
 
@@ -1534,6 +1545,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     }
 
     free(strpool_buf);
+    woort_hashmap_deinit(&lib_map);
     woort_CodeEnv_unlock(cenv);
 
     *out_code_env = cenv;
@@ -1541,6 +1553,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
 _restore_fail_after_create:
     free(strpool_buf);
+    woort_hashmap_deinit(&lib_map);
     woort_CodeEnv_unlock(cenv);
     woort_CodeEnv_drop(cenv);
     return result;
