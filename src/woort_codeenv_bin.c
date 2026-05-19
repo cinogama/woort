@@ -19,7 +19,7 @@
   * 二进制格式版本号与魔数。
   */
 #define WOORT_CODEENV_BINARY_MAGIC   0x30314345u  /* "EC10" */
-#define WOORT_CODEENV_BINARY_VERSION 2u
+#define WOORT_CODEENV_BINARY_VERSION 3u
 
   /* ================================================================
    * 序列化期间的字符串池（本地使用）
@@ -523,6 +523,28 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
         }
     }
 
+    /* 遍历外部库名称、路径 */
+    if (ok)
+    {
+        for (size_t i = 0; ok && i < code_env->m_extern_libs.m_size; ++i)
+        {
+            woort_Dylib* lib = *(woort_Dylib**)woort_vector_at(
+                &code_env->m_extern_libs, i);
+
+            ok = ok && _bin_strpool_insert(&strpool,
+                lib->m_name, strlen(lib->m_name) + 1, NULL);
+
+            ok = ok && _bin_strpool_insert(&strpool,
+                lib->m_path, strlen(lib->m_path) + 1, NULL);
+
+            if (lib->m_script_path != NULL)
+            {
+                ok = ok && _bin_strpool_insert(&strpool,
+                    lib->m_script_path, strlen(lib->m_script_path) + 1, NULL);
+            }
+        }
+    }
+
     /*
      * 写入字符串池。
      */
@@ -531,257 +553,9 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
         ok = ok && _bin_write_raw(&w, strpool.m_data.m_data, strpool.m_data.m_size);
 
     /*
-     * 写入常量数据。
-     */
-    for (size_t i = 0; ok && i < data_count; ++i)
-    {
-        const woort_ConstRecord* rec = (const woort_ConstRecord*)woort_vector_at(
-            &code_env->m_const_records, i);
-        const woort_Value* val = &code_env->m_data_begin[i];
-
-        ok = ok && _bin_write_u8(&w, (uint8_t)rec->m_type);
-
-        switch (rec->m_type)
-        {
-        case WOORT_CONST_TYPE_NIL:
-            break;
-
-        case WOORT_CONST_TYPE_INT:
-            ok = ok && _bin_write_i64(&w, val->m_integer);
-            break;
-
-        case WOORT_CONST_TYPE_REAL:
-            ok = ok && _bin_write_f64(&w, val->m_real);
-            break;
-
-        case WOORT_CONST_TYPE_STRING:
-        {
-            uint32_t off;
-            const woort_GCString* gcs = val->m_string;
-            if (gcs != NULL)
-            {
-                ok = ok && _bin_strpool_insert(&strpool,
-                    gcs->m_content, gcs->m_length, &off);
-                ok = ok && _bin_write_u32(&w, off);
-            }
-            else
-            {
-                ok = ok && _bin_write_u32(&w, UINT32_MAX);
-            }
-            break;
-        }
-
-        case WOORT_CONST_TYPE_SCRIPT_FUNC:
-        {
-            /* 保存为相对于 m_code_begin 的偏移量 */
-            uint32_t off = (val->m_script_function != NULL)
-                ? (uint32_t)(val->m_script_function - code_env->m_code_begin)
-                : UINT32_MAX;
-            ok = ok && _bin_write_u32(&w, off);
-            break;
-        }
-
-        case WOORT_CONST_TYPE_EXTERN_FUNC:
-        case WOORT_CONST_TYPE_EXTERN_CLOSURE:
-        {
-            /* 使用 record 中的名字，或运行时解析（与字符串池收集阶段相同逻辑）*/
-            const char* lib_name = rec->m_lib_name;
-            const char* func_name = rec->m_func_name;
-
-            if (lib_name == NULL || func_name == NULL)
-            {
-                woort_NativeFunction nf;
-                if (rec->m_type == WOORT_CONST_TYPE_EXTERN_CLOSURE)
-                {
-                    const woort_GCClosure* closure = val->m_closure;
-                    if (closure != NULL && closure->m_script_function == NULL)
-                        nf = closure->m_native_function;
-                    else
-                        nf = NULL;
-                }
-                else
-                {
-                    nf = val->m_native_function;
-                }
-
-                if (nf != NULL)
-                {
-                    woort_Dylib* found_lib = NULL;
-                    if (!woort_Dylib_find_by_resolved_func((void*)nf, &found_lib)
-                        || found_lib == NULL)
-                    {
-                        ok = false;
-                        break;
-                    }
-                    lib_name = found_lib->m_name;
-                    if (!woort_Dylib_get_function_name(found_lib, (void*)nf, &func_name))
-                    {
-                        ok = false;
-                        break;
-                    }
-                }
-                else
-                {
-                    ok = false;
-                    break;
-                }
-            }
-
-            uint32_t lib_off, func_off;
-            ok = ok && _bin_strpool_insert(&strpool,
-                lib_name, strlen(lib_name), &lib_off);
-            ok = ok && _bin_strpool_insert(&strpool,
-                func_name, strlen(func_name), &func_off);
-            ok = ok && _bin_write_u32(&w, lib_off);
-            ok = ok && _bin_write_u32(&w, func_off);
-            break;
-        }
-
-        case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
-        {
-            /* 闭包：记录脚本函数偏移 */
-            const woort_GCClosure* closure = val->m_closure;
-            uint32_t off = UINT32_MAX;
-            if (closure != NULL && closure->m_script_function != NULL)
-                off = (uint32_t)(closure->m_script_function - code_env->m_code_begin);
-            ok = ok && _bin_write_u32(&w, off);
-            break;
-        }
-
-        case WOORT_CONST_TYPE_BOX_INT:
-            ok = ok && _bin_write_i64(&w,
-                _woort_unbox_int64((woort_BoxedInt62)val->m_dynamic.m_boxed));
-            break;
-
-        case WOORT_CONST_TYPE_BOX_REAL:
-            ok = ok && _bin_write_f64(&w,
-                _woort_unbox_float64((woort_BoxedFloat63)val->m_dynamic.m_boxed));
-            break;
-
-        case WOORT_CONST_TYPE_BOX_BOOL:
-            ok = ok && _bin_write_u8(&w,
-                _woort_unbox_bool(val->m_dynamic.m_boxed) ? 1 : 0);
-            break;
-
-        case WOORT_CONST_TYPE_STRUCT:
-        {
-            woort_GCStruct* s = val->m_struct;
-            uint32_t member_count = (s != NULL) ? (uint32_t)s->m_size : 0;
-            ok = ok && _bin_write_u32(&w, member_count);
-            for (uint32_t mi = 0; ok && mi < member_count; ++mi)
-            {
-                /*
-                 * 在常量池中查找与 s->m_datas[mi] 值相等的常量索引。
-                 * struct 的成员值是 m_data_begin[original_index] 的副本，
-                 * 通过值与类型匹配可找到原始常量索引。
-                 */
-                const woort_Value* mv = &s->m_datas[mi];
-                woort_IRConstantIndex found_idx = (woort_IRConstantIndex)mi; /* fallback */
-                bool found = false;
-
-                for (size_t j = 0; j < data_count; ++j)
-                {
-                    const woort_ConstRecord* rec_j =
-                        (const woort_ConstRecord*)woort_vector_at(
-                            &code_env->m_const_records, j);
-                    const woort_Value* cv = &code_env->m_data_begin[j];
-
-                    switch (rec_j->m_type)
-                    {
-                    case WOORT_CONST_TYPE_NIL:
-                        if (mv->m_gcinstance == cv->m_gcinstance)
-                        {
-                            found_idx = (woort_IRConstantIndex)j; found = true;
-                        }
-                        break;
-                    case WOORT_CONST_TYPE_INT:
-                        if (mv->m_integer == cv->m_integer)
-                        {
-                            found_idx = (woort_IRConstantIndex)j; found = true;
-                        }
-                        break;
-                    case WOORT_CONST_TYPE_REAL:
-                        if (mv->m_real == cv->m_real)
-                        {
-                            found_idx = (woort_IRConstantIndex)j; found = true;
-                        }
-                        break;
-                    case WOORT_CONST_TYPE_STRING:
-                        if (mv->m_gcinstance == cv->m_gcinstance)
-                        {
-                            found_idx = (woort_IRConstantIndex)j; found = true;
-                        }
-                        break;
-                    case WOORT_CONST_TYPE_SCRIPT_FUNC:
-                        if (mv->m_script_function == cv->m_script_function)
-                        {
-                            found_idx = (woort_IRConstantIndex)j; found = true;
-                        }
-                        break;
-                    case WOORT_CONST_TYPE_EXTERN_FUNC:
-                        if (mv->m_native_function == cv->m_native_function)
-                        {
-                            found_idx = (woort_IRConstantIndex)j; found = true;
-                        }
-                        break;
-                    case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
-                    case WOORT_CONST_TYPE_EXTERN_CLOSURE:
-                        if (mv->m_gcinstance == cv->m_gcinstance)
-                        {
-                            found_idx = (woort_IRConstantIndex)j; found = true;
-                        }
-                        break;
-                    case WOORT_CONST_TYPE_BOX_INT:
-                    case WOORT_CONST_TYPE_BOX_REAL:
-                    case WOORT_CONST_TYPE_BOX_BOOL:
-                        if (mv->m_dynamic.m_boxed == cv->m_dynamic.m_boxed)
-                        {
-                            found_idx = (woort_IRConstantIndex)j; found = true;
-                        }
-                        break;
-                    case WOORT_CONST_TYPE_STRUCT:
-                        if (mv->m_gcinstance == cv->m_gcinstance)
-                        {
-                            found_idx = (woort_IRConstantIndex)j; found = true;
-                        }
-                        break;
-                    default:
-                        break;
-                    }
-                    if (found)
-                        break;
-                }
-                ok = ok && _bin_write_u32(&w, (uint32_t)found_idx);
-            }
-            break;
-        }
-
-        default:
-            WOORT_DEBUG("CodeEnv save: unknown const type %d at %zu.", (int)rec->m_type, i);
-            ok = false;
-            break;
-        }
-    }
-
-    /*
-     * 写入 extern 常量映射表。
-     */
-    {
-        /* 先计数 */
-        uint64_t extern_count = (uint64_t)code_env->m_extern_constants.m_size;
-        ok = ok && _bin_write_u64(&w, extern_count);
-
-        if (ok && extern_count > 0)
-        {
-            struct _WriteExternConstCtx ctx = { &strpool, &w, &ok };
-            (void)woort_hashmap_foreach(&code_env->m_extern_constants,
-                &_write_extern_const, &ctx);
-        }
-    }
-
-    /*
      * 写入外部库列表。
      */
+    if (ok)
     {
         uint64_t lib_count = (uint64_t)code_env->m_extern_libs.m_size;
         ok = ok && _bin_write_u64(&w, lib_count);
@@ -814,8 +588,262 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     }
 
     /*
+     * 写入常量数据。
+     */
+    if (ok)
+    {
+        for (size_t i = 0; ok && i < data_count; ++i)
+        {
+            const woort_ConstRecord* rec = (const woort_ConstRecord*)woort_vector_at(
+                &code_env->m_const_records, i);
+            const woort_Value* val = &code_env->m_data_begin[i];
+
+            ok = ok && _bin_write_u8(&w, (uint8_t)rec->m_type);
+
+            switch (rec->m_type)
+            {
+            case WOORT_CONST_TYPE_NIL:
+                break;
+
+            case WOORT_CONST_TYPE_INT:
+                ok = ok && _bin_write_i64(&w, val->m_integer);
+                break;
+
+            case WOORT_CONST_TYPE_REAL:
+                ok = ok && _bin_write_f64(&w, val->m_real);
+                break;
+
+            case WOORT_CONST_TYPE_STRING:
+            {
+                uint32_t off;
+                const woort_GCString* gcs = val->m_string;
+                if (gcs != NULL)
+                {
+                    ok = ok && _bin_strpool_insert(&strpool,
+                        gcs->m_content, gcs->m_length, &off);
+                    ok = ok && _bin_write_u32(&w, off);
+                }
+                else
+                {
+                    ok = ok && _bin_write_u32(&w, UINT32_MAX);
+                }
+                break;
+            }
+
+            case WOORT_CONST_TYPE_SCRIPT_FUNC:
+            {
+                /* 保存为相对于 m_code_begin 的偏移量 */
+                uint32_t off = (val->m_script_function != NULL)
+                    ? (uint32_t)(val->m_script_function - code_env->m_code_begin)
+                    : UINT32_MAX;
+                ok = ok && _bin_write_u32(&w, off);
+                break;
+            }
+
+            case WOORT_CONST_TYPE_EXTERN_FUNC:
+            case WOORT_CONST_TYPE_EXTERN_CLOSURE:
+            {
+                /* 使用 record 中的名字，或运行时解析（与字符串池收集阶段相同逻辑）*/
+                const char* lib_name = rec->m_lib_name;
+                const char* func_name = rec->m_func_name;
+
+                if (lib_name == NULL || func_name == NULL)
+                {
+                    woort_NativeFunction nf;
+                    if (rec->m_type == WOORT_CONST_TYPE_EXTERN_CLOSURE)
+                    {
+                        const woort_GCClosure* closure = val->m_closure;
+                        if (closure != NULL && closure->m_script_function == NULL)
+                            nf = closure->m_native_function;
+                        else
+                            nf = NULL;
+                    }
+                    else
+                    {
+                        nf = val->m_native_function;
+                    }
+
+                    if (nf != NULL)
+                    {
+                        woort_Dylib* found_lib = NULL;
+                        if (!woort_Dylib_find_by_resolved_func((void*)nf, &found_lib)
+                            || found_lib == NULL)
+                        {
+                            ok = false;
+                            break;
+                        }
+                        lib_name = found_lib->m_name;
+                        if (!woort_Dylib_get_function_name(found_lib, (void*)nf, &func_name))
+                        {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        ok = false;
+                        break;
+                    }
+                }
+
+                uint32_t lib_off, func_off;
+                ok = ok && _bin_strpool_insert(&strpool,
+                    lib_name, strlen(lib_name), &lib_off);
+                ok = ok && _bin_strpool_insert(&strpool,
+                    func_name, strlen(func_name), &func_off);
+                ok = ok && _bin_write_u32(&w, lib_off);
+                ok = ok && _bin_write_u32(&w, func_off);
+                break;
+            }
+
+            case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
+            {
+                /* 闭包：记录脚本函数偏移 */
+                const woort_GCClosure* closure = val->m_closure;
+                uint32_t off = UINT32_MAX;
+                if (closure != NULL && closure->m_script_function != NULL)
+                    off = (uint32_t)(closure->m_script_function - code_env->m_code_begin);
+                ok = ok && _bin_write_u32(&w, off);
+                break;
+            }
+
+            case WOORT_CONST_TYPE_BOX_INT:
+                ok = ok && _bin_write_i64(&w,
+                    _woort_unbox_int64((woort_BoxedInt62)val->m_dynamic.m_boxed));
+                break;
+
+            case WOORT_CONST_TYPE_BOX_REAL:
+                ok = ok && _bin_write_f64(&w,
+                    _woort_unbox_float64((woort_BoxedFloat63)val->m_dynamic.m_boxed));
+                break;
+
+            case WOORT_CONST_TYPE_BOX_BOOL:
+                ok = ok && _bin_write_u8(&w,
+                    _woort_unbox_bool(val->m_dynamic.m_boxed) ? 1 : 0);
+                break;
+
+            case WOORT_CONST_TYPE_STRUCT:
+            {
+                woort_GCStruct* s = val->m_struct;
+                uint32_t member_count = (s != NULL) ? (uint32_t)s->m_size : 0;
+                ok = ok && _bin_write_u32(&w, member_count);
+                for (uint32_t mi = 0; ok && mi < member_count; ++mi)
+                {
+                    /*
+                     * 在常量池中查找与 s->m_datas[mi] 值相等的常量索引。
+                     * struct 的成员值是 m_data_begin[original_index] 的副本，
+                     * 通过值与类型匹配可找到原始常量索引。
+                     */
+                    const woort_Value* mv = &s->m_datas[mi];
+                    woort_IRConstantIndex found_idx = (woort_IRConstantIndex)mi; /* fallback */
+                    bool found = false;
+
+                    for (size_t j = 0; j < data_count; ++j)
+                    {
+                        const woort_ConstRecord* rec_j =
+                            (const woort_ConstRecord*)woort_vector_at(
+                                &code_env->m_const_records, j);
+                        const woort_Value* cv = &code_env->m_data_begin[j];
+
+                        switch (rec_j->m_type)
+                        {
+                        case WOORT_CONST_TYPE_NIL:
+                            if (mv->m_gcinstance == cv->m_gcinstance)
+                            {
+                                found_idx = (woort_IRConstantIndex)j; found = true;
+                            }
+                            break;
+                        case WOORT_CONST_TYPE_INT:
+                            if (mv->m_integer == cv->m_integer)
+                            {
+                                found_idx = (woort_IRConstantIndex)j; found = true;
+                            }
+                            break;
+                        case WOORT_CONST_TYPE_REAL:
+                            if (mv->m_real == cv->m_real)
+                            {
+                                found_idx = (woort_IRConstantIndex)j; found = true;
+                            }
+                            break;
+                        case WOORT_CONST_TYPE_STRING:
+                            if (mv->m_gcinstance == cv->m_gcinstance)
+                            {
+                                found_idx = (woort_IRConstantIndex)j; found = true;
+                            }
+                            break;
+                        case WOORT_CONST_TYPE_SCRIPT_FUNC:
+                            if (mv->m_script_function == cv->m_script_function)
+                            {
+                                found_idx = (woort_IRConstantIndex)j; found = true;
+                            }
+                            break;
+                        case WOORT_CONST_TYPE_EXTERN_FUNC:
+                            if (mv->m_native_function == cv->m_native_function)
+                            {
+                                found_idx = (woort_IRConstantIndex)j; found = true;
+                            }
+                            break;
+                        case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
+                        case WOORT_CONST_TYPE_EXTERN_CLOSURE:
+                            if (mv->m_gcinstance == cv->m_gcinstance)
+                            {
+                                found_idx = (woort_IRConstantIndex)j; found = true;
+                            }
+                            break;
+                        case WOORT_CONST_TYPE_BOX_INT:
+                        case WOORT_CONST_TYPE_BOX_REAL:
+                        case WOORT_CONST_TYPE_BOX_BOOL:
+                            if (mv->m_dynamic.m_boxed == cv->m_dynamic.m_boxed)
+                            {
+                                found_idx = (woort_IRConstantIndex)j; found = true;
+                            }
+                            break;
+                        case WOORT_CONST_TYPE_STRUCT:
+                            if (mv->m_gcinstance == cv->m_gcinstance)
+                            {
+                                found_idx = (woort_IRConstantIndex)j; found = true;
+                            }
+                            break;
+                        default:
+                            break;
+                        }
+                        if (found)
+                            break;
+                    }
+                    ok = ok && _bin_write_u32(&w, (uint32_t)found_idx);
+                }
+                break;
+            }
+
+            default:
+                WOORT_DEBUG("CodeEnv save: unknown const type %d at %zu.", (int)rec->m_type, i);
+                ok = false;
+                break;
+            }
+        }
+    }
+
+    /*
+     * 写入 extern 常量映射表。
+     */
+    if (ok)
+    {
+        /* 先计数 */
+        uint64_t extern_count = (uint64_t)code_env->m_extern_constants.m_size;
+        ok = ok && _bin_write_u64(&w, extern_count);
+
+        if (ok && extern_count > 0)
+        {
+            struct _WriteExternConstCtx ctx = { &strpool, &w, &ok };
+            (void)woort_hashmap_foreach(&code_env->m_extern_constants,
+                &_write_extern_const, &ctx);
+        }
+    }
+
+    /*
      * 写入函数边界表。
      */
+    if (ok)
     {
         uint64_t fb_count = (uint64_t)code_env->m_function_boundaries.m_size;
         ok = ok && _bin_write_u64(&w, fb_count);
@@ -837,6 +865,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     /*
      * 写入源码映射表。
      */
+    if (ok)
     {
         uint64_t sm_count = (uint64_t)code_env->m_source_map.m_entry_count;
         ok = ok && _bin_write_u64(&w, sm_count);
@@ -861,6 +890,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     /*
      * 写入 trap 记录表。
      */
+    if (ok)
     {
         uint64_t trap_count = (uint64_t)code_env->m_trap_records.m_size;
         ok = ok && _bin_write_u64(&w, trap_count);
@@ -1043,6 +1073,45 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
         /* 辅助宏：从字符串池中读取字符串指针（不关心长度） */
 #define _RESTORE_STR(off) \
         ((off) == UINT32_MAX ? NULL : _bin_strpool_get(strpool_data, (off), NULL))
+
+        /*
+         * 读取外部库列表。
+         */
+        {
+            uint64_t lib_count;
+            if (!_bin_read_u64(&r, &lib_count))
+            {
+                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                goto _restore_fail_after_create;
+            }
+            for (uint64_t li = 0; li < lib_count; ++li)
+            {
+                uint32_t name_off;
+                uint32_t path_off;
+                uint32_t script_path_off;
+                if (!_bin_read_u32(&r, &name_off)
+                    || !_bin_read_u32(&r, &path_off)
+                    || !_bin_read_u32(&r, &script_path_off))
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    goto _restore_fail_after_create;
+                }
+
+                const char* lib_name = _RESTORE_STR(name_off);
+                const char* lib_path = _RESTORE_STR(path_off);
+                const char* lib_script_path = _RESTORE_STR(script_path_off);
+                if (lib_name != NULL)
+                {
+                    woort_Dylib* const lib = woort_dylib_load(
+                        lib_name,
+                        lib_path,
+                        lib_script_path, false);
+
+                    if (lib != NULL)
+                        (void)woort_CodeEnv_add_extern_lib(cenv, lib);
+                }
+            }
+        }
 
         /*
          * 读取常量数据。
@@ -1344,44 +1413,6 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 const char* name = _RESTORE_STR(name_off);
                 if (name != NULL)
                     (void)woort_CodeEnv_register_extern_constant(cenv, name, cidx);
-            }
-        }
-
-        /*
-         * 读取外部库列表。
-         */
-        {
-            uint64_t lib_count;
-            if (!_bin_read_u64(&r, &lib_count))
-            {
-                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
-                goto _restore_fail_after_create;
-            }
-            for (uint64_t li = 0; li < lib_count; ++li)
-            {
-                uint32_t name_off;
-                uint32_t path_off;
-                uint32_t script_path_off;
-                if (!_bin_read_u32(&r, &name_off)
-                    || !_bin_read_u32(&r, &path_off)
-                    || !_bin_read_u32(&r, &script_path_off))
-                {
-                    result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
-                    goto _restore_fail_after_create;
-                }
-
-                const char* lib_name = _RESTORE_STR(name_off);
-                const char* lib_path = _RESTORE_STR(path_off);
-                const char* lib_script_path = _RESTORE_STR(script_path_off);
-                if (lib_name != NULL)
-                {
-                    woort_Dylib* lib = woort_dylib_load(
-                        lib_name,
-                        lib_path,
-                        lib_script_path, false);
-                    if (lib != NULL)
-                        (void)woort_CodeEnv_add_extern_lib(cenv, lib);
-                }
             }
         }
 
