@@ -320,46 +320,36 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
 {
     assert(libname != NULL && funcs != NULL);
 
+    woort_Dylib* dylib = NULL;
+
     woort_recursive_mutex_lock(g_named_libs_mx);
 
     if (_woort_dylib_registry_find(libname) != NULL)
-    {
-        woort_recursive_mutex_unlock(g_named_libs_mx);
-        return NULL;
-    }
+        goto fail_unlock;
 
-    woort_Dylib* dylib = (woort_Dylib*)malloc(sizeof(woort_Dylib));
+    dylib = (woort_Dylib*)malloc(sizeof(woort_Dylib));
     if (dylib == NULL)
-    {
-        woort_recursive_mutex_unlock(g_named_libs_mx);
-        return NULL;
-    }
+        goto fail_unlock;
 
     dylib->m_native_handle = NULL;
-
+    dylib->m_fake_funcs = NULL;
+    dylib->m_name = NULL;
+    dylib->m_path = NULL;
+    dylib->m_script_path = NULL;
     dylib->m_dependenced = dependence_dylib;
-    if (dylib->m_dependenced != NULL)
-        woort_dylib_keep(dylib->m_dependenced);
+
+    if (dependence_dylib != NULL)
+        woort_dylib_keep(dependence_dylib);
 
     dylib->m_name = (char*)malloc(strlen(libname) + 1);
     if (dylib->m_name == NULL)
-    {
-        free(dylib);
-        woort_recursive_mutex_unlock(g_named_libs_mx);
-        return NULL;
-    }
+        goto fail_dep;
     strcpy(dylib->m_name, libname);
 
     dylib->m_path = (char*)malloc(strlen(libname) + 1);
     if (dylib->m_path == NULL)
-    {
-        free(dylib->m_name);
-        free(dylib);
-        woort_recursive_mutex_unlock(g_named_libs_mx);
-        return NULL;
-    }
+        goto fail_name;
     strcpy(dylib->m_path, libname);
-    dylib->m_script_path = NULL;
 
     woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
@@ -384,13 +374,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
         woort_ExternLibFunc* copy = (woort_ExternLibFunc*)malloc(
             (count + 1) * sizeof(woort_ExternLibFunc));
         if (copy == NULL)
-        {
-            free(dylib->m_path);
-            free(dylib->m_name);
-            free(dylib);
-            woort_recursive_mutex_unlock(g_named_libs_mx);
-            return NULL;
-        }
+            goto fail_path;
 
         for (size_t i = 0; i < count; ++i)
         {
@@ -401,17 +385,12 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
                 for (size_t j = 0; j < i; ++j)
                     free((void*)copy[j].m_name);
                 free(copy);
-                free(dylib->m_path);
-                free(dylib->m_name);
-                free(dylib);
-                woort_recursive_mutex_unlock(g_named_libs_mx);
-                return NULL;
+                goto fail_path;
             }
             memcpy((void*)copy[i].m_name, funcs[i].m_name, name_len + 1);
             copy[i].m_func_addr = funcs[i].m_func_addr;
         }
 
-        /* Sentinel */
         copy[count].m_name = NULL;
         copy[count].m_func_addr = NULL;
 
@@ -428,6 +407,21 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
 
     woort_recursive_mutex_unlock(g_named_libs_mx);
     return dylib;
+
+fail_path:
+    woort_hashmap_deinit(&dylib->m_resolved_funcs);
+    woort_rwspinlock_deinit(&dylib->m_resolved_lock);
+fail_hashmap:
+    free(dylib->m_path);
+fail_name:
+    free(dylib->m_name);
+fail_dep:
+    if (dependence_dylib != NULL)
+        woort_dylib_unload(dependence_dylib, WOORT_DYLIB_UNREF);
+    free(dylib);
+fail_unlock:
+    woort_recursive_mutex_unlock(g_named_libs_mx);
+    return NULL;
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
