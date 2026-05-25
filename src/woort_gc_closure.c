@@ -13,14 +13,15 @@ const woort_GCUnitProxy WOORT_GCCLOSURE_UNIT_PROXY = {
 
 WOORT_NODISCARD woort_GCClosure* _woort_GCClosure_new(size_t captured_count)
 {
-    woort_GCClosure* const gcclosure = woort_GCUnit_alloc_attrib(
-        A,
+    woort_GCClosure* const gcclosure = woort_GCUnit_alloc_delay_init(
         sizeof(woort_GCClosure)
         + captured_count * sizeof(woort_Value));
 
     gcclosure->m_gc_unit.m_proxy = &WOORT_GCCLOSURE_UNIT_PROXY;
 
     gcclosure->m_size = captured_count;
+
+    woort_GCUnit_init_delay_alloc(A, gcclosure);
 
     return gcclosure;
 }
@@ -30,8 +31,8 @@ WOORT_NODISCARD woort_GCClosure* _woort_GCClosure_new_for_env_constant(
     woort_GCClosure* gcclosure;
     do
     {
-        gcclosure = woort_GCUnit_alloc_attrib_may_fail(
-            A, sizeof(woort_GCClosure));
+        gcclosure = woomem_allocate_begin(
+            sizeof(woort_GCClosure));
 
         if (gcclosure != NULL)
             break;
@@ -47,6 +48,8 @@ WOORT_NODISCARD woort_GCClosure* _woort_GCClosure_new_for_env_constant(
     gcclosure->m_gc_unit.m_proxy = &WOORT_GCCLOSURE_UNIT_PROXY;
 
     gcclosure->m_size = 0;
+
+    woort_GCUnit_init_delay_alloc(A, gcclosure);
 
     return gcclosure;
 }

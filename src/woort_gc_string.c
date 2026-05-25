@@ -22,8 +22,8 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_string_for_env_constan
 
     do
     {
-        gcstr = woort_GCUnit_alloc_attrib_may_fail(
-            O, sizeof(woort_GCString) + len + 1);
+        gcstr = woomem_allocate_begin(
+            sizeof(woort_GCString) + len + 1);
 
         if (gcstr != NULL)
             break;
@@ -42,19 +42,23 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_string_for_env_constan
     memcpy(gcstr->m_content, str, len);
     gcstr->m_content[len] = '\0';
 
+    woort_GCUnit_init_delay_alloc(O, gcstr);
+
     return gcstr;
 }
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str, size_t len)
 {
     woort_GCString* const gcstr = 
-        woort_GCUnit_alloc_attrib(O, sizeof(woort_GCString) + len + 1);
+        woort_GCUnit_alloc_delay_init(sizeof(woort_GCString) + len + 1);
 
     gcstr->m_gc_unit.m_proxy = &WOORT_GCSTRING_UNIT_PROXY;
     gcstr->m_length = len;
 
     memcpy(gcstr->m_content, str, len);
     gcstr->m_content[len] = '\0';
+
+    woort_GCUnit_init_delay_alloc(O, gcstr);
 
     return gcstr;
 }
@@ -69,12 +73,14 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_format_va(const char* 
         return NULL;
 
     woort_GCString* const gcstr =
-        woort_GCUnit_alloc_attrib(O, sizeof(woort_GCString) + (size_t)len + 1);
+        woort_GCUnit_alloc_delay_init(sizeof(woort_GCString) + (size_t)len + 1);
 
     gcstr->m_gc_unit.m_proxy = &WOORT_GCSTRING_UNIT_PROXY;
     gcstr->m_length = (size_t)len;
 
     vsnprintf(gcstr->m_content, (size_t)len + 1, fmt, args);
+
+    woort_GCUnit_init_delay_alloc(O, gcstr);
 
     return gcstr;
 }
@@ -91,7 +97,7 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_format(const char* fmt
 WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b)
 {
     woort_GCString* const gcstr = 
-        woort_GCUnit_alloc_attrib(O, sizeof(woort_GCString) + a->m_length + b->m_length + 1);
+        woort_GCUnit_alloc_delay_init(sizeof(woort_GCString) + a->m_length + b->m_length + 1);
 
     gcstr->m_gc_unit.m_proxy = &WOORT_GCSTRING_UNIT_PROXY;
     gcstr->m_length = a->m_length + b->m_length;
@@ -99,6 +105,8 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCSt
     memcpy(gcstr->m_content, a->m_content, a->m_length);
     memcpy(gcstr->m_content + a->m_length, b->m_content, b->m_length);
     gcstr->m_content[a->m_length + b->m_length] = '\0';
+
+    woort_GCUnit_init_delay_alloc(O, gcstr);
 
     return gcstr;
 }

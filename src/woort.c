@@ -46,8 +46,7 @@ void woort_init(int argc, char** argv)
     /*
         Parse runtime-level command-line arguments.
     */
-    size_t max_chunk_memory = 0;
-    size_t max_huge_unit_memory = 0;
+    size_t max_reserved_memory = 0;
     for (int command_idx = 0; command_idx + 1 < argc; command_idx++)
     {
         const char* current_arg = argv[command_idx];
@@ -57,10 +56,8 @@ void woort_init(int argc, char** argv)
             const char* setting = current_arg + 2;
             if (strcmp(setting, "woort-enable-ctrlc-debug") == 0)
                 woort_ctrl_c_callback_hooked = (bool)atoi(argv[++command_idx]);
-            else if (strcmp(setting, "woort-gc-max-chunk-memory") == 0)
-                max_chunk_memory = (size_t)atoi(argv[++command_idx]);
-            else if (strcmp(setting, "woort-gc-max-huge-unit-memory") == 0)
-                max_huge_unit_memory = (size_t)atoi(argv[++command_idx]);
+            else if (strcmp(setting, "woort-gc-max-reserved-memory") == 0)
+                max_reserved_memory = (size_t)atoi(argv[++command_idx]);
             else
                 woort_log("WOORT: Unknown command line option named: `%s`.\n", current_arg);
         }
@@ -69,7 +66,11 @@ void woort_init(int argc, char** argv)
     if (woort_ctrl_c_callback_hooked)
         woort_ctrlc_setup();
 
-    woort_GC_bootup(max_chunk_memory * 1024 * 1024, max_huge_unit_memory * 1024 * 1024);
+    if (!woort_GC_bootup(max_reserved_memory * 1024 * 1024))
+    {
+        WOORT_DEBUG("Failed to bootup gc.");
+        abort();
+    }
 
     if (!_woort_dylib_bootup())
     {

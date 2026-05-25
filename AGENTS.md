@@ -121,7 +121,8 @@ WOORT_NODISCARD bool woort_hashmap_get_or_emplace(
 ## Memory Management (woomem submodule)
 
 - GC-managed objects inherit from `woort_GCUnit` (first member must be `const woort_GCUnitProxy* m_proxy`)
-- Allocate with `woort_GCUnit_alloc_attrib(ATTRIB, SIZE)` macro (requires `"woomem.h"` included first)
+- Allocate with `woort_GCUnit_alloc_delay_init(SIZE)` then init fields, finally `woort_GCUnit_init_delay_alloc(ATTRIB, PTR)` (requires `"woomem.h"` included first)
+- For may-fail allocations, use `woomem_allocate_begin(SIZE)` directly instead of `woort_GCUnit_alloc_delay_init`, then call `woort_GCUnit_init_delay_alloc(ATTRIB, PTR)` after init
 - Write barriers are **mandatory** when writing GC references:
   - `woort_GC_mixed_write_barrier_value()` for `woort_Value` fields
   - `woort_GC_mixed_write_barrier_dynbox()` for `woort_DynBox` fields

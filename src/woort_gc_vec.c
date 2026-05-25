@@ -15,11 +15,13 @@ const woort_GCUnitProxy WOORT_GCVEC_UNIT_PROXY = {
 
 woort_GCVec* woort_GCVec_new(void)
 {
-    woort_GCVec* const gcvec = woort_GCUnit_alloc_attrib(A, sizeof(woort_GCVec));
+    woort_GCVec* const gcvec = woort_GCUnit_alloc_delay_init(sizeof(woort_GCVec));
     gcvec->m_gc_unit.m_proxy = &WOORT_GCVEC_UNIT_PROXY;
     gcvec->m_space = 0;
     gcvec->m_length = 0;
     gcvec->m_datas = NULL;
+
+    woort_GCUnit_init_delay_alloc(A, gcvec);
 
     return gcvec;
 }
@@ -33,10 +35,17 @@ void _woort_GCVec_assure_vec_space(woort_GCVec* vec, size_t size)
     if (new_space < size)
         new_space = size;
 
-    woort_DynBox* const new_datas = vec->m_datas == NULL
+    woort_DynBox* new_datas;
+    if (vec->m_datas == NULL)
+    {
         // 此处假定分配必然成功，我们会在之后再处理其他情况
-        ? woort_GCUnit_alloc_attrib(A, new_space * sizeof(woort_DynBox))
-        : woort_GCUnit_realloc(vec->m_datas, new_space * sizeof(woort_DynBox));
+        new_datas = woort_GCUnit_alloc_delay_init(
+            new_space * sizeof(woort_DynBox));
+        woort_GCUnit_init_delay_alloc(A, new_datas);
+    }
+    else
+        new_datas = woort_GCUnit_realloc(
+            vec->m_datas, new_space * sizeof(woort_DynBox));
 
     woort_GC_mixed_write_barrier_gcunit((const void**)&vec->m_datas, new_datas);
     vec->m_space = new_space;

@@ -18,7 +18,7 @@ void _woort_GCUnit_alloc_failed(void)
 
         woort_VMRuntime* const last_vm = woort_vm_swap(NULL);
         {
-            woomem_gc_collect();
+            woomem_trigger_gc(false);
         }
         (void)woort_vm_swap(last_vm);
 

@@ -25,19 +25,13 @@ typedef struct woort_GCContext
 
 static woort_GCContext s_gc_context;
 
-static void _woort_GC_marker_callback(
-    woomem_UserContext /* useless */_useless, void* unit)
+static void _woort_GC_marker_callback(void* unit)
 {
-    (void)_useless;
-
     woort_GCUnit* gcunit = unit;
     gcunit->m_proxy->m_marker(gcunit);
 }
-static void _woort_GC_destroier_callback(
-    woomem_UserContext /* useless */_useless, void* unit)
+static void _woort_GC_destroier_callback(void* unit)
 {
-    (void)_useless;
-
     woort_GCUnit* gcunit = unit;
     gcunit->m_proxy->m_destructor(gcunit);
 }
@@ -154,10 +148,8 @@ static bool _woort_GC_walk_through_to_sync_vm_mark(
     return true;
 }
 
-static void _woort_GC_start_callback(void* /* useless */_useless)
+static void _woort_GC_start_callback(void)
 {
-    (void)_useless;
-
     woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
@@ -196,7 +188,7 @@ static bool _woort_GC_walk_through_to_abort_vm(
     return true;
 }
 
-void _woort_GC_stop_mark_callback(void* /* useless */_useless)
+static void _woort_GC_stop_mark_callback(void)
 {
     woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
@@ -210,16 +202,17 @@ void _woort_GC_stop_mark_callback(void* /* useless */_useless)
     woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
 }
 
-void woort_GC_bootup(size_t max_chunk_memory, size_t max_huge_unit_memory)
+WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
 {
-    woomem_init(
-        NULL,
-        &_woort_GC_marker_callback,
-        &_woort_GC_destroier_callback,
+    if (!woomem_init(
+        reserving_memory_size,
         &_woort_GC_start_callback,
         &_woort_GC_stop_mark_callback,
-        max_chunk_memory,
-        max_huge_unit_memory);
+        &_woort_GC_marker_callback,
+        &_woort_GC_destroier_callback))
+    {
+        return false;
+    }
 
     woort_rwspinlock_init(&s_gc_context.m_root_vms_to_mark_mx);
     woort_hashmap_init(
@@ -228,12 +221,15 @@ void woort_GC_bootup(size_t max_chunk_memory, size_t max_huge_unit_memory)
         0,
         woort_util_ptr_hash,
         woort_util_ptr_equal);
+
     woort_hashmap_init(
         &s_gc_context.m_not_been_marked_weak_vm,
         sizeof(struct woort_VMRuntime*),
         0,
         woort_util_ptr_hash,
         woort_util_ptr_equal);
+
+    return true;
 }
 static bool _woort_GC_shutdown_abort_vm_callback(
     const void* key,
@@ -390,10 +386,10 @@ void woort_GC_shutdown(void)
         woort_rwspinlock_write_unlock(&s_gc_context.m_root_vms_to_mark_mx);
 
         /* 触发一次完整的 GC 回收（标记 → 终结 → 清扫） */
-        woomem_gc_collect();
+        woomem_trigger_gc(false);
 
         if (already_no_vm_exists
-            && g_alive_unit_size_after_gc_scan == 0)
+            && woomem_gc_memory_size_after_last_round_sweep == 0)
             break;
     }
 
@@ -484,7 +480,6 @@ void woort_GC_foreach_root_vm(
 
 void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
 {
-    assert(g_gc_in_marking);
     assert(woort_atomic_load_explicit(&vm->m_is_weak, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
 
     /* NOTE: 此处使用 _woort_GC_mark_vm_proxy 是为了确保：
@@ -502,7 +497,6 @@ void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
     _woort_GC_mark_vm_proxy(vm, false);
 }
 
-
 void woort_GC_mark_droped_env_manually(
     const woort_CodeEnv* env)
 {
@@ -512,7 +506,7 @@ void woort_GC_mark_droped_env_manually(
 void woort_GC_mark_value_manually(
     const woort_Value* val)
 {
-    woomem_try_mark_unit((intptr_t)val->m_gcinstance);
+    woomem_mark_fuzzy_unit_head((intptr_t)val->m_gcinstance);
 }
 
 void woort_GC_move_value_with_mixed_write_barrier(

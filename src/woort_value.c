@@ -109,13 +109,15 @@ woort_DynBox woort_DynBox_box_real(woort_Real val)
     woort_DynBox result;
     if (!_woort_try_box_float63(val, &result.m_boxed))
     {
-        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
-            O, sizeof(woort_BoxedExValue));
+        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_delay_init(
+            sizeof(woort_BoxedExValue));
 
         ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
 
         ex_box->m_is_int = false;
         ex_box->m_real = val;
+
+        woort_GCUnit_init_delay_alloc(O, ex_box);
 
         result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
     }
@@ -126,13 +128,15 @@ woort_DynBox woort_DynBox_box_int(woort_Int val)
     woort_DynBox result;
     if (!_woort_try_box_int62(val, &result.m_boxed))
     {
-        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
-            O, sizeof(woort_BoxedExValue));
+        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_delay_init(
+            sizeof(woort_BoxedExValue));
 
         ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
 
         ex_box->m_is_int = true;
         ex_box->m_int = val;
+
+        woort_GCUnit_init_delay_alloc(O, ex_box);
 
         result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
     }
@@ -154,8 +158,8 @@ woort_DynBox woort_DynBox_box_real_for_env_constant(woort_CodeEnv* cenv, woort_R
 
         do
         {
-            ex_box = woort_GCUnit_alloc_attrib_may_fail(
-                O, sizeof(woort_BoxedExValue));
+            ex_box = woomem_allocate_begin(
+                sizeof(woort_BoxedExValue));
 
             if (ex_box != NULL)
                 break;
@@ -173,6 +177,8 @@ woort_DynBox woort_DynBox_box_real_for_env_constant(woort_CodeEnv* cenv, woort_R
         ex_box->m_is_int = false;
         ex_box->m_real = val;
 
+        woort_GCUnit_init_delay_alloc(O, ex_box);
+
         result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
     }
     return result;
@@ -187,8 +193,8 @@ woort_DynBox woort_DynBox_box_int_for_env_constant(woort_CodeEnv* cenv, woort_In
 
         do
         {
-            ex_box = woort_GCUnit_alloc_attrib_may_fail(
-                O, sizeof(woort_BoxedExValue));
+            ex_box = woomem_allocate_begin(
+                sizeof(woort_BoxedExValue));
 
             if (ex_box != NULL)
                 break;
@@ -205,6 +211,8 @@ woort_DynBox woort_DynBox_box_int_for_env_constant(woort_CodeEnv* cenv, woort_In
 
         ex_box->m_is_int = true;
         ex_box->m_int = val;
+
+        woort_GCUnit_init_delay_alloc(O, ex_box);
 
         result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
     }
@@ -249,13 +257,15 @@ void woort_DynBox_box_real_with_barrier(woort_DynBox* dst, woort_Real val)
     woort_DynBox result;
     if (!_woort_try_box_float63(val, &result.m_boxed))
     {
-        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
-            O, sizeof(woort_BoxedExValue));
+        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_delay_init(
+            sizeof(woort_BoxedExValue));
 
         ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
 
         ex_box->m_is_int = false;
         ex_box->m_real = val;
+
+        woort_GCUnit_init_delay_alloc(O, ex_box);
 
         result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
     }
@@ -267,13 +277,15 @@ void woort_DynBox_box_int_with_barrier(woort_DynBox* dst, woort_Int val)
     woort_DynBox result;
     if (!_woort_try_box_int62(val, &result.m_boxed))
     {
-        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_attrib(
-            O, sizeof(woort_BoxedExValue));
+        woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_delay_init(
+            sizeof(woort_BoxedExValue));
 
         ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
 
         ex_box->m_is_int = true;
         ex_box->m_int = val;
+
+        woort_GCUnit_init_delay_alloc(O, ex_box);
 
         result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
     }

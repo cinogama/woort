@@ -239,18 +239,15 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
     do
     {
-        codes = woort_GCUnit_alloc_attrib_may_fail(
-            M,
+        codes = woomem_allocate_begin(
             sizeof(woort_CodeEnv_Code)
             + bytecodes_count * sizeof(woort_Bytecode));
 
         if (codes != NULL)
         {
-            code_env_instance =
-                woort_GCUnit_alloc_attrib_may_fail(
-                    AF,
-                    sizeof(woort_CodeEnv)
-                    + constant_and_static_storage_count * sizeof(woort_Value));
+            code_env_instance = woomem_allocate_begin(
+                sizeof(woort_CodeEnv)
+                + constant_and_static_storage_count * sizeof(woort_Value));
         }
 
         if (codes == NULL || code_env_instance == NULL)
@@ -277,6 +274,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         codes->m_codes,
         bytecodes,
         bytecodes_count * sizeof(woort_Bytecode));
+
+    woort_GCUnit_init_delay_alloc(M, codes);
 
     code_env_instance->m_gc_unit.m_proxy =
         &_codeenv_global_ctx->m_env_proxy;
@@ -326,6 +325,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         code_env_instance->m_data_begin,
         0,
         constant_and_static_storage_count * sizeof(woort_Value));
+
+    woort_GCUnit_init_delay_alloc(AF, code_env_instance);
 
     // 将新创建的 CodeEnv 注册到全局容器
     // 

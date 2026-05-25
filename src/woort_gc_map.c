@@ -13,14 +13,16 @@ const woort_GCUnitProxy WOORT_GCMAP_UNIT_PROXY = {
 
 WOORT_NODISCARD woort_GCMap* woort_GCMap_new(void)
 {
-    woort_GCMap* const gcmap = woort_GCUnit_alloc_attrib(
-        A, sizeof(woort_GCMap));
+    woort_GCMap* const gcmap = woort_GCUnit_alloc_delay_init(
+        sizeof(woort_GCMap));
 
     gcmap->m_gc_unit.m_proxy = &WOORT_GCMAP_UNIT_PROXY;
     gcmap->m_entries = NULL;
     gcmap->m_buckets = NULL;
     gcmap->m_mask = 0;
     gcmap->m_size = 0;
+
+    woort_GCUnit_init_delay_alloc(A, gcmap);
 
     return gcmap;
 }
@@ -99,11 +101,17 @@ void woort_GCMap_reserve(woort_GCMap* gcmap, size_t kv_count)
     const size_t realloc_size =
         capacity * (sizeof(woort_GCMap_Bucket) + sizeof(uint32_t));
 
+    void* new_buckets;
+    if (gcmap->m_buckets == NULL)
+    {
+        new_buckets = woort_GCUnit_alloc_delay_init(realloc_size);
+        woort_GCUnit_init_delay_alloc(A, new_buckets);
+    }
+    else
+        new_buckets = woort_GCUnit_realloc(gcmap->m_buckets, realloc_size);
+
     woort_GC_mixed_write_barrier_gcunit(
-        (const void**)&gcmap->m_buckets,
-        gcmap->m_buckets == NULL
-            ? woort_GCUnit_alloc_attrib(A, realloc_size)
-            : woort_GCUnit_realloc(gcmap->m_buckets, realloc_size));
+        (const void**)&gcmap->m_buckets, new_buckets);
 
     gcmap->m_entries = (uint32_t*)(gcmap->m_buckets + capacity);
     gcmap->m_mask = capacity - 1;

@@ -27,9 +27,9 @@ struct woort_GCUnit
 };
 
 #define WOORT_GCUNIT_ALLOC_ATTRIB_O 0
-#define WOORT_GCUNIT_ALLOC_ATTRIB_A WOOMEM_GC_UNIT_TYPE_AUTO_MARK
-#define WOORT_GCUNIT_ALLOC_ATTRIB_M WOOMEM_GC_UNIT_TYPE_HAS_MARKER
-#define WOORT_GCUNIT_ALLOC_ATTRIB_F WOOMEM_GC_UNIT_TYPE_HAS_FINALIZER
+#define WOORT_GCUNIT_ALLOC_ATTRIB_A WOOMEM_ATTRIB_AUTO_MARK
+#define WOORT_GCUNIT_ALLOC_ATTRIB_M WOOMEM_ATTRIB_MARK_CALLBACK
+#define WOORT_GCUNIT_ALLOC_ATTRIB_F WOOMEM_ATTRIB_FREE_CALLBACK
 
 #define WOORT_GCUNIT_ALLOC_ATTRIB_AM \
     (WOORT_GCUNIT_ALLOC_ATTRIB_A | WOORT_GCUNIT_ALLOC_ATTRIB_M)
@@ -42,24 +42,11 @@ struct woort_GCUnit
 
 void _woort_GCUnit_alloc_failed(void);
 
-inline static void* _woort_GCUnit_alloc_attrib(size_t sz, int attrib)
-{
-    do
-    {
-        void* p = woomem_alloc_attrib(sz, attrib);
-        if (p != NULL)
-            return p;
-
-        // Out of memory.
-        _woort_GCUnit_alloc_failed();
-
-    } while (1);
-}
 inline static void* woort_GCUnit_realloc(void* ptr, size_t sz)
 {
     do
     {
-        void* p = woomem_realloc(ptr, sz);
+        void* p = woomem_reallocate(ptr, sz);
         if (p != NULL)
             return p;
 
@@ -72,7 +59,7 @@ inline static void* woort_GCUnit_alloc_delay_init(size_t sz)
 {
     do
     {
-        void* p = woomem_alloc_delay_init(sz);
+        void* p = woomem_allocate_begin(sz);
         if (p != NULL)
             return p;
 
@@ -82,21 +69,8 @@ inline static void* woort_GCUnit_alloc_delay_init(size_t sz)
     } while (1);
 }
 
-// Before using this macro, you must include "woomem.h".
-#define woort_GCUnit_alloc_attrib(ATTRIB, SIZE)             \
-    _woort_GCUnit_alloc_attrib(                             \
-        (SIZE),                                             \
-        WOOMEM_GC_UNIT_TYPE_NEED_SWEEP                      \
-        | (WOORT_GCUNIT_ALLOC_ATTRIB_##ATTRIB))
-
-#define woort_GCUnit_alloc_attrib_may_fail(ATTRIB, SIZE)    \
-    woomem_alloc_attrib(                                    \
-        (SIZE),                                             \
-        WOOMEM_GC_UNIT_TYPE_NEED_SWEEP                      \
-        | (WOORT_GCUNIT_ALLOC_ATTRIB_##ATTRIB))
-
-#define woort_GCUnit_init_delay_alloc(ATTRIB, PTR)            \
-    woomem_init_delay_alloc_attrib(                         \
-        PTR,                                                  \
-        WOOMEM_GC_UNIT_TYPE_NEED_SWEEP                      \
+#define woort_GCUnit_init_delay_alloc(ATTRIB, PTR)  \
+    woomem_allocate_end(                            \
+        PTR,                                        \
+        WOOMEM_ATTRIB_NEED_SWEEP                    \
         | (WOORT_GCUNIT_ALLOC_ATTRIB_##ATTRIB))

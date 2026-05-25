@@ -9,13 +9,14 @@ const woort_GCUnitProxy WOORT_GCSTRUCT_UNIT_PROXY = {
 
 woort_GCStruct* woort_GCStruct_new(size_t struct_size)
 {
-    woort_GCStruct* const gcstruct = woort_GCUnit_alloc_attrib(
-        A, 
+    woort_GCStruct* const gcstruct = woort_GCUnit_alloc_delay_init(
         sizeof(woort_GCStruct) 
         + struct_size * sizeof(woort_Value));
 
     gcstruct->m_gc_unit.m_proxy = &WOORT_GCSTRUCT_UNIT_PROXY;
     gcstruct->m_size = struct_size;
+
+    woort_GCUnit_init_delay_alloc(A, gcstruct);
 
     return gcstruct;
 }
@@ -27,8 +28,8 @@ WOORT_NODISCARD woort_GCStruct* woort_GCStruct_new_for_env_constant(
 
     do
     {
-        gcstruct = woort_GCUnit_alloc_attrib_may_fail(
-            A, sizeof(woort_GCStruct) + struct_size * sizeof(woort_Value));
+        gcstruct = woomem_allocate_begin(
+            sizeof(woort_GCStruct) + struct_size * sizeof(woort_Value));
 
         if (gcstruct != NULL)
             break;
@@ -43,6 +44,8 @@ WOORT_NODISCARD woort_GCStruct* woort_GCStruct_new_for_env_constant(
 
     gcstruct->m_gc_unit.m_proxy = &WOORT_GCSTRUCT_UNIT_PROXY;
     gcstruct->m_size = struct_size;
+
+    woort_GCUnit_init_delay_alloc(A, gcstruct);
 
     return gcstruct;
 }
