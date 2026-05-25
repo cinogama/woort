@@ -411,7 +411,6 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
 fail_path:
     woort_hashmap_deinit(&dylib->m_resolved_funcs);
     woort_rwspinlock_deinit(&dylib->m_resolved_lock);
-fail_hashmap:
     free(dylib->m_path);
 fail_name:
     free(dylib->m_name);

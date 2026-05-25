@@ -29,7 +29,7 @@ void woort_GC_foreach_root_vm(
     void* user_data);
 
 static inline void woort_GC_mixed_write_barrier_gcaddr(
-    const void** modified_unit_addr, const void* src_unit)
+    void** modified_unit_addr, void* src_unit)
 {
     if (woomem_gc_marking_state_flag)
     {
@@ -40,7 +40,7 @@ static inline void woort_GC_mixed_write_barrier_gcaddr(
 }
 
 static inline void woort_GC_mixed_write_barrier_gcunit(
-    const void** modified_unit_addr, const void* src_unit)
+    void** modified_unit_addr, void* src_unit)
 {
     if (woomem_gc_marking_state_flag)
     {
@@ -81,14 +81,14 @@ static inline void woort_GC_mixed_write_barrier_dynbox(
 }
 
 static inline void woort_GC_delete_barrier_gcaddr(
-    const void* addr)
+    void* addr)
 {
     if (woomem_gc_marking_state_flag)
-        woomem_mark_fuzzy_unit((intptr_t)addr);
+        woomem_mark_fuzzy_unit(addr);
 }
 
 static inline void woort_GC_delete_barrier_gcunit(
-    const void* unit)
+    void* unit)
 {
     if (woomem_gc_marking_state_flag)
         woomem_mark_unit_head(unit);
@@ -98,7 +98,7 @@ static inline void woort_GC_delete_barrier_value(
     woort_Value value)
 {
     if (woomem_gc_marking_state_flag)
-        woomem_mark_fuzzy_unit((intptr_t)value.m_gcinstance);
+        woomem_mark_fuzzy_unit(value.m_gcinstance);
 }
 
 static inline void woort_GC_delete_barrier_dynbox(
@@ -113,7 +113,7 @@ static inline void woort_GC_delete_barrier_dynbox(
 }
 
 static inline void woort_GC_init_write_barrier_gcaddr(
-    const void** modified_unit_addr, const void* src_unit)
+    void** modified_unit_addr, void* src_unit)
 {
     if (woomem_gc_marking_state_flag)
     {
@@ -123,7 +123,7 @@ static inline void woort_GC_init_write_barrier_gcaddr(
 }
 
 static inline void woort_GC_init_write_barrier_gcunit(
-    const void** modified_unit_addr, const void* src_unit)
+    void** modified_unit_addr, void* src_unit)
 {
     if (woomem_gc_marking_state_flag)
     {

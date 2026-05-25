@@ -500,13 +500,13 @@ void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
 void woort_GC_mark_droped_env_manually(
     const woort_CodeEnv* env)
 {
-    woomem_mark_unit_head(env);
+    woomem_mark_unit_head((void*)env);
 }
 
 void woort_GC_mark_value_manually(
     const woort_Value* val)
 {
-    woomem_mark_fuzzy_unit_head((intptr_t)val->m_gcinstance);
+    woomem_mark_fuzzy_unit_head(val->m_gcinstance);
 }
 
 void woort_GC_move_value_with_mixed_write_barrier(

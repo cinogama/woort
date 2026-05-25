@@ -3952,11 +3952,11 @@ WOORT_NODISCARD bool woort_VMRuntime_request_accept(
 
 void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
 {
-    woomem_mark_unit_head(vm->m_env);
+    woomem_mark_root_unit_head(vm->m_env);
 
     // TODO: Optimize for fast marking.
     for (void** p = (void**)vm->m_sp; p != (void**)vm->m_stack_end; ++p)
-        woomem_mark_fuzzy_unit((intptr_t)*p);
+        woomem_mark_root_fuzzy_unit(*p);
 
     /* Check stack utilization and advise shrink if appropriate. */
     {

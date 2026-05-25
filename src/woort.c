@@ -46,7 +46,7 @@ void woort_init(int argc, char** argv)
     /*
         Parse runtime-level command-line arguments.
     */
-    size_t max_reserved_memory = 0;
+    size_t max_reserved_memory = 1024;
     for (int command_idx = 0; command_idx + 1 < argc; command_idx++)
     {
         const char* current_arg = argv[command_idx];
@@ -648,7 +648,7 @@ void woort_set_union_string(
     assert(str != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
-        (const void**)&s->m_datas[1].m_string, str);
+        (void**)&s->m_datas[1].m_string, (void*)str);
 }
 
 void woort_set_union_buffer(
@@ -662,7 +662,7 @@ void woort_set_union_buffer(
     assert(buf != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
-        (const void**)&s->m_datas[1].m_string, buf);
+        (void**)&s->m_datas[1].m_string, (void*)buf);
 }
 
 void woort_set_union_vec(
@@ -732,7 +732,7 @@ void woort_set_union_gchandle(
     assert(handle != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
-        (const void**)&s->m_datas[1].m_gchandle, handle);
+        (void**)&s->m_datas[1].m_gchandle, (void*)handle);
 }
 
 void woort_set_union_gcstruct(
@@ -752,7 +752,7 @@ void woort_set_union_gcstruct(
     assert(handle != NULL);
 
     woort_GC_mixed_write_barrier_gcunit(
-        (const void**)&s->m_datas[1].m_gchandle, handle);
+        (void**)&s->m_datas[1].m_gchandle, (void*)handle);
 }
 
 void woort_set_union_box_int(

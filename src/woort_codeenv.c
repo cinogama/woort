@@ -87,7 +87,7 @@ static bool _codeenv_mark_callback(
     woort_CodeEnv_lock(code_env);
     {
         if (code_env->m_hold)
-            woomem_mark_unit_head(code_env);
+            woomem_mark_root_unit_head(code_env);
     }
     woort_CodeEnv_unlock(code_env);
     return true;
@@ -252,6 +252,11 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
         if (codes == NULL || code_env_instance == NULL)
         {
+            if (codes != NULL)
+                woort_GCUnit_init_delay_alloc(O, codes);
+            else if (code_env_instance != NULL)
+                woort_GCUnit_init_delay_alloc(O, code_env_instance);
+
             // Failed to allocate.
             woort_rwspinlock_write_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
             {
