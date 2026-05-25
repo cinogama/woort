@@ -284,6 +284,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
     code_env_instance->m_gc_unit.m_proxy =
         &_codeenv_global_ctx->m_env_proxy;
+
     code_env_instance->m_hold = true;
     code_env_instance->m_mutex = NULL;
 
@@ -331,8 +332,6 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         0,
         constant_and_static_storage_count * sizeof(woort_Value));
 
-    woort_GCUnit_init_delay_alloc(AF, code_env_instance);
-
     // 将新创建的 CodeEnv 注册到全局容器
     // 
     // NOTE: 因为 woort_CodeEnv 使用 GC 管理，即便此处注册失败也不需要
@@ -341,6 +340,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         _codeenv_global_ctx->m_codeenvs,
         &code_env_instance->m_code_begin,
         &code_env_instance));
+
+    woort_GCUnit_init_delay_alloc(AF, code_env_instance);
 
     woort_rwspinlock_write_unlock(
         &_codeenv_global_ctx->m_codeenvs_lock);
