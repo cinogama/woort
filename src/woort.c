@@ -265,7 +265,7 @@ void woort_CodeEnv_set_const_box_int(
     assert((size_t)cidx < code_env->m_data_count);
 
     woort_DynBox boxed = woort_DynBox_box_int_for_env_constant(code_env, val);
-    woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
+    woort_GC_init_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
     (void)woort_CodeEnv_set_const_record(code_env, cidx,
         WOORT_CONST_TYPE_BOX_INT, NULL, NULL);
 }
@@ -279,7 +279,7 @@ void woort_CodeEnv_set_const_box_real(
     assert((size_t)cidx < code_env->m_data_count);
 
     woort_DynBox boxed = woort_DynBox_box_real_for_env_constant(code_env, val);
-    woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
+    woort_GC_init_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
     (void)woort_CodeEnv_set_const_record(code_env, cidx,
         WOORT_CONST_TYPE_BOX_REAL, NULL, NULL);
 }
@@ -293,7 +293,7 @@ void woort_CodeEnv_set_const_box_bool(
     assert((size_t)cidx < code_env->m_data_count);
 
     woort_DynBox boxed = woort_DynBox_box_bool(val);
-    woort_GC_mixed_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
+    woort_GC_init_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
     (void)woort_CodeEnv_set_const_record(code_env, cidx,
         WOORT_CONST_TYPE_BOX_BOOL, NULL, NULL);
 }
@@ -763,7 +763,7 @@ void woort_set_union_box_int(
 
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
     woort_DynBox const boxed = woort_DynBox_box_int(src);
-    woort_GC_mixed_write_barrier_dynbox(&s->m_datas[1].m_dynamic, boxed);
+    woort_GC_init_write_barrier_dynbox(&s->m_datas[1].m_dynamic, boxed);
 }
 
 void woort_set_union_box_real(
@@ -774,7 +774,7 @@ void woort_set_union_box_real(
 
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
     woort_DynBox const boxed = woort_DynBox_box_real(src);
-    woort_GC_mixed_write_barrier_dynbox(&s->m_datas[1].m_dynamic, boxed);
+    woort_GC_init_write_barrier_dynbox(&s->m_datas[1].m_dynamic, boxed);
 }
 
 void woort_set_union_box_bool(
@@ -785,7 +785,7 @@ void woort_set_union_box_bool(
 
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
     woort_DynBox const boxed = woort_DynBox_box_bool(src);
-    woort_GC_mixed_write_barrier_dynbox(&s->m_datas[1].m_dynamic, boxed);
+    woort_GC_init_write_barrier_dynbox(&s->m_datas[1].m_dynamic, boxed);
 }
 
 /* Read */
