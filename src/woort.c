@@ -647,7 +647,7 @@ void woort_set_union_string(
     const woort_GCString* const str = woort_GCString_make_string(src, len);
     assert(str != NULL);
 
-    woort_GC_mixed_write_barrier_gcunit(
+    woort_GC_init_write_barrier_gcunit(
         (void**)&s->m_datas[1].m_string, (void*)str);
 }
 
@@ -661,7 +661,7 @@ void woort_set_union_buffer(
     const woort_GCString* const buf = woort_GCString_make_string((const char*)src, len);
     assert(buf != NULL);
 
-    woort_GC_mixed_write_barrier_gcunit(
+    woort_GC_init_write_barrier_gcunit(
         (void**)&s->m_datas[1].m_string, (void*)buf);
 }
 
@@ -677,7 +677,7 @@ void woort_set_union_vec(
     if (cap > 0)
         woort_GCVec_resize_without_init(vec, cap);
 
-    woort_GC_mixed_write_barrier_gcunit(
+    woort_GC_init_write_barrier_gcunit(
         (const void**)&s->m_datas[1].m_vec, vec);
 }
 
@@ -693,7 +693,7 @@ void woort_set_union_map(
     if (reserve > 0)
         woort_GCMap_reserve(map, reserve);
 
-    woort_GC_mixed_write_barrier_gcunit(
+    woort_GC_init_write_barrier_gcunit(
         (const void**)&s->m_datas[1].m_map, map);
 }
 
@@ -707,7 +707,7 @@ void woort_set_union_struct(
     woort_GCStruct* const inner = woort_GCStruct_new(cap);
     assert(inner != NULL);
 
-    woort_GC_mixed_write_barrier_gcunit(
+    woort_GC_init_write_barrier_gcunit(
         (const void**)&s->m_datas[1].m_struct, inner);
 }
 
@@ -731,7 +731,7 @@ void woort_set_union_gchandle(
             dylib);
     assert(handle != NULL);
 
-    woort_GC_mixed_write_barrier_gcunit(
+    woort_GC_init_write_barrier_gcunit(
         (void**)&s->m_datas[1].m_gchandle, (void*)handle);
 }
 
@@ -751,7 +751,7 @@ void woort_set_union_gcstruct(
         woort_GCHandle_new_with_marker(addr, mark, close, dylib);
     assert(handle != NULL);
 
-    woort_GC_mixed_write_barrier_gcunit(
+    woort_GC_init_write_barrier_gcunit(
         (void**)&s->m_datas[1].m_gchandle, (void*)handle);
 }
 
