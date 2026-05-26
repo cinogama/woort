@@ -1489,7 +1489,7 @@ _label_continue_execution:
 
             // NOTE: 此处不同步虚拟机状态直接分配是没有问题的，如果分配失败
             //      会假定整个栈空间都在被使用中，肯定能标记到 gcvec 实例
-            woort_GCVec_resize(gcvec, size);
+            _woort_GCVec_extern(gcvec, size);
 
             for (size_t i = 1; i <= size; ++i)
                 woort_GC_init_write_barrier_dynbox(
@@ -1556,7 +1556,7 @@ _label_continue_execution:
             woort_GCVec* const gcvec = woort_GCVec_new();
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_vec = gcvec;
 
-            woort_GCVec_resize(gcvec, size);
+            _woort_GCVec_extern(gcvec, size);
 
             for (size_t i = 1; i <= size; ++i)
                 woort_GC_init_write_barrier_dynbox(
@@ -3615,7 +3615,7 @@ _label_continue_execution:
 
             // NOTE: 此处不同步虚拟机状态直接分配是没有问题的，如果分配失败
             //      会假定整个栈空间都在被使用中，肯定能标记到 gcvec 实例
-            woort_GCVec_resize(gcvec, pack_argc);
+            _woort_GCVec_extern(gcvec, pack_argc);
 
             // NOTE: PACKARG 指令被用于收集变长的参数，因此栈中的值预期均为
             //      DynBox, 直接使用 memcpy 复制到新的数组实例中完成装箱
@@ -3859,6 +3859,12 @@ _label_continue_execution:
                             WOORT_VM_SHRINK_STACK_COUNT;
                 }
             }
+            else if (request_mask
+                & WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED)
+            {
+                (void)woort_VMRuntime_request_accept(
+                    vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED);
+            }            
             else
             {
                 WOORT_VM_SYNC_STATE_AND_PANIC(
@@ -3950,6 +3956,28 @@ WOORT_NODISCARD bool woort_VMRuntime_request_accept(
         &vm->m_check_request_mask, ~check_mask, WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL));
 }
 
+static void _woort_VMRuntime_advise_to_shrink_vm_stack_after_sync(woort_VMRuntime* vm)
+{
+    /* Check stack utilization and advise shrink if appropriate. */
+    const size_t current_vm_stack_usage =
+        vm->m_stack_end - vm->m_sp;
+    const size_t current_stack_size =
+        vm->m_stack_end - vm->m_stack;
+
+    if (current_vm_stack_usage * 4 < current_stack_size
+        && current_stack_size >= 2 * WOORT_VM_DEFAULT_STACK_BEGIN_SIZE)
+    {
+        if (woort_VMRuntime_advise_shrink_stack(vm))
+            (void)woort_VMRuntime_request_set(
+                vm,
+                WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK);
+    }
+    else
+    {
+        woort_VMRuntime_reset_shrink_stack_count(vm);
+    }
+}
+
 void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
 {
     woomem_mark_root_unit_head(vm->m_env);
@@ -3958,26 +3986,18 @@ void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
     for (void** p = (void**)vm->m_sp; p != (void**)vm->m_stack_end; ++p)
         woomem_mark_root_fuzzy_unit(*p);
 
-    /* Check stack utilization and advise shrink if appropriate. */
-    {
-        const size_t current_vm_stack_usage =
-            vm->m_stack_end - vm->m_sp;
-        const size_t current_stack_size =
-            vm->m_stack_end - vm->m_stack;
+    _woort_VMRuntime_advise_to_shrink_vm_stack_after_sync(vm);
+}
 
-        if (current_vm_stack_usage * 4 < current_stack_size
-            && current_stack_size >= 2 * WOORT_VM_DEFAULT_STACK_BEGIN_SIZE)
-        {
-            if (woort_VMRuntime_advise_shrink_stack(vm))
-                (void)woort_VMRuntime_request_set(
-                    vm,
-                    WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK);
-        }
-        else
-        {
-            woort_VMRuntime_reset_shrink_stack_count(vm);
-        }
-    }
+void woort_VMRuntime_mark_weak_vm_after_sync(woort_VMRuntime* vm)
+{
+    woomem_mark_unit_head(vm->m_env);
+
+    // TODO: Optimize for fast marking.
+    for (void** p = (void**)vm->m_sp; p != (void**)vm->m_stack_end; ++p)
+        woomem_mark_fuzzy_unit(*p);
+
+    _woort_VMRuntime_advise_to_shrink_vm_stack_after_sync(vm);
 }
 
 void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
@@ -4020,6 +4040,8 @@ void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
             woort_VMRuntime_hangup(vm);
         }
     }
+    (void)woort_VMRuntime_request_accept(
+        vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED);
 }
 
 void woort_VMRuntime_gc_checkpoint(woort_VMRuntime* vm)
@@ -4027,7 +4049,8 @@ void woort_VMRuntime_gc_checkpoint(woort_VMRuntime* vm)
     if (woort_VMRuntime_request_check(
         vm,
         WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING
-        | WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
+        | WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK
+        | WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED))
     {
         woort_VMRuntime_handle_gc_check_request_and_mark(vm);
     }

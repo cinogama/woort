@@ -675,7 +675,7 @@ void woort_set_union_vec(
     woort_GCVec* const vec = woort_GCVec_new();
     assert(vec != NULL);
     if (cap > 0)
-        woort_GCVec_resize(vec, cap);
+        woort_GCVec_resize_without_init(vec, cap);
 
     woort_GC_mixed_write_barrier_gcunit(
         (const void**)&s->m_datas[1].m_vec, vec);
@@ -1286,7 +1286,37 @@ void woort_vec_resize(woort_StackValue src, size_t new_size)
     woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
     assert(vec != NULL);
 
-    woort_GCVec_resize(vec, new_size);
+    const size_t origin_size = vec->m_length;
+    woort_GCVec_resize_without_init(vec, new_size);
+    if (new_size > origin_size)
+        memset(vec->m_datas + origin_size, 0, (new_size - origin_size) * sizeof(woort_DynBox));
+}
+
+void woort_vec_resize_with(
+    woort_StackValue src,
+    size_t new_size,
+    woort_StackValue init_val)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    woort_GCVec_resize_with(vec, new_size, _WOORT_API_STACK(init_val).m_dynamic);
+}
+
+WOORT_NODISCARD bool woort_vec_shrink(
+    woort_StackValue src,
+    size_t new_size)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCVec* const vec = _WOORT_API_STACK(src).m_vec;
+    assert(vec != NULL);
+
+    return woort_GCVec_shrink(vec, new_size);
 }
 
 WOORT_NODISCARD bool woort_vec_get(

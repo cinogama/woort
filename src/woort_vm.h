@@ -187,6 +187,7 @@ struct woort_VMRuntime
 /////////////////////////////////////////////////////////
 
 void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm);
+void woort_VMRuntime_mark_weak_vm_after_sync(woort_VMRuntime* vm);
 
 void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm);
 

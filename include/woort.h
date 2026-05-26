@@ -3153,6 +3153,26 @@ WOORT_NODISCARD WOORT_API size_t woort_vec_len(
 WOORT_API void woort_vec_resize(
     woort_StackValue src, size_t new_size);
 
+/**
+ * @brief Resize a vector to the given number of elements, filling new slots
+ *        with an explicit initial value.
+ * @param src       Stack slot holding the vector.
+ * @param new_size  Desired number of elements.
+ * @param init_val  Stack slot holding the value to use for new elements.
+ */
+WOORT_API void woort_vec_resize_with(
+    woort_StackValue src, size_t new_size, woort_StackValue init_val);
+
+/**
+ * @brief Shrink a vector to the given number of elements.
+ * @param src       Stack slot holding the vector.
+ * @param new_size  Desired number of elements (must be <= current size).
+ * @return true on success, false if new_size exceeds current size.
+ */
+WOORT_NODISCARD WOORT_API bool woort_vec_shrink(
+    woort_StackValue src, size_t new_size);
+
+
 /**@}*/
 
 /** @name Vector Element Access */

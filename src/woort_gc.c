@@ -100,7 +100,10 @@ static void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool
                 vm_to_request_gc_mark,
                 WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK))
             {
-                woort_VMRuntime_mark_vm_after_sync(vm_to_request_gc_mark);
+                if (skip_weak)
+                    woort_VMRuntime_mark_vm_after_sync(vm_to_request_gc_mark);
+                else
+                    woort_VMRuntime_mark_weak_vm_after_sync(vm_to_request_gc_mark);
             }
             /* else: 否则，注意，如果发现此情况，说明 VM 就在刚刚的一瞬间，全都标记完成了（因为
             WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 能被成功设置，说明 VM 已经不在处理流程
@@ -178,7 +181,7 @@ static bool _woort_GC_walk_through_to_sync_finish_mark(
     woort_VMRuntime* const vm =
         *(woort_VMRuntime* const*)key;
 
-    (void)woort_VMRuntime_request_accept(
+    (void)woort_VMRuntime_request_set(
         vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED);
 
     do
@@ -187,6 +190,7 @@ static bool _woort_GC_walk_through_to_sync_finish_mark(
             vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE))
         {
             // This VM leaved, ignore.
+            break;
         }
     } while (woort_VMRuntime_request_check(
         vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED));

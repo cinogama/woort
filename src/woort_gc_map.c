@@ -136,8 +136,10 @@ woort_GCMap_Bucket* _woort_GCMap_get_writable_bucket_for_key(
 
     const uint32_t new_idx = (uint32_t)gcmap->m_size;
     woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+
+    /* 初始化，避免错误的混合写屏障 */
+    new_bucket->m_val.m_boxed = 0; 
     woort_GC_init_write_barrier_dynbox(&new_bucket->m_key, key);
-    new_bucket->m_val.m_boxed = 0; /* 初始化 val，避免错误的混合写屏障 */
 
     new_bucket->m_next = NULL_BUCKET_INDEX;
     new_bucket->m_prev = NULL_BUCKET_INDEX;
@@ -268,7 +270,7 @@ WOORT_NODISCARD bool woort_GCMap_insert(woort_GCMap* gcmap, woort_DynBox key, wo
 
     woort_GCMap_Bucket* const bucket =
         _woort_GCMap_get_writable_bucket_for_key(gcmap, key);
-    woort_GC_mixed_write_barrier_dynbox(&bucket->m_val, val);
+    woort_GC_init_write_barrier_dynbox(&bucket->m_val, val);
     return true;
 }
 
@@ -391,7 +393,12 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
 
     const uint32_t new_idx = (uint32_t)gcmap->m_size;
     woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+
+    /* 初始化 val，避免错误的混合写屏障 */
+    new_bucket->m_key.m_boxed = 0; 
+    new_bucket->m_val.m_boxed = 0;
     woort_DynBox_box_int_with_barrier(&new_bucket->m_key, key);
+
     new_bucket->m_next = NULL_BUCKET_INDEX;
     new_bucket->m_prev = NULL_BUCKET_INDEX;
 
@@ -429,7 +436,12 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
 
     const uint32_t new_idx = (uint32_t)gcmap->m_size;
     woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+
+    /* 初始化 val，避免错误的混合写屏障 */
+    new_bucket->m_key.m_boxed = 0;
+    new_bucket->m_val.m_boxed = 0;
     woort_DynBox_box_real_with_barrier(&new_bucket->m_key, key);
+
     new_bucket->m_next = NULL_BUCKET_INDEX;
     new_bucket->m_prev = NULL_BUCKET_INDEX;
 
@@ -467,7 +479,12 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
 
     const uint32_t new_idx = (uint32_t)gcmap->m_size;
     woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+
+    /* 初始化 val，避免错误的混合写屏障 */
+    new_bucket->m_key.m_boxed = 0;
+    new_bucket->m_val.m_boxed = 0;
     woort_DynBox_box_bool_with_barrier(&new_bucket->m_key, key);
+
     new_bucket->m_next = NULL_BUCKET_INDEX;
     new_bucket->m_prev = NULL_BUCKET_INDEX;
 
@@ -505,7 +522,11 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
 
     const uint32_t new_idx = (uint32_t)gcmap->m_size;
     woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
-    woort_GC_mixed_write_barrier_dynbox(&new_bucket->m_key, key);
+
+    /* 初始化，避免错误的混合写屏障 */
+    new_bucket->m_val.m_boxed = 0;
+    woort_GC_init_write_barrier_dynbox(&new_bucket->m_key, key);
+
     new_bucket->m_next = NULL_BUCKET_INDEX;
     new_bucket->m_prev = NULL_BUCKET_INDEX;
 
@@ -568,10 +589,13 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
 
     const uint32_t new_idx = (uint32_t)gcmap->m_size;
     woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+
+    /* 初始化 val，避免错误的混合写屏障 */
+    new_bucket->m_val.m_boxed = 0;
     {
         woort_DynBox boxed;
         boxed.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)str);
-        woort_GC_mixed_write_barrier_dynbox(&new_bucket->m_key, boxed);
+        woort_GC_init_write_barrier_dynbox(&new_bucket->m_key, boxed);
     }
     new_bucket->m_next = NULL_BUCKET_INDEX;
     new_bucket->m_prev = NULL_BUCKET_INDEX;

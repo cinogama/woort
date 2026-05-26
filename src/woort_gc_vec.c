@@ -51,10 +51,84 @@ void _woort_GCVec_assure_vec_space(woort_GCVec* vec, size_t size)
     vec->m_space = new_space;
 }
 
-void woort_GCVec_resize(woort_GCVec* vec, size_t size)
+WOORT_NODISCARD void _woort_GCVec_extern(woort_GCVec* vec, size_t size)
 {
+    assert(vec->m_length <= size);
+
     _woort_GCVec_assure_vec_space(vec, size);
     vec->m_length = size;
+}
+void woort_GCVec_resize_without_init(woort_GCVec* vec, size_t size)
+{
+    const size_t origin_size = vec->m_length;
+    if(size < origin_size)
+    {
+        for (size_t i = size; i < origin_size; i++)
+        {
+            woort_GC_delete_barrier_dynbox(vec->m_datas[i]);
+        }
+        vec->m_datas[size].m_boxed = 0;
+    }
+
+    _woort_GCVec_assure_vec_space(vec, size);
+    vec->m_length = size;
+}
+
+void woort_GCVec_resize_with(woort_GCVec* vec, size_t size, woort_DynBox init_val)
+{
+    const size_t origin_size = vec->m_length;
+
+    if (size < origin_size)
+    {
+        for (size_t i = size; i < origin_size; i++)
+        {
+            woort_GC_delete_barrier_dynbox(vec->m_datas[i]);
+        }
+        vec->m_datas[size].m_boxed = 0;
+    }
+
+    _woort_GCVec_assure_vec_space(vec, size);
+
+    if (size > origin_size)
+    {
+        for (size_t i = origin_size; i < size; i++)
+        {
+            woort_GC_init_write_barrier_dynbox(
+                &vec->m_datas[i], init_val);
+        }
+    }
+
+    vec->m_length = size;
+}
+
+WOORT_NODISCARD bool woort_GCVec_shrink(woort_GCVec* vec, size_t new_size)
+{
+    if (new_size > vec->m_length)
+        return false;
+
+    for (size_t i = new_size; i < vec->m_length; i++)
+    {
+        woort_GC_delete_barrier_dynbox(vec->m_datas[i]);
+    }
+
+    vec->m_length = new_size;
+
+    if (new_size == 0 && vec->m_datas != NULL)
+    {
+        woort_GC_delete_barrier_gcunit(vec->m_datas);
+        vec->m_datas = NULL;
+        vec->m_space = 0;
+    }
+    else if (new_size > 0 && new_size < vec->m_space / 4)
+    {
+        woort_DynBox* new_datas = woort_GCUnit_realloc(
+            vec->m_datas, new_size * sizeof(woort_DynBox));
+        woort_GC_mixed_write_barrier_gcunit(
+            (const void**)&vec->m_datas, new_datas);
+        vec->m_space = new_size;
+    }
+
+    return true;
 }
 
 void woort_GCVec_push_back(woort_GCVec* vec, woort_DynBox boxed_value)
@@ -157,7 +231,7 @@ void woort_GCVec_clear(woort_GCVec* vec)
 void woort_GCVec_copy(woort_GCVec* dst, const woort_GCVec* src)
 {
     woort_GCVec_clear(dst);
-    woort_GCVec_resize(dst, src->m_length);
+    _woort_GCVec_extern(dst, src->m_length);
 
     for (size_t i = 0; i < src->m_length; i++)
     {

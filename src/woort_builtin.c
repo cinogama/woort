@@ -2106,15 +2106,9 @@ static woort_api woort_builtin_array_resize_x(void)
 
 static woort_api woort_builtin_array_shrink(void)
 {
-    size_t newsz = (size_t)woort_int(1);
-    size_t cur = woort_vec_len(0);
+    const size_t newsz = (size_t)woort_int(1);
 
-    if (newsz <= cur)
-    {
-        woort_vec_resize(0, newsz);
-        return woort_ret_bool(true);
-    }
-    return woort_ret_bool(false);
+    return woort_ret_bool(woort_vec_shrink(0, newsz));
 }
 
 static woort_api woort_builtin_array_insert_i(void)
