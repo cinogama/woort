@@ -45,7 +45,7 @@ static inline void woort_GC_mixed_write_barrier_gcunit(
     if (woomem_gc_marking_state_flag)
     {
         woomem_mark_unit_head(src_unit);
-        woomem_mark_unit_head(*modified_unit_addr);
+        woomem_mark_fuzzy_unit_head(*modified_unit_addr);
     }
     *modified_unit_addr = src_unit;
 }
@@ -74,7 +74,7 @@ static inline void woort_GC_mixed_write_barrier_dynbox(
         if (modified_box->m_boxed != 0
             && 0 == (modified_box->m_boxed & 0b0111))
         {
-            woomem_mark_unit_head(_woort_boxed_to_gcunit(modified_box->m_boxed));
+            woomem_mark_fuzzy_unit_head(_woort_boxed_to_gcunit(modified_box->m_boxed));
         }
     }
     *modified_box = src_box;
@@ -91,7 +91,7 @@ static inline void woort_GC_delete_barrier_gcunit(
     void* unit)
 {
     if (woomem_gc_marking_state_flag)
-        woomem_mark_unit_head(unit);
+        woomem_mark_fuzzy_unit_head(unit);
 }
 
 static inline void woort_GC_delete_barrier_value(
@@ -108,7 +108,7 @@ static inline void woort_GC_delete_barrier_dynbox(
         && box.m_boxed != 0 
         && 0 == (box.m_boxed & 0b0111))
     {
-        woomem_mark_unit_head(_woort_boxed_to_gcunit(box.m_boxed));
+        woomem_mark_fuzzy_unit_head(_woort_boxed_to_gcunit(box.m_boxed));
     }
 }
 

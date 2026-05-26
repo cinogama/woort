@@ -331,7 +331,7 @@ static woort_api woort_builtin_make_dup(void)
 
         for (size_t i = 0; i < src->m_size; i++)
         {
-            woort_GC_mixed_write_barrier_value(
+            woort_GC_init_write_barrier_value(
                 &dst->m_datas[i], src->m_datas[i]);
         }
         break;
@@ -3160,10 +3160,10 @@ static woort_api woort_builtin_map_iter_next_uu(void)
         woort_Value temp;
 
         woort_DynBox_unbox_no_check(key, &temp);
-        woort_GC_mixed_write_barrier_value(&result->m_datas[0], temp);
+        woort_GC_init_write_barrier_value(&result->m_datas[0], temp);
 
         woort_DynBox_unbox_no_check(val, &temp);
-        woort_GC_mixed_write_barrier_value(&result->m_datas[1], temp);
+        woort_GC_init_write_barrier_value(&result->m_datas[1], temp);
 
         return woort_ret_option_value(WOORT_RETURN_SLOT);
     }
@@ -3188,9 +3188,9 @@ static woort_api woort_builtin_map_iter_next_ur(void)
         woort_Value temp;
 
         woort_DynBox_unbox_no_check(key, &temp);
-        woort_GC_mixed_write_barrier_value(&result->m_datas[0], temp);
+        woort_GC_init_write_barrier_value(&result->m_datas[0], temp);
 
-        woort_GC_mixed_write_barrier_dynbox(&result->m_datas[1].m_dynamic, val);
+        woort_GC_init_write_barrier_dynbox(&result->m_datas[1].m_dynamic, val);
 
         return woort_ret_option_value(WOORT_RETURN_SLOT);
     }
@@ -3214,10 +3214,10 @@ static woort_api woort_builtin_map_iter_next_ru(void)
 
         woort_Value temp;
 
-        woort_GC_mixed_write_barrier_dynbox(&result->m_datas[0].m_dynamic, key);
+        woort_GC_init_write_barrier_dynbox(&result->m_datas[0].m_dynamic, key);
 
         woort_DynBox_unbox_no_check(val, &temp);
-        woort_GC_mixed_write_barrier_value(&result->m_datas[1], temp);
+        woort_GC_init_write_barrier_value(&result->m_datas[1], temp);
 
         return woort_ret_option_value(WOORT_RETURN_SLOT);
     }
@@ -3239,8 +3239,8 @@ static woort_api woort_builtin_map_iter_next_rr(void)
 
         woort_GCStruct* result = woort_internal_value(WOORT_RETURN_SLOT)->m_struct;
 
-        woort_GC_mixed_write_barrier_dynbox(&result->m_datas[0].m_dynamic, key);
-        woort_GC_mixed_write_barrier_dynbox(&result->m_datas[1].m_dynamic, val);
+        woort_GC_init_write_barrier_dynbox(&result->m_datas[0].m_dynamic, key);
+        woort_GC_init_write_barrier_dynbox(&result->m_datas[1].m_dynamic, val);
 
         return woort_ret_option_value(WOORT_RETURN_SLOT);
     }

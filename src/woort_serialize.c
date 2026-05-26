@@ -511,7 +511,7 @@ WOORT_NODISCARD static bool _woort_deserialize_string(
     {
         woort_DynBox tmp;
         tmp.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)gcstr);
-        woort_GC_mixed_write_barrier_dynbox(out_box, tmp);
+        woort_GC_init_write_barrier_dynbox(out_box, tmp);
     }
 
     free(unescaped);
@@ -535,7 +535,7 @@ WOORT_NODISCARD bool _woort_deserialize_map_impl(
     {
         woort_DynBox tmp;
         tmp.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)gcmap);
-        woort_GC_mixed_write_barrier_dynbox(out_gcmap, tmp);
+        woort_GC_init_write_barrier_dynbox(out_gcmap, tmp);
     }
 
     pp = _woort_deserialize_skip_whitespace(pp);
@@ -612,7 +612,7 @@ WOORT_NODISCARD bool _woort_deserialize_vec_impl(
     {
         woort_DynBox tmp;
         tmp.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)gcvec);
-        woort_GC_mixed_write_barrier_dynbox(out_gcvec, tmp);
+        woort_GC_init_write_barrier_dynbox(out_gcvec, tmp);
     }
 
     pp = _woort_deserialize_skip_whitespace(pp);
