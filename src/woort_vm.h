@@ -125,6 +125,8 @@ typedef enum woort_VMRuntime_CheckRequestMask
 
     WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK = 1 << 8,
 
+    WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED = 1 << 9,
+
 }woort_VMRuntime_CheckRequestMask;
 
 struct woort_VMRuntime

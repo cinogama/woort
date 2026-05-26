@@ -136,7 +136,9 @@ woort_GCMap_Bucket* _woort_GCMap_get_writable_bucket_for_key(
 
     const uint32_t new_idx = (uint32_t)gcmap->m_size;
     woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
-    woort_GC_mixed_write_barrier_dynbox(&new_bucket->m_key, key);
+    woort_GC_init_write_barrier_dynbox(&new_bucket->m_key, key);
+    new_bucket->m_val.m_boxed = 0; /* 初始化 val，避免错误的混合写屏障 */
+
     new_bucket->m_next = NULL_BUCKET_INDEX;
     new_bucket->m_prev = NULL_BUCKET_INDEX;
 

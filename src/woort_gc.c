@@ -167,6 +167,33 @@ static void _woort_GC_start_callback(void)
     woort_CodeEnv_GC_mark_all_envs();
 }
 
+static bool _woort_GC_walk_through_to_sync_finish_mark(
+    const void* key,
+    void* value,
+    void* user_data)
+{
+    (void)user_data;
+    (void)value;
+
+    woort_VMRuntime* const vm =
+        *(woort_VMRuntime* const*)key;
+
+    (void)woort_VMRuntime_request_accept(
+        vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED);
+
+    do
+    {
+        if (woort_VMRuntime_request_check(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE))
+        {
+            // This VM leaved, ignore.
+        }
+    } while (woort_VMRuntime_request_check(
+        vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED));
+
+    return true;
+}
+
 static bool _woort_GC_walk_through_to_abort_vm(
     const void* key,
     void* value,
@@ -198,6 +225,11 @@ static void _woort_GC_stop_mark_callback(void)
             NULL);
 
         woort_hashmap_clear(&s_gc_context.m_not_been_marked_weak_vm);
+
+        (void)woort_hashmap_foreach(
+            &s_gc_context.m_root_vms_to_mark,
+            &_woort_GC_walk_through_to_sync_finish_mark,
+            NULL);
     }
     woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
 }
