@@ -25,7 +25,7 @@ extern const woort_GCUnitProxy WOORT_GCVEC_UNIT_PROXY;
 
 woort_GCVec* woort_GCVec_new(void);
 
-WOORT_NODISCARD void _woort_GCVec_extern(woort_GCVec* vec, size_t size);
+void _woort_GCVec_extern(woort_GCVec* vec, size_t size);
 void woort_GCVec_resize_without_init(woort_GCVec* vec, size_t size);
 void woort_GCVec_resize_with(woort_GCVec* vec, size_t size, woort_DynBox init_val);
 WOORT_NODISCARD bool woort_GCVec_shrink(woort_GCVec* vec, size_t new_size);

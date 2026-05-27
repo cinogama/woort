@@ -678,7 +678,7 @@ void woort_set_union_vec(
         woort_GCVec_resize_without_init(vec, cap);
 
     woort_GC_init_write_barrier_gcunit(
-        (const void**)&s->m_datas[1].m_vec, vec);
+        (void**)&s->m_datas[1].m_vec, vec);
 }
 
 void woort_set_union_map(
@@ -694,7 +694,7 @@ void woort_set_union_map(
         woort_GCMap_reserve(map, reserve);
 
     woort_GC_init_write_barrier_gcunit(
-        (const void**)&s->m_datas[1].m_map, map);
+        (void**)&s->m_datas[1].m_map, map);
 }
 
 void woort_set_union_struct(
@@ -708,7 +708,7 @@ void woort_set_union_struct(
     assert(inner != NULL);
 
     woort_GC_init_write_barrier_gcunit(
-        (const void**)&s->m_datas[1].m_struct, inner);
+        (void**)&s->m_datas[1].m_struct, inner);
 }
 
 void woort_set_union_gchandle(

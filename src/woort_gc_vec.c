@@ -47,11 +47,11 @@ void _woort_GCVec_assure_vec_space(woort_GCVec* vec, size_t size)
         new_datas = woort_GCUnit_realloc(
             vec->m_datas, new_space * sizeof(woort_DynBox));
 
-    woort_GC_mixed_write_barrier_gcunit((const void**)&vec->m_datas, new_datas);
+    woort_GC_mixed_write_barrier_gcunit((void**)&vec->m_datas, new_datas);
     vec->m_space = new_space;
 }
 
-WOORT_NODISCARD void _woort_GCVec_extern(woort_GCVec* vec, size_t size)
+void _woort_GCVec_extern(woort_GCVec* vec, size_t size)
 {
     assert(vec->m_length <= size);
 
@@ -124,7 +124,7 @@ WOORT_NODISCARD bool woort_GCVec_shrink(woort_GCVec* vec, size_t new_size)
         woort_DynBox* new_datas = woort_GCUnit_realloc(
             vec->m_datas, new_size * sizeof(woort_DynBox));
         woort_GC_mixed_write_barrier_gcunit(
-            (const void**)&vec->m_datas, new_datas);
+            (void**)&vec->m_datas, new_datas);
         vec->m_space = new_size;
     }
 
@@ -249,11 +249,11 @@ void woort_GCVec_swap(woort_GCVec* a, woort_GCVec* b)
 
     a->m_space = b->m_space;
     a->m_length = b->m_length;
-    woort_GC_mixed_write_barrier_gcunit((const void**)&a->m_datas, b->m_datas);
+    woort_GC_mixed_write_barrier_gcunit((void**)&a->m_datas, b->m_datas);
 
     b->m_space = tmp_space;
     b->m_length = tmp_length;
-    woort_GC_mixed_write_barrier_gcunit((const void**)&b->m_datas, tmp_datas);
+    woort_GC_mixed_write_barrier_gcunit((void**)&b->m_datas, tmp_datas);
 }
 
 
