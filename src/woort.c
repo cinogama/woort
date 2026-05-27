@@ -1075,7 +1075,12 @@ WOORT_NODISCARD woort_VmCallStatus woort_bootup_codeenv(
         return WOORT_VM_CALL_STATUS_ABORTED;
     }
 
-    return woort_invoke(dst, v);
+    const woort_VmCallStatus result = woort_invoke(dst, v);
+    
+    if (result == WOORT_VM_CALL_STATUS_NORMAL)
+        woort_pop(1);
+
+    return result;
 }
 
 WOORT_NODISCARD woort_VmCallStatus woort_invoke(
