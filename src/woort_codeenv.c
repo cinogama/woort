@@ -69,12 +69,9 @@ static bool _codeenv_drop_callback(
     (void)key;
     (void)user_data;
     woort_CodeEnv* const code_env = *(woort_CodeEnv**)value;
-    woort_CodeEnv_lock(code_env);
-    {
-        if (code_env->m_hold)
-            woort_CodeEnv_drop(code_env);
-    }
-    woort_CodeEnv_unlock(code_env);
+
+    woort_CodeEnv_drop(code_env);
+
     return true;
 }
 
@@ -202,10 +199,10 @@ WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
     _codeenv_global_ctx->m_env_proxy.m_destructor =
         &_woort_CodeEnv_GC_destroy;
 
-    _codeenv_global_ctx->m_code_proxy.m_marker = 
+    _codeenv_global_ctx->m_code_proxy.m_marker =
         &_woort_CodeEnv_GC_mark_code;
     _codeenv_global_ctx->m_code_proxy.m_destructor = NULL;
-    
+
     return true;
 }
 void woort_CodeEnv_shutdown(void)
@@ -390,7 +387,6 @@ void woort_CodeEnv_unlock(woort_CodeEnv* code_env)
 void woort_CodeEnv_drop(
     woort_CodeEnv* code_env)
 {
-    assert(code_env->m_hold);
     code_env->m_hold = false;
 }
 
