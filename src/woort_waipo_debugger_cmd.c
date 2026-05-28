@@ -5,11 +5,13 @@
 #include "woort_opcode.h"
 #include "woort_atomic.h"
 #include "woort_gc_closure.h"
+#include "woort_vector.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 typedef woort_WAIPO_CommandResult(*woort_WAIPO_CommandHandler)(
     woort_WAIPO_Debugger* dbg,
@@ -57,6 +59,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "step        s                       Step one source line.\n"
         "next        n                       Step over to next source line, not entering callees.\n"
         "return      r                       Return to caller frame.\n"
+        "print       p       <varname>       Print variable value by name.\n"
         "\n");
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -1181,6 +1184,170 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
         "Returning to caller...\n");
 }
 
+/* ====================================================================
+ * print / p command
+ * ==================================================================== */
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    if (arg_count < 2)
+    {
+        (void)printf("Usage: print <varname>\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const char* const var_name = args[1];
+
+    /*
+     * 定位当前选中的调用栈帧。
+     */
+    woort_VMRuntime_TraceCallstack trace;
+    if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
+    {
+        (void)printf("No callstack at current frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (trace.m_code_addr == NULL)
+    {
+        (void)printf("No code address for current frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    /*
+     * 获取当前帧的 CodeEnv 和 SB 偏移。
+     */
+    woort_CodeEnv* cenv = NULL;
+    if (!woort_CodeEnv_find(trace.m_code_addr, &cenv) || cenv == NULL)
+    {
+        (void)printf("Cannot locate CodeEnv for current frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    /*
+     * 走一遍调用栈，记录当前帧的 SB 偏移。
+     */
+    size_t frame_sb_offset = 0;
+    {
+        woort_VMRuntime_TraceCallstack_Iter trace_iter;
+        woort_VMRuntime_TraceCallstack frame_trace;
+
+        woort_VMRuntime_trace_begin(vm, &trace_iter);
+
+        while (woort_VMRuntime_trace_next(&trace_iter, &frame_trace))
+        {
+            if (frame_trace.m_callstack_depth == dbg->m_current_frame_depth)
+            {
+                frame_sb_offset = trace_iter.m_next_tracing_offset_of_base;
+                break;
+            }
+        }
+
+        if (frame_sb_offset == 0 && dbg->m_current_frame_depth > 0)
+        {
+            (void)printf("Cannot determine stack base for frame %zu.\n",
+                dbg->m_current_frame_depth);
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+    }
+
+    woort_Value* const frame_sb = vm->m_stack_end - frame_sb_offset;
+
+    /*
+     * 获取当前帧所在函数的字节码范围。
+     */
+    const uint32_t frame_ip_offset =
+        (uint32_t)(trace.m_code_addr - cenv->m_code_begin);
+
+    uint32_t func_begin = 0;
+    uint32_t func_end = (uint32_t)(cenv->m_code_end - cenv->m_code_begin);
+    {
+        size_t j;
+        for (j = 0; j < cenv->m_function_boundaries.m_size; ++j)
+        {
+            const woort_FunctionBoundary* boundary =
+                (const woort_FunctionBoundary*)woort_vector_at(
+                    (woort_Vector*)&cenv->m_function_boundaries, j);
+
+            if (frame_ip_offset >= boundary->m_offset_begin
+                && frame_ip_offset < boundary->m_offset_begin + boundary->m_code_length)
+            {
+                func_begin = boundary->m_offset_begin;
+                func_end = boundary->m_offset_begin + boundary->m_code_length;
+                break;
+            }
+        }
+    }
+
+    /*
+     * 搜索当前 CodeEnv 中的局部变量（仅限当前函数范围内声明的）。
+     */
+    size_t i;
+    size_t found_count = 0;
+    for (i = 0; i < cenv->m_local_var_debug_info.m_size; ++i)
+    {
+        const woort_LocalVarDebugInfo* info =
+            (const woort_LocalVarDebugInfo*)woort_vector_at(
+                (woort_Vector*)&cenv->m_local_var_debug_info, i);
+
+        if (info->m_name == NULL)
+            continue;
+        if (strcmp(info->m_name, var_name) != 0)
+            continue;
+
+        /*
+         * 仅当变量在当前函数范围内时显示。
+         */
+        if (info->m_function_offset < func_begin
+            || info->m_function_offset >= func_end)
+            continue;
+
+        const woort_Value val = frame_sb[info->m_stack_offset];
+
+        (void)printf(
+            "[local]  %-24s  stack_offset=%-6d  value=%" PRId64 "\n",
+            info->m_name,
+            info->m_stack_offset,
+            val.m_integer);
+
+        ++found_count;
+    }
+
+    /*
+     * 搜索当前 CodeEnv 中的静态变量。
+     */
+    for (i = 0; i < cenv->m_static_var_debug_info.m_size; ++i)
+    {
+        const woort_StaticVarDebugInfo* info =
+            (const woort_StaticVarDebugInfo*)woort_vector_at(
+                (woort_Vector*)&cenv->m_static_var_debug_info, i);
+
+        if (info->m_name == NULL)
+            continue;
+        if (strcmp(info->m_name, var_name) != 0)
+            continue;
+
+        const woort_Value val = cenv->m_data_begin[info->m_static_idx];
+
+        (void)printf(
+            "[static] %-24s  static_idx=%-6u  value=%" PRId64 "\n",
+            info->m_name,
+            info->m_static_idx,
+            val.m_integer);
+
+        ++found_count;
+    }
+
+    if (found_count == 0)
+        (void)printf("No variable named '%s' in current frame.\n", var_name);
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "help",      "?",    &_woort_WAIPO_cmd_help },
     { "continue",  "c",    &_woort_WAIPO_cmd_continue },
@@ -1196,6 +1363,7 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "step",      "s",    &_woort_WAIPO_cmd_step },
     { "next",      "n",    &_woort_WAIPO_cmd_next },
     { "return",    "r",    &_woort_WAIPO_cmd_return },
+    { "print",     "p",    &_woort_WAIPO_cmd_print },
 };
 
 static const size_t _woort_WAIPO_command_table_size =
