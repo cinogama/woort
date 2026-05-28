@@ -109,14 +109,14 @@ static bool _woort_serialize_append_indent(woort_Vector* buf, int depth, uint32_
  * ======================================================================== */
 
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
-    const woort_DynBox* box,
+    woort_DynBox box,
     woort_Vector* buf,
     woort_HashMap* visited_set,
     int depth,
     uint32_t flags)
 {
     woort_Value temp_val;
-    switch (woort_DynBox_unbox_no_check_and_get_type(*box, &temp_val))
+    switch (woort_DynBox_unbox_no_check_and_get_type(box, &temp_val))
     {
     case WOORT_BOX_VALUE_TYPE_INT:
         return _woort_serialize_append_int(buf, temp_val.m_integer);
@@ -154,9 +154,11 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         if (vec->m_length == 0)
             return _woort_serialize_append_str(buf, "[]");
 
-        void* _unused;
-        woort_hashmap_Result _hr = woort_hashmap_get_or_emplace(
-            visited_set, &vec->m_gc_unit, &_unused);
+        woort_hashmap_Result _hr = woort_hashmap_insert(
+            visited_set, 
+            (void**)&vec,
+            NULL);
+
         if (_hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
         {
             if (flags & WOORT_SERIALIZE_FLAG_STRICT)
@@ -173,16 +175,8 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
         {
             if (i > 0)
             {
-                if (flags & WOORT_SERIALIZE_FLAG_PRETTY)
-                {
-                    if (!_woort_serialize_append_str(buf, ",\n"))
-                        return false;
-                }
-                else
-                {
-                    if (!_woort_serialize_append_str(buf, ", "))
-                        return false;
-                }
+                if (!_woort_serialize_append_str(buf, ", "))
+                    return false;
             }
 
             if (flags & WOORT_SERIALIZE_FLAG_PRETTY)
@@ -192,7 +186,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             }
 
             if (!_woort_serialize_dynbox_to_buf(
-                &vec->m_datas[i], buf, visited_set, depth + 1, flags))
+                vec->m_datas[i], buf, visited_set, depth + 1, flags))
             {
                 return false;
             }
@@ -204,7 +198,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
                 return false;
         }
 
-        if (!woort_hashmap_remove(visited_set, &vec->m_gc_unit))
+        if (!woort_hashmap_remove(visited_set, (void**)&vec))
             return false;
         return _woort_serialize_append_char(buf, ']');
     }
@@ -218,8 +212,11 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             return _woort_serialize_append_str(buf, "{}");
 
         void* _unused;
-        woort_hashmap_Result _hr = woort_hashmap_get_or_emplace(
-            visited_set, &gcmap->m_gc_unit, &_unused);
+        woort_hashmap_Result _hr = woort_hashmap_insert(
+            visited_set, 
+            (void**)&gcmap,
+            NULL);
+
         if (_hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
         {
             if (flags & WOORT_SERIALIZE_FLAG_STRICT)
@@ -239,16 +236,8 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
 
             if (i > 0)
             {
-                if (flags & WOORT_SERIALIZE_FLAG_PRETTY)
-                {
-                    if (!_woort_serialize_append_str(buf, ",\n"))
-                        return false;
-                }
-                else
-                {
-                    if (!_woort_serialize_append_str(buf, ", "))
-                        return false;
-                }
+                if (!_woort_serialize_append_str(buf, ", "))
+                    return false;
             }
 
             if (flags & WOORT_SERIALIZE_FLAG_PRETTY)
@@ -258,7 +247,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             }
 
             if (!_woort_serialize_dynbox_to_buf(
-                &bucket->m_key, buf, visited_set, depth + 1, flags))
+                bucket->m_key, buf, visited_set, depth + 1, flags))
             {
                 return false;
             }
@@ -267,7 +256,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
                 return false;
 
             if (!_woort_serialize_dynbox_to_buf(
-                &bucket->m_val, buf, visited_set, depth + 1, flags))
+                bucket->m_val, buf, visited_set, depth + 1, flags))
             {
                 return false;
             }
@@ -279,7 +268,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
                 return false;
         }
 
-        if (!woort_hashmap_remove(visited_set, &gcmap->m_gc_unit))
+        if (!woort_hashmap_remove(visited_set, (void**)&gcmap))
             return false;
         return _woort_serialize_append_char(buf, '}');
     }
@@ -321,15 +310,18 @@ WOORT_NODISCARD bool _woort_serialize_map_impl(
     box.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)gcmap);
 
     woort_Vector buf;
-    woort_vector_init(&buf, 1);
+    woort_vector_init(&buf, sizeof(char));
 
     woort_HashMap visited_set;
-    woort_hashmap_init(&visited_set,
-        sizeof(const woort_GCUnit*), sizeof(char),
-        woort_util_ptr_hash, woort_util_ptr_equal);
+    woort_hashmap_init(
+        &visited_set,
+        sizeof(const woort_GCUnit*), 
+        0,
+        woort_util_ptr_hash, 
+        woort_util_ptr_equal);
 
     if (!_woort_serialize_dynbox_to_buf(
-        &box, &buf, &visited_set, 0, flags))
+        box, &buf, &visited_set, 0, flags))
     {
         woort_hashmap_deinit(&visited_set);
         woort_vector_deinit(&buf);
@@ -359,15 +351,18 @@ WOORT_NODISCARD bool _woort_serialize_vec_impl(
     box.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)gcvec);
 
     woort_Vector buf;
-    woort_vector_init(&buf, 1);
+    woort_vector_init(&buf, sizeof(char));
 
     woort_HashMap visited_set;
-    woort_hashmap_init(&visited_set,
-        sizeof(const woort_GCUnit*), sizeof(char),
-        woort_util_ptr_hash, woort_util_ptr_equal);
+    woort_hashmap_init(
+        &visited_set,
+        sizeof(const woort_GCUnit*), 
+        0,
+        woort_util_ptr_hash, 
+        woort_util_ptr_equal);
 
     if (!_woort_serialize_dynbox_to_buf(
-        &box, &buf, &visited_set, 0, flags))
+        box, &buf, &visited_set, 0, flags))
     {
         woort_hashmap_deinit(&visited_set);
         woort_vector_deinit(&buf);

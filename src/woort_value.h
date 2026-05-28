@@ -172,3 +172,5 @@ WOORT_NODISCARD bool woort_DynBox_equal_real(woort_DynBox boxed_key, woort_Real 
 WOORT_NODISCARD bool woort_DynBox_equal_bool(woort_DynBox boxed_key, bool bool_key);
 WOORT_NODISCARD bool woort_DynBox_equal_gcunit(woort_DynBox boxed_key, /* OPTIONAL */ woort_GCUnit* gcunit_key);
 WOORT_NODISCARD bool woort_DynBox_equal_string(woort_DynBox boxed_key, const char* str, size_t len);
+
+WOORT_NODISCARD bool woort_DynBox_debug_check_is_valid(woort_DynBox may_not_a_valid_box);

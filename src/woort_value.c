@@ -832,3 +832,25 @@ WOORT_NODISCARD bool woort_DynBox_equal_string(woort_DynBox boxed_key, const cha
 
     return memcmp(gc_str->m_content, str, len) == 0;
 }
+
+WOORT_NODISCARD bool woort_DynBox_debug_check_is_valid(
+    woort_DynBox may_not_a_valid_box)
+{
+    if (0 == (may_not_a_valid_box.m_boxed & 0b0111))
+    {
+        // Check pointer is valid?
+        woort_GCUnit* const p = _woort_boxed_to_gcunit(may_not_a_valid_box.m_boxed);
+        if (woomem_validate_addr(p) != p
+            || (p->m_proxy != &WOORT_EX_BOX_PROXY
+                && p->m_proxy != &WOORT_GCSTRING_UNIT_PROXY
+                && p->m_proxy != &WOORT_GCVEC_UNIT_PROXY
+                && p->m_proxy != &WOORT_GCMAP_UNIT_PROXY
+                && p->m_proxy != &WOORT_GCSTRUCT_UNIT_PROXY
+                && p->m_proxy != &WOORT_GCHANDLE_UNIT_PROXY
+                && p->m_proxy != &WOORT_GCCLOSURE_UNIT_PROXY))
+        {
+            return false;
+        }
+    }
+    return true;
+}

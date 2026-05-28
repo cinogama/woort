@@ -6,6 +6,9 @@
 #include "woort_atomic.h"
 #include "woort_gc_closure.h"
 #include "woort_vector.h"
+#include "woort_value.h"
+#include "woort_serialize.h"
+#include "woort_util.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -1189,6 +1192,38 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
  * print / p command
  * ==================================================================== */
 
+static void _woort_WAIPO_print_value(const woort_Value* val)
+{
+    printf("value(%p): raw int: %-6lld raw real: %-6f\n", val, val->m_integer, val->m_real);
+    if (woort_DynBox_debug_check_is_valid(val->m_dynamic))
+    {
+        woort_Vector buf;
+        woort_vector_init(&buf, sizeof(char));
+
+        woort_HashMap visited_set;
+        woort_hashmap_init(
+            &visited_set,
+            sizeof(const woort_GCUnit*),
+            0,
+            woort_util_ptr_hash,
+            woort_util_ptr_equal);
+
+        if (_woort_serialize_dynbox_to_buf(
+            val->m_dynamic,
+            &buf,
+            &visited_set,
+            0,
+            WOORT_SERIALIZE_FLAG_PRETTY))
+        {
+            if (woort_vector_push_back(&buf, 1, ""))
+                printf("Maybe boxed: %s\n", (char*)buf.m_data);
+        }
+
+        woort_vector_deinit(&buf);
+        woort_hashmap_deinit(&visited_set);
+    }
+}
+
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
     woort_WAIPO_Debugger* dbg,
     woort_VMRuntime* vm,
@@ -1281,13 +1316,12 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
             || info->m_function_offset >= func_end)
             continue;
 
-        const woort_Value val = frame_sb[info->m_stack_offset];
-
         (void)printf(
-            "[local]  %-24s  stack_offset=%-6d  value=%" PRId64 "\n",
+            "[local]  %s  stack_offset=%-6d\n",
             info->m_name,
-            info->m_stack_offset,
-            val.m_integer);
+            info->m_stack_offset);
+
+        _woort_WAIPO_print_value(&frame_sb[info->m_stack_offset]);
 
         ++found_count;
     }
@@ -1306,14 +1340,13 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
         if (strcmp(info->m_name, var_name) != 0)
             continue;
 
-        const woort_Value val = cenv->m_data_begin[
-            cenv->m_constant_count + info->m_static_idx];
-
         (void)printf(
-            "[static] %-24s  static_idx=%-6u  value=%" PRId64 "\n",
+            "[static] %s  static_idx=%-6u\n",
             info->m_name,
-            info->m_static_idx,
-            val.m_integer);
+            info->m_static_idx);
+
+        _woort_WAIPO_print_value(
+            &cenv->m_data_begin[cenv->m_constant_count + info->m_static_idx]);
 
         ++found_count;
     }

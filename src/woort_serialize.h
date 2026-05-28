@@ -24,7 +24,7 @@ flags: woort_SerializeFlag 位掩码。
 返回 true 成功，false 失败。
 */
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
-    const woort_DynBox* box,
+    woort_DynBox box,
     woort_Vector* buf,
     woort_HashMap* visited_set,
     int depth,
