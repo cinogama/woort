@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdarg.h>
 
 static bool woort_ctrl_c_callback_hooked = true;
 
@@ -447,6 +448,21 @@ void woort_set_string(
     _WOORT_API_STACK(dst).m_string = str;
 }
 
+void woort_set_string_fmt(
+    woort_StackValue dst, woort_U8CString fmt, ...)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    va_list args;
+    va_start(args, fmt);
+    const woort_GCString* const str = woort_GCString_make_format_va(fmt, args);
+    va_end(args);
+    assert(str != NULL);
+
+    _WOORT_API_STACK(dst).m_string = str;
+}
+
 void woort_set_buffer(
     woort_StackValue dst, const void* src, size_t len)
 {
@@ -645,6 +661,23 @@ void woort_set_union_string(
     woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
     const size_t len = strlen(src);
     const woort_GCString* const str = woort_GCString_make_string(src, len);
+    assert(str != NULL);
+
+    woort_GC_init_write_barrier_gcunit(
+        (void**)&s->m_datas[1].m_string, (void*)str);
+}
+
+void woort_set_union_string_fmt(
+    woort_StackValue dst, woort_Int id, woort_U8CString fmt, ...)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _woort_set_union(&_WOORT_API_STACK(dst), id);
+    va_list args;
+    va_start(args, fmt);
+    const woort_GCString* const str = woort_GCString_make_format_va(fmt, args);
+    va_end(args);
     assert(str != NULL);
 
     woort_GC_init_write_barrier_gcunit(

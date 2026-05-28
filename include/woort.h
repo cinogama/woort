@@ -2536,6 +2536,9 @@ WOORT_API void woort_set_bool(
 WOORT_API void woort_set_string(
     woort_StackValue dst, woort_U8CString src);
 
+WOORT_API void woort_set_string_fmt(
+    woort_StackValue dst, woort_U8CString fmt, ...);
+
 /** @brief Set a stack slot to a byte buffer value (copied). */
 WOORT_API void woort_set_buffer(
     woort_StackValue dst, const void* src, size_t len);
@@ -2643,6 +2646,9 @@ WOORT_API void woort_set_union_bool(
 WOORT_API void woort_set_union_string(
     woort_StackValue dst, woort_Int id, woort_U8CString src);
 
+WOORT_API void woort_set_union_string_fmt(
+    woort_StackValue dst, woort_Int id, woort_U8CString fmt, ...);
+
 /** @brief Set union to a buffer variant (copied). */
 WOORT_API void woort_set_union_buffer(
     woort_StackValue dst, woort_Int id, const void* src, size_t len);
@@ -2725,6 +2731,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_set_option_bool(dst, src) woort_set_union_bool(dst, 0, src)
 /** @brief Set option::value(string). */
 #define woort_set_option_string(dst, src) woort_set_union_string(dst, 0, src)
+/** @brief Set option::value(string) built with format. */
+#define woort_set_option_string_fmt(dst, fmt, ...) woort_set_union_string_fmt(dst, 0, fmt,##__VA_ARGS__)
 /** @brief Set option::value(buffer). */
 #define woort_set_option_buffer(dst, src, len) woort_set_union_buffer(dst, 0, src, len)
 /** @brief Set option::value(box_int). */
@@ -2769,6 +2777,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_set_result_ok_bool woort_set_option_bool
 /** @brief Set Result::Ok(string). */
 #define woort_set_result_ok_string woort_set_option_string
+/** @brief Set Result::Ok(string) built with format. */
+#define woort_set_result_ok_string_fmt woort_set_option_string_fmt
 /** @brief Set Result::Ok(buffer). */
 #define woort_set_result_ok_buffer woort_set_option_buffer
 /** @brief Set Result::Ok(box_int). */
@@ -2810,6 +2820,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_set_result_err_bool(dst, src) woort_set_union_bool(dst, 1, src)
 /** @brief Set Result::Err(string). */
 #define woort_set_result_err_string(dst, src) woort_set_union_string(dst, 1, src)
+/** @brief Set Result::Err(string) built with format. */
+#define woort_set_result_err_string_fmt(dst, fmt, ...) woort_set_union_string_fmt(dst, 1, fmt,##__VA_ARGS__)
 /** @brief Set Result::Err(buffer). */
 #define woort_set_result_err_buffer(dst, src, len) woort_set_union_buffer(dst, 1, src, len)
 /** @brief Set Result::Err(box_int). */
@@ -2858,6 +2870,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_bool(src) (woort_set_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return a string. */
 #define woort_ret_string(src) (woort_set_string(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return a string build with format. */
+#define woort_ret_string_fmt(src, ...) (woort_set_string_fmt(WOORT_RETURN_SLOT, src,##__VA_ARGS__), woort_ret())
 /** @brief Return a buffer. */
 #define woort_ret_buffer(src, len) (woort_set_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return a boxed integer. */
@@ -2903,6 +2917,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_union_bool(id, src) (woort_set_union_bool(WOORT_RETURN_SLOT, id, src), woort_ret())
 /** @brief Return a union with string payload. */
 #define woort_ret_union_string(id, src) (woort_set_union_string(WOORT_RETURN_SLOT, id, src), woort_ret())
+/** @brief Return a union with string payload built with format. */
+#define woort_ret_union_string_fmt(id, fmt, ...) (woort_set_union_string_fmt(WOORT_RETURN_SLOT, id, fmt,##__VA_ARGS__), woort_ret())
 /** @brief Return a union with buffer payload. */
 #define woort_ret_union_buffer(id, src, len) (woort_set_union_buffer(WOORT_RETURN_SLOT, id, src, len), woort_ret())
 /** @brief Return a union with boxed int payload. */
@@ -2948,6 +2964,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_option_bool(src) (woort_set_option_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return option::value(string). */
 #define woort_ret_option_string(src) (woort_set_option_string(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return option::value(string) built with format. */
+#define woort_ret_option_string_fmt(fmt, ...) (woort_set_option_string_fmt(WOORT_RETURN_SLOT, fmt,##__VA_ARGS__), woort_ret())
 /** @brief Return option::value(buffer). */
 #define woort_ret_option_buffer(src, len) (woort_set_option_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return option::value(box_int). */
@@ -2992,6 +3010,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_result_ok_bool(src) (woort_set_result_ok_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Ok(string). */
 #define woort_ret_result_ok_string(src) (woort_set_result_ok_string(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return Result::Ok(string) built with format. */
+#define woort_ret_result_ok_string_fmt(fmt, ...) (woort_set_result_ok_string_fmt(WOORT_RETURN_SLOT, fmt,##__VA_ARGS__), woort_ret())
 /** @brief Return Result::Ok(buffer). */
 #define woort_ret_result_ok_buffer(src, len) (woort_set_result_ok_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return Result::Ok(box_int). */
@@ -3035,6 +3055,8 @@ WOORT_API void woort_set_union_box_bool(
 #define woort_ret_result_err_bool(src) (woort_set_result_err_bool(WOORT_RETURN_SLOT, src), woort_ret())
 /** @brief Return Result::Err(string). */
 #define woort_ret_result_err_string(src) (woort_set_result_err_string(WOORT_RETURN_SLOT, src), woort_ret())
+/** @brief Return Result::Err(string) built with format. */
+#define woort_ret_result_err_string_fmt(fmt, ...) (woort_set_result_err_string_fmt(WOORT_RETURN_SLOT, fmt,##__VA_ARGS__), woort_ret())
 /** @brief Return Result::Err(buffer). */
 #define woort_ret_result_err_buffer(src, len) (woort_set_result_err_buffer(WOORT_RETURN_SLOT, src, len), woort_ret())
 /** @brief Return Result::Err(box_int). */
