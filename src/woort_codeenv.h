@@ -18,6 +18,48 @@ woort_codeenv.h
 
 #include <stdbool.h>
 
+/**
+ * @brief Function boundary descriptor for mapping bytecode offsets to function names.
+ *
+ * Entries are sorted by m_offset_begin in ascending order.
+ * A bytecode offset belongs to a function if offset >= m_offset_begin
+ * and offset < m_offset_begin + m_code_length.
+ */
+typedef struct woort_FunctionBoundary
+{
+    uint32_t m_offset_begin;           /**< @brief Bytecode offset where the function starts. */
+    uint32_t m_code_length;            /**< @brief Length of the function's bytecode in words. */
+    /* OPTIONAL */ const char* m_name; /**< @brief Function name (may be NULL for anonymous). */
+
+} woort_FunctionBoundary;
+
+/**
+ * @brief Debug information for a local variable, mapping name to stack offset.
+ *
+ * Resolved during woort_IRCompiler_finish() from the compile-time
+ * woort_IRFunction_record_local_var() records.
+ */
+typedef struct woort_LocalVarDebugInfo
+{
+    /* OPTIONAL */ const char* m_name; /**< @brief Variable name (interned into CodeEnv string pool). */
+    uint32_t m_function_offset;        /**< @brief Bytecode offset of the containing function. */
+    int32_t m_stack_offset;            /**< @brief Stack offset of the variable within its function frame. */
+
+} woort_LocalVarDebugInfo;
+
+/**
+ * @brief Debug information for a static variable, mapping name to static index.
+ *
+ * Resolved during woort_IRCompiler_finish() from the compile-time
+ * woort_IRCompiler_record_static_var() records.
+ */
+typedef struct woort_StaticVarDebugInfo
+{
+    /* OPTIONAL */ const char* m_name; /**< @brief Variable name (interned into CodeEnv string pool). */
+    woort_IRStaticIndex m_static_idx;  /**< @brief Index into the static data area. */
+
+} woort_StaticVarDebugInfo;
+
 /* ========================================================================
  * 常量池类型记录 —— 用于二进制序列化/反序列化
  * ======================================================================== */
@@ -125,6 +167,20 @@ struct woort_CodeEnv {
      */
     woort_Vector /* woort_ConstRecord */ m_const_records;
 
+    /*
+     * 局部变量调试信息（名称 -> 栈偏移量）。
+     * m_name 指针指向 m_srcloc_string_pool 中的字符串。
+     * CodeEnv 拥有所有权，GC destroy 时释放。
+     */
+    woort_Vector /* woort_LocalVarDebugInfo */ m_local_var_debug_info;
+
+    /*
+     * 静态变量调试信息（名称 -> 静态存储索引）。
+     * m_name 指针指向 m_srcloc_string_pool 中的字符串。
+     * CodeEnv 拥有所有权，GC destroy 时释放。
+     */
+    woort_Vector /* woort_StaticVarDebugInfo */ m_static_var_debug_info;
+
     size_t m_data_count;
     woort_Value m_data_begin[];
 };
@@ -152,6 +208,18 @@ void woort_CodeEnv_GC_mark_all_envs(void);
 void woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
     const woort_Vector* function_source_map);
+
+/*
+ * 将编译器收集的调试信息（局部变量 + 静态变量）转移到 CodeEnv。
+ * CodeEnv 会复制所有名称字符串到其字符串池，拥有完全的所有权。
+ *
+ * local_var_debug: woort_Vector<woort_LocalVarDebugInfo>
+ * static_var_debug: woort_Vector<woort_StaticVarDebugInfo>
+ */
+void woort_CodeEnv_set_debug_info(
+    woort_CodeEnv* env,
+    const woort_Vector* local_var_debug,
+    const woort_Vector* static_var_debug);
 
 /*
  * 记录一个常量槽的类型信息。

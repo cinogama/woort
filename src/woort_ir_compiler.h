@@ -27,6 +27,9 @@ struct woort_IRCompiler
     /* 源码路径字符串池（intern 去重） */
     woort_StringPool m_string_pool;
 
+    /* 静态变量记录（编译期记录，finish 阶段转移到 CodeEnv） */
+    woort_Vector /* woort_StaticVarRecord */ m_static_var_records;
+
 };
 
 void woort_IRCompiler_init(woort_IRCompiler* c);

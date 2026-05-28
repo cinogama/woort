@@ -54,6 +54,9 @@ struct woort_IRFunction
 
     /* 去重的源码位置池，IR 指令的 m_srcloc_index 索引此数组 */
     woort_Vector /* woort_SourceLocation */ m_source_locations;
+
+    /* 局部变量记录（编译期记录，finish 阶段转移到 CodeEnv） */
+    woort_Vector /* woort_LocalVarRecord */ m_local_var_records;
 };
 
 void woort_IRFunction_init(

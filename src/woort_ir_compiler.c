@@ -2292,6 +2292,7 @@ void woort_IRCompiler_init(woort_IRCompiler* c)
     c->m_static_storage_alloc_count = 0;
     woort_vector_init(&c->m_commited_codes, sizeof(woort_Bytecode));
     woort_StringPool_init(&c->m_string_pool);
+    woort_vector_init(&c->m_static_var_records, sizeof(woort_StaticVarRecord));
 }
 
 void woort_IRCompiler_deinit(woort_IRCompiler* c)
@@ -2305,6 +2306,7 @@ void woort_IRCompiler_deinit(woort_IRCompiler* c)
     woort_linklist_deinit(&c->m_ir_functions);
     woort_vector_deinit(&c->m_commited_codes);
     woort_StringPool_deinit(&c->m_string_pool);
+    woort_vector_deinit(&c->m_static_var_records);
 }
 
 WOORT_NODISCARD bool woort_IRCompiler_add_function(
@@ -2328,6 +2330,22 @@ void woort_IRFunction_set_name(
     f->m_name = name;
 }
 
+void woort_IRFunction_record_local_var(
+    woort_IRFunction* f,
+    const char* name,
+    woort_IRValue* v)
+{
+    assert(f != NULL);
+    assert(name != NULL);
+    assert(v != NULL);
+
+    woort_LocalVarRecord record;
+    record.m_name = name;
+    record.m_ir_value = v;
+
+    (void)woort_vector_push_back(&f->m_local_var_records, 1, &record);
+}
+
 WOORT_NODISCARD woort_IRConstantIndex woort_IRCompiler_add_constant(woort_IRCompiler* c)
 {
     return c->m_constant_alloc_count++;
@@ -2336,6 +2354,21 @@ WOORT_NODISCARD woort_IRConstantIndex woort_IRCompiler_add_constant(woort_IRComp
 WOORT_NODISCARD woort_IRStaticIndex woort_IRCompiler_add_static(woort_IRCompiler* c)
 {
     return c->m_static_storage_alloc_count++;
+}
+
+void woort_IRCompiler_record_static_var(
+    woort_IRCompiler* c,
+    const char* name,
+    woort_IRStaticIndex idx)
+{
+    assert(c != NULL);
+    assert(name != NULL);
+
+    woort_StaticVarRecord record;
+    record.m_name = name;
+    record.m_static_idx = idx;
+
+    (void)woort_vector_push_back(&c->m_static_var_records, 1, &record);
 }
 
 WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv** out_cenv)
@@ -2434,6 +2467,67 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
         woort_CodeEnv_set_source_maps(
             *out_cenv,
             &function_source_map);
+
+        /*
+         * 构建局部变量和静态变量调试信息，转移到 CodeEnv。
+         */
+
+        /* 局部变量调试信息 */
+        woort_Vector /* woort_LocalVarDebugInfo */ local_debug;
+        woort_vector_init(&local_debug, sizeof(woort_LocalVarDebugInfo));
+
+        woort_Vector /* woort_StaticVarDebugInfo */ static_debug;
+        woort_vector_init(&static_debug, sizeof(woort_StaticVarDebugInfo));
+
+        for (uint32_t i = 0; i < func_count; ++i)
+        {
+            const woort_Function_SourceMap* fsm =
+                (const woort_Function_SourceMap*)woort_vector_at(
+                    (woort_Vector*)&function_source_map, i);
+            const woort_IRFunction* f = fsm->m_ir_function;
+
+            for (size_t j = 0; j < f->m_local_var_records.m_size; ++j)
+            {
+                const woort_LocalVarRecord* rec =
+                    (const woort_LocalVarRecord*)woort_vector_at(
+                        (woort_Vector*)&f->m_local_var_records, j);
+
+                woort_LocalVarDebugInfo info;
+                info.m_name = rec->m_name;
+                info.m_function_offset = (uint32_t)f->m_code_offset;
+                info.m_stack_offset = rec->m_ir_value->m_assigned_stack_offset;
+
+                if (!woort_vector_push_back(&local_debug, 1, &info))
+                {
+                    /* OOM: 丢失部分调试信息，不影响正确性 */
+                }
+            }
+        }
+
+        /* 静态变量调试信息 */
+        for (size_t j = 0; j < c->m_static_var_records.m_size; ++j)
+        {
+            const woort_StaticVarRecord* rec =
+                (const woort_StaticVarRecord*)woort_vector_at(
+                    &c->m_static_var_records, j);
+
+            woort_StaticVarDebugInfo info;
+            info.m_name = rec->m_name;
+            info.m_static_idx = rec->m_static_idx;
+
+            if (!woort_vector_push_back(&static_debug, 1, &info))
+            {
+                /* OOM: 丢失部分调试信息，不影响正确性 */
+            }
+        }
+
+        woort_CodeEnv_set_debug_info(
+            *out_cenv,
+            &local_debug,
+            &static_debug);
+
+        woort_vector_deinit(&local_debug);
+        woort_vector_deinit(&static_debug);
     }
 
     /* 清理临时数据 */

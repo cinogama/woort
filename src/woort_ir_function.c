@@ -193,6 +193,9 @@ void woort_IRFunction_init(
     /* 源码位置支持 */
     woort_SourceLocationStack_init(&f->m_srcloc_stack);
     woort_vector_init(&f->m_source_locations, sizeof(woort_SourceLocation));
+
+    /* 局部变量记录 */
+    woort_vector_init(&f->m_local_var_records, sizeof(woort_LocalVarRecord));
 }
 
 void woort_IRFunction_deinit(woort_IRFunction* f)
@@ -212,6 +215,9 @@ void woort_IRFunction_deinit(woort_IRFunction* f)
     /* 源码位置支持 */
     woort_SourceLocationStack_deinit(&f->m_srcloc_stack);
     woort_vector_deinit(&f->m_source_locations);
+
+    /* 局部变量记录 */
+    woort_vector_deinit(&f->m_local_var_records);
 }
 
 /* ========================================================================

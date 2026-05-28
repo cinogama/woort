@@ -166,6 +166,10 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
         woort_dylib_unload(lib, WOORT_DYLIB_UNREF);
     }
     woort_vector_deinit(&code_env->m_extern_libs);
+
+    /* 释放调试信息 */
+    woort_vector_deinit(&code_env->m_local_var_debug_info);
+    woort_vector_deinit(&code_env->m_static_var_debug_info);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
@@ -322,6 +326,12 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     }
 
     woort_vector_init(&code_env_instance->m_extern_libs, sizeof(woort_Dylib*));
+
+    /* 初始化调试信息为空 */
+    woort_vector_init(&code_env_instance->m_local_var_debug_info,
+        sizeof(woort_LocalVarDebugInfo));
+    woort_vector_init(&code_env_instance->m_static_var_debug_info,
+        sizeof(woort_StaticVarDebugInfo));
 
     // Fill 0 for static storage:
     memset(
@@ -672,6 +682,63 @@ build_function_boundaries:
 
         /* 忽略 push_back 失败 —— 边界信息丢失不影响正确性 */
         (void)woort_vector_push_back(&env->m_function_boundaries, 1, &boundary);
+    }
+}
+
+void woort_CodeEnv_set_debug_info(
+    woort_CodeEnv* env,
+    const woort_Vector* local_var_debug,
+    const woort_Vector* static_var_debug)
+{
+    const uint32_t local_count = (uint32_t)local_var_debug->m_size;
+    const uint32_t static_count = (uint32_t)static_var_debug->m_size;
+
+    /*
+     * 转移局部变量调试信息。
+     * 将名称字符串 intern 到 CodeEnv 的字符串池中。
+     */
+    for (uint32_t i = 0; i < local_count; ++i)
+    {
+        const woort_LocalVarDebugInfo* src =
+            (const woort_LocalVarDebugInfo*)woort_vector_at(
+                (woort_Vector*)local_var_debug, i);
+
+        woort_LocalVarDebugInfo info = *src;
+
+        if (src->m_name != NULL)
+        {
+            const char* interned = woort_StringPool_intern(
+                &env->m_srcloc_string_pool,
+                src->m_name);
+            info.m_name = interned;
+        }
+
+        /* 忽略 push_back 失败 —— 调试信息丢失不影响正确性 */
+        (void)woort_vector_push_back(&env->m_local_var_debug_info, 1, &info);
+    }
+
+    /*
+     * 转移静态变量调试信息。
+     * 将名称字符串 intern 到 CodeEnv 的字符串池中。
+     */
+    for (uint32_t i = 0; i < static_count; ++i)
+    {
+        const woort_StaticVarDebugInfo* src =
+            (const woort_StaticVarDebugInfo*)woort_vector_at(
+                (woort_Vector*)static_var_debug, i);
+
+        woort_StaticVarDebugInfo info = *src;
+
+        if (src->m_name != NULL)
+        {
+            const char* interned = woort_StringPool_intern(
+                &env->m_srcloc_string_pool,
+                src->m_name);
+            info.m_name = interned;
+        }
+
+        /* 忽略 push_back 失败 —— 调试信息丢失不影响正确性 */
+        (void)woort_vector_push_back(&env->m_static_var_debug_info, 1, &info);
     }
 }
 

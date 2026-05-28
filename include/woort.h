@@ -351,21 +351,6 @@ typedef struct woort_SourceLocation
 
 } woort_SourceLocation;
 
-/**
- * @brief Function boundary descriptor for mapping bytecode offsets to function names.
- *
- * Entries are sorted by m_offset_begin in ascending order.
- * A bytecode offset belongs to a function if offset >= m_offset_begin
- * and offset < m_offset_begin + m_code_length.
- */
-typedef struct woort_FunctionBoundary
-{
-    uint32_t m_offset_begin;           /**< @brief Bytecode offset where the function starts. */
-    uint32_t m_code_length;            /**< @brief Length of the function's bytecode in words. */
-    /* OPTIONAL */ const char* m_name; /**< @brief Function name (may be NULL for anonymous). */
-
-} woort_FunctionBoundary;
-
 /* ========== VM API ========== */
 
 /**
@@ -940,7 +925,35 @@ WOORT_API void woort_IRFunction_set_name(
     woort_IRFunction* f,
     /* OPTIONAL */ const char* name);
 
-/* ========== Instruction Emission API ========== */
+/**
+ * @brief Record a local variable name -> IRValue mapping for debug info.
+ *
+ * During woort_IRCompiler_finish(), each recorded mapping is resolved to
+ * a stack offset and transferred into the CodeEnv's m_local_var_debug_info.
+ *
+ * @param f     The IR function. Must not be NULL.
+ * @param name  The variable name. Must not be NULL.
+ * @param v     The IR value representing the variable. Must not be NULL.
+ */
+WOORT_API void woort_IRFunction_record_local_var(
+    woort_IRFunction* f,
+    const char* name,
+    woort_IRValue* v);
+
+/**
+ * @brief Record a static variable name -> IRStaticIndex mapping for debug info.
+ *
+ * During woort_IRCompiler_finish(), each recorded mapping is transferred
+ * into the CodeEnv's m_static_var_debug_info.
+ *
+ * @param c     The IR compiler. Must not be NULL.
+ * @param name  The variable name. Must not be NULL.
+ * @param idx   The static data index. Must not be NULL.
+ */
+WOORT_API void woort_IRCompiler_record_static_var(
+    woort_IRCompiler* c,
+    const char* name,
+    woort_IRStaticIndex idx);
 
 /**
  * @name IR Instruction Emission

@@ -88,6 +88,30 @@ WOORT_NODISCARD /* OPTIONAL */ const woort_SourceLocation*
 WOORT_NODISCARD bool woort_SourceLocationStack_empty(
     const woort_SourceLocationStack* stack);
 
+/* ========== 局部变量记录（编译期） ========== */
+
+/*
+ * 局部变量名 -> IRValue 的编译期记录。
+ * finish 阶段解析为栈偏移，转移到 CodeEnv 的 m_local_var_debug_info。
+ */
+typedef struct woort_LocalVarRecord
+{
+    /* OPTIONAL */ const char* m_name;
+    /* OPTIONAL */ woort_IRValue* m_ir_value;
+
+} woort_LocalVarRecord;
+
+/*
+ * 静态变量名 -> IRStaticIndex 的编译期记录。
+ * finish 阶段转移到 CodeEnv 的 m_static_var_debug_info。
+ */
+typedef struct woort_StaticVarRecord
+{
+    /* OPTIONAL */ const char* m_name;
+    woort_IRStaticIndex m_static_idx;
+
+} woort_StaticVarRecord;
+
 /* ========== 源码映射表 ========== */
 
 /*
