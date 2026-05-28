@@ -2448,14 +2448,11 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
     }
 
     /* 创建 CodeEnv */
-    const size_t data_count =
-        (size_t)c->m_constant_alloc_count +
-        (size_t)c->m_static_storage_alloc_count;
-
     bool result = woort_CodeEnv_create(
         (const woort_Bytecode*)c->m_commited_codes.m_data,
         c->m_commited_codes.m_size,
-        data_count,
+        (size_t)c->m_constant_alloc_count,
+        (size_t)c->m_static_storage_alloc_count,
         out_cenv);
 
     if (result)

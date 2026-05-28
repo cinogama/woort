@@ -485,6 +485,8 @@ typedef struct woort_VMRuntime_TraceCallstack
 
     /* OPTIONAL */ const woort_Bytecode* m_code_addr;
 
+    size_t m_callstack_offset_of_base;
+
 } woort_VMRuntime_TraceCallstack;
 
 /**

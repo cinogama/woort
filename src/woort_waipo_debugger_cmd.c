@@ -176,13 +176,14 @@ static bool _woort_WAIPO_list_codeenv_callback(
         (_woort_WAIPO_ListCodeEnvContext*)user_data;
 
     (void)printf(
-        "[%zu] %p  hold=%d  codes=[%p-%p]  data=%zu  funcs=%zu\n",
+        "[%zu] %p  hold=%d  codes=[%p-%p]  data=%zu  const=%zu  funcs=%zu\n",
         ctx->m_index,
         (void*)cenv,
         cenv->m_hold ? 1 : 0,
         (const void*)cenv->m_code_begin,
         (const void*)cenv->m_code_end,
         cenv->m_data_count,
+        cenv->m_constant_count,
         cenv->m_function_boundaries.m_size);
 
     ++ctx->m_index;
@@ -1228,34 +1229,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    /*
-     * 走一遍调用栈，记录当前帧的 SB 偏移。
-     */
-    size_t frame_sb_offset = 0;
-    {
-        woort_VMRuntime_TraceCallstack_Iter trace_iter;
-        woort_VMRuntime_TraceCallstack frame_trace;
-
-        woort_VMRuntime_trace_begin(vm, &trace_iter);
-
-        while (woort_VMRuntime_trace_next(&trace_iter, &frame_trace))
-        {
-            if (frame_trace.m_callstack_depth == dbg->m_current_frame_depth)
-            {
-                frame_sb_offset = trace_iter.m_next_tracing_offset_of_base;
-                break;
-            }
-        }
-
-        if (frame_sb_offset == 0 && dbg->m_current_frame_depth > 0)
-        {
-            (void)printf("Cannot determine stack base for frame %zu.\n",
-                dbg->m_current_frame_depth);
-            return WOORT_WAIPO_CMD_NEED_NEXT;
-        }
-    }
-
-    woort_Value* const frame_sb = vm->m_stack_end - frame_sb_offset;
+    woort_Value* const frame_sb =
+        vm->m_stack_end - trace.m_callstack_offset_of_base;
 
     /*
      * 获取当前帧所在函数的字节码范围。
@@ -1331,7 +1306,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
         if (strcmp(info->m_name, var_name) != 0)
             continue;
 
-        const woort_Value val = cenv->m_data_begin[info->m_static_idx];
+        const woort_Value val = cenv->m_data_begin[
+            cenv->m_constant_count + info->m_static_idx];
 
         (void)printf(
             "[static] %-24s  static_idx=%-6u  value=%" PRId64 "\n",

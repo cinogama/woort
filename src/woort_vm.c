@@ -4251,6 +4251,8 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
                 WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING);
         }
     }
+    out_result->m_callstack_offset_of_base =
+        modify_trace_iter->m_next_tracing_offset_of_base;
     return traced;
 }
 

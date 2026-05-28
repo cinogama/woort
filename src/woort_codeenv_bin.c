@@ -20,7 +20,7 @@
   * 二进制格式版本号与魔数。
   */
 #define WOORT_CODEENV_BINARY_MAGIC   0x30314345u  /* "EC10" */
-#define WOORT_CODEENV_BINARY_VERSION 4u
+#define WOORT_CODEENV_BINARY_VERSION 6u
 
   /* ================================================================
    * 序列化期间的字符串池（本地使用）
@@ -370,6 +370,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
 
     const size_t code_size = (size_t)(code_env->m_code_end - code_env->m_code_begin);
     const size_t data_count = code_env->m_data_count;
+    const size_t const_count = code_env->m_constant_count;
 
     /*
      * 写入头部。
@@ -378,6 +379,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     ok = ok && _bin_write_u32(&w, WOORT_CODEENV_BINARY_VERSION);
     ok = ok && _bin_write_u64(&w, (uint64_t)code_size);
     ok = ok && _bin_write_u64(&w, (uint64_t)data_count);
+    ok = ok && _bin_write_u64(&w, (uint64_t)const_count);
 
     /*
      * 写入字节码。
@@ -548,6 +550,34 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
         }
     }
 
+    /* 遍历局部变量调试信息名称 */
+    if (ok)
+    {
+        for (size_t i = 0; i < code_env->m_local_var_debug_info.m_size; ++i)
+        {
+            const woort_LocalVarDebugInfo* info =
+                (const woort_LocalVarDebugInfo*)woort_vector_at(
+                    &code_env->m_local_var_debug_info, i);
+            if (info->m_name != NULL)
+                ok = ok && _bin_strpool_insert(&strpool,
+                    info->m_name, strlen(info->m_name), NULL);
+        }
+    }
+
+    /* 遍历静态变量调试信息名称 */
+    if (ok)
+    {
+        for (size_t i = 0; i < code_env->m_static_var_debug_info.m_size; ++i)
+        {
+            const woort_StaticVarDebugInfo* info =
+                (const woort_StaticVarDebugInfo*)woort_vector_at(
+                    &code_env->m_static_var_debug_info, i);
+            if (info->m_name != NULL)
+                ok = ok && _bin_strpool_insert(&strpool,
+                    info->m_name, strlen(info->m_name), NULL);
+        }
+    }
+
     /*
      * 写入字符串池。
      */
@@ -602,7 +632,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
      */
     if (ok)
     {
-        for (size_t i = 0; ok && i < data_count; ++i)
+        for (size_t i = 0; ok && i < const_count; ++i)
         {
             const woort_ConstRecord* rec = (const woort_ConstRecord*)woort_vector_at(
                 &code_env->m_const_records, i);
@@ -923,6 +953,69 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
         }
     }
 
+    /*
+     * 写入局部变量调试信息。
+     */
+    if (ok)
+    {
+        uint64_t lv_count = (uint64_t)code_env->m_local_var_debug_info.m_size;
+        ok = ok && _bin_write_u64(&w, lv_count);
+        for (size_t i = 0; ok && i < code_env->m_local_var_debug_info.m_size; ++i)
+        {
+            const woort_LocalVarDebugInfo* info =
+                (const woort_LocalVarDebugInfo*)woort_vector_at(
+                    &code_env->m_local_var_debug_info, i);
+
+            uint32_t name_off, name_len;
+            if (info->m_name != NULL)
+            {
+                name_len = (uint32_t)strlen(info->m_name);
+                ok = ok && _bin_strpool_insert(&strpool,
+                    info->m_name, name_len, &name_off);
+            }
+            else
+            {
+                name_off = UINT32_MAX;
+                name_len = 0;
+            }
+            ok = ok && _bin_write_u32(&w, name_off);
+            ok = ok && _bin_write_u32(&w, name_len);
+            ok = ok && _bin_write_u32(&w, info->m_function_offset);
+            ok = ok && _bin_write_u32(&w, (uint32_t)info->m_stack_offset);
+        }
+    }
+
+    /*
+     * 写入静态变量调试信息。
+     */
+    if (ok)
+    {
+        uint64_t sv_count = (uint64_t)code_env->m_static_var_debug_info.m_size;
+        ok = ok && _bin_write_u64(&w, sv_count);
+        for (size_t i = 0; ok && i < code_env->m_static_var_debug_info.m_size; ++i)
+        {
+            const woort_StaticVarDebugInfo* info =
+                (const woort_StaticVarDebugInfo*)woort_vector_at(
+                    &code_env->m_static_var_debug_info, i);
+
+            uint32_t name_off, name_len;
+            if (info->m_name != NULL)
+            {
+                name_len = (uint32_t)strlen(info->m_name);
+                ok = ok && _bin_strpool_insert(&strpool,
+                    info->m_name, name_len, &name_off);
+            }
+            else
+            {
+                name_off = UINT32_MAX;
+                name_len = 0;
+            }
+            ok = ok && _bin_write_u32(&w, name_off);
+            ok = ok && _bin_write_u32(&w, name_len);
+            ok = ok && _bin_write_u32(&w, info->m_static_idx);
+        }
+    }
+
     if (ok)
     {
         *out_buffer = _bin_writer_detach(&w, out_len);
@@ -1019,19 +1112,19 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     if (!woort_vfile_seek(f, 0, SEEK_SET))
         return WOORT_CODEENV_RESTORE_FAIL_READ;
 
-    /* 读取头部 24 字节到栈上缓冲区 */
-    unsigned char header_buf[24];
+    /* 读取头部 32 字节到栈上缓冲区 */
+    unsigned char header_buf[32];
     {
         const size_t bytes_read =
             woort_vfile_read(f, header_buf, sizeof(header_buf));
         if (bytes_read != sizeof(header_buf))
-            // File header doesn't match.
+            /* File header doesn't match. */
             return WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH;
     }
 
     /* 解析头部 */
     uint32_t magic, version;
-    uint64_t code_size, data_count;
+    uint64_t code_size, data_count, constant_count;
 
     do
     {
@@ -1040,13 +1133,14 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
         if (!_bin_read_u32(&rh, &magic) || magic != WOORT_CODEENV_BINARY_MAGIC)
         {
-            // Bad magic, might be 
+            /* Bad magic */
             return WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH;
         }
 
         if (!_bin_read_u32(&rh, &version)
             || !_bin_read_u64(&rh, &code_size)
-            || !_bin_read_u64(&rh, &data_count))
+            || !_bin_read_u64(&rh, &data_count)
+            || !_bin_read_u64(&rh, &constant_count))
         {
             WOORT_DEBUG("CodeEnv restore: truncated header.");
             return WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
@@ -1090,7 +1184,8 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
     if (!woort_CodeEnv_create(
         codes_from_bin,
         (size_t)code_size,
-        (size_t)data_count,
+        (size_t)constant_count,
+        (size_t)(data_count - constant_count),
         &cenv)
         || cenv == NULL)
     {
@@ -1203,6 +1298,8 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     {
                         (void)woort_CodeEnv_add_extern_lib(cenv, lib);
                         (void)woort_hashmap_insert(&lib_map, &lib_name, &lib);
+
+                        woort_dylib_unload(lib, WOORT_DYLIB_UNREF);
                     }
                 }
             }
@@ -1212,8 +1309,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
          * 读取常量数据。
          */
         {
-            size_t data_count_c = cenv->m_data_count;
-            for (size_t i = 0; i < data_count_c; ++i)
+            for (size_t i = 0; i < constant_count; ++i)
             {
                 uint8_t type;
                 if (!_bin_read_u8(&r, &type))
@@ -1628,6 +1724,85 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                         &cenv->m_trap_records,
                         &cenv->m_code_begin[off],
                         &orig);
+                }
+            }
+        }
+
+        /*
+         * 读取局部变量调试信息。
+         */
+        {
+            uint64_t lv_count;
+            if (!_bin_read_u64(&r, &lv_count))
+            {
+                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                goto _restore_fail_after_create;
+            }
+            for (uint64_t li = 0; li < lv_count; ++li)
+            {
+                uint32_t name_off, name_len;
+                uint32_t function_offset;
+                uint32_t stack_offset;
+                if (!_bin_read_u32(&r, &name_off)
+                    || !_bin_read_u32(&r, &name_len)
+                    || !_bin_read_u32(&r, &function_offset)
+                    || !_bin_read_u32(&r, &stack_offset))
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    goto _restore_fail_after_create;
+                }
+
+                woort_LocalVarDebugInfo info;
+                const char* name = _RESTORE_CSTR(name_off, name_len);
+                if (name != NULL)
+                    name = woort_StringPool_intern(&cenv->m_srcloc_string_pool, name);
+                info.m_name = name;
+                info.m_function_offset = function_offset;
+                info.m_stack_offset = (int32_t)stack_offset;
+
+                if (!woort_vector_push_back(
+                    &cenv->m_local_var_debug_info, 1, &info))
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                    goto _restore_fail_after_create;
+                }
+            }
+        }
+
+        /*
+         * 读取静态变量调试信息。
+         */
+        {
+            uint64_t sv_count;
+            if (!_bin_read_u64(&r, &sv_count))
+            {
+                result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                goto _restore_fail_after_create;
+            }
+            for (uint64_t si = 0; si < sv_count; ++si)
+            {
+                uint32_t name_off, name_len;
+                uint32_t static_idx;
+                if (!_bin_read_u32(&r, &name_off)
+                    || !_bin_read_u32(&r, &name_len)
+                    || !_bin_read_u32(&r, &static_idx))
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    goto _restore_fail_after_create;
+                }
+
+                woort_StaticVarDebugInfo info;
+                const char* name = _RESTORE_CSTR(name_off, name_len);
+                if (name != NULL)
+                    name = woort_StringPool_intern(&cenv->m_srcloc_string_pool, name);
+                info.m_name = name;
+                info.m_static_idx = (woort_IRStaticIndex)static_idx;
+
+                if (!woort_vector_push_back(
+                    &cenv->m_static_var_debug_info, 1, &info))
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                    goto _restore_fail_after_create;
                 }
             }
         }

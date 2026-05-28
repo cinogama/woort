@@ -22,7 +22,7 @@ int main(void) {
 
     /* 2. 创建代码环境 */
     woort_CodeEnv* codeenv;
-    woort_CodeEnv_create(bytecodes, count, data_count, &codeenv);
+    woort_CodeEnv_create(bytecodes, count, const_count, static_count, &codeenv);
 
     /* 3. 初始化常量数据 */
     codeenv->m_data_begin[0].m_integer = 42;
@@ -66,7 +66,7 @@ typedef struct woort_CodeEnv {
 |------|------|
 | `woort_CodeEnv_bootup()` | 启动代码环境子系统（内部使用） |
 | `woort_CodeEnv_shutdown()` | 关闭代码环境子系统（内部使用） |
-| `woort_CodeEnv_create(bytecodes, count, data_count, &out)` | 创建代码环境 |
+| `woort_CodeEnv_create(bytecodes, count, const_count, static_count, &out)` | 创建代码环境 |
 | `woort_CodeEnv_drop(code_env)` | 释放代码环境（执行前必须调用） |
 | `woort_CodeEnv_find(addr, &out)` | 根据地址查找所属代码环境 |
 
@@ -81,7 +81,8 @@ woort_CodeEnv* codeenv;
 woort_CodeEnv_create(
     bcs,                    /* 字节码数组 */
     sizeof(bcs) / sizeof(woort_Bytecode),  /* 字节码数量 */
-    9,                      /* 常量/静态数据区大小 */
+    9,                      /* 常量数据区大小 */
+    0,                      /* 静态变量数据区大小 */
     &codeenv);              /* 输出参数 */
 ```
 
@@ -339,7 +340,7 @@ int main(void) {
 
     /* 创建代码环境 */
     woort_CodeEnv* codeenv;
-    woort_CodeEnv_create(bcs, sizeof(bcs)/sizeof(woort_Bytecode), 2, &codeenv);
+    woort_CodeEnv_create(bcs, sizeof(bcs)/sizeof(woort_Bytecode), 2, 0, &codeenv);
 
     /* 初始化常量 */
     codeenv->m_data_begin[0].m_integer = 100;

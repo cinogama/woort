@@ -181,6 +181,7 @@ struct woort_CodeEnv {
      */
     woort_Vector /* woort_StaticVarDebugInfo */ m_static_var_debug_info;
 
+    size_t m_constant_count;
     size_t m_data_count;
     woort_Value m_data_begin[];
 };
@@ -190,7 +191,8 @@ _Static_assert(offsetof(woort_CodeEnv, m_gc_unit) == 0,
 WOORT_NODISCARD bool woort_CodeEnv_create(
     const woort_Bytecode* bytecodes,
     size_t bytecodes_count,
-    size_t constant_and_static_storage_count,
+    size_t constant_storage_count,
+    size_t static_storage_count,
     woort_CodeEnv** out_code_env);
 
 WOORT_NODISCARD bool woort_CodeEnv_find(

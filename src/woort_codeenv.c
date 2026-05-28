@@ -226,13 +226,16 @@ void woort_CodeEnv_shutdown(void)
 WOORT_NODISCARD bool woort_CodeEnv_create(
     const woort_Bytecode* bytecodes,
     size_t bytecodes_count,
-    size_t constant_and_static_storage_count,
+    size_t constant_storage_count,
+    size_t static_storage_count,
     woort_CodeEnv** out_code_env)
 {
+    const size_t total_data_count = constant_storage_count + static_storage_count;
+
     _Static_assert(_Alignof(woort_CodeEnv) == _Alignof(woort_Value),
         "woort_CodeEnv and woort_Value must have the same align.");
 
-    // 提前上锁，确保 code_env_instance 不会 Missing mark.
+    /* 提前上锁，确保 code_env_instance 不会 Missing mark. */
     woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
 
     woort_CodeEnv_Code* codes;
@@ -248,7 +251,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         {
             code_env_instance = woomem_allocate_begin(
                 sizeof(woort_CodeEnv)
-                + constant_and_static_storage_count * sizeof(woort_Value));
+                + total_data_count * sizeof(woort_Value));
         }
 
         if (codes == NULL || code_env_instance == NULL)
@@ -302,7 +305,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     woort_vector_init(&code_env_instance->m_function_boundaries,
         sizeof(woort_FunctionBoundary));
 
-    code_env_instance->m_data_count = constant_and_static_storage_count;
+    code_env_instance->m_constant_count = constant_storage_count;
+    code_env_instance->m_data_count = total_data_count;
 
     woort_vector_init(&code_env_instance->m_const_records, sizeof(woort_ConstRecord));
 
@@ -313,7 +317,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
         if (!woort_vector_emplace_back(
             &code_env_instance->m_const_records,
-            constant_and_static_storage_count,
+            total_data_count,
             &buffer))
         {
             /* OOM: 不影响正常运行，但序列化将失败 */
@@ -321,7 +325,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         }
         else
         {
-            memset(buffer, 0, sizeof(woort_ConstRecord) * constant_and_static_storage_count);
+            memset(buffer, 0, sizeof(woort_ConstRecord) * total_data_count);
         }
     }
 
@@ -333,11 +337,11 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     woort_vector_init(&code_env_instance->m_static_var_debug_info,
         sizeof(woort_StaticVarDebugInfo));
 
-    // Fill 0 for static storage:
+    /* Fill 0 for static storage: */
     memset(
         code_env_instance->m_data_begin,
         0,
-        constant_and_static_storage_count * sizeof(woort_Value));
+        total_data_count * sizeof(woort_Value));
 
     // 将新创建的 CodeEnv 注册到全局容器
     // 
@@ -897,7 +901,7 @@ WOORT_NODISCARD bool woort_CodeEnv_set_const_record(
     /* OPTIONAL */ const char* func_name)
 {
     assert(env != NULL);
-    assert((size_t)cidx < env->m_data_count);
+    assert((size_t)cidx < env->m_constant_count);
     assert((size_t)cidx < env->m_const_records.m_size);
 
     woort_ConstRecord* rec = (woort_ConstRecord*)woort_vector_at(
