@@ -2174,7 +2174,7 @@ WOORT_NODISCARD size_t woort_strn_to_u16str(const char* str, size_t size, /* OPT
         size_t u16len = 0;
         const size_t u8forward = woort_u8combineu16(p, remaining, u16buf, &u16len);
 
-        if (buflen != 0 && count + u16len < buflen)
+        if (buflen != 0 && count + u16len <= buflen)
         {
             for (size_t i = 0; i < u16len; ++i)
                 outbuf[count + i] = u16buf[i];
@@ -2208,7 +2208,7 @@ WOORT_NODISCARD size_t woort_u16strn_to_str(const char16_t* str, size_t size, /*
         size_t u8len = 0;
         const size_t u16forward = woort_u16exractu8(p, remaining, u8buf, &u8len);
 
-        if (buflen != 0 && count + u8len < buflen)
+        if (buflen != 0 && count + u8len <= buflen)
         {
             for (size_t i = 0; i < u8len; ++i)
                 outbuf[count + i] = u8buf[i];
@@ -2274,7 +2274,7 @@ WOORT_NODISCARD size_t woort_u32strn_to_str(
         size_t u8len = 0;
         woort_u32exractu8(*p, u8buf, &u8len);
 
-        if (buflen != 0 && count + u8len < buflen)
+        if (buflen != 0 && count + u8len <= buflen)
         {
             for (size_t i = 0; i < u8len; ++i)
                 outbuf[count + i] = u8buf[i];
