@@ -24,23 +24,23 @@ BEGIN
         BLOCK "080404b0"
         BEGIN
             VALUE "CompanyName", ""
-            VALUE "FileDescription", "Woort 运行时库文件"
+            VALUE "FileDescription", "WooRT 运行时库文件"
             VALUE "FileVersion", WOORT_VERSION
             VALUE "LegalCopyright", "根据 Apache 许可证 2.0 版本授权"
             VALUE "InternalName", ""
             VALUE "OriginalFilename", ""
-            VALUE "ProductName", "Woort"
+            VALUE "ProductName", "WooRT"
             VALUE "ProductVersion", WOORT_VERSION
         END
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", ""
-            VALUE "FileDescription", "Woort runtime library file."
+            VALUE "FileDescription", "WooRT runtime library file."
             VALUE "FileVersion", WOORT_VERSION
             VALUE "LegalCopyright", "Licensed under the Apache License, Version 2.0"
             VALUE "InternalName", ""
             VALUE "OriginalFilename", ""
-            VALUE "ProductName", "Woort"
+            VALUE "ProductName", "WooRT"
             VALUE "ProductVersion", WOORT_VERSION
         END
     END
