@@ -92,7 +92,7 @@ WOORT_NODISCARD bool woort_SourceLocationStack_empty(
 
 /*
  * 局部变量名 -> IRValue 的编译期记录。
- * finish 阶段解析为栈偏移，转移到 CodeEnv 的 m_local_var_debug_info。
+ * finish 阶段解析为栈偏移，转移到 CodeEnv 的 m_pdb.m_local_var_debug_info。
  */
 typedef struct woort_LocalVarRecord
 {
@@ -103,7 +103,7 @@ typedef struct woort_LocalVarRecord
 
 /*
  * 静态变量名 -> IRStaticIndex 的编译期记录。
- * finish 阶段转移到 CodeEnv 的 m_static_var_debug_info。
+ * finish 阶段转移到 CodeEnv 的 m_pdb.m_static_var_debug_info。
  */
 typedef struct woort_StaticVarRecord
 {

@@ -187,7 +187,7 @@ static bool _woort_WAIPO_list_codeenv_callback(
         (const void*)cenv->m_code_end,
         cenv->m_data_count,
         cenv->m_constant_count,
-        cenv->m_function_boundaries.m_size);
+        cenv->m_pdb.m_function_boundaries.m_size);
 
     ++ctx->m_index;
     return true;
@@ -676,12 +676,12 @@ static bool _woort_WAIPO_dis_search_func_callback(
     _woort_WAIPO_DisSearchFuncContext* ctx =
         (_woort_WAIPO_DisSearchFuncContext*)user_data;
 
-    const size_t boundary_count = cenv->m_function_boundaries.m_size;
+    const size_t boundary_count = cenv->m_pdb.m_function_boundaries.m_size;
     for (size_t i = 0; i < boundary_count; ++i)
     {
         const woort_FunctionBoundary* boundary =
             (const woort_FunctionBoundary*)woort_vector_at(
-                (woort_Vector*)&cenv->m_function_boundaries, i);
+                (woort_Vector*)&cenv->m_pdb.m_function_boundaries, i);
 
         if (boundary->m_name == NULL)
             continue;
@@ -747,12 +747,12 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
 
         if (func_name != NULL)
         {
-            const size_t boundary_count = cenv->m_function_boundaries.m_size;
+            const size_t boundary_count = cenv->m_pdb.m_function_boundaries.m_size;
             for (size_t i = 0; i < boundary_count; ++i)
             {
                 const woort_FunctionBoundary* boundary =
                     (const woort_FunctionBoundary*)woort_vector_at(
-                        (woort_Vector*)&cenv->m_function_boundaries, i);
+                        (woort_Vector*)&cenv->m_pdb.m_function_boundaries, i);
 
                 if (boundary->m_name != NULL
                     && strcmp(boundary->m_name, func_name) == 0)
@@ -1277,11 +1277,11 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
     uint32_t func_end = (uint32_t)(cenv->m_code_end - cenv->m_code_begin);
     {
         size_t j;
-        for (j = 0; j < cenv->m_function_boundaries.m_size; ++j)
+        for (j = 0; j < cenv->m_pdb.m_function_boundaries.m_size; ++j)
         {
             const woort_FunctionBoundary* boundary =
                 (const woort_FunctionBoundary*)woort_vector_at(
-                    (woort_Vector*)&cenv->m_function_boundaries, j);
+                    (woort_Vector*)&cenv->m_pdb.m_function_boundaries, j);
 
             if (frame_ip_offset >= boundary->m_offset_begin
                 && frame_ip_offset < boundary->m_offset_begin + boundary->m_code_length)
@@ -1298,11 +1298,11 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
      */
     size_t i;
     size_t found_count = 0;
-    for (i = 0; i < cenv->m_local_var_debug_info.m_size; ++i)
+    for (i = 0; i < cenv->m_pdb.m_local_var_debug_info.m_size; ++i)
     {
         const woort_LocalVarDebugInfo* info =
             (const woort_LocalVarDebugInfo*)woort_vector_at(
-                (woort_Vector*)&cenv->m_local_var_debug_info, i);
+                (woort_Vector*)&cenv->m_pdb.m_local_var_debug_info, i);
 
         if (info->m_name == NULL)
             continue;
@@ -1329,11 +1329,11 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
     /*
      * 搜索当前 CodeEnv 中的静态变量。
      */
-    for (i = 0; i < cenv->m_static_var_debug_info.m_size; ++i)
+    for (i = 0; i < cenv->m_pdb.m_static_var_debug_info.m_size; ++i)
     {
         const woort_StaticVarDebugInfo* info =
             (const woort_StaticVarDebugInfo*)woort_vector_at(
-                (woort_Vector*)&cenv->m_static_var_debug_info, i);
+                (woort_Vector*)&cenv->m_pdb.m_static_var_debug_info, i);
 
         if (info->m_name == NULL)
             continue;

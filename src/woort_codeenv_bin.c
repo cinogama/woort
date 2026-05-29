@@ -504,11 +504,11 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     /* 遍历函数边界名称 */
     if (ok)
     {
-        for (size_t i = 0; i < code_env->m_function_boundaries.m_size; ++i)
+        for (size_t i = 0; i < code_env->m_pdb.m_function_boundaries.m_size; ++i)
         {
             const woort_FunctionBoundary* fb =
                 (const woort_FunctionBoundary*)woort_vector_at(
-                    &code_env->m_function_boundaries, i);
+                    &code_env->m_pdb.m_function_boundaries, i);
             if (fb->m_name != NULL)
                 ok = ok && _bin_strpool_insert(&strpool,
                     fb->m_name, strlen(fb->m_name), NULL);
@@ -518,9 +518,9 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     /* 遍历源码映射文件路径 */
     if (ok)
     {
-        for (uint32_t i = 0; i < code_env->m_source_map.m_entry_count; ++i)
+        for (uint32_t i = 0; i < code_env->m_pdb.m_source_map.m_entry_count; ++i)
         {
-            const woort_SourceMap_Entry* entry = &code_env->m_source_map.m_entries[i];
+            const woort_SourceMap_Entry* entry = &code_env->m_pdb.m_source_map.m_entries[i];
             if (entry->m_location.m_filepath != NULL)
                 ok = ok && _bin_strpool_insert(&strpool,
                     entry->m_location.m_filepath,
@@ -553,11 +553,11 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     /* 遍历局部变量调试信息名称 */
     if (ok)
     {
-        for (size_t i = 0; i < code_env->m_local_var_debug_info.m_size; ++i)
+        for (size_t i = 0; i < code_env->m_pdb.m_local_var_debug_info.m_size; ++i)
         {
             const woort_LocalVarDebugInfo* info =
                 (const woort_LocalVarDebugInfo*)woort_vector_at(
-                    &code_env->m_local_var_debug_info, i);
+                    &code_env->m_pdb.m_local_var_debug_info, i);
             if (info->m_name != NULL)
                 ok = ok && _bin_strpool_insert(&strpool,
                     info->m_name, strlen(info->m_name), NULL);
@@ -567,11 +567,11 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     /* 遍历静态变量调试信息名称 */
     if (ok)
     {
-        for (size_t i = 0; i < code_env->m_static_var_debug_info.m_size; ++i)
+        for (size_t i = 0; i < code_env->m_pdb.m_static_var_debug_info.m_size; ++i)
         {
             const woort_StaticVarDebugInfo* info =
                 (const woort_StaticVarDebugInfo*)woort_vector_at(
-                    &code_env->m_static_var_debug_info, i);
+                    &code_env->m_pdb.m_static_var_debug_info, i);
             if (info->m_name != NULL)
                 ok = ok && _bin_strpool_insert(&strpool,
                     info->m_name, strlen(info->m_name), NULL);
@@ -891,13 +891,13 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
      */
     if (ok)
     {
-        uint64_t fb_count = (uint64_t)code_env->m_function_boundaries.m_size;
+        uint64_t fb_count = (uint64_t)code_env->m_pdb.m_function_boundaries.m_size;
         ok = ok && _bin_write_u64(&w, fb_count);
-        for (size_t i = 0; ok && i < code_env->m_function_boundaries.m_size; ++i)
+        for (size_t i = 0; ok && i < code_env->m_pdb.m_function_boundaries.m_size; ++i)
         {
             const woort_FunctionBoundary* fb =
                 (const woort_FunctionBoundary*)woort_vector_at(
-                    &code_env->m_function_boundaries, i);
+                    &code_env->m_pdb.m_function_boundaries, i);
             ok = ok && _bin_write_u32(&w, fb->m_offset_begin);
             ok = ok && _bin_write_u32(&w, fb->m_code_length);
 
@@ -915,11 +915,11 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
      */
     if (ok)
     {
-        uint64_t sm_count = (uint64_t)code_env->m_source_map.m_entry_count;
+        uint64_t sm_count = (uint64_t)code_env->m_pdb.m_source_map.m_entry_count;
         ok = ok && _bin_write_u64(&w, sm_count);
-        for (uint32_t i = 0; ok && i < code_env->m_source_map.m_entry_count; ++i)
+        for (uint32_t i = 0; ok && i < code_env->m_pdb.m_source_map.m_entry_count; ++i)
         {
-            const woort_SourceMap_Entry* entry = &code_env->m_source_map.m_entries[i];
+            const woort_SourceMap_Entry* entry = &code_env->m_pdb.m_source_map.m_entries[i];
             ok = ok && _bin_write_u32(&w, entry->m_bytecode_offset);
 
             uint32_t fp_off, fp_len;
@@ -958,13 +958,13 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
      */
     if (ok)
     {
-        uint64_t lv_count = (uint64_t)code_env->m_local_var_debug_info.m_size;
+        uint64_t lv_count = (uint64_t)code_env->m_pdb.m_local_var_debug_info.m_size;
         ok = ok && _bin_write_u64(&w, lv_count);
-        for (size_t i = 0; ok && i < code_env->m_local_var_debug_info.m_size; ++i)
+        for (size_t i = 0; ok && i < code_env->m_pdb.m_local_var_debug_info.m_size; ++i)
         {
             const woort_LocalVarDebugInfo* info =
                 (const woort_LocalVarDebugInfo*)woort_vector_at(
-                    &code_env->m_local_var_debug_info, i);
+                    &code_env->m_pdb.m_local_var_debug_info, i);
 
             uint32_t name_off, name_len;
             if (info->m_name != NULL)
@@ -990,13 +990,13 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
      */
     if (ok)
     {
-        uint64_t sv_count = (uint64_t)code_env->m_static_var_debug_info.m_size;
+        uint64_t sv_count = (uint64_t)code_env->m_pdb.m_static_var_debug_info.m_size;
         ok = ok && _bin_write_u64(&w, sv_count);
-        for (size_t i = 0; ok && i < code_env->m_static_var_debug_info.m_size; ++i)
+        for (size_t i = 0; ok && i < code_env->m_pdb.m_static_var_debug_info.m_size; ++i)
         {
             const woort_StaticVarDebugInfo* info =
                 (const woort_StaticVarDebugInfo*)woort_vector_at(
-                    &code_env->m_static_var_debug_info, i);
+                    &code_env->m_pdb.m_static_var_debug_info, i);
 
             uint32_t name_off, name_len;
             if (info->m_name != NULL)
@@ -1636,11 +1636,11 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 const char* name = _RESTORE_CSTR(name_off, name_len);
                 /* intern into CodeEnv string pool for lifetime management */
                 if (name != NULL)
-                    name = woort_StringPool_intern(&cenv->m_srcloc_string_pool, name);
+                    name = woort_StringPool_intern(&cenv->m_pdb.m_srcloc_string_pool, name);
                 fb.m_name = name;
 
                 if (!woort_vector_push_back(
-                    &cenv->m_function_boundaries, 1, &fb))
+                    &cenv->m_pdb.m_function_boundaries, 1, &fb))
                 {
                     result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
                     goto _restore_fail_after_create;
@@ -1686,13 +1686,13 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
                     const char* fp = _RESTORE_CSTR(fp_off, fp_len);
                     if (fp != NULL)
-                        fp = woort_StringPool_intern(&cenv->m_srcloc_string_pool, fp);
+                        fp = woort_StringPool_intern(&cenv->m_pdb.m_srcloc_string_pool, fp);
                     entries[si].m_location.m_filepath = fp;
                 }
 
-                free(cenv->m_source_map.m_entries);
-                cenv->m_source_map.m_entries = entries;
-                cenv->m_source_map.m_entry_count = (uint32_t)sm_count;
+                free(cenv->m_pdb.m_source_map.m_entries);
+                cenv->m_pdb.m_source_map.m_entries = entries;
+                cenv->m_pdb.m_source_map.m_entry_count = (uint32_t)sm_count;
             }
         }
 
@@ -1755,13 +1755,13 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 woort_LocalVarDebugInfo info;
                 const char* name = _RESTORE_CSTR(name_off, name_len);
                 if (name != NULL)
-                    name = woort_StringPool_intern(&cenv->m_srcloc_string_pool, name);
+                    name = woort_StringPool_intern(&cenv->m_pdb.m_srcloc_string_pool, name);
                 info.m_name = name;
                 info.m_function_offset = function_offset;
                 info.m_stack_offset = (int32_t)stack_offset;
 
                 if (!woort_vector_push_back(
-                    &cenv->m_local_var_debug_info, 1, &info))
+                    &cenv->m_pdb.m_local_var_debug_info, 1, &info))
                 {
                     result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
                     goto _restore_fail_after_create;
@@ -1794,12 +1794,12 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 woort_StaticVarDebugInfo info;
                 const char* name = _RESTORE_CSTR(name_off, name_len);
                 if (name != NULL)
-                    name = woort_StringPool_intern(&cenv->m_srcloc_string_pool, name);
+                    name = woort_StringPool_intern(&cenv->m_pdb.m_srcloc_string_pool, name);
                 info.m_name = name;
                 info.m_static_idx = (woort_IRStaticIndex)static_idx;
 
                 if (!woort_vector_push_back(
-                    &cenv->m_static_var_debug_info, 1, &info))
+                    &cenv->m_pdb.m_static_var_debug_info, 1, &info))
                 {
                     result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
                     goto _restore_fail_after_create;

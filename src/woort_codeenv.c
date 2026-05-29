@@ -105,6 +105,34 @@ static bool _codeenv_foreach_callback(
     return ctx->m_callback(code_env, ctx->m_user_data);
 }
 
+void woort_CodeEnv_PDB_init(woort_CodeEnv_PDB* pdb)
+{
+    pdb->m_source_map.m_entries = NULL;
+    pdb->m_source_map.m_entry_count = 0;
+    woort_StringPool_init(&pdb->m_srcloc_string_pool);
+
+    woort_vector_init(&pdb->m_function_boundaries,
+        sizeof(woort_FunctionBoundary));
+
+    woort_vector_init(&pdb->m_local_var_debug_info,
+        sizeof(woort_LocalVarDebugInfo));
+    woort_vector_init(&pdb->m_static_var_debug_info,
+        sizeof(woort_StaticVarDebugInfo));
+}
+
+void woort_CodeEnv_PDB_deinit(woort_CodeEnv_PDB* pdb)
+{
+    free(pdb->m_source_map.m_entries);
+    pdb->m_source_map.m_entries = NULL;
+    pdb->m_source_map.m_entry_count = 0;
+    woort_StringPool_deinit(&pdb->m_srcloc_string_pool);
+
+    woort_vector_deinit(&pdb->m_function_boundaries);
+
+    woort_vector_deinit(&pdb->m_local_var_debug_info);
+    woort_vector_deinit(&pdb->m_static_var_debug_info);
+}
+
 void _woort_CodeEnv_GC_mark_code(woort_GCUnit* unit)
 {
     woort_CodeEnv_Code* const code = (woort_CodeEnv_Code*)unit;
@@ -140,14 +168,7 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     if (code_env->m_mutex != NULL)
         woort_mutex_destroy(code_env->m_mutex);
 
-    /* 释放源码映射数据 */
-    free(code_env->m_source_map.m_entries);
-    code_env->m_source_map.m_entries = NULL;
-    code_env->m_source_map.m_entry_count = 0;
-    woort_StringPool_deinit(&code_env->m_srcloc_string_pool);
-
-    /* 释放函数边界数据 */
-    woort_vector_deinit(&code_env->m_function_boundaries);
+    woort_CodeEnv_PDB_deinit(&code_env->m_pdb);
 
     /* 释放常量记录数据 */
     for (size_t i = 0; i < code_env->m_const_records.m_size; ++i)
@@ -166,10 +187,6 @@ void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
         woort_dylib_unload(lib, WOORT_DYLIB_UNREF);
     }
     woort_vector_deinit(&code_env->m_extern_libs);
-
-    /* 释放调试信息 */
-    woort_vector_deinit(&code_env->m_local_var_debug_info);
-    woort_vector_deinit(&code_env->m_static_var_debug_info);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
@@ -296,14 +313,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     code_env_instance->m_code_end =
         code_env_instance->m_code_begin + bytecodes_count;
 
-    /* 初始化源码映射为空 */
-    code_env_instance->m_source_map.m_entries = NULL;
-    code_env_instance->m_source_map.m_entry_count = 0;
-    woort_StringPool_init(&code_env_instance->m_srcloc_string_pool);
-
-    /* 初始化函数边界为空 */
-    woort_vector_init(&code_env_instance->m_function_boundaries,
-        sizeof(woort_FunctionBoundary));
+    woort_CodeEnv_PDB_init(&code_env_instance->m_pdb);
 
     code_env_instance->m_constant_count = constant_storage_count;
     code_env_instance->m_data_count = total_data_count;
@@ -330,12 +340,6 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     }
 
     woort_vector_init(&code_env_instance->m_extern_libs, sizeof(woort_Dylib*));
-
-    /* 初始化调试信息为空 */
-    woort_vector_init(&code_env_instance->m_local_var_debug_info,
-        sizeof(woort_LocalVarDebugInfo));
-    woort_vector_init(&code_env_instance->m_static_var_debug_info,
-        sizeof(woort_StaticVarDebugInfo));
 
     /* Fill 0 for static storage: */
     memset(
@@ -638,7 +642,7 @@ void woort_CodeEnv_set_source_maps(
             if (src->m_location.m_filepath != NULL)
             {
                 const char* interned = woort_StringPool_intern(
-                    &env->m_srcloc_string_pool,
+                    &env->m_pdb.m_srcloc_string_pool,
                     src->m_location.m_filepath);
                 entries[offset].m_location.m_filepath = interned;
             }
@@ -649,8 +653,8 @@ void woort_CodeEnv_set_source_maps(
 
     assert(offset == total_entries);
 
-    env->m_source_map.m_entries = entries;
-    env->m_source_map.m_entry_count = total_entries;
+    env->m_pdb.m_source_map.m_entries = entries;
+    env->m_pdb.m_source_map.m_entry_count = total_entries;
 
 build_function_boundaries:
 
@@ -675,7 +679,7 @@ build_function_boundaries:
         if (f->m_name != NULL)
         {
             const char* interned = woort_StringPool_intern(
-                &env->m_srcloc_string_pool,
+                &env->m_pdb.m_srcloc_string_pool,
                 f->m_name);
             boundary.m_name = interned;
         }
@@ -685,7 +689,7 @@ build_function_boundaries:
         }
 
         /* 忽略 push_back 失败 —— 边界信息丢失不影响正确性 */
-        (void)woort_vector_push_back(&env->m_function_boundaries, 1, &boundary);
+        (void)woort_vector_push_back(&env->m_pdb.m_function_boundaries, 1, &boundary);
     }
 }
 
@@ -712,13 +716,13 @@ void woort_CodeEnv_set_debug_info(
         if (src->m_name != NULL)
         {
             const char* interned = woort_StringPool_intern(
-                &env->m_srcloc_string_pool,
+                &env->m_pdb.m_srcloc_string_pool,
                 src->m_name);
             info.m_name = interned;
         }
 
         /* 忽略 push_back 失败 —— 调试信息丢失不影响正确性 */
-        (void)woort_vector_push_back(&env->m_local_var_debug_info, 1, &info);
+        (void)woort_vector_push_back(&env->m_pdb.m_local_var_debug_info, 1, &info);
     }
 
     /*
@@ -736,13 +740,13 @@ void woort_CodeEnv_set_debug_info(
         if (src->m_name != NULL)
         {
             const char* interned = woort_StringPool_intern(
-                &env->m_srcloc_string_pool,
+                &env->m_pdb.m_srcloc_string_pool,
                 src->m_name);
             info.m_name = interned;
         }
 
         /* 忽略 push_back 失败 —— 调试信息丢失不影响正确性 */
-        (void)woort_vector_push_back(&env->m_static_var_debug_info, 1, &info);
+        (void)woort_vector_push_back(&env->m_pdb.m_static_var_debug_info, 1, &info);
     }
 }
 
@@ -752,14 +756,14 @@ WOORT_NODISCARD bool woort_CodeEnv_find_srcloc_by_offset(
     woort_SourceLocation* out_location)
 {
     return woort_SourceMap_find_by_offset(
-        &env->m_source_map, bytecode_offset, out_location);
+        &env->m_pdb.m_source_map, bytecode_offset, out_location);
 }
 
 WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_offset(
     const woort_CodeEnv* env,
     uint32_t bytecode_offset)
 {
-    const woort_Vector* vec = &env->m_function_boundaries;
+    const woort_Vector* vec = &env->m_pdb.m_function_boundaries;
     const uint32_t count = (uint32_t)vec->m_size;
 
     if (count == 0)
@@ -817,7 +821,7 @@ WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
     {
         void* value_addr;
         if (woort_hashmap_find(
-            &((woort_CodeEnv*)env)->m_srcloc_string_pool.m_map,
+            &((woort_CodeEnv*)env)->m_pdb.m_srcloc_string_pool.m_map,
             &filepath, &value_addr))
         {
             interned_path = *(const char**)value_addr;
@@ -829,7 +833,7 @@ WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
     }
 
     return woort_SourceMap_find_by_line(
-        &env->m_source_map, interned_path, line, out_bytecode_offset);
+        &env->m_pdb.m_source_map, interned_path, line, out_bytecode_offset);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_register_extern_constant(

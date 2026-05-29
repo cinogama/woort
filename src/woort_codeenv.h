@@ -60,6 +60,56 @@ typedef struct woort_StaticVarDebugInfo
 
 } woort_StaticVarDebugInfo;
 
+/*
+ * 程序调试数据库（Program Debug Database）。
+ * 封装 CodeEnv 中所有调试/源码映射相关数据。
+ * 在 woort_CodeEnv 中以成员 m_pdb 的形式存在。
+ */
+typedef struct woort_CodeEnv_PDB
+{
+    /* === 源码映射 === */
+    /*
+     * 合并的源码映射表，覆盖所有函数。
+     * 由 woort_CodeEnv_set_source_maps() 设置。
+     * CodeEnv 拥有映射数据的所有权（在 GC destroy 时释放）。
+     * 如果无源码信息，m_source_map.m_entries 为 NULL 且 m_entry_count 为 0。
+     */
+    woort_SourceMap m_source_map;
+
+    /*
+     * 源码映射中路径字符串的存储池。
+     * CodeEnv 拥有所有权，GC destroy 时释放。
+     */
+    woort_StringPool m_srcloc_string_pool;
+
+    /* === 函数边界表 === */
+    /*
+     * 字节码偏移 -> 函数名 的映射表。
+     * 按 m_offset_begin 升序排列，使用二分查找查询。
+     * 由 woort_CodeEnv_set_source_maps() 设置。
+     * CodeEnv 拥有所有权（m_name 指针指向 m_srcloc_string_pool 中的字符串）。
+     */
+    woort_Vector /* woort_FunctionBoundary */ m_function_boundaries;
+
+    /*
+     * 局部变量调试信息（名称 -> 栈偏移量）。
+     * m_name 指针指向 m_srcloc_string_pool 中的字符串。
+     * CodeEnv 拥有所有权，GC destroy 时释放。
+     */
+    woort_Vector /* woort_LocalVarDebugInfo */ m_local_var_debug_info;
+
+    /*
+     * 静态变量调试信息（名称 -> 静态存储索引）。
+     * m_name 指针指向 m_srcloc_string_pool 中的字符串。
+     * CodeEnv 拥有所有权，GC destroy 时释放。
+     */
+    woort_Vector /* woort_StaticVarDebugInfo */ m_static_var_debug_info;
+
+} woort_CodeEnv_PDB;
+
+void woort_CodeEnv_PDB_init(woort_CodeEnv_PDB* pdb);
+void woort_CodeEnv_PDB_deinit(woort_CodeEnv_PDB* pdb);
+
 /* ========================================================================
  * 常量池类型记录 —— 用于二进制序列化/反序列化
  * ======================================================================== */
@@ -128,29 +178,13 @@ struct woort_CodeEnv {
     woort_HashMap /* char* -> woort_IRConstantIndex */
         m_extern_constants;
 
-    /* === 源码映射 === */
     /*
-     * 合并的源码映射表，覆盖所有函数。
-     * 由 woort_CodeEnv_set_source_maps() 设置。
-     * CodeEnv 拥有映射数据的所有权（在 GC destroy 时释放）。
-     * 如果无源码信息，m_source_map.m_entries 为 NULL 且 m_entry_count 为 0。
+     * 程序调试数据库（PDB）。
+     * 封装所有调试和源码映射数据。
+     * 由 woort_CodeEnv_set_source_maps() 和 woort_CodeEnv_set_debug_info() 设置。
+     * CodeEnv 拥有所有权（GC destroy 时释放）。
      */
-    woort_SourceMap m_source_map;
-
-    /*
-     * 源码映射中路径字符串的存储池。
-     * CodeEnv 拥有所有权，GC destroy 时释放。
-     */
-    woort_StringPool m_srcloc_string_pool;
-
-    /* === 函数边界表 === */
-    /*
-     * 字节码偏移 -> 函数名 的映射表。
-     * 按 m_offset_begin 升序排列，使用二分查找查询。
-     * 由 woort_CodeEnv_set_source_maps() 设置。
-     * CodeEnv 拥有所有权（m_name 指针指向 m_srcloc_string_pool 中的字符串）。
-     */
-    woort_Vector /* woort_FunctionBoundary */ m_function_boundaries;
+    woort_CodeEnv_PDB m_pdb;
 
     /* === 外部库句柄跟踪 === */
     /*
@@ -166,20 +200,6 @@ struct woort_CodeEnv {
      * CodeEnv 拥有所有权，GC destroy 时释放。
      */
     woort_Vector /* woort_ConstRecord */ m_const_records;
-
-    /*
-     * 局部变量调试信息（名称 -> 栈偏移量）。
-     * m_name 指针指向 m_srcloc_string_pool 中的字符串。
-     * CodeEnv 拥有所有权，GC destroy 时释放。
-     */
-    woort_Vector /* woort_LocalVarDebugInfo */ m_local_var_debug_info;
-
-    /*
-     * 静态变量调试信息（名称 -> 静态存储索引）。
-     * m_name 指针指向 m_srcloc_string_pool 中的字符串。
-     * CodeEnv 拥有所有权，GC destroy 时释放。
-     */
-    woort_Vector /* woort_StaticVarDebugInfo */ m_static_var_debug_info;
 
     size_t m_constant_count;
     size_t m_data_count;

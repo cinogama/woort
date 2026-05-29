@@ -195,19 +195,19 @@ typedef enum woort_VmCallStatus
  */
 typedef enum woort_BoxValueType
 {
-    WOORT_BOX_VALUE_TYPE_GCUNIT = 0b000,  /**< @brief GC-managed unit. */
-    WOORT_BOX_VALUE_TYPE_REAL = 0b001,     /**< @brief Boxed double-precision float. */
-    WOORT_BOX_VALUE_TYPE_INT = 0b010,      /**< @brief Boxed 64-bit signed integer. */
-    WOORT_BOX_VALUE_TYPE_BOOL = 0b100,     /**< @brief Boxed boolean. */
+    WOORT_BOX_VALUE_TYPE_GCUNIT = 0b000,    /**< @brief GC-managed unit. */
+    WOORT_BOX_VALUE_TYPE_REAL = 0b001,      /**< @brief Boxed double-precision float. */
+    WOORT_BOX_VALUE_TYPE_INT = 0b010,       /**< @brief Boxed 64-bit signed integer. */
+    WOORT_BOX_VALUE_TYPE_BOOL = 0b100,      /**< @brief Boxed boolean. */
 
     ////
-    WOORT_BOX_VALUE_TYPE_NIL = 0b1000,     /**< @brief Nil value. */
-    WOORT_BOX_VALUE_TYPE_STRING,           /**< @brief String value. */
-    WOORT_BOX_VALUE_TYPE_VEC,              /**< @brief Vector (dynamic array) value. */
-    WOORT_BOX_VALUE_TYPE_MAP,              /**< @brief Map (hash table) value. */
-    WOORT_BOX_VALUE_TYPE_STRUCT,           /**< @brief Struct value. */
-    WOORT_BOX_VALUE_TYPE_GCHANDLE,         /**< @brief GC handle (external resource). */
-    WOORT_BOX_VALUE_TYPE_CLOSURE,          /**< @brief Closure value. */
+    WOORT_BOX_VALUE_TYPE_NIL = 0b1000,      /**< @brief Nil value. */
+    WOORT_BOX_VALUE_TYPE_STRING,            /**< @brief String value. */
+    WOORT_BOX_VALUE_TYPE_VEC,               /**< @brief Vector (dynamic array) value. */
+    WOORT_BOX_VALUE_TYPE_MAP,               /**< @brief Map (hash table) value. */
+    WOORT_BOX_VALUE_TYPE_STRUCT,            /**< @brief Struct value. */
+    WOORT_BOX_VALUE_TYPE_GCHANDLE,          /**< @brief GC handle (external resource). */
+    WOORT_BOX_VALUE_TYPE_CLOSURE,           /**< @brief Closure value. */
 
 } woort_BoxValueType;
 
@@ -931,7 +931,7 @@ WOORT_API void woort_IRFunction_set_name(
  * @brief Record a local variable name -> IRValue mapping for debug info.
  *
  * During woort_IRCompiler_finish(), each recorded mapping is resolved to
- * a stack offset and transferred into the CodeEnv's m_local_var_debug_info.
+ * a stack offset and transferred into the CodeEnv's m_pdb.m_local_var_debug_info.
  *
  * @param f     The IR function. Must not be NULL.
  * @param name  The variable name. Must not be NULL.
@@ -946,7 +946,7 @@ WOORT_API void woort_IRFunction_record_local_var(
  * @brief Record a static variable name -> IRStaticIndex mapping for debug info.
  *
  * During woort_IRCompiler_finish(), each recorded mapping is transferred
- * into the CodeEnv's m_static_var_debug_info.
+ * into the CodeEnv's m_pdb.m_static_var_debug_info.
  *
  * @param c     The IR compiler. Must not be NULL.
  * @param name  The variable name. Must not be NULL.
