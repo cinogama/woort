@@ -1386,13 +1386,17 @@ static bool _woort_WAIPO_break_by_file_line_callback(
     return true;
 }
 
+WOORT_NODISCARD static bool _woort_WAIPO_add_user_breakpoint(
+    woort_WAIPO_Debugger* dbg,
+    const woort_Bytecode* ip,
+    const char* desc_fmt,
+    ...);
+
 typedef struct _woort_WAIPO_BreakByFuncContext
 {
     const char* m_funcname;
     size_t m_found_count;
     woort_WAIPO_Debugger* m_dbg;
-    woort_CodeEnv* m_cenv;
-    const woort_FunctionBoundary* m_boundary;
 } _woort_WAIPO_BreakByFuncContext;
 
 static bool _woort_WAIPO_break_by_func_callback(
@@ -1411,17 +1415,29 @@ static bool _woort_WAIPO_break_by_func_callback(
 
         if (boundary->m_name == NULL)
             continue;
-        if (strcmp(boundary->m_name, ctx->m_funcname) != 0)
+        if (strstr(boundary->m_name, ctx->m_funcname) == NULL)
             continue;
 
-        ctx->m_cenv = cenv;
-        ctx->m_boundary = boundary;
+        const woort_Bytecode* target_ip =
+            cenv->m_code_begin + boundary->m_offset_begin;
+
+        if (!_woort_WAIPO_add_user_breakpoint(
+            ctx->m_dbg, target_ip, "%s", boundary->m_name))
+        {
+            (void)printf("Failed to set breakpoint.\n");
+            return false;
+        }
+
+        (void)printf("Breakpoint %zu at %s\n",
+            ctx->m_dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
+            boundary->m_name);
+
         ++ctx->m_found_count;
     }
     return true;
 }
 
-static WOORT_NODISCARD bool _woort_WAIPO_add_user_breakpoint(
+WOORT_NODISCARD static bool _woort_WAIPO_add_user_breakpoint(
     woort_WAIPO_Debugger* dbg,
     const woort_Bytecode* ip,
     const char* desc_fmt,
@@ -1455,7 +1471,7 @@ static WOORT_NODISCARD bool _woort_WAIPO_add_user_breakpoint(
     if (!_woort_WAIPO_BreakpointCollection_break_at(
         &dbg->m_breakpoint_collection, ip))
     {
-        woort_vector_erase_at(
+        (void)woort_vector_erase_at(
             &dbg->m_breakpoint_collection.m_user_breakpoints,
             dbg->m_breakpoint_collection.m_user_breakpoints.m_size - 1);
         return false;
@@ -1701,8 +1717,6 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
         ctx.m_funcname = arg;
         ctx.m_found_count = 0;
         ctx.m_dbg = dbg;
-        ctx.m_cenv = NULL;
-        ctx.m_boundary = NULL;
 
         woort_CodeEnv_foreach(&_woort_WAIPO_break_by_func_callback, &ctx);
 
@@ -1712,23 +1726,9 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
             return WOORT_WAIPO_CMD_NEED_NEXT;
         }
 
-        const woort_Bytecode* target_ip =
-            ctx.m_cenv->m_code_begin + ctx.m_boundary->m_offset_begin;
-
-        if (!_woort_WAIPO_add_user_breakpoint(
-            dbg, target_ip, "%s", ctx.m_boundary->m_name))
-        {
-            (void)printf("Failed to set breakpoint.\n");
-            return WOORT_WAIPO_CMD_NEED_NEXT;
-        }
-
         if (ctx.m_found_count > 1)
-            (void)printf("(breakpoint set at first of %zu matches)\n",
+            (void)printf("(set %zu breakpoints)\n",
                 ctx.m_found_count);
-
-        (void)printf("Breakpoint %zu at %s\n",
-            dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
-            ctx.m_boundary->m_name);
 
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }

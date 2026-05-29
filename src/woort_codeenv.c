@@ -27,7 +27,7 @@
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
-    woort_OrderMap*     m_codeenvs;
+    woort_OrderMap* m_codeenvs;
     woort_GCUnitProxy   m_env_proxy;
     woort_GCUnitProxy   m_code_proxy;
 
@@ -81,12 +81,10 @@ static bool _codeenv_mark_callback(
     (void)key;
     (void)user_data;
     woort_CodeEnv* const code_env = *(woort_CodeEnv**)value;
-    woort_CodeEnv_lock(code_env);
-    {
-        if (code_env->m_hold)
-            woomem_mark_root_unit_head(code_env);
-    }
-    woort_CodeEnv_unlock(code_env);
+
+    if (code_env->m_hold)
+        woomem_mark_root_unit_head(code_env);
+
     return true;
 }
 
@@ -567,21 +565,22 @@ WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
     woort_Bytecode r = woort_OpCode_DEBUGTRAP();
     woort_CodeEnv_lock(env);
     {
-        woort_Bytecode* value_addr;
-        if (woort_hashmap_find(&env->m_trap_records, &code, (void**)&value_addr))
+        /*
+         * 若在无锁检查与加锁之间，另一个线程刚好清除了该 trap，
+         * 则 *code 已被恢复为原始指令，此时应重新读取 *code。
+         */
+        if (r != woort_OpCode_DEBUGTRAP())
+            r = *code;
+        else
         {
-            /* 找到 trap 记录，取出保存的原始指令 */
-            r = *value_addr;
+            woort_Bytecode* value_addr;
+            if (woort_hashmap_find(&env->m_trap_records, &code, (void**)&value_addr))
+            {
+                /* 找到 trap 记录，取出保存的原始指令 */
+                r = *value_addr;
+            }
         }
     }
-
-    /*
-     * 若在无锁检查与加锁之间，另一个线程刚好清除了该 trap，
-     * 则 *code 已被恢复为原始指令，此时应重新读取 *code。
-     */
-    if (r != woort_OpCode_DEBUGTRAP())
-        r = *code;
-
     woort_CodeEnv_unlock(env);
     return r;
 }
