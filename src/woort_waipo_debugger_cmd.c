@@ -320,6 +320,7 @@ WOORT_NODISCARD static bool _woort_WAIPO_trace_to_depth(
 }
 
 static void _woort_WAIPO_print_source_file(
+    woort_WAIPO_Debugger* dbg,
     const char* filepath,
     bool has_highlight,
     size_t highlight_begin_line,
@@ -329,6 +330,33 @@ static void _woort_WAIPO_print_source_file(
     size_t from_line,
     size_t to_line)
 {
+    /* 预收集当前文件上有用户断点的行号 */
+    size_t bp_lines[64];
+    size_t bp_count = 0;
+    {
+        size_t i;
+        for (i = 0; i < dbg->m_breakpoint_collection.m_user_breakpoints.m_size && bp_count < 64; ++i)
+        {
+            const woort_WAIPO_UserBreakpoint* ub =
+                (const woort_WAIPO_UserBreakpoint*)woort_vector_at(
+                    &dbg->m_breakpoint_collection.m_user_breakpoints, i);
+
+            woort_CodeEnv* cenv;
+            if (!woort_CodeEnv_find(ub->m_ip, &cenv))
+                continue;
+
+            const uint32_t offset = (uint32_t)(ub->m_ip - cenv->m_code_begin);
+            woort_SourceLocation loc;
+            if (!woort_CodeEnv_find_srcloc_by_offset(cenv, offset, &loc))
+                continue;
+
+            if (loc.m_filepath != NULL
+                && strcmp(loc.m_filepath, filepath) == 0)
+            {
+                bp_lines[bp_count++] = (size_t)(loc.m_begin_line - 1);
+            }
+        }
+    }
     woort_VFile* f = NULL;
     if (!woort_vfile_open(filepath, &f) || f == NULL)
     {
@@ -365,6 +393,13 @@ static void _woort_WAIPO_print_source_file(
                     && current_line >= highlight_begin_line
                     && current_line <= highlight_end_line;
 
+                bool has_bp = false;
+                {   size_t k;
+                    for (k = 0; k < bp_count; ++k)
+                        if (bp_lines[k] == current_line) { has_bp = true; break; }
+                }
+
+#define WOORT_WAIPO_DOT "\xe2\x97\x8f"
                 if (is_highlight)
                 {
                     const size_t line_len = strlen(line_buf);
@@ -375,19 +410,29 @@ static void _woort_WAIPO_print_source_file(
                     if (current_line == highlight_end_line && highlight_end_col < line_len)
                         col_end = highlight_end_col;
 
-                    (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
-                        current_line + 1,
-                        (int)col_start, line_buf,
-                        (int)(col_end - col_start), line_buf + col_start,
-                        (int)(line_len - col_end), line_buf + col_end);
+                    if (has_bp)
+                        (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+                            current_line + 1,
+                            (int)col_start, line_buf,
+                            (int)(col_end - col_start), line_buf + col_start,
+                            (int)(line_len - col_end), line_buf + col_end);
+                    else
+                        (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+                            current_line + 1,
+                            (int)col_start, line_buf,
+                            (int)(col_end - col_start), line_buf + col_start,
+                            (int)(line_len - col_end), line_buf + col_end);
                 }
+                else if (has_bp)
+                    (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST " %5zu | %s\n",
+                        current_line + 1,
+                        line_buf);
                 else
-                    (void)printf("%c %5zu | %s\n",
-                        ' ',
+                    (void)printf("  %5zu | %s\n",
                         current_line + 1,
                         line_buf);
             }
-
+#undef WOORT_WAIPO_DOT
             ++current_line;
             line_idx = 0;
         }
@@ -408,6 +453,12 @@ static void _woort_WAIPO_print_source_file(
                     && current_line >= highlight_begin_line
                     && current_line <= highlight_end_line;
 
+                bool has_bp = false;
+                {   size_t k;
+                    for (k = 0; k < bp_count; ++k)
+                        if (bp_lines[k] == current_line) { has_bp = true; break; }
+                }
+
                 if (is_highlight)
                 {
                     const size_t line_len = strlen(line_buf);
@@ -418,15 +469,25 @@ static void _woort_WAIPO_print_source_file(
                     if (current_line == highlight_end_line && highlight_end_col < line_len)
                         col_end = highlight_end_col;
 
-                    (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
-                        current_line + 1,
-                        (int)col_start, line_buf,
-                        (int)(col_end - col_start), line_buf + col_start,
-                        (int)(line_len - col_end), line_buf + col_end);
+                    if (has_bp)
+                        (void)printf(WOORT_ANSI_HIR "\xe2\x97\x8f>" WOORT_ANSI_RST "%5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+                            current_line + 1,
+                            (int)col_start, line_buf,
+                            (int)(col_end - col_start), line_buf + col_start,
+                            (int)(line_len - col_end), line_buf + col_end);
+                    else
+                        (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+                            current_line + 1,
+                            (int)col_start, line_buf,
+                            (int)(col_end - col_start), line_buf + col_start,
+                            (int)(line_len - col_end), line_buf + col_end);
                 }
+                else if (has_bp)
+                    (void)printf(WOORT_ANSI_HIR "\xe2\x97\x8f" WOORT_ANSI_RST " %5zu | %s\n",
+                        current_line + 1,
+                        line_buf);
                 else
-                    (void)printf("%c %5zu | %s\n",
-                        ' ',
+                    (void)printf("  %5zu | %s\n",
                         current_line + 1,
                         line_buf);
             }
@@ -454,6 +515,12 @@ static void _woort_WAIPO_print_source_file(
                 && current_line >= highlight_begin_line
                 && current_line <= highlight_end_line;
 
+            bool has_bp = false;
+            {   size_t k;
+                for (k = 0; k < bp_count; ++k)
+                    if (bp_lines[k] == current_line) { has_bp = true; break; }
+            }
+
             if (is_highlight)
             {
                 const size_t line_len = strlen(line_buf);
@@ -464,15 +531,25 @@ static void _woort_WAIPO_print_source_file(
                 if (current_line == highlight_end_line && highlight_end_col < line_len)
                     col_end = highlight_end_col;
 
-                (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
-                    current_line + 1,
-                    (int)col_start, line_buf,
-                    (int)(col_end - col_start), line_buf + col_start,
-                    (int)(line_len - col_end), line_buf + col_end);
+                if (has_bp)
+                    (void)printf(WOORT_ANSI_HIR "\xe2\x97\x8f>" WOORT_ANSI_RST "%5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+                        current_line + 1,
+                        (int)col_start, line_buf,
+                        (int)(col_end - col_start), line_buf + col_start,
+                        (int)(line_len - col_end), line_buf + col_end);
+                else
+                    (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+                        current_line + 1,
+                        (int)col_start, line_buf,
+                        (int)(col_end - col_start), line_buf + col_start,
+                        (int)(line_len - col_end), line_buf + col_end);
             }
+            else if (has_bp)
+                (void)printf(WOORT_ANSI_HIR "\xe2\x97\x8f" WOORT_ANSI_RST " %5zu | %s\n",
+                    current_line + 1,
+                    line_buf);
             else
-                (void)printf("%c %5zu | %s\n",
-                    ' ',
+                (void)printf("  %5zu | %s\n",
                     current_line + 1,
                     line_buf);
         }
@@ -597,6 +674,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
     if (show_full)
     {
         _woort_WAIPO_print_source_file(
+            dbg,
             target_file,
             false,
             0,
@@ -614,6 +692,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
         const size_t to_line = highlight_end + display_range / 2;
 
         _woort_WAIPO_print_source_file(
+            dbg,
             target_file,
             has_highlight,
             highlight_begin,
