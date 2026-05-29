@@ -5,6 +5,8 @@
 #include "woort_opcode.h"
 #include "woort_atomic.h"
 #include "woort_gc_closure.h"
+#include "woort_gc_struct.h"
+#include "woort_gc_gchandle.h"
 #include "woort_vector.h"
 #include "woort_value.h"
 #include "woort_serialize.h"
@@ -1193,50 +1195,246 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
  * print / p command
  * ==================================================================== */
 
-static void _woort_WAIPO_print_value(woort_DynBox boxed)
+static void _woort_WAIPO_print_value_impl(
+    woort_DynBox boxed,
+    woort_HashMap* visited_set,
+    int depth)
 {
     woort_Value* const vp = (woort_Value*)&boxed;
 
-    if (woort_DynBox_debug_check_is_valid(boxed))
+    if (!woort_DynBox_debug_check_is_valid(boxed))
     {
-        woort_Value val;
-        switch (woort_DynBox_unbox_no_check_and_get_type(boxed, &val))
-        {
-        case WOORT_BOX_VALUE_TYPE_REAL:
-            printf("[i64: %lld f64: %f or boxed %f]",
-                val.m_real, vp->m_integer, vp->m_real);
-            break;
-        case WOORT_BOX_VALUE_TYPE_INT:
-            printf("[i64: %lld f64: %f or boxed %lld]",
-                val.m_integer, vp->m_integer, vp->m_real);
-            break;
-        case WOORT_BOX_VALUE_TYPE_BOOL:
-            printf("[i64: %lld f64: %f or boxed %s]",
-                val.m_integer ? "true" : "false", vp->m_integer, vp->m_real);
-            break;
-        case WOORT_BOX_VALUE_TYPE_NIL:
-            printf("[0 or boxed nil]");
-            break;
-        case WOORT_BOX_VALUE_TYPE_STRING:
-        {
-            char* const enstr = woort_u8enstring(
-                val.m_string->m_content, val.m_string->m_length, false);
-
-            printf("%s", enstr);
-            free(enstr);
-            break;
-        }
-        case WOORT_BOX_VALUE_TYPE_VEC:
-        case WOORT_BOX_VALUE_TYPE_MAP:
-        case WOORT_BOX_VALUE_TYPE_STRUCT:
-        case WOORT_BOX_VALUE_TYPE_GCHANDLE:
-        case WOORT_BOX_VALUE_TYPE_CLOSURE:
-        default:
-            printf("[unknown]");
-        }
-    }
-    else
         printf("[i64: %lld f64: %f]", vp->m_integer, vp->m_real);
+        return;
+    }
+
+    if (depth > 64)
+    {
+        printf("<max depth>");
+        return;
+    }
+
+    woort_Value val;
+    switch (woort_DynBox_unbox_no_check_and_get_type(boxed, &val))
+    {
+    case WOORT_BOX_VALUE_TYPE_INT:
+        printf("[i64: %lld f64: %f or boxed %f]",
+            val.m_real, vp->m_integer, vp->m_real);
+        break;
+    case WOORT_BOX_VALUE_TYPE_REAL:
+        printf("%.16g", val.m_real);
+        break;
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+        printf("%s", val.m_integer ? "true" : "false");
+        break;
+    case WOORT_BOX_VALUE_TYPE_NIL:
+        printf("nil");
+        break;
+    case WOORT_BOX_VALUE_TYPE_STRING:
+    {
+        const woort_GCString* const str =
+            (const woort_GCString*)val.m_gcinstance;
+        char* const enstr = woort_u8enstring(
+            str->m_content, str->m_length, false);
+        if (enstr != NULL)
+        {
+            printf("\"%s\"", enstr);
+            free(enstr);
+        }
+        else
+        {
+            printf("<string, but out of memory>");
+        }
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_VEC:
+    {
+        const woort_GCVec* const vec =
+            (const woort_GCVec*)val.m_gcinstance;
+
+        if (vec->m_length == 0)
+        {
+            printf("[]");
+            break;
+        }
+
+        {
+            woort_hashmap_Result hr = woort_hashmap_insert(
+                visited_set, (void**)&vec, NULL);
+
+            if (hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
+            {
+                printf("[...]");
+                break;
+            }
+            if (hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
+            {
+                printf("[<vec, but out of memory>]");
+                break;
+            }
+        }
+
+        printf("[");
+        for (size_t i = 0; i < vec->m_length; ++i)
+        {
+            if (i > 0)
+                printf(", ");
+            _woort_WAIPO_print_value_impl(
+                vec->m_datas[i], visited_set, depth + 1);
+        }
+        printf("]");
+
+        woort_hashmap_remove(visited_set, (void**)&vec);
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_MAP:
+    {
+        const woort_GCMap* const gcmap =
+            (const woort_GCMap*)val.m_gcinstance;
+
+        if (gcmap->m_size == 0)
+        {
+            printf("{}");
+            break;
+        }
+
+        {
+            woort_hashmap_Result hr = woort_hashmap_insert(
+                visited_set, (void**)&gcmap, NULL);
+
+            if (hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
+            {
+                printf("{...}");
+                break;
+            }
+            if (hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
+            {
+                printf("{<map, but out of memory>}");
+                break;
+            }
+        }
+
+        printf("{");
+        for (size_t i = 0; i < gcmap->m_size; ++i)
+        {
+            const woort_GCMap_Bucket* const bucket =
+                &gcmap->m_buckets[i];
+
+            if (i > 0)
+                printf(", ");
+            _woort_WAIPO_print_value_impl(
+                bucket->m_key, visited_set, depth + 1);
+            printf(": ");
+            _woort_WAIPO_print_value_impl(
+                bucket->m_val, visited_set, depth + 1);
+        }
+        printf("}");
+
+        woort_hashmap_remove(visited_set, (void**)&gcmap);
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_STRUCT:
+    {
+        const woort_GCStruct* const pStruct =
+            (const woort_GCStruct*)val.m_gcinstance;
+
+        if (pStruct->m_size == 0)
+        {
+            printf("()");
+            break;
+        }
+
+        {
+            woort_hashmap_Result hr = woort_hashmap_insert(
+                visited_set, (void**)&pStruct, NULL);
+
+            if (hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
+            {
+                printf("(...)");
+                break;
+            }
+            if (hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
+            {
+                printf("(struct, but out of memory)");
+                break;
+            }
+        }
+
+        printf("(");
+        for (size_t i = 0; i < pStruct->m_size; ++i)
+        {
+            if (i > 0)
+                printf(", ");
+            _woort_WAIPO_print_value_impl(
+                *(woort_DynBox*)&pStruct->m_datas[i],
+                visited_set,
+                depth + 1);
+        }
+        printf(")");
+
+        woort_hashmap_remove(visited_set, (void**)&pStruct);
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+    {
+        const woort_GCHandle* const handle =
+            (const woort_GCHandle*)val.m_gcinstance;
+        printf("<gchandle %p>", (const void*)handle);
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_CLOSURE:
+    {
+        const woort_GCClosure* const closure =
+            (const woort_GCClosure*)val.m_gcinstance;
+
+        if (closure->m_script_function != NULL)
+        {
+            woort_CodeEnv* cenv = NULL;
+            if (woort_CodeEnv_find(closure->m_script_function, &cenv)
+                && cenv != NULL)
+            {
+                const uint32_t offset = (uint32_t)(
+                    closure->m_script_function - cenv->m_code_begin);
+                const char* const name =
+                    woort_CodeEnv_find_function_name_by_offset(cenv, offset);
+                if (name != NULL)
+                    printf("<function %s>", name);
+                else
+                    printf("<function %p>",
+                        (const void*)closure->m_script_function);
+            }
+            else
+            {
+                printf("<function %p>",
+                    (const void*)closure->m_script_function);
+            }
+        }
+        else
+        {
+            printf("<native %p>",
+                (const void*)(uintptr_t)closure->m_native_function);
+        }
+        break;
+    }
+    default:
+        printf("<unknown>");
+        break;
+    }
+}
+
+static void _woort_WAIPO_print_value(woort_DynBox boxed)
+{
+    woort_HashMap visited_set;
+    woort_hashmap_init(
+        &visited_set,
+        sizeof(const woort_GCUnit*),
+        0,
+        woort_util_ptr_hash,
+        woort_util_ptr_equal);
+
+    _woort_WAIPO_print_value_impl(boxed, &visited_set, 0);
+
+    woort_hashmap_deinit(&visited_set);
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
