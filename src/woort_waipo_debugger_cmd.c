@@ -1429,6 +1429,9 @@ void woort_WAIPO_Debugger_process(
         woort_VMRuntime_trace_begin(vm, &trace_iter);
         if (woort_VMRuntime_trace_next(&trace_iter, &trace))
         {
+            // Reset frame depth.
+            debugger_instance->m_current_frame_depth = 0;
+
             (void)printf("Breakdown VM(%p) at:\n", (void*)vm);
 
             if (trace.m_function_name != NULL && trace.m_file_or_lib_name != NULL)
