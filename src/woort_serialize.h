@@ -17,18 +17,32 @@ woort_serialize.h
 #include <stdbool.h>
 
 /*
-内部辅助：将 DynBox 序列化到 woort_Vector 缓冲区。
-visited_set: 已访问的 GC Unit 集合（woort_HashMap），用于循环检测。
-depth: 当前递归深度，用于缩进。
-flags: woort_SerializeFlag 位掩码。
-返回 true 成功，false 失败。
-*/
+ * 内部辅助：将 DynBox 序列化到 woort_Vector 缓冲区。
+ * visited_set: 已访问的 GC Unit 集合（woort_HashMap），用于循环检测。
+ * depth: 当前递归深度，用于缩进。
+ * flags: woort_SerializeFlag 位掩码。
+ * 返回 true 成功，false 失败。
+ */
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
     woort_DynBox box,
     woort_Vector* buf,
     woort_HashMap* visited_set,
     int depth,
     uint32_t flags);
+
+/*
+ * 内部辅助：将 DynBox 以调试友好的格式序列化到 woort_Vector 缓冲区。
+ * 与 _woort_serialize_dynbox_to_buf 不同，此函数输出人类可读的调试信息，
+ * 包括 struct/closure/gchandle 的详细描述以及原始 box 值。
+ * show_raw: 是否同时显示原始 i64/f64 值。
+ * 返回 true 成功，false 失败。
+ */
+WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
+    woort_DynBox box,
+    woort_Vector* buf,
+    woort_HashMap* visited_set,
+    int depth,
+    bool show_raw);
 
 /*
 内部 impl：将 GCMap 序列化为字符串，写入 *dst。
