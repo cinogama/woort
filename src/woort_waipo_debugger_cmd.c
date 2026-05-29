@@ -9,6 +9,7 @@
 #include "woort_value.h"
 #include "woort_serialize.h"
 #include "woort_util.h"
+#include "woort_utf8.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -1192,36 +1193,50 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
  * print / p command
  * ==================================================================== */
 
-static void _woort_WAIPO_print_value(const woort_Value* val)
+static void _woort_WAIPO_print_value(woort_DynBox boxed)
 {
-    printf("value(%p): raw int: %-6lld raw real: %-6f\n", val, val->m_integer, val->m_real);
-    if (woort_DynBox_debug_check_is_valid(val->m_dynamic))
+    woort_Value* const vp = (woort_Value*)&boxed;
+
+    if (woort_DynBox_debug_check_is_valid(boxed))
     {
-        woort_Vector buf;
-        woort_vector_init(&buf, sizeof(char));
-
-        woort_HashMap visited_set;
-        woort_hashmap_init(
-            &visited_set,
-            sizeof(const woort_GCUnit*),
-            0,
-            woort_util_ptr_hash,
-            woort_util_ptr_equal);
-
-        if (_woort_serialize_dynbox_to_buf(
-            val->m_dynamic,
-            &buf,
-            &visited_set,
-            0,
-            WOORT_SERIALIZE_FLAG_PRETTY))
+        woort_Value val;
+        switch (woort_DynBox_unbox_no_check_and_get_type(boxed, &val))
         {
-            if (woort_vector_push_back(&buf, 1, ""))
-                printf("Maybe boxed: %s\n", (char*)buf.m_data);
-        }
+        case WOORT_BOX_VALUE_TYPE_REAL:
+            printf("[i64: %lld f64: %f or boxed %f]",
+                val.m_real, vp->m_integer, vp->m_real);
+            break;
+        case WOORT_BOX_VALUE_TYPE_INT:
+            printf("[i64: %lld f64: %f or boxed %lld]",
+                val.m_integer, vp->m_integer, vp->m_real);
+            break;
+        case WOORT_BOX_VALUE_TYPE_BOOL:
+            printf("[i64: %lld f64: %f or boxed %s]",
+                val.m_integer ? "true" : "false", vp->m_integer, vp->m_real);
+            break;
+        case WOORT_BOX_VALUE_TYPE_NIL:
+            printf("[0 or boxed nil]");
+            break;
+        case WOORT_BOX_VALUE_TYPE_STRING:
+        {
+            char* const enstr = woort_u8enstring(
+                val.m_string->m_content, val.m_string->m_length, false);
 
-        woort_vector_deinit(&buf);
-        woort_hashmap_deinit(&visited_set);
+            printf("%s", enstr);
+            free(enstr);
+            break;
+        }
+        case WOORT_BOX_VALUE_TYPE_VEC:
+        case WOORT_BOX_VALUE_TYPE_MAP:
+        case WOORT_BOX_VALUE_TYPE_STRUCT:
+        case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+        case WOORT_BOX_VALUE_TYPE_CLOSURE:
+        default:
+            printf("[unknown]");
+        }
     }
+    else
+        printf("[i64: %lld f64: %f]", vp->m_integer, vp->m_real);
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
@@ -1321,7 +1336,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
             info->m_name,
             info->m_stack_offset);
 
-        _woort_WAIPO_print_value(&frame_sb[info->m_stack_offset]);
+        _woort_WAIPO_print_value(frame_sb[info->m_stack_offset].m_dynamic);
 
         ++found_count;
     }
@@ -1346,7 +1361,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
             info->m_static_idx);
 
         _woort_WAIPO_print_value(
-            &cenv->m_data_begin[cenv->m_constant_count + info->m_static_idx]);
+            cenv->m_data_begin[cenv->m_constant_count + info->m_static_idx].m_dynamic);
 
         ++found_count;
     }
