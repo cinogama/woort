@@ -840,14 +840,15 @@ WOORT_NODISCARD bool woort_DynBox_debug_check_is_valid(
     {
         // Check pointer is valid?
         woort_GCUnit* const p = _woort_boxed_to_gcunit(may_not_a_valid_box.m_boxed);
-        if (woomem_validate_addr(p) != p
-            || (p->m_proxy != &WOORT_EX_BOX_PROXY
-                && p->m_proxy != &WOORT_GCSTRING_UNIT_PROXY
-                && p->m_proxy != &WOORT_GCVEC_UNIT_PROXY
-                && p->m_proxy != &WOORT_GCMAP_UNIT_PROXY
-                && p->m_proxy != &WOORT_GCSTRUCT_UNIT_PROXY
-                && p->m_proxy != &WOORT_GCHANDLE_UNIT_PROXY
-                && p->m_proxy != &WOORT_GCCLOSURE_UNIT_PROXY))
+        if (p != NULL
+            && (woomem_validate_addr(p) != p
+                || (p->m_proxy != &WOORT_EX_BOX_PROXY
+                    && p->m_proxy != &WOORT_GCSTRING_UNIT_PROXY
+                    && p->m_proxy != &WOORT_GCVEC_UNIT_PROXY
+                    && p->m_proxy != &WOORT_GCMAP_UNIT_PROXY
+                    && p->m_proxy != &WOORT_GCSTRUCT_UNIT_PROXY
+                    && p->m_proxy != &WOORT_GCHANDLE_UNIT_PROXY
+                    && p->m_proxy != &WOORT_GCCLOSURE_UNIT_PROXY)))
         {
             return false;
         }

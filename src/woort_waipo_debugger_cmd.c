@@ -1198,7 +1198,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
 static void _woort_WAIPO_print_value_impl(
     woort_DynBox boxed,
     woort_HashMap* visited_set,
-    int depth)
+    int depth,
+    bool show_raw)
 {
     woort_Value* const vp = (woort_Value*)&boxed;
 
@@ -1218,16 +1219,23 @@ static void _woort_WAIPO_print_value_impl(
     switch (woort_DynBox_unbox_no_check_and_get_type(boxed, &val))
     {
     case WOORT_BOX_VALUE_TYPE_INT:
-        printf("[i64: %lld f64: %f or boxed %f]",
-            val.m_real, vp->m_integer, vp->m_real);
+        if (show_raw)
+            printf(" [i64: %lld f64: %f] or boxed ", vp->m_integer, vp->m_real);
+        printf("%lld", val.m_integer);
         break;
     case WOORT_BOX_VALUE_TYPE_REAL:
+        if (show_raw)
+            printf(" [i64: %lld f64: %f] or boxed ", vp->m_integer, vp->m_real);
         printf("%.16g", val.m_real);
         break;
     case WOORT_BOX_VALUE_TYPE_BOOL:
+        if (show_raw)
+            printf(" [i64: %lld f64: %f] or boxed ", vp->m_integer, vp->m_real);
         printf("%s", val.m_integer ? "true" : "false");
         break;
     case WOORT_BOX_VALUE_TYPE_NIL:
+        if (show_raw)
+            printf(" [i64: %lld f64: %f] or boxed ", vp->m_integer, vp->m_real);
         printf("nil");
         break;
     case WOORT_BOX_VALUE_TYPE_STRING:
@@ -1243,7 +1251,7 @@ static void _woort_WAIPO_print_value_impl(
         }
         else
         {
-            printf("<string, but out of memory>");
+            printf("<error>");
         }
         break;
     }
@@ -1269,7 +1277,7 @@ static void _woort_WAIPO_print_value_impl(
             }
             if (hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
             {
-                printf("[<vec, but out of memory>]");
+                printf("[<error>]");
                 break;
             }
         }
@@ -1280,7 +1288,7 @@ static void _woort_WAIPO_print_value_impl(
             if (i > 0)
                 printf(", ");
             _woort_WAIPO_print_value_impl(
-                vec->m_datas[i], visited_set, depth + 1);
+                vec->m_datas[i], visited_set, depth + 1, false);
         }
         printf("]");
 
@@ -1309,7 +1317,7 @@ static void _woort_WAIPO_print_value_impl(
             }
             if (hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
             {
-                printf("{<map, but out of memory>}");
+                printf("{<error>}");
                 break;
             }
         }
@@ -1323,10 +1331,10 @@ static void _woort_WAIPO_print_value_impl(
             if (i > 0)
                 printf(", ");
             _woort_WAIPO_print_value_impl(
-                bucket->m_key, visited_set, depth + 1);
+                bucket->m_key, visited_set, depth + 1, false);
             printf(": ");
             _woort_WAIPO_print_value_impl(
-                bucket->m_val, visited_set, depth + 1);
+                bucket->m_val, visited_set, depth + 1, false);
         }
         printf("}");
 
@@ -1368,7 +1376,8 @@ static void _woort_WAIPO_print_value_impl(
             _woort_WAIPO_print_value_impl(
                 *(woort_DynBox*)&pStruct->m_datas[i],
                 visited_set,
-                depth + 1);
+                depth + 1,
+                show_raw);
         }
         printf(")");
 
@@ -1432,7 +1441,7 @@ static void _woort_WAIPO_print_value(woort_DynBox boxed)
         woort_util_ptr_hash,
         woort_util_ptr_equal);
 
-    _woort_WAIPO_print_value_impl(boxed, &visited_set, 0);
+    _woort_WAIPO_print_value_impl(boxed, &visited_set, 0, true);
 
     woort_hashmap_deinit(&visited_set);
 }
