@@ -15,7 +15,7 @@
 Watch And Inspect Program Operation
 */
 
-static void _woort_WAIPO_BreakpointCollection_init(woort_WAIPO_BreakpointCollection* collection)
+void _woort_WAIPO_BreakpointCollection_init(woort_WAIPO_BreakpointCollection* collection)
 {
     woort_hashmap_init(
         &collection->m_breakpoints,
@@ -30,15 +30,20 @@ static void _woort_WAIPO_BreakpointCollection_init(woort_WAIPO_BreakpointCollect
         0,
         &woort_util_ptr_hash,
         &woort_util_ptr_equal);
+
+    woort_vector_init(
+        &collection->m_user_breakpoints,
+        sizeof(woort_WAIPO_UserBreakpoint));
 }
 
-static void _woort_WAIPO_BreakpointCollection_deinit(woort_WAIPO_BreakpointCollection* collection)
+void _woort_WAIPO_BreakpointCollection_deinit(woort_WAIPO_BreakpointCollection* collection)
 {
     woort_hashmap_deinit(&collection->m_breakpoints);
     woort_hashmap_deinit(&collection->m_debug_breakpoints);
+    woort_vector_deinit(&collection->m_user_breakpoints);
 }
 
-static bool _woort_WAIPO_BreakpointCollection_break_at(
+bool _woort_WAIPO_BreakpointCollection_break_at(
     woort_WAIPO_BreakpointCollection* collection, const woort_Bytecode* ip)
 {
     woort_CodeEnv* cenv;
@@ -65,7 +70,7 @@ static bool _woort_WAIPO_BreakpointCollection_break_at(
     return false;
 }
 
-static void _woort_WAIPO_BreakpointCollection_cancel_break_at(
+void _woort_WAIPO_BreakpointCollection_cancel_break_at(
     woort_WAIPO_BreakpointCollection* collection, const woort_Bytecode* ip)
 {
     size_t* counter;

@@ -6,8 +6,15 @@ woort_waipo_debugger_cmd.h
 
 #include "woort_hashmap.h"
 #include "woort_vm.h"
+#include "woort_vector.h"
 
 #include <stdbool.h>
+
+typedef struct woort_WAIPO_UserBreakpoint
+{
+    const woort_Bytecode* m_ip;
+    char m_desc[256];
+} woort_WAIPO_UserBreakpoint;
 
 typedef struct woort_WAIPO_BreakpointCollection
 {
@@ -16,6 +23,9 @@ typedef struct woort_WAIPO_BreakpointCollection
     /* m_debug_breakpoints 是所有无条件的断点，无论 VM 是否处于 m_focusing_vms */
     /* 命中断点都会使得 VM Trap. */
     woort_HashMap /* woort_Bytecode*, None */ m_debug_breakpoints;
+
+    /* m_user_breakpoints 跟踪用户通过 break 命令设置的断点，用于列表和删除 */
+    woort_Vector /* woort_WAIPO_UserBreakpoint */ m_user_breakpoints;
 
 } woort_WAIPO_BreakpointCollection;
 
@@ -59,6 +69,12 @@ bool _woort_WAIPO_Debugger_set_next_source_break(
 bool _woort_WAIPO_Debugger_set_return_break(
     woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm,
     const woort_Bytecode* ip);
+
+WOORT_NODISCARD bool _woort_WAIPO_BreakpointCollection_break_at(
+    woort_WAIPO_BreakpointCollection* collection, const woort_Bytecode* ip);
+
+void _woort_WAIPO_BreakpointCollection_cancel_break_at(
+    woort_WAIPO_BreakpointCollection* collection, const woort_Bytecode* ip);
 
 void woort_WAIPO_Debugger_process(
     woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm);

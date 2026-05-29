@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <inttypes.h>
 
 typedef woort_WAIPO_CommandResult(*woort_WAIPO_CommandHandler)(
@@ -43,7 +44,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
     (void)args;
     (void)arg_count;
 
-    (void)printf(
+        (void)printf(
         "WAIPO Debugger command list:\n"
         "\n"
         "COMMAND     ALIAS   ARGUMENT        DESCRIBE\n"
@@ -56,6 +57,10 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "quit                                Stop all vm to exit.\n"
         "clear       cls                     Clean the screen.\n"
         "backtrace   bt      [depth]         Print callstack backtrace (default 32).\n"
+        "break       b       [line]          Set or list breakpoints.\n"
+        "                    [func]          Break at function entry.\n"
+        "                    [file:line]     Break at specific file:line.\n"
+        "delete      d       <num>           Delete breakpoint by number.\n"
         "frame       f       <frameid>       Switch to a call frame.\n"
         "source      src     [file|range]    Display source code.\n"
         "dis                 [funcname]      Dump current VM's running bytecodes.\n"
@@ -1351,6 +1356,426 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
+/* ====================================================================
+ * break / b command
+ * ==================================================================== */
+
+typedef struct _woort_WAIPO_BreakByFileLineContext
+{
+    const char* m_filepath;
+    uint32_t m_line;
+    size_t m_found_count;
+    woort_WAIPO_Debugger* m_dbg;
+    woort_CodeEnv* m_cenv;
+    uint32_t m_offset;
+} _woort_WAIPO_BreakByFileLineContext;
+
+static bool _woort_WAIPO_break_by_file_line_callback(
+    woort_CodeEnv* cenv, void* user_data)
+{
+    _woort_WAIPO_BreakByFileLineContext* ctx =
+        (_woort_WAIPO_BreakByFileLineContext*)user_data;
+
+    uint32_t offset;
+    if (woort_CodeEnv_find_offset_by_srcloc(cenv, ctx->m_filepath, ctx->m_line, &offset))
+    {
+        ctx->m_cenv = cenv;
+        ctx->m_offset = offset;
+        ++ctx->m_found_count;
+    }
+    return true;
+}
+
+typedef struct _woort_WAIPO_BreakByFuncContext
+{
+    const char* m_funcname;
+    size_t m_found_count;
+    woort_WAIPO_Debugger* m_dbg;
+    woort_CodeEnv* m_cenv;
+    const woort_FunctionBoundary* m_boundary;
+} _woort_WAIPO_BreakByFuncContext;
+
+static bool _woort_WAIPO_break_by_func_callback(
+    woort_CodeEnv* cenv, void* user_data)
+{
+    _woort_WAIPO_BreakByFuncContext* ctx =
+        (_woort_WAIPO_BreakByFuncContext*)user_data;
+
+    const size_t boundary_count = cenv->m_pdb.m_function_boundaries.m_size;
+    size_t i;
+    for (i = 0; i < boundary_count; ++i)
+    {
+        const woort_FunctionBoundary* boundary =
+            (const woort_FunctionBoundary*)woort_vector_at(
+                (woort_Vector*)&cenv->m_pdb.m_function_boundaries, i);
+
+        if (boundary->m_name == NULL)
+            continue;
+        if (strcmp(boundary->m_name, ctx->m_funcname) != 0)
+            continue;
+
+        ctx->m_cenv = cenv;
+        ctx->m_boundary = boundary;
+        ++ctx->m_found_count;
+    }
+    return true;
+}
+
+static WOORT_NODISCARD bool _woort_WAIPO_add_user_breakpoint(
+    woort_WAIPO_Debugger* dbg,
+    const woort_Bytecode* ip,
+    const char* desc_fmt,
+    ...)
+{
+    woort_WAIPO_UserBreakpoint ub;
+    ub.m_ip = ip;
+
+    if (desc_fmt != NULL)
+    {
+        va_list args;
+        va_start(args, desc_fmt);
+        (void)vsnprintf(ub.m_desc, sizeof(ub.m_desc), desc_fmt, args);
+        va_end(args);
+    }
+    else
+    {
+        ub.m_desc[0] = '\0';
+    }
+
+    woort_WAIPO_UserBreakpoint* emplaced;
+    if (!woort_vector_emplace_back(
+        &dbg->m_breakpoint_collection.m_user_breakpoints, 1,
+        (void**)&emplaced))
+    {
+        return false;
+    }
+
+    *emplaced = ub;
+
+    if (!_woort_WAIPO_BreakpointCollection_break_at(
+        &dbg->m_breakpoint_collection, ip))
+    {
+        woort_vector_erase_at(
+            &dbg->m_breakpoint_collection.m_user_breakpoints,
+            dbg->m_breakpoint_collection.m_user_breakpoints.m_size - 1);
+        return false;
+    }
+
+    return true;
+}
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    if (arg_count < 2)
+    {
+        if (dbg->m_breakpoint_collection.m_user_breakpoints.m_size == 0)
+        {
+            (void)printf("No breakpoints.\n");
+        }
+        else
+        {
+            (void)printf("Num  What\n");
+            size_t i;
+            for (i = 0; i < dbg->m_breakpoint_collection.m_user_breakpoints.m_size; ++i)
+            {
+                const woort_WAIPO_UserBreakpoint* ub =
+                    (const woort_WAIPO_UserBreakpoint*)woort_vector_at(
+                        &dbg->m_breakpoint_collection.m_user_breakpoints, i);
+
+                const char* desc = ub->m_desc[0] != '\0' ? ub->m_desc : "<unknown>";
+                (void)printf("%-4zu %s\n", i + 1, desc);
+            }
+        }
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const char* arg = args[1];
+
+    bool is_number = true;
+    {
+        const char* p;
+        for (p = arg; *p != '\0'; ++p)
+        {
+            if (*p < '0' || *p > '9')
+            {
+                is_number = false;
+                break;
+            }
+        }
+    }
+
+    if (is_number)
+    {
+        const uint32_t line = (uint32_t)strtoul(arg, NULL, 10);
+        if (line == 0)
+        {
+            (void)printf("Invalid line number: %s\n", arg);
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+
+        woort_VMRuntime_TraceCallstack trace;
+        if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
+        {
+            (void)printf("No callstack. Use 'break <file>:<line>' to specify file.\n");
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+
+        if (trace.m_code_addr == NULL || trace.m_file_or_lib_name == NULL)
+        {
+            (void)printf("Current frame has no source location.\n");
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+
+        woort_CodeEnv* cenv;
+        if (!woort_CodeEnv_find(trace.m_code_addr, &cenv))
+        {
+            (void)printf("Cannot locate CodeEnv for current frame.\n");
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+
+        uint32_t offset;
+        if (!woort_CodeEnv_find_offset_by_srcloc(
+            cenv, trace.m_file_or_lib_name, line - 1, &offset))
+        {
+            (void)printf("Line %u not found in '%s'.\n",
+                line, trace.m_file_or_lib_name);
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+
+        const woort_Bytecode* target_ip = cenv->m_code_begin + offset;
+
+        if (!_woort_WAIPO_add_user_breakpoint(
+            dbg, target_ip, "%s:%u",
+            trace.m_file_or_lib_name, line))
+        {
+            (void)printf("Failed to set breakpoint.\n");
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+
+        (void)printf("Breakpoint %zu at %s:%u\n",
+            dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
+            trace.m_file_or_lib_name, line);
+
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const char* colon = strchr(arg, ':');
+    if (colon != NULL)
+    {
+        const char* file_end = colon;
+        const char* line_str = colon + 1;
+
+        bool line_is_number = true;
+        {
+            const char* p;
+            for (p = line_str; *p != '\0'; ++p)
+            {
+                if (*p < '0' || *p > '9')
+                {
+                    line_is_number = false;
+                    break;
+                }
+            }
+        }
+
+        if (line_is_number && line_str[0] != '\0')
+        {
+            uint32_t line = (uint32_t)strtoul(line_str, NULL, 10);
+            if (line == 0)
+                line = 1;
+
+            const size_t file_len = (size_t)(file_end - arg);
+            char filepath[512];
+            const size_t copy_len = file_len < sizeof(filepath) - 1
+                ? file_len : sizeof(filepath) - 1;
+            (void)memcpy(filepath, arg, copy_len);
+            filepath[copy_len] = '\0';
+
+            _woort_WAIPO_BreakByFileLineContext ctx;
+            ctx.m_filepath = filepath;
+            ctx.m_line = line;
+            ctx.m_found_count = 0;
+            ctx.m_dbg = dbg;
+            ctx.m_cenv = NULL;
+            ctx.m_offset = 0;
+
+            woort_CodeEnv_foreach(&_woort_WAIPO_break_by_file_line_callback, &ctx);
+
+            if (ctx.m_found_count == 0)
+            {
+                (void)printf("No code at %s:%u\n", filepath, line);
+                return WOORT_WAIPO_CMD_NEED_NEXT;
+            }
+
+            const woort_Bytecode* target_ip =
+                ctx.m_cenv->m_code_begin + ctx.m_offset;
+
+            if (!_woort_WAIPO_add_user_breakpoint(
+                dbg, target_ip, "%s:%u", filepath, line))
+            {
+                (void)printf("Failed to set breakpoint.\n");
+                return WOORT_WAIPO_CMD_NEED_NEXT;
+            }
+
+            if (ctx.m_found_count > 1)
+                (void)printf("(breakpoint set at first of %zu matches)\n",
+                    ctx.m_found_count);
+
+            (void)printf("Breakpoint %zu at %s:%u\n",
+                dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
+                filepath, line);
+
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+    }
+
+    /* Check for 'break <file> <line>' two-arg format */
+    if (arg_count >= 3)
+    {
+        bool line_is_number = true;
+        {
+            const char* p;
+            for (p = args[2]; *p != '\0'; ++p)
+            {
+                if (*p < '0' || *p > '9')
+                {
+                    line_is_number = false;
+                    break;
+                }
+            }
+        }
+
+        if (line_is_number)
+        {
+            uint32_t line = (uint32_t)strtoul(args[2], NULL, 10);
+            if (line == 0)
+                line = 1;
+
+            const char* filepath = arg;
+
+            _woort_WAIPO_BreakByFileLineContext ctx;
+            ctx.m_filepath = filepath;
+            ctx.m_line = line;
+            ctx.m_found_count = 0;
+            ctx.m_dbg = dbg;
+            ctx.m_cenv = NULL;
+            ctx.m_offset = 0;
+
+            woort_CodeEnv_foreach(&_woort_WAIPO_break_by_file_line_callback, &ctx);
+
+            if (ctx.m_found_count == 0)
+            {
+                (void)printf("No code at %s:%u\n", filepath, line);
+                return WOORT_WAIPO_CMD_NEED_NEXT;
+            }
+
+            const woort_Bytecode* target_ip =
+                ctx.m_cenv->m_code_begin + ctx.m_offset;
+
+            if (!_woort_WAIPO_add_user_breakpoint(
+                dbg, target_ip, "%s:%u", filepath, line))
+            {
+                (void)printf("Failed to set breakpoint.\n");
+                return WOORT_WAIPO_CMD_NEED_NEXT;
+            }
+
+            if (ctx.m_found_count > 1)
+                (void)printf("(breakpoint set at first of %zu matches)\n",
+                    ctx.m_found_count);
+
+            (void)printf("Breakpoint %zu at %s:%u\n",
+                dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
+                filepath, line);
+
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+    }
+
+    /* Treat as function name */
+    {
+        _woort_WAIPO_BreakByFuncContext ctx;
+        ctx.m_funcname = arg;
+        ctx.m_found_count = 0;
+        ctx.m_dbg = dbg;
+        ctx.m_cenv = NULL;
+        ctx.m_boundary = NULL;
+
+        woort_CodeEnv_foreach(&_woort_WAIPO_break_by_func_callback, &ctx);
+
+        if (ctx.m_found_count == 0)
+        {
+            (void)printf("Function '%s' not found.\n", arg);
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+
+        const woort_Bytecode* target_ip =
+            ctx.m_cenv->m_code_begin + ctx.m_boundary->m_offset_begin;
+
+        if (!_woort_WAIPO_add_user_breakpoint(
+            dbg, target_ip, "%s", ctx.m_boundary->m_name))
+        {
+            (void)printf("Failed to set breakpoint.\n");
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+
+        if (ctx.m_found_count > 1)
+            (void)printf("(breakpoint set at first of %zu matches)\n",
+                ctx.m_found_count);
+
+        (void)printf("Breakpoint %zu at %s\n",
+            dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
+            ctx.m_boundary->m_name);
+
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+}
+
+/* ====================================================================
+ * delete / d command
+ * ==================================================================== */
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_delete(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    (void)vm;
+
+    if (arg_count < 2)
+    {
+        (void)printf("Usage: delete <breakpoint_num>\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const long num = strtol(args[1], NULL, 10);
+    if (num <= 0 || (size_t)num > dbg->m_breakpoint_collection.m_user_breakpoints.m_size)
+    {
+        (void)printf("Invalid breakpoint number: %s\n", args[1]);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const size_t idx = (size_t)(num - 1);
+
+    woort_WAIPO_UserBreakpoint* ub =
+        (woort_WAIPO_UserBreakpoint*)woort_vector_at(
+            &dbg->m_breakpoint_collection.m_user_breakpoints, idx);
+
+    _woort_WAIPO_BreakpointCollection_cancel_break_at(
+        &dbg->m_breakpoint_collection, ub->m_ip);
+
+    (void)woort_vector_erase_at(
+        &dbg->m_breakpoint_collection.m_user_breakpoints, idx);
+
+    (void)printf("Breakpoint %zu deleted.\n", (size_t)num);
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "help",      "?",    &_woort_WAIPO_cmd_help },
     { "continue",  "c",    &_woort_WAIPO_cmd_continue },
@@ -1367,6 +1792,8 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "next",      "n",    &_woort_WAIPO_cmd_next },
     { "return",    "r",    &_woort_WAIPO_cmd_return },
     { "print",     "p",    &_woort_WAIPO_cmd_print },
+    { "break",     "b",    &_woort_WAIPO_cmd_break },
+    { "delete",    "d",    &_woort_WAIPO_cmd_delete },
 };
 
 static const size_t _woort_WAIPO_command_table_size =
