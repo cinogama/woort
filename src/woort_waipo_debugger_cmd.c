@@ -319,6 +319,81 @@ WOORT_NODISCARD static bool _woort_WAIPO_trace_to_depth(
     return false;
 }
 
+WOORT_NODISCARD static bool _woort_WAIPO_is_numeric(const char* s)
+{
+    if (s == NULL || *s == '\0')
+        return false;
+
+    for (const char* p = s; *p != '\0'; ++p)
+    {
+        if (*p < '0' || *p > '9')
+            return false;
+    }
+    return true;
+}
+
+#define WOORT_WAIPO_DOT "\xe2\x97\x8f"
+
+static void _woort_WAIPO_emit_source_line(
+    const char* line_buf,
+    size_t current_line,
+    bool has_highlight,
+    size_t highlight_begin_line,
+    size_t highlight_end_line,
+    size_t highlight_begin_col,
+    size_t highlight_end_col,
+    woort_Vector* bp_lines)
+{
+    const bool is_highlight = has_highlight
+        && current_line >= highlight_begin_line
+        && current_line <= highlight_end_line;
+
+    bool has_bp = false;
+    {
+        size_t k;
+        for (k = 0; k < bp_lines->m_size; ++k)
+        {
+            if (*(size_t*)woort_vector_at(bp_lines, k) == current_line)
+            {
+                has_bp = true;
+                break;
+            }
+        }
+    }
+
+    if (is_highlight)
+    {
+        const size_t line_len = strlen(line_buf);
+        size_t col_start = 0;
+        size_t col_end = line_len;
+        if (current_line == highlight_begin_line && highlight_begin_col < line_len)
+            col_start = highlight_begin_col;
+        if (current_line == highlight_end_line && highlight_end_col < line_len)
+            col_end = highlight_end_col;
+
+        if (has_bp)
+            (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+                current_line + 1,
+                (int)col_start, line_buf,
+                (int)(col_end - col_start), line_buf + col_start,
+                (int)(line_len - col_end), line_buf + col_end);
+        else
+            (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+                current_line + 1,
+                (int)col_start, line_buf,
+                (int)(col_end - col_start), line_buf + col_start,
+                (int)(line_len - col_end), line_buf + col_end);
+    }
+    else if (has_bp)
+        (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %s\n",
+            current_line + 1,
+            line_buf);
+    else
+        (void)printf("  %5zu | %s\n",
+            current_line + 1,
+            line_buf);
+}
+
 static void _woort_WAIPO_print_source_file(
     woort_WAIPO_Debugger* dbg,
     const char* filepath,
@@ -391,49 +466,12 @@ static void _woort_WAIPO_print_source_file(
             if (current_line >= from_line
                 && (to_line == SIZE_MAX || current_line <= to_line))
             {
-                const bool is_highlight = has_highlight
-                    && current_line >= highlight_begin_line
-                    && current_line <= highlight_end_line;
-
-                bool has_bp = false;
-                {
-                    size_t k;
-                    for (k = 0; k < bp_lines.m_size; ++k)
-                        if (*(size_t*)woort_vector_at(&bp_lines, k) == current_line) { has_bp = true; break; }
-                }
-
-#define WOORT_WAIPO_DOT "\xe2\x97\x8f"
-                if (is_highlight)
-                {
-                    const size_t line_len = strlen(line_buf);
-                    size_t col_start = 0;
-                    size_t col_end = line_len;
-                    if (current_line == highlight_begin_line && highlight_begin_col < line_len)
-                        col_start = highlight_begin_col;
-                    if (current_line == highlight_end_line && highlight_end_col < line_len)
-                        col_end = highlight_end_col;
-
-                    if (has_bp)
-                        (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
-                            current_line + 1,
-                            (int)col_start, line_buf,
-                            (int)(col_end - col_start), line_buf + col_start,
-                            (int)(line_len - col_end), line_buf + col_end);
-                    else
-                        (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
-                            current_line + 1,
-                            (int)col_start, line_buf,
-                            (int)(col_end - col_start), line_buf + col_start,
-                            (int)(line_len - col_end), line_buf + col_end);
-                }
-                else if (has_bp)
-                    (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %s\n",
-                        current_line + 1,
-                        line_buf);
-                else
-                    (void)printf("  %5zu | %s\n",
-                        current_line + 1,
-                        line_buf);
+                _woort_WAIPO_emit_source_line(
+                    line_buf, current_line,
+                    has_highlight,
+                    highlight_begin_line, highlight_end_line,
+                    highlight_begin_col, highlight_end_col,
+                    &bp_lines);
             }
 
             ++current_line;
@@ -452,48 +490,12 @@ static void _woort_WAIPO_print_source_file(
             if (current_line >= from_line
                 && (to_line == SIZE_MAX || current_line <= to_line))
             {
-                const bool is_highlight = has_highlight
-                    && current_line >= highlight_begin_line
-                    && current_line <= highlight_end_line;
-
-                bool has_bp = false;
-                {
-                    size_t k;
-                    for (k = 0; k < bp_lines.m_size; ++k)
-                        if (*(size_t*)woort_vector_at(&bp_lines, k) == current_line) { has_bp = true; break; }
-                }
-
-                if (is_highlight)
-                {
-                    const size_t line_len = strlen(line_buf);
-                    size_t col_start = 0;
-                    size_t col_end = line_len;
-                    if (current_line == highlight_begin_line && highlight_begin_col < line_len)
-                        col_start = highlight_begin_col;
-                    if (current_line == highlight_end_line && highlight_end_col < line_len)
-                        col_end = highlight_end_col;
-
-                    if (has_bp)
-                        (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
-                            current_line + 1,
-                            (int)col_start, line_buf,
-                            (int)(col_end - col_start), line_buf + col_start,
-                            (int)(line_len - col_end), line_buf + col_end);
-                    else
-                        (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
-                            current_line + 1,
-                            (int)col_start, line_buf,
-                            (int)(col_end - col_start), line_buf + col_start,
-                            (int)(line_len - col_end), line_buf + col_end);
-                }
-                else if (has_bp)
-                    (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %s\n",
-                        current_line + 1,
-                        line_buf);
-                else
-                    (void)printf("  %5zu | %s\n",
-                        current_line + 1,
-                        line_buf);
+                _woort_WAIPO_emit_source_line(
+                    line_buf, current_line,
+                    has_highlight,
+                    highlight_begin_line, highlight_end_line,
+                    highlight_begin_col, highlight_end_col,
+                    &bp_lines);
             }
 
             ++current_line;
@@ -515,61 +517,21 @@ static void _woort_WAIPO_print_source_file(
         if (current_line >= from_line
             && (to_line == SIZE_MAX || current_line <= to_line))
         {
-            const bool is_highlight = has_highlight
-                && current_line >= highlight_begin_line
-                && current_line <= highlight_end_line;
-
-            bool has_bp = false;
-            {
-                size_t k;
-                for (k = 0; k < bp_lines.m_size; ++k)
-                {
-                    if (*(size_t*)woort_vector_at(&bp_lines, k) == current_line)
-                    {
-                        has_bp = true;
-                        break;
-                    }
-                }
-            }
-
-            if (is_highlight)
-            {
-                const size_t line_len = strlen(line_buf);
-                size_t col_start = 0;
-                size_t col_end = line_len;
-                if (current_line == highlight_begin_line && highlight_begin_col < line_len)
-                    col_start = highlight_begin_col;
-                if (current_line == highlight_end_line && highlight_end_col < line_len)
-                    col_end = highlight_end_col;
-
-                if (has_bp)
-                    (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
-                        current_line + 1,
-                        (int)col_start, line_buf,
-                        (int)(col_end - col_start), line_buf + col_start,
-                        (int)(line_len - col_end), line_buf + col_end);
-                else
-                    (void)printf("> %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
-                        current_line + 1,
-                        (int)col_start, line_buf,
-                        (int)(col_end - col_start), line_buf + col_start,
-                        (int)(line_len - col_end), line_buf + col_end);
-            }
-            else if (has_bp)
-                (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %s\n",
-                    current_line + 1,
-                    line_buf);
-            else
-                (void)printf("  %5zu | %s\n",
-                    current_line + 1,
-                    line_buf);
+            _woort_WAIPO_emit_source_line(
+                line_buf, current_line,
+                has_highlight,
+                highlight_begin_line, highlight_end_line,
+                highlight_begin_col, highlight_end_col,
+                &bp_lines);
         }
     }
-#undef WOORT_WAIPO_DOT
+
     woort_vfile_close(f);
     woort_vector_deinit(&bp_lines);
     (void)printf("\n");
 }
+
+#undef WOORT_WAIPO_DOT
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_frame(
     woort_WAIPO_Debugger* dbg,
@@ -656,17 +618,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
 
     if (arg_count >= 2)
     {
-        bool is_number = true;
-        for (const char* p = args[1]; *p != '\0'; ++p)
-        {
-            if (*p < '0' || *p > '9')
-            {
-                is_number = false;
-                break;
-            }
-        }
-
-        if (is_number)
+        if (_woort_WAIPO_is_numeric(args[1]))
         {
             display_range = (size_t)strtoul(args[1], NULL, 10);
         }
@@ -884,17 +836,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
 
     const char* first_arg = args[1];
 
-    bool is_number = true;
-    for (const char* p = first_arg; *p != '\0'; ++p)
-    {
-        if (*p < '0' || *p > '9')
-        {
-            is_number = false;
-            break;
-        }
-    }
-
-    if (is_number)
+    if (_woort_WAIPO_is_numeric(first_arg))
     {
         const size_t begin_offset = (size_t)strtoul(first_arg, NULL, 10);
 
@@ -1407,11 +1349,12 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
             continue;
 
         (void)printf(
-            "[local]  %s  stack_offset=%-6d\n",
+            "[local]  %s@[SB%+d] = ",
             info->m_name,
             info->m_stack_offset);
 
         _woort_WAIPO_print_value(frame_sb[info->m_stack_offset].m_dynamic);
+        printf("\n");
 
         ++found_count;
     }
@@ -1430,13 +1373,16 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
         if (strcmp(info->m_name, var_name) != 0)
             continue;
 
-        (void)printf(
-            "[static] %s  static_idx=%-6u\n",
-            info->m_name,
-            info->m_static_idx);
+        const size_t global_index =
+            cenv->m_constant_count + (size_t)info->m_static_idx;
 
-        _woort_WAIPO_print_value(
-            cenv->m_data_begin[cenv->m_constant_count + info->m_static_idx].m_dynamic);
+        (void)printf(
+            "[static] %s@G[%zu] = ",
+            info->m_name,
+            global_index);
+
+        _woort_WAIPO_print_value(cenv->m_data_begin[global_index].m_dynamic);
+        printf("\n");
 
         ++found_count;
     }
@@ -1571,6 +1517,48 @@ WOORT_NODISCARD static bool _woort_WAIPO_add_user_breakpoint(
     return true;
 }
 
+WOORT_NODISCARD static woort_WAIPO_CommandResult _woort_WAIPO_break_at_file_line(
+    woort_WAIPO_Debugger* dbg,
+    const char* filepath,
+    uint32_t line)
+{
+    _woort_WAIPO_BreakByFileLineContext ctx;
+    ctx.m_filepath = filepath;
+    ctx.m_line = line;
+    ctx.m_found_count = 0;
+    ctx.m_dbg = dbg;
+    ctx.m_cenv = NULL;
+    ctx.m_offset = 0;
+
+    woort_CodeEnv_foreach(&_woort_WAIPO_break_by_file_line_callback, &ctx);
+
+    if (ctx.m_found_count == 0)
+    {
+        (void)printf("No code at %s:%u\n", filepath, line);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const woort_Bytecode* target_ip =
+        ctx.m_cenv->m_code_begin + ctx.m_offset;
+
+    if (!_woort_WAIPO_add_user_breakpoint(
+        dbg, target_ip, "%s:%u", filepath, line))
+    {
+        (void)printf("Failed to set breakpoint.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (ctx.m_found_count > 1)
+        (void)printf("(breakpoint set at first of %zu matches)\n",
+            ctx.m_found_count);
+
+    (void)printf("Breakpoint %zu at %s:%u\n",
+        dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
+        filepath, line);
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
     woort_WAIPO_Debugger* dbg,
     woort_VMRuntime* vm,
@@ -1602,20 +1590,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
 
     const char* arg = args[1];
 
-    bool is_number = true;
-    {
-        const char* p;
-        for (p = arg; *p != '\0'; ++p)
-        {
-            if (*p < '0' || *p > '9')
-            {
-                is_number = false;
-                break;
-            }
-        }
-    }
-
-    if (is_number)
+    if (_woort_WAIPO_is_numeric(arg))
     {
         const uint32_t line = (uint32_t)strtoul(arg, NULL, 10);
         if (line == 0)
@@ -1676,20 +1651,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
         const char* file_end = colon;
         const char* line_str = colon + 1;
 
-        bool line_is_number = true;
-        {
-            const char* p;
-            for (p = line_str; *p != '\0'; ++p)
-            {
-                if (*p < '0' || *p > '9')
-                {
-                    line_is_number = false;
-                    break;
-                }
-            }
-        }
-
-        if (line_is_number && line_str[0] != '\0')
+        if (_woort_WAIPO_is_numeric(line_str))
         {
             uint32_t line = (uint32_t)strtoul(line_str, NULL, 10);
             if (line == 0)
@@ -1702,103 +1664,20 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
             (void)memcpy(filepath, arg, copy_len);
             filepath[copy_len] = '\0';
 
-            _woort_WAIPO_BreakByFileLineContext ctx;
-            ctx.m_filepath = filepath;
-            ctx.m_line = line;
-            ctx.m_found_count = 0;
-            ctx.m_dbg = dbg;
-            ctx.m_cenv = NULL;
-            ctx.m_offset = 0;
-
-            woort_CodeEnv_foreach(&_woort_WAIPO_break_by_file_line_callback, &ctx);
-
-            if (ctx.m_found_count == 0)
-            {
-                (void)printf("No code at %s:%u\n", filepath, line);
-                return WOORT_WAIPO_CMD_NEED_NEXT;
-            }
-
-            const woort_Bytecode* target_ip =
-                ctx.m_cenv->m_code_begin + ctx.m_offset;
-
-            if (!_woort_WAIPO_add_user_breakpoint(
-                dbg, target_ip, "%s:%u", filepath, line))
-            {
-                (void)printf("Failed to set breakpoint.\n");
-                return WOORT_WAIPO_CMD_NEED_NEXT;
-            }
-
-            if (ctx.m_found_count > 1)
-                (void)printf("(breakpoint set at first of %zu matches)\n",
-                    ctx.m_found_count);
-
-            (void)printf("Breakpoint %zu at %s:%u\n",
-                dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
-                filepath, line);
-
-            return WOORT_WAIPO_CMD_NEED_NEXT;
+            return _woort_WAIPO_break_at_file_line(dbg, filepath, line);
         }
     }
 
     /* Check for 'break <file> <line>' two-arg format */
     if (arg_count >= 3)
     {
-        bool line_is_number = true;
-        {
-            const char* p;
-            for (p = args[2]; *p != '\0'; ++p)
-            {
-                if (*p < '0' || *p > '9')
-                {
-                    line_is_number = false;
-                    break;
-                }
-            }
-        }
-
-        if (line_is_number)
+        if (_woort_WAIPO_is_numeric(args[2]))
         {
             uint32_t line = (uint32_t)strtoul(args[2], NULL, 10);
             if (line == 0)
                 line = 1;
 
-            const char* filepath = arg;
-
-            _woort_WAIPO_BreakByFileLineContext ctx;
-            ctx.m_filepath = filepath;
-            ctx.m_line = line;
-            ctx.m_found_count = 0;
-            ctx.m_dbg = dbg;
-            ctx.m_cenv = NULL;
-            ctx.m_offset = 0;
-
-            woort_CodeEnv_foreach(&_woort_WAIPO_break_by_file_line_callback, &ctx);
-
-            if (ctx.m_found_count == 0)
-            {
-                (void)printf("No code at %s:%u\n", filepath, line);
-                return WOORT_WAIPO_CMD_NEED_NEXT;
-            }
-
-            const woort_Bytecode* target_ip =
-                ctx.m_cenv->m_code_begin + ctx.m_offset;
-
-            if (!_woort_WAIPO_add_user_breakpoint(
-                dbg, target_ip, "%s:%u", filepath, line))
-            {
-                (void)printf("Failed to set breakpoint.\n");
-                return WOORT_WAIPO_CMD_NEED_NEXT;
-            }
-
-            if (ctx.m_found_count > 1)
-                (void)printf("(breakpoint set at first of %zu matches)\n",
-                    ctx.m_found_count);
-
-            (void)printf("Breakpoint %zu at %s:%u\n",
-                dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
-                filepath, line);
-
-            return WOORT_WAIPO_CMD_NEED_NEXT;
+            return _woort_WAIPO_break_at_file_line(dbg, arg, line);
         }
     }
 
@@ -2001,9 +1880,9 @@ void woort_WAIPO_Debugger_process(
         if (fgets(line_buf, sizeof(line_buf), stdin) == NULL)
             break;
 
-        char* tokens[64];
+        char* tokens[128];
         size_t token_count = _woort_WAIPO_split_line(
-            line_buf, tokens, 64);
+            line_buf, tokens, 128);
 
         if (token_count == 0)
         {
@@ -2015,7 +1894,7 @@ void woort_WAIPO_Debugger_process(
             line_buf[sizeof(line_buf) - 1] = '\0';
 
             token_count = _woort_WAIPO_split_line(
-                line_buf, tokens, 64);
+                line_buf, tokens, 128);
 
             if (token_count == 0)
                 continue;

@@ -343,7 +343,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         if (show_raw)
         {
             if (!_woort_serialize_append_vfmt(
-                buf, " [i64: %lld f64: %f] or boxed ",
+                buf, "[i64: %lld f64: %f] or boxed ",
                 (long long)vp->m_integer, vp->m_real))
                 return false;
         }
@@ -354,7 +354,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         if (show_raw)
         {
             if (!_woort_serialize_append_vfmt(
-                buf, " [i64: %lld f64: %f] or boxed ",
+                buf, "[i64: %lld f64: %f] or boxed ",
                 (long long)vp->m_integer, vp->m_real))
                 return false;
         }
@@ -364,7 +364,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         if (show_raw)
         {
             if (!_woort_serialize_append_vfmt(
-                buf, " [i64: %lld f64: %f] or boxed ",
+                buf, "[i64: %lld f64: %f] or boxed ",
                 (long long)vp->m_integer, vp->m_real))
                 return false;
         }
@@ -375,7 +375,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         if (show_raw)
         {
             if (!_woort_serialize_append_vfmt(
-                buf, " [i64: %lld f64: %f] or boxed ",
+                buf, "[i64: %lld f64: %f] or boxed ",
                 (long long)vp->m_integer, vp->m_real))
                 return false;
         }
