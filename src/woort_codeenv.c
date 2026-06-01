@@ -299,8 +299,6 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         bytecodes,
         bytecodes_count * sizeof(woort_Bytecode));
 
-    woort_GCUnit_init_delay_alloc(M, codes);
-
     code_env_instance->m_gc_unit.m_proxy =
         &_codeenv_global_ctx->m_env_proxy;
 
@@ -315,6 +313,20 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
     code_env_instance->m_constant_count = constant_storage_count;
     code_env_instance->m_data_count = total_data_count;
+
+    woort_hashmap_init(
+        &code_env_instance->m_trap_records,
+        sizeof(woort_Bytecode*),
+        sizeof(woort_Bytecode),
+        &woort_util_ptr_hash,
+        &woort_util_ptr_equal);
+
+    woort_hashmap_init(
+        &code_env_instance->m_extern_constants,
+        sizeof(const char*),
+        sizeof(woort_IRConstantIndex),
+        &woort_util_cstr_hash,
+        &woort_util_cstr_equal);
 
     woort_vector_init(&code_env_instance->m_const_records, sizeof(woort_ConstRecord));
 
@@ -349,37 +361,21 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     // 
     // NOTE: 因为 woort_CodeEnv 使用 GC 管理，即便此处注册失败也不需要
     // 手动执行释放
-    const bool register_result = (WOORT_ORDERMAP_RESULT_OK == woort_ordermap_insert(
+    const woort_ordermap_Result register_result = woort_ordermap_insert(
         _codeenv_global_ctx->m_codeenvs,
         &code_env_instance->m_code_begin,
-        &code_env_instance));
+        &code_env_instance);
 
+    assert(register_result != WOORT_ORDERMAP_RESULT_ALREADY_EXIST);
+
+    woort_GCUnit_init_delay_alloc(M, codes);
     woort_GCUnit_init_delay_alloc(AF, code_env_instance);
 
     woort_rwspinlock_write_unlock(
         &_codeenv_global_ctx->m_codeenvs_lock);
 
-    if (!register_result)
-    {
-        // Out of memory.
-        return false;
-    }
-
-    woort_hashmap_init(
-        &code_env_instance->m_trap_records,
-        sizeof(woort_Bytecode*),
-        sizeof(woort_Bytecode),
-        &woort_util_ptr_hash,
-        &woort_util_ptr_equal);
-
-    woort_hashmap_init(
-        &code_env_instance->m_extern_constants,
-        sizeof(const char*),
-        sizeof(woort_IRConstantIndex),
-        &woort_util_cstr_hash,
-        &woort_util_cstr_equal);
-
-    if (!woort_mutex_create(&code_env_instance->m_mutex))
+    if (register_result != WOORT_ORDERMAP_RESULT_OK
+        || !woort_mutex_create(&code_env_instance->m_mutex))
         return false;
 
     *out_code_env = code_env_instance;
