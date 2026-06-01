@@ -65,7 +65,7 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
     }
 
     vm->m_hangup_c = 0;
-    woort_atomic_init(&vm->m_is_weak, 0);
+    vm->m_is_weak = false;
 
     if (!woort_mutex_create(&vm->m_hangup_mx))
         vm->m_hangup_mx = NULL;
