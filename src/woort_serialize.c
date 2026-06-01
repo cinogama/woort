@@ -773,13 +773,12 @@ WOORT_NODISCARD static bool _woort_deserialize_string(
     memcpy(tmp, start, raw_len);
     tmp[raw_len] = '\0';
 
-    char* const unescaped = woort_u8destring(tmp);
+    size_t unescaped_len = 0;
+    char* const unescaped = woort_u8destring(tmp, &unescaped_len);
     free(tmp);
 
     if (unescaped == NULL)
         return false;
-
-    const size_t unescaped_len = strlen(unescaped);
 
     const woort_GCString* const gcstr = woort_GCString_make_string(
         unescaped, unescaped_len);

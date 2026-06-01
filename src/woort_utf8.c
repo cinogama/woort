@@ -304,7 +304,7 @@ char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode)
     return result;
 }
 
-char* woort_u8destring(woort_string_t enu8str_zero_term)
+char* woort_u8destring(woort_string_t enu8str_zero_term, /* OPTIONAL */ size_t* out_len)
 {
     size_t len = strlen(enu8str_zero_term);
     char* result = (char*)malloc(len + 1);
@@ -458,6 +458,7 @@ char* woort_u8destring(woort_string_t enu8str_zero_term)
     }
 
     result[result_len] = '\0';
+    if (out_len) *out_len = result_len;
     return result;
 }
 

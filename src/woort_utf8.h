@@ -59,7 +59,7 @@ bool woort_u16losurrogate(char16_t ch);
 
 /* 字符串编码/解码（返回动态分配的字符串，需调用者释放） */
 char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode);
-char* woort_u8destring(woort_string_t enu8str_zero_term);
+char* woort_u8destring(woort_string_t enu8str_zero_term, /* OPTIONAL */ size_t* out_len);
 
 /* UTF-8 <-> UTF-32 字符串转换（返回动态分配的字符串，需调用者释放） */
 char32_t* woort_u8strtou32(woort_string_t u8str, size_t bytelen, size_t* out_len);

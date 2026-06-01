@@ -944,11 +944,11 @@ static woort_api woort_builtin_string_destring(void)
 {
     const char* enstr = woort_string(0);
 
-    char* result = woort_u8destring(enstr);
+    size_t result_len = 0;
+    char* result = woort_u8destring(enstr, &result_len);
     if (result == NULL)
         return woort_ret_panic("Out of memory.");
 
-    size_t result_len = strlen(result);
     const woort_api r = woort_ret_buffer(result, result_len);
     free(result);
     return r;
