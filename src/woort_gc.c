@@ -94,15 +94,23 @@ static void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool
                 // 我们将在所有标记工作结束之后检查此清单，并为所有未标记的 Weak VM 执
                 // 行后续处理工作.
 
-                if (!woort_VMRuntime_request_accept(
+                if (woort_VMRuntime_request_accept(
                     vm_to_request_gc_mark,
                     WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
-                {
-                    /* WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 已经被 VM 接收，拉起*/
-                    woort_VMRuntime_wakeup(vm_to_request_gc_mark);
-                }
+                    return;
 
-                return;
+                /*
+                NOTE: WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 已经被 VM 接收
+                    说明此 VM 仍在执行，考虑到：woort_VMRuntime_handle_gc_check_request_and_mark
+                    的实现，如果在此时 WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 被接收，VM 的自
+                    我标记阶段将不会执行——这会导致大问题。
+
+                    实际上，此处我们有两个选择，一个是因为 WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK
+                    依然生效，我们可以简单地把虚拟机唤醒，然后像是等待普通的虚拟机工作一般，直到
+                    其在下一个检查点完成标记
+
+                    我们在此处选择第二个方案，直接继续执行代理标记工作。
+                */
             }
 
             if (woort_VMRuntime_request_accept(
