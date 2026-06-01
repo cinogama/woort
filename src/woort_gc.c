@@ -19,6 +19,8 @@
 typedef struct woort_GCContext
 {
     woort_RWSpinlock m_root_vms_to_mark_mx;
+    woort_Spinlock m_not_been_marked_weak_vm_mx;
+
     woort_HashMap /* struct woort_VMRuntime* */ m_root_vms_to_mark;
     woort_HashMap /* struct woort_VMRuntime* */ m_not_been_marked_weak_vm;
 } woort_GCContext;
@@ -87,30 +89,40 @@ static void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool
                 避免出现奇怪的问题。
             */
             if (skip_weak
-                && woort_atomic_load_explicit(&vm_to_request_gc_mark->m_is_weak, WOORT_ATOMIC_MEMORY_ORDER_RELAXED)
-                && WOORT_HASHMAP_RESULT_OK == woort_hashmap_insert(
-                    &s_gc_context.m_not_been_marked_weak_vm, &vm_to_request_gc_mark, NULL))
+                && vm_to_request_gc_mark->m_is_weak)
             {
-                // 我们将在所有标记工作结束之后检查此清单，并为所有未标记的 Weak VM 执
-                // 行后续处理工作.
+                woort_spinlock_lock(&s_gc_context.m_not_been_marked_weak_vm_mx);
 
-                if (woort_VMRuntime_request_accept(
-                    vm_to_request_gc_mark,
-                    WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
-                    return;
+                const woort_hashmap_Result insert_result = woort_hashmap_insert(
+                    &s_gc_context.m_not_been_marked_weak_vm, &vm_to_request_gc_mark, NULL);
 
-                /*
-                NOTE: WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 已经被 VM 接收
-                    说明此 VM 仍在执行，考虑到：woort_VMRuntime_handle_gc_check_request_and_mark
-                    的实现，如果在此时 WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 被接收，VM 的自
-                    我标记阶段将不会执行——这会导致大问题。
+                woort_spinlock_unlock(&s_gc_context.m_not_been_marked_weak_vm_mx);
 
-                    实际上，此处我们有两个选择，一个是因为 WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK
-                    依然生效，我们可以简单地把虚拟机唤醒，然后像是等待普通的虚拟机工作一般，直到
-                    其在下一个检查点完成标记
+                if (insert_result == WOORT_HASHMAP_RESULT_OK)
+                {
+                    // 我们将在所有标记工作结束之后检查此清单，并为所有未标记的 Weak VM 执
+                    // 行后续处理工作.
 
-                    我们在此处选择第二个方案，直接继续执行代理标记工作。
-                */
+                    if (woort_VMRuntime_request_accept(
+                        vm_to_request_gc_mark,
+                        WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+                        return;
+
+                    /*
+                    NOTE: WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 已经被 VM 接收
+                        说明此 VM 仍在执行，考虑到：woort_VMRuntime_handle_gc_check_request_and_mark
+                        的实现，如果在此时 WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 被接收，VM 的自
+                        我标记阶段将不会执行——这会导致大问题。
+
+                        实际上，此处我们有两个选择，一个是因为 WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK
+                        依然生效，我们可以简单地把虚拟机唤醒，然后像是等待普通的虚拟机工作一般，直到
+                        其在下一个检查点完成标记
+
+                        我们在此处选择第二个方案，直接继续执行代理标记工作。
+                    */
+                }
+                else
+                    assert(insert_result == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY);
             }
 
             if (woort_VMRuntime_request_accept(
@@ -238,7 +250,7 @@ static bool _woort_GC_walk_through_to_abort_vm(
 
 static void _woort_GC_stop_mark_callback(void)
 {
-    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_spinlock_lock(&s_gc_context.m_not_been_marked_weak_vm_mx);
     {
         (void)woort_hashmap_foreach(
             &s_gc_context.m_not_been_marked_weak_vm,
@@ -246,7 +258,11 @@ static void _woort_GC_stop_mark_callback(void)
             NULL);
 
         woort_hashmap_clear(&s_gc_context.m_not_been_marked_weak_vm);
+    }
+    woort_spinlock_unlock(&s_gc_context.m_not_been_marked_weak_vm_mx);
 
+    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    {
         (void)woort_hashmap_foreach(
             &s_gc_context.m_root_vms_to_mark,
             &_woort_GC_walk_through_to_sync_finish_mark,
@@ -268,6 +284,7 @@ WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
     }
 
     woort_rwspinlock_init(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_spinlock_init(&s_gc_context.m_not_been_marked_weak_vm_mx);
     woort_hashmap_init(
         &s_gc_context.m_root_vms_to_mark,
         sizeof(struct woort_VMRuntime*),
@@ -449,6 +466,7 @@ void woort_GC_shutdown(void)
     woomem_shutdown();
 
     woort_rwspinlock_deinit(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_spinlock_deinit(&s_gc_context.m_not_been_marked_weak_vm_mx);
     woort_hashmap_deinit(&s_gc_context.m_root_vms_to_mark);
     woort_hashmap_deinit(&s_gc_context.m_not_been_marked_weak_vm);
 }
@@ -479,8 +497,12 @@ void woort_GC_unregister_root_vm(struct woort_VMRuntime* vmruntime)
 {
     woort_rwspinlock_write_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
-        if (woort_atomic_load_explicit(&vmruntime->m_is_weak, WOORT_ATOMIC_MEMORY_ORDER_RELAXED))
+        if (vmruntime->m_is_weak)
+        {
+            woort_spinlock_lock(&s_gc_context.m_not_been_marked_weak_vm_mx);
             (void)woort_hashmap_remove(&s_gc_context.m_not_been_marked_weak_vm, &vmruntime);
+            woort_spinlock_unlock(&s_gc_context.m_not_been_marked_weak_vm_mx);
+        }
 
         if (!woort_hashmap_remove(&s_gc_context.m_root_vms_to_mark, &vmruntime))
         {
@@ -533,7 +555,7 @@ void woort_GC_foreach_root_vm(
 
 void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
 {
-    assert(woort_atomic_load_explicit(&vm->m_is_weak, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
+    assert(vm->m_is_weak);
 
     /* NOTE: 此处使用 _woort_GC_mark_vm_proxy 是为了确保：
 

@@ -130,8 +130,8 @@ void woort_VMRuntime_destroy(woort_VMRuntime* vm)
 
 void woort_VMRuntime_weaken(woort_VMRuntime* vm)
 {
-    assert(!woort_atomic_load_explicit(&vm->m_is_weak, WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
-    woort_atomic_store_explicit(&vm->m_is_weak, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
+    assert(!vm->m_is_weak);
+    vm->m_is_weak = true;
 }
 
 
@@ -4020,7 +4020,10 @@ void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
         if (self_marking)
         {
             // Mark vm by it self.
-            woort_VMRuntime_mark_vm_after_sync(vm);
+            if (vm->m_is_weak)
+                woort_VMRuntime_mark_weak_vm_after_sync(vm);
+            else
+                woort_VMRuntime_mark_vm_after_sync(vm);               
         }
         // else: VM has been marked, do nothing.
 
