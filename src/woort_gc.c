@@ -93,6 +93,15 @@ static void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool
             {
                 // 我们将在所有标记工作结束之后检查此清单，并为所有未标记的 Weak VM 执
                 // 行后续处理工作.
+
+                if (!woort_VMRuntime_request_accept(
+                    vm_to_request_gc_mark,
+                    WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+                {
+                    /* WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING 已经被 VM 接收，拉起*/
+                    woort_VMRuntime_wakeup(vm_to_request_gc_mark);
+                }
+
                 return;
             }
 

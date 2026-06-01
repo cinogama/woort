@@ -106,7 +106,10 @@ typedef enum woort_VMRuntime_CheckRequestMask
         * 解释执行运行时：
             考虑到：
                 1）如果是 Native-call 返回 RESYNC 导致检查点请求：
-                2）
+                2) 如果是 JIT-call 返回 RESYNV 导致检查点请求；
+                2）如果是外部直接发起的请求中断；
+            以上两种情况，都保证产生正确的正同步代码；接受请求之后暂离虚拟机，不执行
+            其他同步
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_YIELD = 1 << 6,
 

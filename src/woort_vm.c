@@ -3864,7 +3864,16 @@ _label_continue_execution:
             {
                 (void)woort_VMRuntime_request_accept(
                     vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED);
-            }            
+            }         
+            else if (request_mask
+                & WOORT_VMRUNTIME_CHECK_REQUEST_YIELD)
+            {
+                (void)woort_VMRuntime_request_accept(
+                    vm,
+                    WOORT_VMRUNTIME_CHECK_REQUEST_YIELD);
+
+                return WOORT_VM_CALL_STATUS_YIELD;
+            }
             else
             {
                 WOORT_VM_SYNC_STATE_AND_PANIC(

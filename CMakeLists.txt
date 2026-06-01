@@ -2,6 +2,8 @@
 
 project ("woort")
 
+option(WOORT_BUILD_FOR_ASAN_TEST    "Build woort for code asan test" OFF)
+
 add_library(woort_options INTERFACE)
 target_compile_features(woort_options INTERFACE c_std_11)
 
@@ -20,6 +22,16 @@ if (MSVC)
     endif()
     target_compile_options(woort_options INTERFACE "/source-charset:utf-8")
     target_compile_definitions(woort_options INTERFACE _CRT_SECURE_NO_WARNINGS)
+endif()
+
+if (WOORT_BUILD_FOR_ASAN_TEST)
+    if(MSVC)
+        target_compile_options(woort_options INTERFACE "/fsanitize=address")
+        target_link_options(woort_options INTERFACE "/fsanitize=address")
+    else()
+        target_compile_options(woort_options INTERFACE "-fsanitize=address")
+        target_link_options(woort_options INTERFACE "-fsanitize=address")
+    endif()
 endif()
 
 add_subdirectory ("3rd/woomem")
