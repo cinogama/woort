@@ -313,15 +313,15 @@ void woort_hashmap_clear(woort_HashMap* map)
 {
     for (size_t bucket_id = 0; bucket_id < map->m_bucket_count; ++bucket_id)
     {
-        // Drop all entries in each bucket.
-        for (woort_HashMapEntry* enrty = map->m_buckets[bucket_id];
-            enrty != NULL;)
+        for (woort_HashMapEntry* entry = map->m_buckets[bucket_id];
+            entry != NULL;)
         {
-            woort_HashMapEntry* const current_enrty = enrty;
-            enrty = enrty->m_next;
+            woort_HashMapEntry* const current_entry = entry;
+            entry = entry->m_next;
 
-            _woort_hashmap_drop_entry(map, current_enrty);
+            _woort_hashmap_drop_entry(map, current_entry);
         }
+        map->m_buckets[bucket_id] = NULL;
     }
     map->m_size = 0;
 }
