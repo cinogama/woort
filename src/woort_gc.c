@@ -584,20 +584,65 @@ void woort_GC_mark_droped_env_manually(
     woomem_mark_unit_head((void*)env);
 }
 
-void woort_GC_mark_value_manually(
+void woort_GC_mark_internal_value_manually(
     const woort_Value* val)
 {
     woomem_mark_fuzzy_unit_head(val->m_gcinstance);
 }
 
-void woort_GC_move_value_with_mixed_write_barrier(
+void woort_GC_set_internal_value_with_mixed_write_barrier(
     woort_Value* dst, const woort_Value* val)
 {
     woort_GC_mixed_write_barrier_value(dst, *val);
 }
 
-void woort_GC_value_delete_barrier(
+void woort_GC_internal_value_delete_barrier(
     const woort_Value* dst)
 {
     woort_GC_delete_barrier_value(*dst);
 }
+
+void* woort_GC_allocate(size_t sz, int attribute)
+{
+    void* const p = woort_GCUnit_alloc_delay_init(sz);
+
+    if (attribute & WOORT_GCALLOCATE_FLAG_AUTO_MARK)
+        woort_GCUnit_init_delay_alloc(A, p);
+    else
+        woort_GCUnit_init_delay_alloc(O, p);
+
+    return p;
+}
+
+void* woort_GC_allocate_as_root(size_t sz, int attribute)
+{
+    void* const p = woort_GCUnit_alloc_delay_init(sz);
+
+    if (attribute & WOORT_GCALLOCATE_FLAG_AUTO_MARK)
+        woomem_allocate_end_as_root(p, WOOMEM_ATTRIB_NEED_SWEEP | WOOMEM_ATTRIB_AUTO_MARK);
+    else
+        woomem_allocate_end_as_root(p, WOOMEM_ATTRIB_NEED_SWEEP);
+
+    return p;
+}
+
+void woort_GC_unregister_root(void* p)
+{
+    woomem_remove_from_root_set(p);
+}
+
+void woort_GC_mark_addr_manually(/* OPTIONAL */ void* p)
+{
+    woomem_mark_fuzzy_unit(p);
+}
+
+void woort_GC_set_addr_with_mixed_write_barrier(void** dst, void* p)
+{
+    woort_GC_mixed_write_barrier_gcaddr(dst, p);
+}
+
+void woort_GC_addr_delete_barrier(const void* p)
+{
+    woort_GC_delete_barrier_gcaddr((void*)p);
+}
+

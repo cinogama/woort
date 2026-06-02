@@ -412,7 +412,7 @@ WOORT_API void woort_GC_mark_droped_env_manually(
  * @brief Manually mark a value as GC reachable during the marking phase.
  * @param val  The value to mark. Must not be NULL.
  */
-WOORT_API void woort_GC_mark_value_manually(
+WOORT_API void woort_GC_mark_internal_value_manually(
     const woort_Value* val);
 
 /**
@@ -425,7 +425,7 @@ WOORT_API void woort_GC_mark_value_manually(
  * @param dst  Destination address to write into. Must not be NULL.
  * @param val  Source value to read from. Must not be NULL.
  */
-WOORT_API void woort_GC_move_value_with_mixed_write_barrier(
+WOORT_API void woort_GC_set_internal_value_with_mixed_write_barrier(
     woort_Value* dst, const woort_Value* val);
 
 /**
@@ -437,8 +437,69 @@ WOORT_API void woort_GC_move_value_with_mixed_write_barrier(
  *
  * @param dst  The value slot being overwritten or removed. Must not be NULL.
  */
-WOORT_API void woort_GC_value_delete_barrier(
+WOORT_API void woort_GC_internal_value_delete_barrier(
     const woort_Value* dst);
+
+/**
+ * @brief Flags that control GC allocation behavior.
+ */
+typedef enum woort_GCAllocate_Flag
+{
+    WOORT_GCALLOCATE_FLAG_NONE = 0,
+    WOORT_GCALLOCATE_FLAG_AUTO_MARK = 1,
+
+}woort_GCAllocate_Flag;
+
+/**
+ * @brief Allocate GC-managed memory of a given size.
+ * @param sz         Size in bytes to allocate.
+ * @param attribute  Allocation flags (see woort_GCAllocate_Flag).
+ * @return Pointer to the allocated and initialized GC unit.
+ */
+WOORT_NODISCARD WOORT_API void* woort_GC_allocate(size_t sz, int attribute);
+
+/**
+ * @brief Allocate GC-managed memory and register it as a GC root.
+ *
+ * The allocated memory acts as a root, keeping itself and all objects
+ * reachable from it alive. Use woort_GC_unregister_root() to remove
+ * it from the root set when no longer needed.
+ *
+ * @param sz         Size in bytes to allocate.
+ * @param attribute  Allocation flags (see woort_GCAllocate_Flag).
+ * @return Pointer to the allocated and initialized GC unit.
+ */
+WOORT_NODISCARD WOORT_API void* woort_GC_allocate_as_root(size_t sz, int attribute);
+
+/**
+ * @brief Remove a previously registered root from the GC root set.
+ * @param p  The root pointer to unregister. Must not be NULL.
+ */
+WOORT_API void woort_GC_unregister_root(void* p);
+
+/**
+ * @brief Manually mark a raw pointer as GC reachable during the marking phase.
+ * @param p  The pointer to mark, or NULL.
+ */
+WOORT_API void woort_GC_mark_addr_manually(/* OPTIONAL */ void* p);
+
+/**
+ * @brief Write a raw pointer into a destination with a mixed write barrier.
+ *
+ * Must be used when writing a GC-managed pointer into a location that may
+ * be observed by the GC, ensuring both the old and new values are properly
+ * tracked.
+ *
+ * @param dst  Destination address to write into. Must not be NULL.
+ * @param p    The pointer value to write, or NULL.
+ */
+WOORT_API void woort_GC_set_addr_with_mixed_write_barrier(void** dst, /* OPTIONAL */ void* p);
+
+/**
+ * @brief Issue a delete barrier for a raw pointer being overwritten or removed.
+ * @param p  The pointer slot to issue the barrier for, or NULL.
+ */
+WOORT_API void woort_GC_addr_delete_barrier(/* OPTIONAL */ const void* p);
 
 /**
  * @brief Swap the current thread-local VM instance with a new one.
