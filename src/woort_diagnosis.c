@@ -3,11 +3,13 @@
 #include "woort_vm.h"
 #include "woort_vm_debugger_api.h"
 #include "woort_gc_string.h"
+#include "woort_setting.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 WOORT_NODISCARD static bool _woort_diagnosis_str_equal(
     const char* a, const char* b)
@@ -34,6 +36,17 @@ WOORT_NODISCARD static bool _woort_diagnosis_trace_equal(
         || a->m_location_end[1] != b->m_location_end[1])
         return false;
     return true;
+}
+
+static void _woort_abort_vm_by_panic(
+    woort_VMRuntime* panic_vm,
+    const char* msgfmt,
+    va_list args)
+{
+    const woort_GCString* panic_str =
+        woort_GCString_make_format_va(msgfmt, args);
+
+    panic_vm->m_sp->m_string = panic_str;
 }
 
 WOORT_NODISCARD bool woort_vpanic(
@@ -101,86 +114,106 @@ WOORT_NODISCARD bool woort_vpanic(
             else
                 woort_log("    No vm running on this thread.\n");
 
-            woort_log("1) Abort whole program.\n");
-            woort_log("2) Ignore.\n");
-            if (panic_vm != NULL)
+            switch (_woort_setting_HALT_PANIC_VM_MODE)
             {
-                woort_log("3) Terminate current vm.\n");
-                woort_log("4) Attach debuggee.\n");
-            }
-
-            woort_log("Please input your choice: ");
-
-            bool option_selected = false;
-            do
-            {
-            label_reenter_to_skip_white_space:
-                ;
-                woort_VMRuntime* const last_vm = woort_VMRuntime_swap(NULL);
-                int c = getchar();
-                (void)woort_VMRuntime_swap(last_vm);
-
-                switch (c)
+            case WOORT_HALT_PANIC_VM_MODE_VM_ITSELF:
+                if (panic_vm != NULL)
                 {
-                case EOF:
-                    // Failed to read from stdin.
-                    woort_log("Failed to receive from STDIN.");
-                    abort();
-                case '\n':
-                case '\r':
-                case ' ':
-                    goto label_reenter_to_skip_white_space;
-                case '1':
-                    option_selected = true;
-                    abort();
-                    break;
-                case '2':
-                    option_selected = true;
-                    vm_has_been_aborted = false;
-                    if (panic_vm != NULL)
-                    {
-                        // Cancel WOORT_VMRUNTIME_CHECK_REQUEST_ABORT request to make vm continue.
-                        (void)woort_VMRuntime_request_accept(
-                            panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT);
-                    }
-                    break;
-                case '3':
-                    if (panic_vm != NULL)
-                    {
-                        option_selected = true;
+                    woort_log("Current VM will be aborted.\n");
+                    _woort_abort_vm_by_panic(panic_vm, msgfmt, args_copy);
+                }
+                break;
+            case WOORT_HALT_PANIC_VM_MODE_PROCESS:
+                woort_log("Current process will be aborted.\n");
+                abort();
+            case WOORT_HALT_PANIC_VM_MODE_SIGNAL:
+                woort_log("Current process will be aborted by SIGABRT.\n");
+                raise(SIGABRT);
 
-                        const woort_GCString* panic_str =
-                            woort_GCString_make_format_va(msgfmt, args_copy);
-                        va_end(args_copy);
-
-                        panic_vm->m_sp->m_string = panic_str;
-                        break;
-                    }
-                    /* fallthrough */
-                case '4':
-                    if (panic_vm != NULL)
-                    {
-                        option_selected = true;
-                        vm_has_been_aborted = false;
-
-                        // Cancel WOORT_VMRUNTIME_CHECK_REQUEST_ABORT request to make vm continue.
-                        (void)woort_VMRuntime_request_accept(
-                            panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT);
-                        (void)woort_VMRuntime_request_set(
-                            panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
-
-                        (void)woort_WAIPO_Debugger_attach();
-                        break;
-                    }
-                    /* fallthrough */
-                default:
-                    woort_log("Invalid choice.");
-                    break;
+                /* Signal handled? */
+                abort();
+            default:
+                woort_log("Unknown panic mode: %d.\n", (int)_woort_setting_HALT_PANIC_VM_MODE);
+                /* fallthrough */
+            case WOORT_HALT_PANIC_VM_MODE_DONOT_HALT:
+                woort_log("1) Abort process.\n");
+                woort_log("2) Ignore.\n");
+                if (panic_vm != NULL)
+                {
+                    woort_log("3) Terminate current vm.\n");
+                    woort_log("4) Attach debuggee.\n");
                 }
 
-            } while (!option_selected);
+                woort_log("Please input your choice: ");
 
+                bool option_selected = false;
+                do
+                {
+                label_reenter_to_skip_white_space:
+                    ;
+                    woort_VMRuntime* const last_vm = woort_VMRuntime_swap(NULL);
+                    int c = getchar();
+                    (void)woort_VMRuntime_swap(last_vm);
 
+                    switch (c)
+                    {
+                    case EOF:
+                        // Failed to read from stdin.
+                        woort_log("Failed to receive from STDIN.");
+                        abort();
+                    case '\n':
+                    case '\r':
+                    case ' ':
+                        goto label_reenter_to_skip_white_space;
+                    case '1':
+                        option_selected = true;
+                        abort();
+                        break;
+                    case '2':
+                        option_selected = true;
+                        vm_has_been_aborted = false;
+                        if (panic_vm != NULL)
+                        {
+                            // Cancel WOORT_VMRUNTIME_CHECK_REQUEST_ABORT request to make vm continue.
+                            (void)woort_VMRuntime_request_accept(
+                                panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT);
+                        }
+                        break;
+                    case '3':
+                        if (panic_vm != NULL)
+                        {
+                            option_selected = true;
+                            _woort_abort_vm_by_panic(panic_vm, msgfmt, args_copy);
+                            break;
+                        }
+                        /* fallthrough */
+                    case '4':
+                        if (panic_vm != NULL)
+                        {
+                            option_selected = true;
+                            vm_has_been_aborted = false;
+
+                            // Cancel WOORT_VMRUNTIME_CHECK_REQUEST_ABORT request to make vm continue.
+                            (void)woort_VMRuntime_request_accept(
+                                panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT);
+                            (void)woort_VMRuntime_request_set(
+                                panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+
+                            (void)woort_WAIPO_Debugger_attach();
+                            break;
+                        }
+                        /* fallthrough */
+                    default:
+                        woort_log("Invalid choice.");
+                        break;
+                    }
+
+                } while (!option_selected);
+                break;
+            }
+
+            if (panic_vm != NULL)
+                va_end(args_copy);
         }
         /* else: This VM already aborted, skip. */
     }

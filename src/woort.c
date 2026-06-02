@@ -22,14 +22,13 @@
 #include "woort_util.h"
 #include "woort_utf8.h"
 #include "woort_vm_debugger_api.h"
+#include "woort_setting.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <stdarg.h>
-
-static bool woort_ctrl_c_callback_hooked = true;
 
 #undef woort_init
 void woort_init(int argc, char** argv)
@@ -47,7 +46,7 @@ void woort_init(int argc, char** argv)
     /*
         Parse runtime-level command-line arguments.
     */
-    size_t max_reserved_memory = 1024;
+    _woort_setting_reset_to_default();
     for (int command_idx = 0; command_idx + 1 < argc; command_idx++)
     {
         const char* current_arg = argv[command_idx];
@@ -56,18 +55,20 @@ void woort_init(int argc, char** argv)
         {
             const char* setting = current_arg + 2;
             if (strcmp(setting, "woort-enable-ctrlc-debug") == 0)
-                woort_ctrl_c_callback_hooked = (bool)atoi(argv[++command_idx]);
+                _woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER = (bool)atoi(argv[++command_idx]);
             else if (strcmp(setting, "woort-gc-max-reserved-memory") == 0)
-                max_reserved_memory = (size_t)atoi(argv[++command_idx]);
+                _woort_setting_MAX_RESERVED_MEMORY_IN_MB = (size_t)atoi(argv[++command_idx]);
+            else if (strcmp(setting, "woort-halt-panic-vm") == 0)
+                _woort_setting_HALT_PANIC_VM_MODE = (_woort_HaltPanicVMMode)atoi(argv[++command_idx]);
             else
                 woort_log("WOORT: Unknown command line option named: `%s`.\n", current_arg);
         }
     }
 
-    if (woort_ctrl_c_callback_hooked)
+    if (_woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER)
         woort_ctrlc_setup();
 
-    if (!woort_GC_bootup(max_reserved_memory * 1024 * 1024))
+    if (!woort_GC_bootup(_woort_setting_MAX_RESERVED_MEMORY_IN_MB * 1024 * 1024))
     {
         WOORT_DEBUG("Failed to bootup gc.");
         abort();
@@ -93,7 +94,7 @@ void woort_init(int argc, char** argv)
 }
 void woort_shutdown(void)
 {
-    if (woort_ctrl_c_callback_hooked)
+    if (_woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER)
         woort_ctrlc_teardown();
 
     woort_VMRuntime_Debugger_shutdown();
