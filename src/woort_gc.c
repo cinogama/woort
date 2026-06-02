@@ -273,6 +273,9 @@ static void _woort_GC_stop_mark_callback(void)
 
 WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
 {
+    if (!woort_mutex_create(&_woort_gc_allocate_failed_log_mx))
+        return false;
+
     if (!woomem_init(
         reserving_memory_size,
         &_woort_GC_start_callback,
@@ -280,6 +283,7 @@ WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
         &_woort_GC_marker_callback,
         &_woort_GC_destroier_callback))
     {
+        woort_mutex_destroy(_woort_gc_allocate_failed_log_mx);
         return false;
     }
 
@@ -469,6 +473,8 @@ void woort_GC_shutdown(void)
     woort_spinlock_deinit(&s_gc_context.m_not_been_marked_weak_vm_mx);
     woort_hashmap_deinit(&s_gc_context.m_root_vms_to_mark);
     woort_hashmap_deinit(&s_gc_context.m_not_been_marked_weak_vm);
+
+    woort_mutex_destroy(_woort_gc_allocate_failed_log_mx);
 }
 
 WOORT_NODISCARD bool woort_GC_register_root_vm(struct woort_VMRuntime* vmruntime)

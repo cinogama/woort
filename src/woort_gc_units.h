@@ -6,6 +6,8 @@ woort_gc_units.h
 
 #include "woomem.h"
 
+#include "woort_threads.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -25,6 +27,8 @@ struct woort_GCUnit
 {
     const woort_GCUnitProxy* m_proxy;
 };
+
+extern woort_Mutex* _woort_gc_allocate_failed_log_mx;
 
 #define WOORT_GCUNIT_ALLOC_ATTRIB_O 0
 #define WOORT_GCUNIT_ALLOC_ATTRIB_A WOOMEM_ATTRIB_AUTO_MARK
