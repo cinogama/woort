@@ -501,6 +501,20 @@ WOORT_API void woort_GC_set_addr_with_mixed_write_barrier(void** dst, /* OPTIONA
  */
 WOORT_API void woort_GC_addr_delete_barrier(/* OPTIONAL */ const void* p);
 
+typedef struct woort_GCPin woort_GCPin;
+
+WOORT_NODISCARD WOORT_API woort_GCPin* woort_GC_Pin_create(size_t count);
+
+WOORT_API void woort_GC_Pin_destroy(woort_GCPin* pin);
+
+WOORT_API void woort_GC_Pin_set_value(woort_GCPin* pin, size_t idx, woort_StackValue val);
+
+WOORT_API void woort_GC_Pin_set_internal_value(woort_GCPin* pin, size_t idx, const woort_Value* val);
+
+WOORT_API void woort_GC_Pin_get_value(woort_StackValue dst, woort_GCPin* pin, size_t idx);
+
+WOORT_API void woort_GC_Pin_get_internal_value(woort_Value* dst, woort_GCPin* pin, size_t idx);
+
 /**
  * @brief Swap the current thread-local VM instance with a new one.
  * @param vm  The new VM instance to install, or NULL to detach.

@@ -256,37 +256,13 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     woort_CodeEnv_Code* codes;
     woort_CodeEnv* code_env_instance;
 
-    do
-    {
-        codes = woomem_allocate_begin(
-            sizeof(woort_CodeEnv_Code)
-            + bytecodes_count * sizeof(woort_Bytecode));
+    codes = woort_GCUnit_alloc_delay_init(
+        sizeof(woort_CodeEnv_Code)
+        + bytecodes_count * sizeof(woort_Bytecode));
 
-        if (codes != NULL)
-        {
-            code_env_instance = woomem_allocate_begin(
-                sizeof(woort_CodeEnv)
-                + total_data_count * sizeof(woort_Value));
-        }
-
-        if (codes == NULL || code_env_instance == NULL)
-        {
-            if (codes != NULL)
-                woort_GCUnit_init_delay_alloc(O, codes);
-            else if (code_env_instance != NULL)
-                woort_GCUnit_init_delay_alloc(O, code_env_instance);
-
-            // Failed to allocate.
-            woort_rwspinlock_write_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
-            {
-                _woort_GCUnit_alloc_failed();
-            }
-            woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
-        }
-        else
-            break;
-
-    } while (true);
+    code_env_instance = woort_GCUnit_alloc_delay_init(
+        sizeof(woort_CodeEnv)
+        + total_data_count * sizeof(woort_Value));
 
     assert(codes != NULL && code_env_instance != NULL);
 
