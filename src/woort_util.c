@@ -2,9 +2,12 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "woort_util.h"
 #include "woort_platform.h"
+#include "woort_log.h"
 
 WOORT_NODISCARD size_t woort_util_abs_diff(
     size_t a,
@@ -15,7 +18,7 @@ WOORT_NODISCARD size_t woort_util_abs_diff(
 
 WOORT_NODISCARD size_t woort_util_ptr_hash(const void* ptr_addr)
 {
-    size_t hash = (size_t)(intptr_t)*(void**)ptr_addr;
+    size_t hash = (size_t)(intptr_t) * (void**)ptr_addr;
 
 #ifdef WOORT_PLATFORM_64
     /* Murmur3 64-bit finalizer */
@@ -81,4 +84,36 @@ WOORT_NODISCARD bool woort_util_cstr_equal(
     const char* s1 = *(const char* const*)key1;
     const char* s2 = *(const char* const*)key2;
     return strcmp(s1, s2) == 0;
+}
+
+WOORT_NODISCARD char* woort_dupstr_with_format_v(
+    const char* format, va_list args)
+{
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int len = vsnprintf(NULL, 0, format, args_copy);
+    va_end(args_copy);
+
+    if (len < 0)
+    {
+        WOORT_DEBUG("Failed to count formated string result length.");
+        return NULL;
+    }
+
+    char* const buf = malloc(len + 1);
+    if (buf == NULL)
+    {
+        WOORT_DEBUG("Out of memory.");
+        return NULL;
+    }
+
+    if (vsnprintf(buf, (size_t)len + 1, format, args) < 0)
+    {
+        WOORT_DEBUG("Failed to make format string.");
+
+        free(buf);
+        return NULL;
+    }
+
+    return buf;
 }

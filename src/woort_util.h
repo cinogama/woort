@@ -9,6 +9,7 @@ woort_util.h
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 WOORT_NODISCARD size_t woort_util_abs_diff(
     size_t a,
@@ -38,3 +39,6 @@ WOORT_NODISCARD size_t woort_util_cstr_hash(const void* key);
 WOORT_NODISCARD bool woort_util_cstr_equal(
     const void* key1,
     const void* key2);
+
+WOORT_NODISCARD /* OPTIONAL */ char* woort_dupstr_with_format_v(
+    const char* format, va_list args);

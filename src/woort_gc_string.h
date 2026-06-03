@@ -23,10 +23,12 @@ extern const woort_GCUnitProxy WOORT_GCSTRING_UNIT_PROXY;
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_make_string_for_env_constant(
     woort_CodeEnv* cenv, const char* str, size_t len);
-WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str, size_t len);
-WOORT_NODISCARD const woort_GCString* woort_GCString_make_format(const char* fmt, ...);
-WOORT_NODISCARD const woort_GCString* woort_GCString_make_format_va(const char* fmt, va_list args);
-WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b);
+WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(
+    const char* str, size_t len);
+WOORT_NODISCARD const woort_GCString* woort_GCString_make_format_va(
+    const char* fmt, va_list args);
+WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(
+    const woort_GCString* a, const woort_GCString* b);
 
 /**
  * Compare two GC strings.

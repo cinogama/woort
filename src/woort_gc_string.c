@@ -5,10 +5,12 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include <assert.h>
 
 #include "woomem.h"
 #include "woort_gc_string.h"
 #include "woort_util.h"
+#include "woort_log.h"
 
 const woort_GCUnitProxy WOORT_GCSTRING_UNIT_PROXY = {
     .m_destructor = NULL,
@@ -63,14 +65,15 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str
     return gcstr;
 }
 
-WOORT_NODISCARD const woort_GCString* woort_GCString_make_format_va(const char* fmt, va_list args)
+WOORT_NODISCARD const woort_GCString* woort_GCString_make_format_va(
+    const char* fmt, va_list args)
 {
     va_list args_copy;
     va_copy(args_copy, args);
     const int len = vsnprintf(NULL, 0, fmt, args_copy);
     va_end(args_copy);
-    if (len < 0)
-        return NULL;
+
+    assert(len >= 0);
 
     woort_GCString* const gcstr =
         woort_GCUnit_alloc_delay_init(sizeof(woort_GCString) + (size_t)len + 1);
@@ -78,20 +81,11 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_format_va(const char* 
     gcstr->m_gc_unit.m_proxy = &WOORT_GCSTRING_UNIT_PROXY;
     gcstr->m_length = (size_t)len;
 
-    vsnprintf(gcstr->m_content, (size_t)len + 1, fmt, args);
+    (void)vsnprintf(gcstr->m_content, (size_t)len + 1, fmt, args);
 
     woort_GCUnit_init_delay_alloc(O, gcstr);
 
     return gcstr;
-}
-
-WOORT_NODISCARD const woort_GCString* woort_GCString_make_format(const char* fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    const woort_GCString* const result = woort_GCString_make_format_va(fmt, args);
-    va_end(args);
-    return result;
 }
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b)

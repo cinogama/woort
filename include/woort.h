@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 1, 0)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 2, 0)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -4174,9 +4174,34 @@ WOORT_API void woort_ctrlc_setup(void);
  */
 WOORT_API void woort_ctrlc_teardown(void);
 
-typedef bool(*woort_PanicHandlerFunction)(
-    /* OPTIONAL */ woort_VMRuntime*, int, woort_U8CString);
+/**
+ * @brief Action returned by a panic handler to control what happens next.
+ */
+typedef enum woort_PanicHandler_Action
+{
+    /** Go ahead with program termination (abort). */
+    WOORT_PANIC_HANDLER_ACTION_ABORT,
+    /** Continue execution, suppressing the panic. */
+    WOORT_PANIC_HANDLER_ACTION_CONTINUE,
+    /** Delegate to the default handler (print error, trace, and abort). */
+    WOORT_PANIC_HANDLER_ACTION_USE_DEFAULT_HANDLER,
+}woort_PanicHandler_Action;
 
+/**
+ * @brief Prototype for a user-supplied panic-handler callback.
+ * @param vm      The VM instance where the panic occurred, or NULL if no VM running.
+ * @param reason  The panic reason code (see woort_PanicReason enum).
+ * @param message A human-readable description of the panic.
+ * @return A woort_PanicHandler_Action indicating how to proceed.
+ */
+typedef woort_PanicHandler_Action(*woort_PanicHandlerFunction)(
+    /* OPTIONAL */ woort_VMRuntime* vm, int reason, woort_U8CString message);
+
+/**
+ * @brief Install a custom panic-handler callback and return the previous one.
+ * @param callback  The new panic-handler callback, or NULL to unregister.
+ * @return The previously installed callback, or NULL if none was set.
+ */
 WOORT_NODISCARD WOORT_API /* OPTIONAL */  woort_PanicHandlerFunction woort_set_panic_callback(
     /* OPTIONAL */ woort_PanicHandlerFunction callback);
 
