@@ -4,12 +4,16 @@
 #include "woort_vm_debugger_api.h"
 #include "woort_gc_string.h"
 #include "woort_setting.h"
+#include "woort_atomic.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+
+static woort_AtomicPtr /* OPTIONAL woort_PanicHandlerFunction */
+_woort_panic_handler_callback = NULL;
 
 WOORT_NODISCARD static bool _woort_diagnosis_str_equal(
     const char* a, const char* b)
@@ -231,4 +235,14 @@ void woort_panic(
     (void)woort_vpanic(reason, msgfmt, args);
 
     va_end(args);
+}
+
+WOORT_NODISCARD /* OPTIONAL */ woort_PanicHandlerFunction woort_set_panic_callback(
+    /* OPTIONAL */ woort_PanicHandlerFunction callback)
+{
+    return (woort_PanicHandlerFunction)
+        woort_atomic_exchange_explicit(
+            &_woort_panic_handler_callback,
+            callback,
+            WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL);
 }

@@ -598,26 +598,26 @@ WOORT_NODISCARD WOORT_API bool woort_CodeEnv_save_binary(
 
 typedef enum woort_CodeEnv_RestoreResult
 {
-    WOORT_CODEENV_RESTORE_OK                    = 0,
+    WOORT_CODEENV_RESTORE_OK = 0,
 
     /* File I/O errors */
-    WOORT_CODEENV_RESTORE_FAIL_READ             = 1,  /* Cannot read from vfile */
-    WOORT_CODEENV_RESTORE_FAIL_ALLOC            = 2,  /* Memory allocation failed */
+    WOORT_CODEENV_RESTORE_FAIL_READ = 1,  /* Cannot read from vfile */
+    WOORT_CODEENV_RESTORE_FAIL_ALLOC = 2,  /* Memory allocation failed */
 
     /* Header verification errors */
-    WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH   = 3,
+    WOORT_CODEENV_RESTORE_FAIL_MAGIC_DOESNT_MATCH = 3,
     WOORT_CODEENV_RESTORE_FAIL_VERSION_DOESNT_MATCH = 4,
 
     /* Structural errors */
-    WOORT_CODEENV_RESTORE_FAIL_INVALID_CODE_SIZE    = 5,  /* Code size exceeds available data */
-    WOORT_CODEENV_RESTORE_FAIL_CREATE_CODEENV       = 6,  /* Failed to create CodeEnv */
-    WOORT_CODEENV_RESTORE_FAIL_INVALID_STRPOOL      = 7,  /* String pool size invalid */
+    WOORT_CODEENV_RESTORE_FAIL_INVALID_CODE_SIZE = 5,  /* Code size exceeds available data */
+    WOORT_CODEENV_RESTORE_FAIL_CREATE_CODEENV = 6,  /* Failed to create CodeEnv */
+    WOORT_CODEENV_RESTORE_FAIL_INVALID_STRPOOL = 7,  /* String pool size invalid */
 
     /* Constant data errors */
-    WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA       = 8,  /* Data truncated / unterminated */
-    WOORT_CODEENV_RESTORE_FAIL_INVALID_CONST_TYPE   = 9,  /* Unknown constant type tag */
-    WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET       = 10, /* Invalid offset into pool */
-    WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE       = 11, /* Cannot resolve external function/library */
+    WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA = 8,  /* Data truncated / unterminated */
+    WOORT_CODEENV_RESTORE_FAIL_INVALID_CONST_TYPE = 9,  /* Unknown constant type tag */
+    WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET = 10, /* Invalid offset into pool */
+    WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE = 11, /* Cannot resolve external function/library */
 }woort_CodeEnv_RestoreResult;
 
 /**
@@ -4173,6 +4173,12 @@ WOORT_API void woort_ctrlc_setup(void);
  * @brief Restore the default SIGINT disposition (SIG_DFL).
  */
 WOORT_API void woort_ctrlc_teardown(void);
+
+typedef bool(*woort_PanicHandlerFunction)(
+    /* OPTIONAL */ woort_VMRuntime*, int, woort_U8CString);
+
+WOORT_NODISCARD WOORT_API /* OPTIONAL */  woort_PanicHandlerFunction woort_set_panic_callback(
+    /* OPTIONAL */ woort_PanicHandlerFunction callback);
 
 /* ========== String / Unicode Conversion API ========== */
 
