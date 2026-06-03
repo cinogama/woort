@@ -44,13 +44,14 @@ WOORT_NODISCARD woort_GCPin* woort_GC_Pin_create(size_t count)
         sizeof(woort_GCPin) + count * sizeof(woort_Value));
 
     p->m_gc_unit.m_proxy = &WOORT_GCPIN_UNIT_PROXY;
+    p->m_size = count;
 
     p->m_prev = NULL;
     woort_spinlock_lock(&_woort_gcpin_chain_mx);
     {
         if (_woort_gcpin_chain_head == NULL)
         {
-            // No chain yet.
+            /* No chain yet. */
             _woort_gcpin_chain_head =
                 woort_GCUnit_alloc_delay_init(sizeof(woort_GCPin*));
 
@@ -59,12 +60,17 @@ WOORT_NODISCARD woort_GCPin* woort_GC_Pin_create(size_t count)
             woomem_allocate_end_as_root(
                 _woort_gcpin_chain_head,
                 WOOMEM_ATTRIB_NEED_SWEEP | WOOMEM_ATTRIB_AUTO_MARK);
-        }
 
-        woort_GC_init_write_barrier_gcunit(
-            (void**)&p->m_next, *_woort_gcpin_chain_head);
-        woort_GC_init_write_barrier_gcunit(
-            (void**)&p->m_next->m_prev, p);
+            p->m_next = NULL;
+        }
+        else
+        {
+            woort_GC_init_write_barrier_gcunit(
+                (void**)&p->m_next, *_woort_gcpin_chain_head);
+
+            woort_GC_init_write_barrier_gcunit(
+                (void**)&p->m_next->m_prev, p);
+        }
         woort_GC_mixed_write_barrier_gcunit(
             _woort_gcpin_chain_head, p);
     }
@@ -147,10 +153,20 @@ void woort_GC_Pin_get_value(woort_StackValue dst, woort_GCPin* pin, size_t idx)
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    woort_GC_mixed_write_barrier_value(woort_internal_value(dst), pin->m_datas[idx]);
+    *woort_internal_value(dst) = pin->m_datas[idx];
 }
 
 void woort_GC_Pin_get_internal_value(woort_Value* dst, woort_GCPin* pin, size_t idx)
+{
+    assert(pin != NULL);
+    assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
+    assert(idx < pin->m_size);
+    assert(dst != NULL);
+
+    woort_GC_mixed_write_barrier_value(dst, pin->m_datas[idx]);
+}
+
+void woort_GC_Pin_get_internal_value_without_barrier(woort_Value* dst, woort_GCPin* pin, size_t idx)
 {
     assert(pin != NULL);
     assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);

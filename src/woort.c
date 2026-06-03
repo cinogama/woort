@@ -13,6 +13,7 @@
 #include "woort_gc_struct.h"
 #include "woort_gc_gchandle.h"
 #include "woort_gc_closure.h"
+#include "woort_gc_pin.h"
 #include "woort_disassembly.h"
 #include "woort_env.h"
 #include "woort_path.h"
@@ -36,6 +37,7 @@ void woort_init(int argc, char** argv)
     _woort_env_bootup();
     _woort_path_bootup();
     _woort_vfs_bootup();
+    woort_GCPin_bootup();
 
     if (!woort_CodeEnv_bootup())
     {
@@ -100,6 +102,7 @@ void woort_shutdown(void)
     woort_VMRuntime_Debugger_shutdown();
 
     woort_GC_shutdown();
+    woort_GCPin_shutdown();
     _woort_builtin_shutdown();
     _woort_dylib_shutdown();
     woort_CodeEnv_shutdown();
