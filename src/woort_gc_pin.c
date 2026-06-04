@@ -72,7 +72,7 @@ WOORT_NODISCARD woort_GCPin* woort_GC_Pin_create(size_t count)
                 (void**)&p->m_next->m_prev, p);
         }
         woort_GC_mixed_write_barrier_gcunit(
-            _woort_gcpin_chain_head, p);
+            (void**)_woort_gcpin_chain_head, p);
     }
     woort_spinlock_unlock(&_woort_gcpin_chain_mx);
 
