@@ -11,8 +11,8 @@ woort_diagnosis.h
 
 WOORT_NODISCARD bool woort_raise_panic_v(
     woort_PanicReason reason, 
-    const char* location,
     const char* funcname,
+    const char* location,
     int line, 
     const char* msgfmt, 
     va_list va_list);

@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 3, 0)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 3, 1)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -2551,14 +2551,14 @@ typedef enum woort_PanicReason
 
 WOORT_API void woort_raise_panic(
     woort_PanicReason reason,
-    const char* location,
     const char* funcname,
+    const char* location,
     int line,
     const char* msgfmt,
     ...);
 
 #define woort_panic(REASON, MSGFMT, ...) \
-    woort_raise_panic(REASON, __FILE__, __FUNCTION__, __LINE__, MSGFMT,##__VA_ARGS__)
+    woort_raise_panic(REASON, __FUNCTION__, __FILE__, __LINE__, MSGFMT,##__VA_ARGS__)
 
 /**
  * @brief Reserve space on the VM evaluation stack.
@@ -4298,20 +4298,22 @@ typedef enum woort_PanicHandler_Action
 }woort_PanicHandler_Action;
 
 /**
- * @brief Prototype for a user-supplied panic-handler callback.
+ * @brief Prototype of a user-supplied panic-handler callback.
  * @param vm        The VM instance where the panic occurred, or NULL if no VM running.
  * @param reason    The panic reason code (see woort_PanicReason enum).
- * @param location  The panic raised from.
- * @param line      The panic raised from.
+ * @param funcname  Name of the function where the panic was raised.
+ * @param location  File where the panic was raised.
+ * @param line      Line where the panic was raised.
  * @param message   A human-readable description of the panic.
  * @return          A woort_PanicHandler_Action indicating how to proceed.
  */
 typedef woort_PanicHandler_Action(*woort_PanicHandlerFunction)(
     /* OPTIONAL */ woort_VMRuntime* vm, 
-    woort_U8CString location, 
+    const char* funcname, 
+    const char* location,
     int line, 
     int reason, 
-    woort_U8CString message);
+    const char* message);
 
 /**
  * @brief Install a custom panic-handler callback and return the previous one.

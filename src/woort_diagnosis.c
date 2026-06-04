@@ -61,8 +61,8 @@ static void _woort_abort_vm_by_panic(
 
 WOORT_NODISCARD bool woort_raise_panic_v(
     woort_PanicReason reason,
-    const char* location,
     const char* funcname,
+    const char* location,
     int line,
     const char* msgfmt,
     va_list args)
@@ -89,6 +89,7 @@ WOORT_NODISCARD bool woort_raise_panic_v(
                 woort_VMRuntime* const last_vm = woort_VMRuntime_swap(NULL);
                 user_handler_action = handler(
                     panic_vm, 
+                    funcname,
                     location,
                     line,
                     reason,
@@ -109,15 +110,14 @@ WOORT_NODISCARD bool woort_raise_panic_v(
             case WOORT_PANIC_HANDLER_ACTION_USE_DEFAULT_HANDLER:
                 woort_log(
                     "WooRT Panic: Fatal runtime error(%X). "
-                    "Program execution terminated at `%s:%d`:\n    ", 
-                    reason,
-                    location, 
-                    line);
+                    "Program execution terminated:\n    ", 
+                    reason);
 
-                woort_log("%s\nTrace:\n", 
-                    panic_describe_message != NULL 
-                    ? panic_describe_message
-                    : DEFAULT_PANIC_DESCRIBE_MESSAGE);
+                woort_log("%s\nLocation:\n    %s @ `%s:%d`\nTrace:\n", 
+                    panic_describe_message != NULL ? panic_describe_message : DEFAULT_PANIC_DESCRIBE_MESSAGE,
+                    funcname,
+                    location,
+                    line);
 
                 if (panic_vm != NULL)
                 {
@@ -275,8 +275,8 @@ WOORT_NODISCARD bool woort_raise_panic_v(
 
 void woort_raise_panic(
     woort_PanicReason reason,
-    const char* location,
     const char* funcname,
+    const char* location,
     int line,
     const char* msgfmt,
     ...)
@@ -284,7 +284,7 @@ void woort_raise_panic(
     va_list args;
     va_start(args, msgfmt);
 
-    (void)woort_raise_panic_v(reason, location, funcname, line, msgfmt, args);
+    (void)woort_raise_panic_v(reason, funcname, location, line, msgfmt, args);
 
     /* OPTIONAL */ woort_vm* const this_vm = woort_VMRuntime_current();
     if (this_vm != NULL)
