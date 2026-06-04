@@ -2533,6 +2533,33 @@ WOORT_NODISCARD WOORT_API
 #define woort_vm_get_runtime_error woort_VMRuntime_get_runtime_error_msg
 #define woort_codeenv_drop woort_CodeEnv_drop
 
+typedef enum woort_PanicReason
+{
+    WOORT_PANIC_BAD_BYTE_CODE = 0xD001,
+    WOORT_PANIC_STACK_OVERFLOW = 0xD002,
+    WOORT_PANIC_CODE_ENV_NOT_FOUND = 0xD003,
+    WOORT_PANIC_BAD_CALLSTACK = 0xD004,
+    WOORT_PANIC_BAD_TYPE = 0xD005,
+    WOORT_PANIC_BAD_VM_REQUEST = 0xD006,
+    WOORT_PANIC_ABORTED = 0xD007,
+    WOORT_PANIC_INDEX_OUT_OF_RANGE = 0xD008,
+    WOORT_PANIC_USER = 0xD009,
+    WOORT_PANIC_INTEGER_DIV_FAIL = 0xD00A,
+    WOORT_PANIC_OUT_OF_MEMORY = 0xD00B,
+    WOORT_PANIC_ALREADY_CLOSED = 0xD00C,
+} woort_PanicReason;
+
+WOORT_API void woort_raise_panic(
+    woort_PanicReason reason,
+    const char* location,
+    const char* funcname,
+    int line,
+    const char* msgfmt,
+    ...);
+
+#define woort_panic(REASON, MSGFMT, ...) \
+    woort_raise_panic(REASON, __FILE__, __FUNCTION__, __LINE__, MSGFMT,##__VA_ARGS__)
+
 /**
  * @brief Reserve space on the VM evaluation stack.
  * @param count      Number of stack slots to reserve.
@@ -4272,13 +4299,19 @@ typedef enum woort_PanicHandler_Action
 
 /**
  * @brief Prototype for a user-supplied panic-handler callback.
- * @param vm      The VM instance where the panic occurred, or NULL if no VM running.
- * @param reason  The panic reason code (see woort_PanicReason enum).
- * @param message A human-readable description of the panic.
- * @return A woort_PanicHandler_Action indicating how to proceed.
+ * @param vm        The VM instance where the panic occurred, or NULL if no VM running.
+ * @param reason    The panic reason code (see woort_PanicReason enum).
+ * @param location  The panic raised from.
+ * @param line      The panic raised from.
+ * @param message   A human-readable description of the panic.
+ * @return          A woort_PanicHandler_Action indicating how to proceed.
  */
 typedef woort_PanicHandler_Action(*woort_PanicHandlerFunction)(
-    /* OPTIONAL */ woort_VMRuntime* vm, int reason, woort_U8CString message);
+    /* OPTIONAL */ woort_VMRuntime* vm, 
+    woort_U8CString location, 
+    int line, 
+    int reason, 
+    woort_U8CString message);
 
 /**
  * @brief Install a custom panic-handler callback and return the previous one.

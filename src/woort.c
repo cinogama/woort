@@ -2316,7 +2316,13 @@ WOORT_NODISCARD woort_VmCallStatus woort_ret_panic(const char* fmt, ...)
     va_start(args, fmt);
 
     const bool vm_aborted =
-        woort_vpanic(WOORT_PANIC_ABORTED, fmt, args);
+        woort_raise_panic_v(
+            WOORT_PANIC_ABORTED,
+            __FILE__,
+            __FUNCTION__,
+            __LINE__,
+            fmt, 
+            args);
 
     va_end(args);
 

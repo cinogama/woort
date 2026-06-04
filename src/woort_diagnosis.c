@@ -59,8 +59,11 @@ static void _woort_abort_vm_by_panic(
     panic_vm->m_sp->m_string = panic_str;
 }
 
-WOORT_NODISCARD bool woort_vpanic(
+WOORT_NODISCARD bool woort_raise_panic_v(
     woort_PanicReason reason,
+    const char* location,
+    const char* funcname,
+    int line,
     const char* msgfmt,
     va_list args)
 {
@@ -84,7 +87,12 @@ WOORT_NODISCARD bool woort_vpanic(
             if (handler != NULL)
             {
                 woort_VMRuntime* const last_vm = woort_VMRuntime_swap(NULL);
-                user_handler_action = handler(panic_vm, reason, panic_describe_message);
+                user_handler_action = handler(
+                    panic_vm, 
+                    location,
+                    line,
+                    reason,
+                    panic_describe_message);
                 (void)woort_VMRuntime_swap(last_vm);
             }
 
@@ -101,7 +109,10 @@ WOORT_NODISCARD bool woort_vpanic(
             case WOORT_PANIC_HANDLER_ACTION_USE_DEFAULT_HANDLER:
                 woort_log(
                     "WooRT Panic: Fatal runtime error(%X). "
-                    "Program execution terminated:\n    ", reason);
+                    "Program execution terminated at `%s:%d`:\n    ", 
+                    reason,
+                    location, 
+                    line);
 
                 woort_log("%s\nTrace:\n", 
                     panic_describe_message != NULL 
@@ -262,15 +273,23 @@ WOORT_NODISCARD bool woort_vpanic(
     return vm_has_been_aborted;
 }
 
-void woort_panic(
+void woort_raise_panic(
     woort_PanicReason reason,
+    const char* location,
+    const char* funcname,
+    int line,
     const char* msgfmt,
     ...)
 {
     va_list args;
     va_start(args, msgfmt);
 
-    (void)woort_vpanic(reason, msgfmt, args);
+    (void)woort_raise_panic_v(reason, location, funcname, line, msgfmt, args);
+
+    /* OPTIONAL */ woort_vm* const this_vm = woort_VMRuntime_current();
+    if (this_vm != NULL)
+        // Update `m_stack_realloc_version` to let fp-call get a checkpoint.
+        ++this_vm->m_stack_realloc_version;
 
     va_end(args);
 }
