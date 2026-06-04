@@ -429,7 +429,6 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     /* OPTIONAL */ const char* script_path,
     bool panic_when_fail)
 {
-#ifndef WOORT_DYLIB_DISABLED
     woort_recursive_mutex_lock(g_named_libs_mx);
 
     /* Already loaded? */
@@ -440,6 +439,8 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
         woort_recursive_mutex_unlock(g_named_libs_mx);
         return existing;
     }
+
+#ifndef WOORT_DYLIB_DISABLED
 
     void* native_handle = NULL;
 
@@ -519,101 +520,97 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
         native_handle = _woort_dylib_os_loadlib(path);
     }
 
-    if (native_handle == NULL)
+    if (native_handle != NULL)
     {
-        woort_recursive_mutex_unlock(g_named_libs_mx);
-        if (panic_when_fail)
-            woort_panic(WOORT_PANIC_USER, "Failed to load library '%s'.", libname);
-        return NULL;
-    }
-
-    /* Create dylib entry */
-    woort_Dylib* dylib = (woort_Dylib*)malloc(sizeof(woort_Dylib));
-    if (dylib == NULL)
-    {
-        _woort_dylib_os_freelib(native_handle);
-        woort_recursive_mutex_unlock(g_named_libs_mx);
-        if (panic_when_fail)
-            woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
-        return NULL;
-    }
-
-    dylib->m_native_handle = native_handle;
-    dylib->m_fake_funcs = NULL;
-    dylib->m_dependenced = NULL;
-    dylib->m_name = (char*)malloc(strlen(libname) + 1);
-    if (dylib->m_name == NULL)
-    {
-        _woort_dylib_os_freelib(native_handle);
-        free(dylib);
-        woort_recursive_mutex_unlock(g_named_libs_mx);
-        if (panic_when_fail)
-            woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
-        return NULL;
-    }
-    strcpy(dylib->m_name, libname);
-
-    {
-        size_t path_len = strlen(path);
-        dylib->m_path = (char*)malloc(path_len + 1);
-        if (dylib->m_path == NULL)
+        /* Create dylib entry */
+        woort_Dylib* dylib = (woort_Dylib*)malloc(sizeof(woort_Dylib));
+        if (dylib == NULL)
         {
             _woort_dylib_os_freelib(native_handle);
-            free(dylib->m_name);
+            woort_recursive_mutex_unlock(g_named_libs_mx);
+            if (panic_when_fail)
+                woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
+            return NULL;
+        }
+
+        dylib->m_native_handle = native_handle;
+        dylib->m_fake_funcs = NULL;
+        dylib->m_dependenced = NULL;
+        dylib->m_name = (char*)malloc(strlen(libname) + 1);
+        if (dylib->m_name == NULL)
+        {
+            _woort_dylib_os_freelib(native_handle);
             free(dylib);
             woort_recursive_mutex_unlock(g_named_libs_mx);
             if (panic_when_fail)
                 woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
             return NULL;
         }
-        memcpy(dylib->m_path, path, path_len + 1);
-    }
+        strcpy(dylib->m_name, libname);
 
-    if (script_path != NULL)
-    {
-        size_t sp_len = strlen(script_path);
-        dylib->m_script_path = (char*)malloc(sp_len + 1);
-        if (dylib->m_script_path == NULL)
         {
-            _woort_dylib_os_freelib(native_handle);
-            free(dylib->m_path);
-            free(dylib->m_name);
-            free(dylib);
-            woort_recursive_mutex_unlock(g_named_libs_mx);
-            if (panic_when_fail)
-                woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
-            return NULL;
+            size_t path_len = strlen(path);
+            dylib->m_path = (char*)malloc(path_len + 1);
+            if (dylib->m_path == NULL)
+            {
+                _woort_dylib_os_freelib(native_handle);
+                free(dylib->m_name);
+                free(dylib);
+                woort_recursive_mutex_unlock(g_named_libs_mx);
+                if (panic_when_fail)
+                    woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
+                return NULL;
+            }
+            memcpy(dylib->m_path, path, path_len + 1);
         }
-        memcpy(dylib->m_script_path, script_path, sp_len + 1);
+
+        if (script_path != NULL)
+        {
+            size_t sp_len = strlen(script_path);
+            dylib->m_script_path = (char*)malloc(sp_len + 1);
+            if (dylib->m_script_path == NULL)
+            {
+                _woort_dylib_os_freelib(native_handle);
+                free(dylib->m_path);
+                free(dylib->m_name);
+                free(dylib);
+                woort_recursive_mutex_unlock(g_named_libs_mx);
+                if (panic_when_fail)
+                    woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
+                return NULL;
+            }
+            memcpy(dylib->m_script_path, script_path, sp_len + 1);
+        }
+        else
+        {
+            dylib->m_script_path = NULL;
+        }
+
+        woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
+
+        woort_rwspinlock_init(&dylib->m_resolved_lock);
+        woort_hashmap_init(
+            &dylib->m_resolved_funcs,
+            sizeof(void*),
+            sizeof(const char*),
+            woort_util_ptr_hash,
+            woort_util_ptr_equal);
+
+        _woort_dylib_registry_insert(dylib);
+
+        woort_recursive_mutex_unlock(g_named_libs_mx);
+
+        return dylib;
     }
-    else
-    {
-        dylib->m_script_path = NULL;
-    }
-
-    woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
-
-    woort_rwspinlock_init(&dylib->m_resolved_lock);
-    woort_hashmap_init(
-        &dylib->m_resolved_funcs,
-        sizeof(void*),
-        sizeof(const char*),
-        woort_util_ptr_hash,
-        woort_util_ptr_equal);
-
-    _woort_dylib_registry_insert(dylib);
-
-    woort_recursive_mutex_unlock(g_named_libs_mx);
-
-    return dylib;
 #else /* WOORT_DYLIB_DISABLED */
     (void)libname;
     (void)path;
     (void)script_path;
-    if (panic_when_fail)
-        woort_panic(WOORT_PANIC_USER, "Dynamic library loading not supported on this platform.");
-    return NULL;
 #endif
+    woort_recursive_mutex_unlock(g_named_libs_mx);
+    if (panic_when_fail)
+        woort_panic(WOORT_PANIC_USER, "Failed to load library '%s'.", libname);
+    return NULL;
 }
 
 WOORT_NODISCARD /* OPTIONAL */ void* woort_dylib_load_func(
