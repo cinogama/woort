@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 3, 1)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 3, 2)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -2673,6 +2673,10 @@ WOORT_NODISCARD WOORT_API bool woort_load_extern_const(
  /** @brief Copy a value from one stack slot to another: dst = src. */
 WOORT_API void woort_set_value(
     woort_StackValue dst, woort_StackValue src);
+
+/** @brief Shallow-copy a boxed value: new container for VEC/MAP/STRUCT, direct assign for others. */
+WOORT_API void woort_set_dup_boxed(
+    woort_StackValue boxed_dst, woort_StackValue boxed_src);
 
 /** @brief Set a stack slot to nil. */
 WOORT_API void woort_set_nil(
