@@ -1890,6 +1890,6 @@ int main(int argc, char** argv)
 
     (void)printf("\n  %d/%d tests passed.\n\n", g_tests_passed, g_tests_run);
 
-    woort_shutdown();
+    woort_shutdown(NULL, NULL);
     return (g_tests_passed == g_tests_run) ? 0 : 1;
 }

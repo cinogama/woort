@@ -125,6 +125,6 @@ int main(int argc, char** argv) {
     woort_VMRuntime_destroy(vm);
     woort_IRCompiler_close(irc);
 
-    woort_shutdown();
+    woort_shutdown(NULL, NULL);
     return 0;
 }
