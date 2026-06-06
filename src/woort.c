@@ -1356,6 +1356,131 @@ void woort_struct_set(
     woort_GC_mixed_write_barrier_value(&s->m_datas[index], _WOORT_API_STACK(val));
 }
 
+WOORT_NODISCARD woort_Int woort_struct_get_int(
+    woort_StackValue src,
+    size_t index)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+    assert(index < s->m_size);
+
+    return s->m_datas[index].m_integer;
+}
+
+WOORT_NODISCARD woort_Real woort_struct_get_real(
+    woort_StackValue src,
+    size_t index)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+    assert(index < s->m_size);
+
+    return s->m_datas[index].m_real;
+}
+
+WOORT_NODISCARD woort_U8CString woort_struct_get_string(
+    woort_StackValue src,
+    size_t index)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+    assert(index < s->m_size);
+
+    return s->m_datas[index].m_string->m_content;
+}
+
+WOORT_NODISCARD bool woort_struct_get_bool(
+    woort_StackValue src,
+    size_t index)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+    assert(index < s->m_size);
+
+    return s->m_datas[index].m_integer != 0;
+}
+
+void woort_struct_set_int(
+    woort_StackValue src,
+    size_t index,
+    woort_Int val)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+    assert(index < s->m_size);
+
+    woort_GC_delete_barrier_value(s->m_datas[index]);
+    s->m_datas[index].m_integer = val;
+}
+
+void woort_struct_set_real(
+    woort_StackValue src,
+    size_t index,
+    woort_Real val)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+    assert(index < s->m_size);
+
+    woort_GC_delete_barrier_value(s->m_datas[index]);
+    s->m_datas[index].m_real = val;
+}
+
+void woort_struct_set_string(
+    woort_StackValue src,
+    size_t index,
+    woort_U8CString val)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+    assert(val != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+    assert(index < s->m_size);
+
+    const size_t len = strlen(val);
+    const woort_GCString* const str = woort_GCString_make_string(val, len);
+    assert(str != NULL);
+
+    woort_GC_mixed_write_barrier_gcunit(
+        (void**)&s->m_datas[index].m_string, (void*)str);
+}
+
+void woort_struct_set_bool(
+    woort_StackValue src,
+    size_t index,
+    bool val)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCStruct* const s = _WOORT_API_STACK(src).m_struct;
+    assert(s != NULL);
+    assert(index < s->m_size);
+
+    woort_GC_delete_barrier_value(s->m_datas[index]);
+    s->m_datas[index].m_integer = val ? 1 : 0;
+}
+
 /* ========== Vector ========== */
 
 WOORT_NODISCARD size_t woort_vec_len(woort_StackValue src)

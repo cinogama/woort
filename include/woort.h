@@ -3878,6 +3878,96 @@ WOORT_API void woort_struct_set(
     size_t index,
     woort_StackValue val);
 
+/**
+ * @brief Read an int field from a struct.
+ * @param src    Stack slot holding the struct.
+ * @param index  Zero-based field index.
+ * @return The int value.
+ */
+WOORT_NODISCARD WOORT_API woort_Int woort_struct_get_int(
+    woort_StackValue src,
+    size_t index);
+
+/**
+ * @brief Read a real field from a struct.
+ * @param src    Stack slot holding the struct.
+ * @param index  Zero-based field index.
+ * @return The real value.
+ */
+WOORT_NODISCARD WOORT_API woort_Real woort_struct_get_real(
+    woort_StackValue src,
+    size_t index);
+
+/**
+ * @brief Read a string field from a struct.
+ * @param src    Stack slot holding the struct.
+ * @param index  Zero-based field index.
+ * @return The string value.
+ */
+WOORT_NODISCARD WOORT_API woort_U8CString woort_struct_get_string(
+    woort_StackValue src,
+    size_t index);
+
+/**
+ * @brief Read a bool field from a struct.
+ * @param src    Stack slot holding the struct.
+ * @param index  Zero-based field index.
+ * @return The bool value.
+ */
+WOORT_NODISCARD WOORT_API bool woort_struct_get_bool(
+    woort_StackValue src,
+    size_t index);
+
+/**
+ * @brief Write an int field in a struct.
+ * @param src    Stack slot holding the struct.
+ * @param index  Zero-based field index.
+ * @param val    The int value to write.
+ */
+WOORT_API void woort_struct_set_int(
+    woort_StackValue src,
+    size_t index,
+    woort_Int val);
+
+/**
+ * @brief Write a real field in a struct.
+ * @param src    Stack slot holding the struct.
+ * @param index  Zero-based field index.
+ * @param val    The real value to write.
+ */
+WOORT_API void woort_struct_set_real(
+    woort_StackValue src,
+    size_t index,
+    woort_Real val);
+
+/**
+ * @brief Write a string field in a struct.
+ * @param src    Stack slot holding the struct.
+ * @param index  Zero-based field index.
+ * @param val    The string value to write.
+ */
+WOORT_API void woort_struct_set_string(
+    woort_StackValue src,
+    size_t index,
+    woort_U8CString val);
+
+/**
+ * @brief Write a bool field in a struct.
+ * @param src    Stack slot holding the struct.
+ * @param index  Zero-based field index.
+ * @param val    The bool value to write.
+ */
+WOORT_API void woort_struct_set_bool(
+    woort_StackValue src,
+    size_t index,
+    bool val);
+
+#define woort_struct_get_float(src, index) \
+    ((float)woort_struct_get_real((src), (index)))
+
+#define woort_struct_set_float(src, index, val) \
+    woort_struct_set_real((src), (index), (woort_Real)(val))
+
 /**@}*/
 
 /* ================================================================
