@@ -3309,6 +3309,8 @@ WOORT_NODISCARD WOORT_API woort_Int woort_unbox_int(woort_StackValue src);
 WOORT_NODISCARD WOORT_API woort_Real woort_unbox_real(woort_StackValue src);
 /** @brief Unbox and read a float from a boxed stack slot. */
 #define woort_unbox_float(SRC) ((float)woort_unbox_real(SRC))
+/** @brief Unbox and read a pointer from a boxed stack slot. */
+#define woort_unbox_pointer(SRC) ((void*)woort_unbox_int(SRC))
 /** @brief Unbox and read a boolean from a boxed stack slot. */
 WOORT_NODISCARD WOORT_API bool woort_unbox_bool(woort_StackValue src);
 /** @brief Query the type tag of a boxed dynamic value. */
@@ -3967,6 +3969,12 @@ WOORT_API void woort_struct_set_bool(
 
 #define woort_struct_set_float(src, index, val) \
     woort_struct_set_real((src), (index), (woort_Real)(val))
+
+#define woort_struct_get_pointer(src, index) \
+    ((void*)woort_struct_get_int((src), (index)))
+
+#define woort_struct_set_pointer(src, index, val) \
+    woort_struct_set_int((src), (index), (woort_Int)(val))
 
 /**@}*/
 
