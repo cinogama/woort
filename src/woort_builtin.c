@@ -3106,7 +3106,22 @@ static woort_api woort_builtin_map_empty(void)
     return woort_ret_bool(len == 0);
 }
 
-static woort_api woort_builtin_map_remove(void)
+static woort_api woort_builtin_map_remove_i(void)
+{
+    bool removed = woort_map_erase_by_int(0, woort_int(1));
+    return woort_ret_bool(removed);
+}
+static woort_api woort_builtin_map_remove_r(void)
+{
+    bool removed = woort_map_erase_by_real(0, woort_real(1));
+    return woort_ret_bool(removed);
+}
+static woort_api woort_builtin_map_remove_b(void)
+{
+    bool removed = woort_map_erase_by_bool(0, woort_bool(1));
+    return woort_ret_bool(removed);
+}
+static woort_api woort_builtin_map_remove_x(void)
 {
     bool removed = woort_map_erase(0, 1);
     return woort_ret_bool(removed);
@@ -3474,6 +3489,22 @@ static woort_api woort_builtin_debug_trace_callstack(void)
     return woort_ret_value(temp_result);
 }
 
+static woort_api woort_builtin_debug_runtime_version(void)
+{
+#define WOORT_VERSION_WRAP(A, B, C, D) {A, B, C, D}
+    const woort_Int version[] = WOORT_VERSION;
+#undef WOORT_VERSION_WRAP
+
+    woort_set_struct(WOORT_RETURN_SLOT, 4);
+
+    woort_struct_set_int(WOORT_RETURN_SLOT, 0, version[0]);
+    woort_struct_set_int(WOORT_RETURN_SLOT, 1, version[1]);
+    woort_struct_set_int(WOORT_RETURN_SLOT, 2, version[2]);
+    woort_struct_set_int(WOORT_RETURN_SLOT, 3, version[3]);
+
+    return woort_ret();
+}
+
 /* ================================================================
  * Function table for the "woolang" fake library
  * ================================================================ */
@@ -3689,7 +3720,10 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(map_keys),
     WOORT_BUILTIN_FUNC(map_vals),
     WOORT_BUILTIN_FUNC(map_empty),
-    WOORT_BUILTIN_FUNC(map_remove),
+    WOORT_BUILTIN_FUNC(map_remove_i),
+    WOORT_BUILTIN_FUNC(map_remove_r),
+    WOORT_BUILTIN_FUNC(map_remove_b),
+    WOORT_BUILTIN_FUNC(map_remove_x),
     WOORT_BUILTIN_FUNC(map_clear),
     WOORT_BUILTIN_FUNC(map_iter),
     WOORT_BUILTIN_FUNC(map_iter_next_uu),
@@ -3713,6 +3747,7 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(tuple_cdr),
 
     WOORT_BUILTIN_FUNC(debug_trace_callstack),
+    WOORT_BUILTIN_FUNC(debug_runtime_version),
 
     WOORT_EXTERN_LIB_FUNC_END,
 };

@@ -95,13 +95,16 @@ WOORT_API void woort_init(int argc, char** argv);
         setlocale(LC_CTYPE, woort_env_locale_name());   \
     } while (0)
 
+typedef void(*woort_ShutdownPostCallback)(void*);
+
 /**
  * @brief Shut down the Woolang runtime.
  *
  * Releases all runtime resources. No woort API functions may be called
  * after this function returns. Must be paired with a prior woort_init() call.
  */
-WOORT_API void woort_shutdown(void);
+WOORT_API void woort_shutdown(
+    /* OPTIONAL */ woort_ShutdownPostCallback do_after_shutdown, void* custom_data);
 
 /* ========== Console I/O API ========== */
 
@@ -330,6 +333,29 @@ typedef uint32_t woort_Bytecode;
 
 /** @brief A UTF-8 encoded, null-terminated C string pointer. */
 typedef const char* woort_U8CString;
+
+/*
+Ensure char16_t and char32_t are available in pure C mode.
+See also: woort_utf8.h for the same guard.
+*/
+#if !defined(__cplusplus) && !defined(_CHAR16T)
+#   if defined(_MSC_VER)
+#       ifndef _CHAR16T
+#           define _CHAR16T
+typedef uint16_t char16_t;
+#       endif
+#       ifndef _CHAR32T
+#           define _CHAR32T
+typedef uint32_t char32_t;
+#       endif
+#   elif defined(__clang__) || defined(__GNUC__)
+typedef __CHAR16_TYPE__ char16_t;
+typedef __CHAR32_TYPE__ char32_t;
+#   endif
+#endif
+
+/** @brief A Unicode char. */
+typedef char32_t woort_Char;
 
 /** @brief Callback to mark GC references reachable from a user GC handle. */
 typedef void (*woort_GCHandle_UserMarkFunction)(void*);
@@ -2558,7 +2584,7 @@ WOORT_API void woort_raise_panic(
     ...);
 
 #define woort_panic(REASON, MSGFMT, ...) \
-    woort_raise_panic(REASON, __FUNCTION__, __FILE__, __LINE__, MSGFMT,##__VA_ARGS__)
+    woort_raise_panic((woort_PanicReason)(REASON), __FUNCTION__, __FILE__, __LINE__, MSGFMT,##__VA_ARGS__)
 
 /**
  * @brief Reserve space on the VM evaluation stack.
@@ -3603,6 +3629,10 @@ WOORT_NODISCARD WOORT_API bool woort_map_set_by_int(
     woort_Int key,
     woort_StackValue val_boxed);
 
+/** @brief Insert/update with pointer key. Returns true if newly inserted. */
+#define woort_map_set_by_pointer(src, ptr, val_boxed) \
+    woort_map_set_by_int((src), (woort_Int)(intptr_t)(ptr), (val_boxed))
+
 /** @brief Insert/update with real key. Returns true if newly inserted. */
 WOORT_NODISCARD WOORT_API bool woort_map_set_by_real(
     woort_StackValue src,
@@ -4432,26 +4462,6 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */  woort_PanicHandlerFunction woort_set_p
     /* OPTIONAL */ woort_PanicHandlerFunction callback);
 
 /* ========== String / Unicode Conversion API ========== */
-
-/*
-Ensure char16_t and char32_t are available in pure C mode.
-See also: woort_utf8.h for the same guard.
-*/
-#if !defined(__cplusplus) && !defined(_CHAR16T)
-#   if defined(_MSC_VER)
-#       ifndef _CHAR16T
-#           define _CHAR16T
-typedef uint16_t char16_t;
-#       endif
-#       ifndef _CHAR32T
-#           define _CHAR32T
-typedef uint32_t char32_t;
-#       endif
-#   elif defined(__clang__) || defined(__GNUC__)
-typedef __CHAR16_TYPE__ char16_t;
-typedef __CHAR32_TYPE__ char32_t;
-#   endif
-#endif
 
 /**
  * @brief Get the Unicode code point at a byte index in a UTF-8 string.

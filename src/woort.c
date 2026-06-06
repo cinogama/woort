@@ -94,7 +94,7 @@ void woort_init(int argc, char** argv)
         abort();
     }
 }
-void woort_shutdown(void)
+void woort_shutdown(woort_ShutdownPostCallback do_after_shutdown, void* custom_data)
 {
     if (_woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER)
         woort_ctrlc_teardown();
@@ -104,6 +104,10 @@ void woort_shutdown(void)
     woort_GC_shutdown();
     woort_GCPin_shutdown();
     _woort_builtin_shutdown();
+
+    if (do_after_shutdown != NULL)
+        do_after_shutdown(custom_data);
+
     _woort_dylib_shutdown();
     woort_CodeEnv_shutdown();
     _woort_path_shutdown();
