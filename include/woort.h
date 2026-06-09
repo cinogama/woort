@@ -564,7 +564,7 @@ WOORT_API void woort_GCPin_destroy(woort_GCPin* pin);
  */
 WOORT_API void woort_GCPin_set(woort_GCPin* pin, size_t idx, woort_StackValue val);
 
-WOORT_API void woort_GCPin_set_dup(woort_GCPin* pin, size_t idx, woort_StackValue val);
+WOORT_API void woort_GCPin_set_dup_boxed(woort_GCPin* pin, size_t idx, woort_StackValue val);
 
 /**
  * @brief Copy a value from the GC pin into a StackValue.
@@ -588,7 +588,7 @@ WOORT_API void woort_GCPin_get(woort_StackValue dst, woort_GCPin* pin, size_t id
  */
 WOORT_API void woort_GCPin_set_internal(woort_GCPin* pin, size_t idx, const woort_Value* val);
 
-WOORT_API void woort_GCPin_set_dup_internal(woort_GCPin* pin, size_t idx, const woort_Value* val);
+WOORT_API void woort_GCPin_set_dup_boxed_internal(woort_GCPin* pin, size_t idx, const woort_Value* val);
 
 /**
  * @brief Copy a value from the GC pin into a woort_Value, with write barrier.
