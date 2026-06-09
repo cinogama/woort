@@ -752,6 +752,53 @@ WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b)
     return false;
 }
 
+WOORT_NODISCARD woort_DynBox _woort_DynBox_make_dup_boxed(woort_DynBox v_m_s_to_dup)
+{
+    woort_Value _unboxed;
+    woort_DynBox result;
+    switch (woort_DynBox_unbox_no_check_and_get_type(v_m_s_to_dup, &_unboxed))
+    {
+    case WOORT_BOX_VALUE_TYPE_VEC:
+    {
+        woort_GCVec* const dst = woort_GCVec_new();
+        const woort_GCVec* const src = _unboxed.m_vec;
+
+        woort_GCVec_copy(dst, src);
+
+        result.m_boxed = _woort_gcunit_to_boxed(dst);
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_MAP:
+    {
+        woort_GCMap* const dst = woort_GCMap_new();
+        const woort_GCMap* const src = _unboxed.m_map;
+
+        woort_GCMap_copy(dst, src);
+
+        result.m_boxed = _woort_gcunit_to_boxed(dst);
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_STRUCT:
+    {
+        const woort_GCStruct* const src = _unboxed.m_struct;
+        woort_GCStruct* const dst = woort_GCStruct_new(src->m_size);
+
+        for (size_t i = 0; i < src->m_size; i++)
+        {
+            woort_GC_init_write_barrier_value(
+                &dst->m_datas[i], src->m_datas[i]);
+        }
+
+        result.m_boxed = _woort_gcunit_to_boxed(dst);
+        break;
+    }
+    default:
+        result.m_boxed = v_m_s_to_dup.m_boxed;
+        break;
+    }
+    return result;
+}
+
 ////////////////////////////////////////////////////////////////////////
 /* 类型特化的比较函数：避免装箱分配 */
 ////////////////////////////////////////////////////////////////////////

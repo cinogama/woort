@@ -299,47 +299,7 @@ static woort_api woort_builtin_host_path(void)
 
 static woort_api woort_builtin_make_dup(void)
 {
-    woort_Value _unboxed;
-    const woort_DynBox box = woort_internal_value(0)->m_dynamic;
-
-    switch (woort_DynBox_unbox_no_check_and_get_type(box, &_unboxed))
-    {
-    case WOORT_BOX_VALUE_TYPE_VEC:
-    {
-        woort_set_vec(WOORT_RETURN_SLOT);
-        woort_GCVec* const dst = woort_internal_value(WOORT_RETURN_SLOT)->m_vec;
-        const woort_GCVec* const src = _unboxed.m_vec;
-
-        woort_GCVec_copy(dst, src);
-        break;
-    }
-    case WOORT_BOX_VALUE_TYPE_MAP:
-    {
-        woort_set_map(WOORT_RETURN_SLOT);
-        woort_GCMap* const dst = woort_internal_value(WOORT_RETURN_SLOT)->m_map;
-        const woort_GCMap* const src = _unboxed.m_map;
-
-        woort_GCMap_copy(dst, src);
-        break;
-    }
-    case WOORT_BOX_VALUE_TYPE_STRUCT:
-    {
-        const woort_GCStruct* const src = _unboxed.m_struct;
-
-        woort_set_struct(WOORT_RETURN_SLOT, src->m_size);
-        woort_GCStruct* const dst = woort_internal_value(WOORT_RETURN_SLOT)->m_struct;
-
-        for (size_t i = 0; i < src->m_size; i++)
-        {
-            woort_GC_init_write_barrier_value(
-                &dst->m_datas[i], src->m_datas[i]);
-        }
-        break;
-    }
-    default:
-        return woort_ret_value(0);
-    }
-
+    woort_set_dup_boxed(WOORT_RETURN_SLOT, 0);
     return woort_ret();
 }
 

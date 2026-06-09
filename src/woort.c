@@ -405,47 +405,8 @@ void woort_set_dup_boxed(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    woort_Value _unboxed;
-    const woort_DynBox box = _WOORT_API_STACK(boxed_src).m_dynamic;
-
-    switch (woort_DynBox_unbox_no_check_and_get_type(box, &_unboxed))
-    {
-    case WOORT_BOX_VALUE_TYPE_VEC:
-    {
-        woort_set_vec(boxed_dst);
-        woort_GCVec* const dst = _WOORT_API_STACK(boxed_dst).m_vec;
-        const woort_GCVec* const src = _unboxed.m_vec;
-
-        woort_GCVec_copy(dst, src);
-        break;
-    }
-    case WOORT_BOX_VALUE_TYPE_MAP:
-    {
-        woort_set_map(boxed_dst);
-        woort_GCMap* const dst = _WOORT_API_STACK(boxed_dst).m_map;
-        const woort_GCMap* const src = _unboxed.m_map;
-
-        woort_GCMap_copy(dst, src);
-        break;
-    }
-    case WOORT_BOX_VALUE_TYPE_STRUCT:
-    {
-        const woort_GCStruct* const src = _unboxed.m_struct;
-
-        woort_set_struct(boxed_dst, src->m_size);
-        woort_GCStruct* const dst = _WOORT_API_STACK(boxed_dst).m_struct;
-
-        for (size_t i = 0; i < src->m_size; i++)
-        {
-            woort_GC_init_write_barrier_value(
-                &dst->m_datas[i], src->m_datas[i]);
-        }
-        break;
-    }
-    default:
-        _WOORT_API_STACK(boxed_dst) = _WOORT_API_STACK(boxed_src);
-        break;
-    }
+    _WOORT_API_STACK(boxed_dst).m_dynamic = 
+        _woort_DynBox_make_dup_boxed(_WOORT_API_STACK(boxed_src).m_dynamic);
 }
 
 void woort_set_nil(
@@ -2553,4 +2514,12 @@ void woort_GCPin_get(woort_StackValue dst, woort_GCPin* pin, size_t idx)
     assert(vm != NULL);
 
     _WOORT_API_STACK(dst) = pin->m_datas[idx];
+}
+
+void woort_GCPin_set_dup_boxed(woort_GCPin* pin, size_t idx, woort_StackValue val)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCPin_set_dup_boxed_internal(pin, idx, &_WOORT_API_STACK(val));
 }

@@ -5,6 +5,9 @@
 #include "woort_gc_units.h"
 #include "woort_gc.h"
 #include "woort_vm.h"
+#include "woort_gc_vec.h"
+#include "woort_gc_map.h"
+#include "woort_gc_struct.h"
 
 #include <assert.h>
 
@@ -153,4 +156,17 @@ void woort_GCPin_get_internal_without_barrier(woort_Value* dst, woort_GCPin* pin
     assert(dst != NULL);
 
     *dst = pin->m_datas[idx];
+}
+void woort_GCPin_set_dup_boxed_internal(
+    woort_GCPin* pin, size_t idx, const woort_Value* val)
+{
+    assert(_woort_GC_Debug_current_thread_in_scope());
+    assert(pin != NULL);
+    assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
+    assert(idx < pin->m_size);
+    assert(val != NULL);
+
+    woort_GC_mixed_write_barrier_dynbox(
+        &pin->m_datas[idx].m_dynamic,
+        _woort_DynBox_make_dup_boxed(val->m_dynamic));
 }

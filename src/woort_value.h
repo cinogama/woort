@@ -136,6 +136,8 @@ woort_DynBox_unbox_no_check_and_get_type(
 WOORT_NODISCARD size_t woort_DynBox_hash(woort_DynBox val);
 WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b);
 
+WOORT_NODISCARD woort_DynBox _woort_DynBox_make_dup_boxed(woort_DynBox v_m_s_to_dup);
+
 ////////////////////////////////////////////////////////////////////////
 // 内部函数：用于类型特化操作，避免装箱分配
 ////////////////////////////////////////////////////////////////////////

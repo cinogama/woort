@@ -537,6 +537,10 @@ typedef struct woort_GCPin woort_GCPin;
 
 /**
  * @brief Create a new GC pin capable of holding a fixed number of values.
+ *
+ * Must be called within a GC scope. When no VM is running, call
+ * woort_GC_sync_marking_lock() first.
+ *
  * @param count  Number of value slots in the pin. Must be >= 0.
  * @return Pointer to the created GC pin. Never NULL.
  */
@@ -544,6 +548,9 @@ WOORT_NODISCARD WOORT_API woort_GCPin* woort_GCPin_create(size_t count);
 
 /**
  * @brief Destroy a GC pin and release it from the GC root set.
+ *
+ * Must be called within a GC scope. When no VM is running, call
+ * woort_GC_sync_marking_lock() first.
  *
  * Once destroyed, value references held by the pin may be collected
  * unless they are otherwise reachable.
@@ -555,8 +562,8 @@ WOORT_API void woort_GCPin_destroy(woort_GCPin* pin);
 /**
  * @brief Set a value in the GC pin from a StackValue, with write barrier.
  *
- * Requires an active VM on the current thread. The value is copied
- * into the pin and becomes GC-reachable.
+ * Requires an active VM on the current thread (which provides the GC
+ * scope). The value is copied into the pin and becomes GC-reachable.
  *
  * @param pin  The GC pin. Must not be NULL.
  * @param idx  Index within the pin. Must be < count from create.
@@ -564,12 +571,10 @@ WOORT_API void woort_GCPin_destroy(woort_GCPin* pin);
  */
 WOORT_API void woort_GCPin_set(woort_GCPin* pin, size_t idx, woort_StackValue val);
 
-WOORT_API void woort_GCPin_set_dup_boxed(woort_GCPin* pin, size_t idx, woort_StackValue val);
-
 /**
  * @brief Copy a value from the GC pin into a StackValue.
  *
- * Requires an active VM on the current thread.
+ * Requires an active VM on the current thread (which provides the GC scope).
  *
  * @param dst  Destination StackValue to write into.
  * @param pin  The GC pin. Must not be NULL.
@@ -578,9 +583,24 @@ WOORT_API void woort_GCPin_set_dup_boxed(woort_GCPin* pin, size_t idx, woort_Sta
 WOORT_API void woort_GCPin_get(woort_StackValue dst, woort_GCPin* pin, size_t idx);
 
 /**
+ * @brief Set a value in the GC pin, creating a deep duplicate of boxed values.
+ *
+ * Unlike woort_GCPin_set, which stores a reference, this creates an
+ * independent copy of boxed values (vec/map/struct). Requires an active
+ * VM on the current thread (which provides the GC scope).
+ *
+ * @param pin  The GC pin. Must not be NULL.
+ * @param idx  Index within the pin. Must be < count from create.
+ * @param val  The StackValue whose boxed content (if any) to deep-copy.
+ */
+WOORT_API void woort_GCPin_set_dup_boxed(woort_GCPin* pin, size_t idx, woort_StackValue val);
+
+/**
  * @brief Set a value in the GC pin from a raw woort_Value, with write barrier.
  *
- * Unlike woort_GCPin_set, this does not require an active VM.
+ * Unlike woort_GCPin_set, this does not require an active VM, but it
+ * still requires a GC scope. When no VM is running, call
+ * woort_GC_sync_marking_lock() first.
  *
  * @param pin  The GC pin. Must not be NULL.
  * @param idx  Index within the pin. Must be < count from create.
@@ -588,12 +608,13 @@ WOORT_API void woort_GCPin_get(woort_StackValue dst, woort_GCPin* pin, size_t id
  */
 WOORT_API void woort_GCPin_set_internal(woort_GCPin* pin, size_t idx, const woort_Value* val);
 
-WOORT_API void woort_GCPin_set_dup_boxed_internal(woort_GCPin* pin, size_t idx, const woort_Value* val);
-
 /**
  * @brief Copy a value from the GC pin into a woort_Value, with write barrier.
  *
  * Safe for writing into GC-observable locations (e.g., struct fields).
+ *
+ * Must be called within a GC scope. When no VM is running, call
+ * woort_GC_sync_marking_lock() first.
  *
  * @param dst  Destination woort_Value to write into. Must not be NULL.
  * @param pin  The GC pin. Must not be NULL.
@@ -608,12 +629,29 @@ WOORT_API void woort_GCPin_get_internal(woort_Value* dst, woort_GCPin* pin, size
  * non-GC-observable location. Use woort_GCPin_get_internal()
  * for GC-observable destinations.
  *
+ * Must be called within a GC scope. When no VM is running, call
+ * woort_GC_sync_marking_lock() first.
+ *
  * @param dst  Destination woort_Value to write into. Must not be NULL.
  * @param pin  The GC pin. Must not be NULL.
  * @param idx  Index within the pin. Must be < count from create.
  */
 WOORT_API void woort_GCPin_get_internal_without_barrier(
     woort_Value* dst, woort_GCPin* pin, size_t idx);
+
+/**
+ * @brief Same as woort_GCPin_set_dup_boxed, but takes a raw woort_Value pointer.
+ *
+ * Does not require an active VM, but still requires a GC scope. When no
+ * VM is running, call woort_GC_sync_marking_lock() first. Creates a deep
+ * duplicate of boxed values (vec/map/struct) so the pin owns an independent copy.
+ *
+ * @param pin  The GC pin. Must not be NULL.
+ * @param idx  Index within the pin. Must be < count from create.
+ * @param val  Pointer to the woort_Value whose boxed content to deep-copy. Must not be NULL.
+ */
+WOORT_API void woort_GCPin_set_dup_boxed_internal(
+    woort_GCPin* pin, size_t idx, const woort_Value* val);
 
 /**
  * @brief Acquire a GC marking lock with side-effect checkpoint sync.
