@@ -1136,8 +1136,7 @@ _label_continue_execution:
                     new_sb[2].m_ret_addr = /* Update rt_ip to return place. */ ++rt_ip;
 
                     // No need to WOORT_VM_SYNC_STATE_WITHOUT_ENV(), we will do it manually.
-                    rt_sp = new_sp;
-                    rt_sb = new_sb;
+                    vm->m_sp = vm->m_sb = new_sp;
                     vm->m_ip = (const woort_Bytecode*)target->m_native_function;
 
                     const uint32_t stack_version_before_native_call =
@@ -1282,6 +1281,9 @@ _label_continue_execution:
         {
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = rt_sp[0];
             rt_sp += WOORT_BYTECODE(MA10, c);
+
+            if (rt_sp > rt_sb)
+                WOORT_VM_THROW(stack_overflow);
 
             assert(rt_sp <= rt_sb);
 
