@@ -6,10 +6,14 @@ option(WOORT_BUILD_FOR_ASAN_TEST    "Build woort for code asan test" OFF)
 
 add_library(woort_options INTERFACE)
 target_compile_features(woort_options INTERFACE c_std_11)
+target_include_directories(woort_options INTERFACE "include")
 
-if (NOT BUILD_SHARED_LIBS)
+if (BUILD_SHARED_LIBS)
     target_compile_definitions(woort_options 
-        INTERFACE -DWOORT_STATIC_LIB=1)
+        INTERFACE -DWOORT_SHARED_LIB)
+else()
+    target_compile_definitions(woort_options 
+        INTERFACE -DWOORT_STATIC_LIB)
 endif()
 
 if (MSVC)
@@ -20,7 +24,7 @@ if (MSVC)
             "$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,"
             "$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
     endif()
-    target_compile_options(woort_options INTERFACE "/source-charset:utf-8")
+    target_compile_options(woort_options INTERFACE "/utf-8")
     target_compile_definitions(woort_options INTERFACE _CRT_SECURE_NO_WARNINGS)
 endif()
 

@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 3, 2)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 4, 0)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -540,7 +540,7 @@ typedef struct woort_GCPin woort_GCPin;
  * @param count  Number of value slots in the pin. Must be >= 0.
  * @return Pointer to the created GC pin. Never NULL.
  */
-WOORT_NODISCARD WOORT_API woort_GCPin* woort_GC_Pin_create(size_t count);
+WOORT_NODISCARD WOORT_API woort_GCPin* woort_GCPin_create(size_t count);
 
 /**
  * @brief Destroy a GC pin and release it from the GC root set.
@@ -550,7 +550,7 @@ WOORT_NODISCARD WOORT_API woort_GCPin* woort_GC_Pin_create(size_t count);
  *
  * @param pin  The GC pin to destroy. Must not be NULL.
  */
-WOORT_API void woort_GC_Pin_destroy(woort_GCPin* pin);
+WOORT_API void woort_GCPin_destroy(woort_GCPin* pin);
 
 /**
  * @brief Set a value in the GC pin from a StackValue, with write barrier.
@@ -562,18 +562,7 @@ WOORT_API void woort_GC_Pin_destroy(woort_GCPin* pin);
  * @param idx  Index within the pin. Must be < count from create.
  * @param val  The StackValue to store.
  */
-WOORT_API void woort_GC_Pin_set_value(woort_GCPin* pin, size_t idx, woort_StackValue val);
-
-/**
- * @brief Set a value in the GC pin from a raw woort_Value, with write barrier.
- *
- * Unlike woort_GC_Pin_set_value, this does not require an active VM.
- *
- * @param pin  The GC pin. Must not be NULL.
- * @param idx  Index within the pin. Must be < count from create.
- * @param val  Pointer to the woort_Value to copy from. Must not be NULL.
- */
-WOORT_API void woort_GC_Pin_set_internal_value(woort_GCPin* pin, size_t idx, const woort_Value* val);
+WOORT_API void woort_GCPin_set(woort_GCPin* pin, size_t idx, woort_StackValue val);
 
 /**
  * @brief Copy a value from the GC pin into a StackValue.
@@ -584,7 +573,18 @@ WOORT_API void woort_GC_Pin_set_internal_value(woort_GCPin* pin, size_t idx, con
  * @param pin  The GC pin. Must not be NULL.
  * @param idx  Index within the pin. Must be < count from create.
  */
-WOORT_API void woort_GC_Pin_get_value(woort_StackValue dst, woort_GCPin* pin, size_t idx);
+WOORT_API void woort_GCPin_get(woort_StackValue dst, woort_GCPin* pin, size_t idx);
+
+/**
+ * @brief Set a value in the GC pin from a raw woort_Value, with write barrier.
+ *
+ * Unlike woort_GCPin_set, this does not require an active VM.
+ *
+ * @param pin  The GC pin. Must not be NULL.
+ * @param idx  Index within the pin. Must be < count from create.
+ * @param val  Pointer to the woort_Value to copy from. Must not be NULL.
+ */
+WOORT_API void woort_GCPin_set_internal(woort_GCPin* pin, size_t idx, const woort_Value* val);
 
 /**
  * @brief Copy a value from the GC pin into a woort_Value, with write barrier.
@@ -595,20 +595,42 @@ WOORT_API void woort_GC_Pin_get_value(woort_StackValue dst, woort_GCPin* pin, si
  * @param pin  The GC pin. Must not be NULL.
  * @param idx  Index within the pin. Must be < count from create.
  */
-WOORT_API void woort_GC_Pin_get_internal_value(woort_Value* dst, woort_GCPin* pin, size_t idx);
+WOORT_API void woort_GCPin_get_internal(woort_Value* dst, woort_GCPin* pin, size_t idx);
 
 /**
  * @brief Copy a value from the GC pin into a woort_Value, without write barrier.
  *
  * Only safe when dst points to a stack-local variable or other
- * non-GC-observable location. Use woort_GC_Pin_get_internal_value()
+ * non-GC-observable location. Use woort_GCPin_get_internal()
  * for GC-observable destinations.
  *
  * @param dst  Destination woort_Value to write into. Must not be NULL.
  * @param pin  The GC pin. Must not be NULL.
  * @param idx  Index within the pin. Must be < count from create.
  */
-WOORT_API void woort_GC_Pin_get_internal_value_without_barrier(woort_Value* dst, woort_GCPin* pin, size_t idx);
+WOORT_API void woort_GCPin_get_internal_without_barrier(
+    woort_Value* dst, woort_GCPin* pin, size_t idx);
+
+/**
+ * @brief Acquire a GC marking lock with side-effect checkpoint sync.
+ *
+ * Call this in rare scenarios where the current thread has no running VM
+ * (thus no GC checkpoint sync guarantee) but must safely transfer/copy
+ * internal values such as woort_Value. GC access must occur between this
+ * call and woort_GC_sync_marking_unlock().
+ *
+ * @return true if lock acquired (caller must call woort_GC_sync_marking_unlock),
+ *         false if the thread already has a running VM (no extra lock needed,
+ *         do NOT call woort_GC_sync_marking_unlock).
+ */
+WOORT_NODISCARD WOORT_API bool woort_GC_sync_marking_lock(void);
+
+/**
+ * @brief Release the GC marking lock acquired by woort_GC_sync_marking_lock().
+ *
+ * Must only be called when woort_GC_sync_marking_lock() returned true.
+ */
+WOORT_API void woort_GC_sync_marking_unlock(void);
 
 /**
  * @brief Swap the current thread-local VM instance with a new one.

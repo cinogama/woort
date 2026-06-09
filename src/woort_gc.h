@@ -24,6 +24,10 @@ void woort_GC_unregister_root_vm(
 
 typedef bool (*woort_GC_ForeachRootVMCallback)(woort_VMRuntime* vm, void* user_data);
 
+#ifndef NDEBUG
+WOORT_NODISCARD bool _woort_GC_Debug_current_thread_in_scope(void);
+#endif
+
 void woort_GC_foreach_root_vm(
     woort_GC_ForeachRootVMCallback callback,
     void* user_data);

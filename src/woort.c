@@ -357,7 +357,8 @@ SB+3 恰好是首个参数位置。-1，-2 实际上不使用（这两个位置�
 SB+2，储存函数的返回状态）。当前栈帧自 -3 开始，向负数方向延申到栈顶
 方向。
 */
-#define _WOORT_API_STACK(N) vm->m_sb[3 + N]
+#define _WOORT_API_VM_STACK(VM, N) ((VM)->m_sb[3 + (N)])
+#define _WOORT_API_STACK(N) _WOORT_API_VM_STACK(vm, N)
 
 /* Write */
 
@@ -982,7 +983,7 @@ WOORT_NODISCARD woort_Value* woort_internal_value(woort_StackValue src)
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    return &vm->m_sb[3 + src];
+    return &_WOORT_API_STACK(src);
 }
 
 void woort_import_value(
@@ -996,7 +997,7 @@ void woort_import_value(
 
     woort_GC_mixed_write_barrier_value(
         &_WOORT_API_STACK(dst),
-        src_vm->m_sb[3 + src_in_vm]);
+        _WOORT_API_VM_STACK(src_vm, src_in_vm));
 }
 
 WOORT_NODISCARD bool _woort_pre_invoke(woort_VMRuntime* vm, const woort_GCClosure* target)
@@ -2529,4 +2530,27 @@ WOORT_NODISCARD woort_VmCallStatus woort_ret_yield(void)
         WOORT_VMRUNTIME_CHECK_REQUEST_YIELD);
 
     return WOORT_VM_CALL_STATUS_RESYNC;
+}
+
+void woort_GCPin_set(woort_GCPin* pin, size_t idx, woort_StackValue val)
+{
+    assert(pin != NULL);
+    assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
+    assert(idx < pin->m_size);
+
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GC_mixed_write_barrier_value(&pin->m_datas[idx], _WOORT_API_STACK(val));
+}
+void woort_GCPin_get(woort_StackValue dst, woort_GCPin* pin, size_t idx)
+{
+    assert(pin != NULL);
+    assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
+    assert(idx < pin->m_size);
+
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    _WOORT_API_STACK(dst) = pin->m_datas[idx];
 }

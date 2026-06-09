@@ -18,6 +18,7 @@
 
 typedef struct woort_GCContext
 {
+    woort_RWSpinlock m_gc_stage_switch_lock;
     woort_RWSpinlock m_root_vms_to_mark_mx;
     woort_Spinlock m_not_been_marked_weak_vm_mx;
 
@@ -180,8 +181,16 @@ static bool _woort_GC_walk_through_to_sync_vm_mark(
     return true;
 }
 
+static void _woort_GC_stage_switch_sync()
+{
+    woort_rwspinlock_write_lock(&s_gc_context.m_gc_stage_switch_lock);
+    woort_rwspinlock_write_unlock(&s_gc_context.m_gc_stage_switch_lock);
+}
+
 static void _woort_GC_start_callback(void)
 {
+    _woort_GC_stage_switch_sync();
+
     woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
@@ -269,6 +278,8 @@ static void _woort_GC_stop_mark_callback(void)
             NULL);
     }
     woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+
+    _woort_GC_stage_switch_sync();
 }
 
 WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
@@ -287,6 +298,7 @@ WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
         return false;
     }
 
+    woort_rwspinlock_init(&s_gc_context.m_gc_stage_switch_lock);
     woort_rwspinlock_init(&s_gc_context.m_root_vms_to_mark_mx);
     woort_spinlock_init(&s_gc_context.m_not_been_marked_weak_vm_mx);
     woort_hashmap_init(
@@ -469,6 +481,7 @@ void woort_GC_shutdown(void)
 
     woomem_shutdown();
 
+    woort_rwspinlock_deinit(&s_gc_context.m_gc_stage_switch_lock);
     woort_rwspinlock_deinit(&s_gc_context.m_root_vms_to_mark_mx);
     woort_spinlock_deinit(&s_gc_context.m_not_been_marked_weak_vm_mx);
     woort_hashmap_deinit(&s_gc_context.m_root_vms_to_mark);
@@ -602,7 +615,7 @@ void woort_GC_internal_value_delete_barrier(
     woort_GC_delete_barrier_value(*dst);
 }
 
-void* woort_GC_allocate(size_t sz, int attribute)
+WOORT_NODISCARD void* woort_GC_allocate(size_t sz, int attribute)
 {
     void* const p = woort_GCUnit_alloc_delay_init(sz);
 
@@ -614,7 +627,7 @@ void* woort_GC_allocate(size_t sz, int attribute)
     return p;
 }
 
-void* woort_GC_allocate_as_root(size_t sz, int attribute)
+WOORT_NODISCARD void* woort_GC_allocate_as_root(size_t sz, int attribute)
 {
     void* const p = woort_GCUnit_alloc_delay_init(sz);
 
@@ -646,3 +659,27 @@ void woort_GC_addr_delete_barrier(const void* p)
     woort_GC_delete_barrier_gcaddr((void*)p);
 }
 
+#ifndef NDEBUG
+static WOORT_THREAD_LOCAL bool WOORT_t_in_sync_marking = false;
+
+WOORT_NODISCARD bool _woort_GC_Debug_current_thread_in_scope(void)
+{
+    return (WOORT_t_this_thread_vm != NULL || WOORT_t_in_sync_marking);
+}
+#endif
+
+WOORT_NODISCARD bool woort_GC_sync_marking_lock(void)
+{
+    if (WOORT_t_this_thread_vm == NULL)
+    {
+        woort_rwspinlock_read_lock(&s_gc_context.m_gc_stage_switch_lock);
+        return true;
+    }
+    return false;
+}
+
+void woort_GC_sync_marking_unlock(void)
+{
+    assert(WOORT_t_this_thread_vm == NULL);
+    woort_rwspinlock_read_unlock(&s_gc_context.m_gc_stage_switch_lock);
+}

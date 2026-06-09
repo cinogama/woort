@@ -8,7 +8,7 @@
 
 #include <assert.h>
 
-static void _woort_GC_Pin_mark_callback(woort_GCUnit* p)
+static void _woort_GCPin_mark_callback(woort_GCUnit* p)
 {
     woort_GCPin* const pin = (woort_GCPin*)p;
 
@@ -21,7 +21,7 @@ static void _woort_GC_Pin_mark_callback(woort_GCUnit* p)
 
 const woort_GCUnitProxy WOORT_GCPIN_UNIT_PROXY = {
     .m_destructor = NULL,
-    .m_marker = &_woort_GC_Pin_mark_callback,
+    .m_marker = &_woort_GCPin_mark_callback,
 };
 
 static woort_Spinlock _woort_gcpin_chain_mx;
@@ -38,8 +38,10 @@ void woort_GCPin_shutdown(void)
     woort_spinlock_deinit(&_woort_gcpin_chain_mx);
 }
 
-WOORT_NODISCARD woort_GCPin* woort_GC_Pin_create(size_t count)
+WOORT_NODISCARD woort_GCPin* woort_GCPin_create(size_t count)
 {
+    assert(_woort_GC_Debug_current_thread_in_scope());
+
     woort_GCPin* const p = woort_GCUnit_alloc_delay_init(
         sizeof(woort_GCPin) + count * sizeof(woort_Value));
 
@@ -80,9 +82,10 @@ WOORT_NODISCARD woort_GCPin* woort_GC_Pin_create(size_t count)
 
     return p;
 }
-
-void woort_GC_Pin_destroy(woort_GCPin* pin)
+void woort_GCPin_destroy(woort_GCPin* pin)
 {
+    assert(_woort_GC_Debug_current_thread_in_scope());
+
     assert(pin != NULL);
     assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
     assert(_woort_gcpin_chain_head != NULL);
@@ -121,21 +124,9 @@ void woort_GC_Pin_destroy(woort_GCPin* pin)
     }
     woort_spinlock_unlock(&_woort_gcpin_chain_mx);
 }
-
-void woort_GC_Pin_set_value(woort_GCPin* pin, size_t idx, woort_StackValue val)
+void woort_GCPin_set_internal(woort_GCPin* pin, size_t idx, const woort_Value* val)
 {
-    assert(pin != NULL);
-    assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
-    assert(idx < pin->m_size);
-
-    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
-    assert(vm != NULL);
-
-    woort_GC_mixed_write_barrier_value(&pin->m_datas[idx], *woort_internal_value(val));
-}
-
-void woort_GC_Pin_set_internal_value(woort_GCPin* pin, size_t idx, const woort_Value* val)
-{
+    assert(_woort_GC_Debug_current_thread_in_scope());
     assert(pin != NULL);
     assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
     assert(idx < pin->m_size);
@@ -143,21 +134,9 @@ void woort_GC_Pin_set_internal_value(woort_GCPin* pin, size_t idx, const woort_V
 
     woort_GC_mixed_write_barrier_value(&pin->m_datas[idx], *val);
 }
-
-void woort_GC_Pin_get_value(woort_StackValue dst, woort_GCPin* pin, size_t idx)
+void woort_GCPin_get_internal(woort_Value* dst, woort_GCPin* pin, size_t idx)
 {
-    assert(pin != NULL);
-    assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
-    assert(idx < pin->m_size);
-
-    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
-    assert(vm != NULL);
-
-    *woort_internal_value(dst) = pin->m_datas[idx];
-}
-
-void woort_GC_Pin_get_internal_value(woort_Value* dst, woort_GCPin* pin, size_t idx)
-{
+    assert(_woort_GC_Debug_current_thread_in_scope());
     assert(pin != NULL);
     assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
     assert(idx < pin->m_size);
@@ -165,9 +144,9 @@ void woort_GC_Pin_get_internal_value(woort_Value* dst, woort_GCPin* pin, size_t 
 
     woort_GC_mixed_write_barrier_value(dst, pin->m_datas[idx]);
 }
-
-void woort_GC_Pin_get_internal_value_without_barrier(woort_Value* dst, woort_GCPin* pin, size_t idx)
+void woort_GCPin_get_internal_without_barrier(woort_Value* dst, woort_GCPin* pin, size_t idx)
 {
+    assert(_woort_GC_Debug_current_thread_in_scope());
     assert(pin != NULL);
     assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
     assert(idx < pin->m_size);
