@@ -687,21 +687,7 @@ WOORT_NODISCARD static bool _woort_deserialize_number(
 
     const int64_t i64_val = strtoll(start, &end, 0);
 
-    bool is_real = false;
-    {
-        const char* s = start;
-        while (s < end)
-        {
-            if (*s == '.' || *s == 'e' || *s == 'E')
-            {
-                is_real = true;
-                break;
-            }
-            ++s;
-        }
-    }
-
-    if (is_real)
+    if (*end == '.' || *end == 'e' || *end == 'E')
     {
         const double d = strtod(start, &end);
         *p = end;
