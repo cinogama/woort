@@ -27,6 +27,15 @@ typedef struct woort_GCContext
 } woort_GCContext;
 
 static woort_GCContext s_gc_context;
+static WOORT_THREAD_LOCAL bool WOORT_t_in_gc_external_marking_sync_guard = false;
+
+#ifndef NDEBUG
+
+WOORT_NODISCARD bool _woort_GC_Debug_current_thread_in_scope(void)
+{
+    return (WOORT_t_this_thread_vm != NULL || WOORT_t_in_gc_external_marking_sync_guard);
+}
+#endif
 
 static void _woort_GC_marker_callback(void* unit)
 {
@@ -282,6 +291,12 @@ static void _woort_GC_stop_mark_callback(void)
     _woort_GC_stage_switch_sync();
 }
 
+static void _woort_GC_thread_entry(void)
+{
+    assert(!WOORT_t_in_gc_external_marking_sync_guard);
+    WOORT_t_in_gc_external_marking_sync_guard = true;
+}
+
 WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
 {
     if (!woort_mutex_create(&_woort_gc_allocate_failed_log_mx))
@@ -292,7 +307,9 @@ WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
         &_woort_GC_start_callback,
         &_woort_GC_stop_mark_callback,
         &_woort_GC_marker_callback,
-        &_woort_GC_destroier_callback))
+        &_woort_GC_destroier_callback,
+        &_woort_GC_thread_entry,
+        &_woort_GC_thread_entry))
     {
         woort_mutex_destroy(_woort_gc_allocate_failed_log_mx);
         return false;
@@ -659,25 +676,13 @@ void woort_GC_addr_delete_barrier(const void* p)
     woort_GC_delete_barrier_gcaddr((void*)p);
 }
 
-#ifndef NDEBUG
-static WOORT_THREAD_LOCAL bool WOORT_t_in_sync_marking = false;
-
-WOORT_NODISCARD bool _woort_GC_Debug_current_thread_in_scope(void)
-{
-    return (WOORT_t_this_thread_vm != NULL || WOORT_t_in_sync_marking);
-}
-#endif
-
 WOORT_NODISCARD bool woort_GC_sync_marking_lock(void)
 {
-    if (WOORT_t_this_thread_vm == NULL)
+    if (WOORT_t_this_thread_vm == NULL && !WOORT_t_in_gc_external_marking_sync_guard)
     {
         woort_rwspinlock_read_lock(&s_gc_context.m_gc_stage_switch_lock);
 
-#ifndef NDEBUG
-        WOORT_t_in_sync_marking = true;
-#endif
-
+        WOORT_t_in_gc_external_marking_sync_guard = true;
         return true;
     }
     return false;
@@ -685,11 +690,8 @@ WOORT_NODISCARD bool woort_GC_sync_marking_lock(void)
 
 void woort_GC_sync_marking_unlock(void)
 {
-    assert(WOORT_t_this_thread_vm == NULL && WOORT_t_in_sync_marking);
+    assert(WOORT_t_this_thread_vm == NULL && WOORT_t_in_gc_external_marking_sync_guard);
 
-#ifndef NDEBUG
-    WOORT_t_in_sync_marking = false;
-#endif
-
+    WOORT_t_in_gc_external_marking_sync_guard = false;
     woort_rwspinlock_read_unlock(&s_gc_context.m_gc_stage_switch_lock);
 }

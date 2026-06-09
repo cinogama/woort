@@ -661,6 +661,10 @@ WOORT_API void woort_GCPin_set_dup_boxed_internal(
  * internal values such as woort_Value. GC access must occur between this
  * call and woort_GC_sync_marking_unlock().
  *
+ * Once inside a temporary GC scope established by this call, the caller
+ * must not use woort_VMRuntime_swap() to switch into another VM's scope,
+ * as doing so may cause a deadlock.
+ *
  * @return true if lock acquired (caller must call woort_GC_sync_marking_unlock),
  *         false if the thread already has a running VM (no extra lock needed,
  *         do NOT call woort_GC_sync_marking_unlock).

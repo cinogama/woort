@@ -765,7 +765,7 @@ WOORT_NODISCARD woort_DynBox _woort_DynBox_make_dup_boxed(woort_DynBox v_m_s_to_
 
         woort_GCVec_copy(dst, src);
 
-        result.m_boxed = _woort_gcunit_to_boxed(dst);
+        result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)dst);
         break;
     }
     case WOORT_BOX_VALUE_TYPE_MAP:
@@ -775,7 +775,7 @@ WOORT_NODISCARD woort_DynBox _woort_DynBox_make_dup_boxed(woort_DynBox v_m_s_to_
 
         woort_GCMap_copy(dst, src);
 
-        result.m_boxed = _woort_gcunit_to_boxed(dst);
+        result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)dst);
         break;
     }
     case WOORT_BOX_VALUE_TYPE_STRUCT:
@@ -789,7 +789,7 @@ WOORT_NODISCARD woort_DynBox _woort_DynBox_make_dup_boxed(woort_DynBox v_m_s_to_
                 &dst->m_datas[i], src->m_datas[i]);
         }
 
-        result.m_boxed = _woort_gcunit_to_boxed(dst);
+        result.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)dst);
         break;
     }
     default:
