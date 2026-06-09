@@ -673,6 +673,11 @@ WOORT_NODISCARD bool woort_GC_sync_marking_lock(void)
     if (WOORT_t_this_thread_vm == NULL)
     {
         woort_rwspinlock_read_lock(&s_gc_context.m_gc_stage_switch_lock);
+
+#ifndef NDEBUG
+        WOORT_t_in_sync_marking = true;
+#endif
+
         return true;
     }
     return false;
@@ -680,6 +685,11 @@ WOORT_NODISCARD bool woort_GC_sync_marking_lock(void)
 
 void woort_GC_sync_marking_unlock(void)
 {
-    assert(WOORT_t_this_thread_vm == NULL);
+    assert(WOORT_t_this_thread_vm == NULL && WOORT_t_in_sync_marking);
+
+#ifndef NDEBUG
+    WOORT_t_in_sync_marking = false;
+#endif
+
     woort_rwspinlock_read_unlock(&s_gc_context.m_gc_stage_switch_lock);
 }
