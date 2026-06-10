@@ -90,3 +90,6 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
     const woort_Value* sb,
     woort_VMRuntime* vm,
     /* OPTIONAL */ const woort_Bytecode** out_next_ip);
+
+void _woort_WAIPO_print_value(woort_DynBox boxed, bool is_fuzzy);
+

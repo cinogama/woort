@@ -1233,7 +1233,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
  * print / p command
  * ==================================================================== */
 
-static void _woort_WAIPO_print_value(woort_DynBox boxed)
+void _woort_WAIPO_print_value(woort_DynBox boxed, bool is_fuzzy)
 {
     woort_HashMap visited_set;
     woort_hashmap_init(
@@ -1247,7 +1247,7 @@ static void _woort_WAIPO_print_value(woort_DynBox boxed)
     woort_vector_init(&buf, sizeof(char));
 
     if (_woort_serialize_dynbox_to_buf_for_debug(
-        boxed, &buf, &visited_set, 0, true))
+        boxed, &buf, &visited_set, 0, is_fuzzy))
     {
         (void)printf("%.*s", (int)buf.m_size, (const char*)buf.m_data);
     }
@@ -1353,7 +1353,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
             info->m_name,
             info->m_stack_offset);
 
-        _woort_WAIPO_print_value(frame_sb[info->m_stack_offset].m_dynamic);
+        _woort_WAIPO_print_value(frame_sb[info->m_stack_offset].m_dynamic, true);
         printf("\n");
 
         ++found_count;
@@ -1381,7 +1381,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
             info->m_name,
             global_index);
 
-        _woort_WAIPO_print_value(cenv->m_data_begin[global_index].m_dynamic);
+        _woort_WAIPO_print_value(cenv->m_data_begin[global_index].m_dynamic, true);
         printf("\n");
 
         ++found_count;

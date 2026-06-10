@@ -43,7 +43,7 @@ void _woort_WAIPO_BreakpointCollection_deinit(woort_WAIPO_BreakpointCollection* 
     woort_vector_deinit(&collection->m_user_breakpoints);
 }
 
-bool _woort_WAIPO_BreakpointCollection_break_at(
+WOORT_NODISCARD bool _woort_WAIPO_BreakpointCollection_break_at(
     woort_WAIPO_BreakpointCollection* collection, const woort_Bytecode* ip)
 {
     woort_CodeEnv* cenv;

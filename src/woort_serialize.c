@@ -322,7 +322,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     woort_Vector* buf,
     woort_HashMap* visited_set,
     int depth,
-    bool show_raw)
+    bool is_fuzzy)
 {
     woort_Value* const vp = (woort_Value*)&boxed;
 
@@ -340,7 +340,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     switch (woort_DynBox_unbox_no_check_and_get_type(boxed, &val))
     {
     case WOORT_BOX_VALUE_TYPE_INT:
-        if (show_raw)
+        if (is_fuzzy)
         {
             if (!_woort_serialize_append_vfmt(
                 buf, "[i64: %lld f64: %f] or boxed ",
@@ -351,7 +351,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
             buf, "%lld", (long long)val.m_integer);
 
     case WOORT_BOX_VALUE_TYPE_REAL:
-        if (show_raw)
+        if (is_fuzzy)
         {
             if (!_woort_serialize_append_vfmt(
                 buf, "[i64: %lld f64: %f] or boxed ",
@@ -361,7 +361,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         return _woort_serialize_append_vfmt(buf, "%.16g", val.m_real);
 
     case WOORT_BOX_VALUE_TYPE_BOOL:
-        if (show_raw)
+        if (is_fuzzy)
         {
             if (!_woort_serialize_append_vfmt(
                 buf, "[i64: %lld f64: %f] or boxed ",
@@ -372,7 +372,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
             buf, val.m_integer ? "true" : "false");
 
     case WOORT_BOX_VALUE_TYPE_NIL:
-        if (show_raw)
+        if (is_fuzzy)
         {
             if (!_woort_serialize_append_vfmt(
                 buf, "[i64: %lld f64: %f] or boxed ",
@@ -512,7 +512,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
             }
             if (!_woort_serialize_dynbox_to_buf_for_debug(
                 *(woort_DynBox*)&pStruct->m_datas[i],
-                buf, visited_set, depth + 1, show_raw))
+                buf, visited_set, depth + 1, true))
             {
                 return false;
             }

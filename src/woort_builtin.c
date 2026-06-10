@@ -12,6 +12,7 @@
 #include "woort_gc_gchandle.h"
 #include "woort_gc.h"
 #include "woort_utf8.h"
+#include "woort_waipo_debugger.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -3465,6 +3466,28 @@ static woort_api woort_builtin_debug_runtime_version(void)
     return woort_ret();
 }
 
+static woort_api woort_builtin_debug_print(void)
+{
+    const woort_Int argn = woort_int(0);
+    for (woort_Int i = 1; i <= argn; ++i)
+    {
+        if (i != 1)
+            fputc(' ', stdout);
+
+        if (woort_unbox_type((woort_StackValue)i)
+            == WOORT_BOX_VALUE_TYPE_STRING)
+        {
+            fputs(woort_string((woort_StackValue)i), stdout);
+        }
+        else
+        {
+            _woort_WAIPO_print_value(
+                woort_internal_value((woort_StackValue)i)->m_dynamic, false);
+        }
+    }
+    return woort_ret_void();
+}
+
 /* ================================================================
  * Function table for the "woolang" fake library
  * ================================================================ */
@@ -3708,6 +3731,7 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
 
     WOORT_BUILTIN_FUNC(debug_trace_callstack),
     WOORT_BUILTIN_FUNC(debug_runtime_version),
+    WOORT_BUILTIN_FUNC(debug_print),
 
     WOORT_EXTERN_LIB_FUNC_END,
 };

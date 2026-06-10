@@ -34,7 +34,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
  * 内部辅助：将 DynBox 以调试友好的格式序列化到 woort_Vector 缓冲区。
  * 与 _woort_serialize_dynbox_to_buf 不同，此函数输出人类可读的调试信息，
  * 包括 struct/closure/gchandle 的详细描述以及原始 box 值。
- * show_raw: 是否同时显示原始 i64/f64 值。
+ * is_fuzzy: 如果给定的 box 可能不是一个真正的 box 值，同时显示原始 i64/f64 值。
  * 返回 true 成功，false 失败。
  */
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
