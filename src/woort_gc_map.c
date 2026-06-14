@@ -227,6 +227,10 @@ WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key)
         const uint32_t last_prev = last_bucket->m_prev;
         const uint32_t last_next = last_bucket->m_next;
 
+        /* 在 key 被清零前计算其所属的 entry 槽位 */
+        const size_t last_entry_idx =
+            woort_DynBox_hash(last_bucket->m_key) & gcmap->m_mask;
+
         /* 通过写屏障复制 key 和 val */
         woort_GC_mixed_write_barrier_dynbox(&bucket->m_key, last_bucket->m_key);
         woort_GC_mixed_write_barrier_dynbox(&bucket->m_val, last_bucket->m_val);
@@ -238,10 +242,7 @@ WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key)
         if (last_prev != NULL_BUCKET_INDEX)
             gcmap->m_buckets[last_prev].m_next = idx;
         else
-        {
-            const size_t last_entry_idx = woort_DynBox_hash(last_bucket->m_key) & gcmap->m_mask;
             gcmap->m_entries[last_entry_idx] = idx;
-        }
 
         if (last_next != NULL_BUCKET_INDEX)
             gcmap->m_buckets[last_next].m_prev = idx;
