@@ -250,9 +250,6 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     _Static_assert(_Alignof(woort_CodeEnv) == _Alignof(woort_Value),
         "woort_CodeEnv and woort_Value must have the same align.");
 
-    /* 提前上锁，确保 code_env_instance 不会 Missing mark. */
-    woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
-
     woort_CodeEnv_Code* codes;
     woort_CodeEnv* code_env_instance;
 
@@ -343,6 +340,9 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         &code_env_instance);
 
     assert(register_result != WOORT_ORDERMAP_RESULT_ALREADY_EXIST);
+
+    /* 提前上锁，确保 code_env_instance 不会 Missing mark. */
+    woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
 
     woort_GCUnit_init_delay_alloc(M, codes);
     woort_GCUnit_init_delay_alloc(AF, code_env_instance);
