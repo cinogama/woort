@@ -15,6 +15,12 @@ add_library(woort
 target_include_directories(woort PRIVATE "../3rd/woomem/include")
 target_compile_definitions(woort PRIVATE -DWOORT_IMPL)
 
+if (WOORT_SPECIFY_PLATFORM_TYPE STREQUAL "WOORT_PLATFORM_32")
+    target_compile_definitions(woort PRIVATE -DWOORT_PLATFORM_32)
+elseif (WOORT_SPECIFY_PLATFORM_TYPE STREQUAL "WOORT_PLATFORM_64")
+    target_compile_definitions(woort PRIVATE -DWOORT_PLATFORM_64)
+endif()
+
 set_target_properties(
     woort PROPERTIES OUTPUT_NAME libwoort)
 set_target_properties(

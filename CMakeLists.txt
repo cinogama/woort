@@ -2,11 +2,25 @@
 
 project ("woort")
 
-option(WOORT_BUILD_FOR_ASAN_TEST    "Build woort for code asan test" OFF)
+option(WOORT_BUILD_FOR_ASAN_TEST "Build woort for code asan test" OFF)
+set(WOORT_SPECIFY_PLATFORM_TYPE "" CACHE STRING 
+    "Specify the platform type for unknown platform, can be '', 'WOORT_PLATFORM_32' or 'WOORT_PLATFORM_64'")
+
+####################################################################################################
 
 add_library(woort_options INTERFACE)
 target_compile_features(woort_options INTERFACE c_std_11)
 target_include_directories(woort_options INTERFACE "include")
+
+####################################################################################################
+
+if (NOT WOORT_SPECIFY_PLATFORM_TYPE STREQUAL ""
+    AND NOT WOORT_SPECIFY_PLATFORM_TYPE STREQUAL "WOORT_PLATFORM_32"
+    AND NOT WOORT_SPECIFY_PLATFORM_TYPE STREQUAL "WOORT_PLATFORM_64")
+        message(FATAL_ERROR "WOORT_SPECIFY_PLATFORM_TYPE must be '', 'WOORT_PLATFORM_32' or 'WOORT_PLATFORM_64'")
+endif()
+
+####################################################################################################
 
 if (BUILD_SHARED_LIBS)
     target_compile_definitions(woort_options 
