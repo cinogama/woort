@@ -238,6 +238,12 @@ WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key)
         last_bucket->m_key.m_boxed = 0;
         last_bucket->m_val.m_boxed = 0;
 
+        /* 继承 last_bucket 在链表中的位置：否则 bucket[idx] 会保留被删除
+           节点的旧 m_next/m_prev，导致碰撞链断裂（丢元素）甚至成环
+           （_woort_GCMap_find_bucket 死循环）。 */
+        bucket->m_prev = last_prev;
+        bucket->m_next = last_next;
+
         /* 更新最后一个 bucket 的邻居指针 */
         if (last_prev != NULL_BUCKET_INDEX)
             gcmap->m_buckets[last_prev].m_next = idx;
