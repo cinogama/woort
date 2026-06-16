@@ -56,3 +56,27 @@ struct woort_VFile
 
 void _woort_vfs_bootup(void);
 void _woort_vfs_shutdown(void);
+
+/**
+ * @brief Read the content of a virtual file.
+ *
+ * The path may be supplied with or without the "woovf://" prefix.
+ *
+ * If @p out_data is NULL, only the length is queried: @p inout_len is set to
+ * the actual content length of the file.
+ * If @p out_data is not NULL, it must point to a buffer whose capacity is given
+ * by @p inout_len on input; at most that many bytes are copied into it. After
+ * the call, @p inout_len is set to the actual content length of the file (a
+ * value larger than the capacity passed in indicates the buffer was too small
+ * and the content was truncated).
+ *
+ * @param filepath   The virtual file path.
+ * @param out_data   Receives the content (may be NULL to query length only).
+ * @param inout_len  On input the capacity of @p out_data (ignored when NULL);
+ *                   on output the actual content length. Must not be NULL.
+ * @return true if the file was found.
+ */
+WOORT_NODISCARD bool woort_vfs_read(
+    const char* filepath,
+    /* OPTIONAL */ void* out_data,
+    size_t* inout_len);

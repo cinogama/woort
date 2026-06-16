@@ -4223,22 +4223,6 @@ WOORT_NODISCARD WOORT_API bool woort_vfs_is_virtual_uri(
     /* OPTIONAL */ const char* uri);
 
 /**
- * @brief Read the content of a virtual file.
- *
- * The path may be supplied with or without the "woovf://" prefix.
- * The returned buffer is malloc'd; the caller must free it with woort_free().
- *
- * @param filepath   The virtual file path.
- * @param out_data   Receives the malloc'd content buffer (may be NULL).
- * @param out_length Receives the content length (may be NULL).
- * @return true if the file was found.
- */
-WOORT_NODISCARD WOORT_API bool woort_vfs_read(
-    const char* filepath,
-    /* OPTIONAL */ char** out_data,
-    /* OPTIONAL */ size_t* out_length);
-
-/**
  * @brief Check whether a virtual file exists.
  *
  * The path may be supplied with or without the "woovf://" prefix.

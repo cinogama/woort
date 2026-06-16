@@ -217,10 +217,11 @@ WOORT_NODISCARD bool woort_vfs_is_virtual_uri(const char* uri)
 
 WOORT_NODISCARD bool woort_vfs_read(
     const char* filepath,
-    /* OPTIONAL */ char** out_data,
-    /* OPTIONAL */ size_t* out_length)
+    /* OPTIONAL */ void* out_data,
+    size_t* inout_len)
 {
     assert(filepath != NULL);
+    assert(inout_len != NULL);
 
     const char* lookup_path = filepath;
     if (woort_vfs_is_virtual_uri(filepath))
@@ -228,33 +229,24 @@ WOORT_NODISCARD bool woort_vfs_read(
 
     woort_rwspinlock_read_lock(&g_vfs_lock);
 
-    woort_VFSEntry* entry = _woort_vfs_find_entry(lookup_path);
+    woort_VFSEntry* const entry = _woort_vfs_find_entry(lookup_path);
     if (entry == NULL)
     {
         woort_rwspinlock_read_unlock(&g_vfs_lock);
         return false;
     }
 
+    size_t content_length = entry->m_data_length;
+
     if (out_data != NULL)
     {
-        if (entry->m_data_length > 0)
-        {
-            *out_data = (char*)malloc(entry->m_data_length);
-            if (*out_data == NULL)
-            {
-                woort_rwspinlock_read_unlock(&g_vfs_lock);
-                return false;
-            }
-            memcpy(*out_data, entry->m_data, entry->m_data_length);
-        }
-        else
-        {
-            *out_data = NULL;
-        }
+        size_t capacity = *inout_len;
+        size_t copy_len = (content_length < capacity) ? content_length : capacity;
+        if (copy_len > 0)
+            memcpy(out_data, entry->m_data, copy_len);
     }
 
-    if (out_length != NULL)
-        *out_length = entry->m_data_length;
+    *inout_len = content_length;
 
     woort_rwspinlock_read_unlock(&g_vfs_lock);
     return true;
@@ -567,10 +559,27 @@ WOORT_NODISCARD bool woort_vfile_open(
 
         char* data = NULL;
         size_t length = 0;
-        if (!woort_vfs_read(filepath, &data, &length))
+        if (!woort_vfs_read(filepath, NULL, &length))
         {
             free(file);
             return false;
+        }
+
+        if (length > 0)
+        {
+            data = (char*)malloc(length);
+            if (data == NULL)
+            {
+                free(file);
+                return false;
+            }
+
+            if (!woort_vfs_read(filepath, data, &length))
+            {
+                free(data);
+                free(file);
+                return false;
+            }
         }
 
         file->m_virtual.m_data = data;
