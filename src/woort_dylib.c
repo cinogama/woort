@@ -325,11 +325,14 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
     woort_recursive_mutex_lock(g_named_libs_mx);
 
     if (_woort_dylib_registry_find(libname) != NULL)
-        goto fail_unlock;
+        goto _label_fail_unlock;
 
     dylib = (woort_Dylib*)malloc(sizeof(woort_Dylib));
     if (dylib == NULL)
-        goto fail_unlock;
+    {
+        WOORT_DEBUG("Out of memory.");
+        goto _label_fail_unlock;
+    }
 
     dylib->m_native_handle = NULL;
     dylib->m_fake_funcs = NULL;
@@ -343,12 +346,12 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
 
     dylib->m_name = (char*)malloc(strlen(libname) + 1);
     if (dylib->m_name == NULL)
-        goto fail_dep;
+        goto _label_fail_dep;
     strcpy(dylib->m_name, libname);
 
     dylib->m_path = (char*)malloc(strlen(libname) + 1);
     if (dylib->m_path == NULL)
-        goto fail_name;
+        goto _label_fail_name;
     strcpy(dylib->m_path, libname);
 
     woort_atomic_store_explicit(&dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
@@ -374,7 +377,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
         woort_ExternLibFunc* copy = (woort_ExternLibFunc*)malloc(
             (count + 1) * sizeof(woort_ExternLibFunc));
         if (copy == NULL)
-            goto fail_path;
+            goto _label_fail_path;
 
         for (size_t i = 0; i < count; ++i)
         {
@@ -385,7 +388,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
                 for (size_t j = 0; j < i; ++j)
                     free((void*)copy[j].m_name);
                 free(copy);
-                goto fail_path;
+                goto _label_fail_path;
             }
             memcpy((void*)copy[i].m_name, funcs[i].m_name, name_len + 1);
             copy[i].m_func_addr = funcs[i].m_func_addr;
@@ -408,17 +411,17 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
     woort_recursive_mutex_unlock(g_named_libs_mx);
     return dylib;
 
-fail_path:
+_label_fail_path:
     woort_hashmap_deinit(&dylib->m_resolved_funcs);
     woort_rwspinlock_deinit(&dylib->m_resolved_lock);
     free(dylib->m_path);
-fail_name:
+_label_fail_name:
     free(dylib->m_name);
-fail_dep:
+_label_fail_dep:
     if (dependence_dylib != NULL)
         woort_dylib_unload(dependence_dylib, WOORT_DYLIB_UNREF);
     free(dylib);
-fail_unlock:
+_label_fail_unlock:
     woort_recursive_mutex_unlock(g_named_libs_mx);
     return NULL;
 }
@@ -449,6 +452,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
 
     if (name_with_ext == NULL)
     {
+    _label_failed_oom:
         woort_recursive_mutex_unlock(g_named_libs_mx);
         if (panic_when_fail)
             woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
@@ -462,16 +466,18 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
         if (dir_len > 0)
         {
             char* script_dir = (char*)malloc(dir_len + 1);
-            if (script_dir != NULL)
+            if (script_dir == NULL)
             {
-                (void)woort_get_file_loc(script_path, script_dir, dir_len + 1);
-                char* try_path = _woort_dylib_build_search_path(script_dir, name_with_ext);
-                free(script_dir);
-                if (try_path != NULL)
-                {
-                    native_handle = _woort_dylib_try_open_lib(try_path);
-                    free(try_path);
-                }
+                free(name_with_ext);
+                goto _label_failed_oom;
+            }
+            (void)woort_get_file_loc(script_path, script_dir, dir_len + 1);
+            char* try_path = _woort_dylib_build_search_path(script_dir, name_with_ext);
+            free(script_dir);
+            if (try_path != NULL)
+            {
+                native_handle = _woort_dylib_try_open_lib(try_path);
+                free(try_path);
             }
         }
     }
@@ -483,16 +489,18 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
         if (wd_need > 1)
         {
             char* wd = (char*)malloc(wd_need);
-            if (wd != NULL)
+            if (wd == NULL)
             {
-                (void)woort_work_path(wd, wd_need);
-                char* try_path = _woort_dylib_build_search_path(wd, name_with_ext);
-                if (try_path != NULL)
-                {
-                    native_handle = _woort_dylib_try_open_lib(try_path);
-                    free(try_path);
-                }
-                free(wd);
+                free(name_with_ext);
+                goto _label_failed_oom;
+            }
+            (void)woort_work_path(wd, wd_need);
+            char* try_path = _woort_dylib_build_search_path(wd, name_with_ext);
+            free(wd);
+            if (try_path != NULL)
+            {
+                native_handle = _woort_dylib_try_open_lib(try_path);
+                free(try_path);
             }
         }
     }
@@ -504,16 +512,18 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
         if (ed_need > 1)
         {
             char* ed = (char*)malloc(ed_need);
-            if (ed != NULL)
+            if (ed == NULL)
             {
-                (void)woort_exe_path(ed, ed_need);
-                char* try_path = _woort_dylib_build_search_path(ed, name_with_ext);
-                if (try_path != NULL)
-                {
-                    native_handle = _woort_dylib_try_open_lib(try_path);
-                    free(try_path);
-                }
-                free(ed);
+                free(name_with_ext);
+                goto _label_failed_oom;
+            }
+            (void)woort_exe_path(ed, ed_need);
+            char* try_path = _woort_dylib_build_search_path(ed, name_with_ext);
+            free(ed);
+            if (try_path != NULL)
+            {
+                native_handle = _woort_dylib_try_open_lib(try_path);
+                free(try_path);
             }
         }
     }
@@ -539,10 +549,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
         if (dylib == NULL)
         {
             _woort_dylib_os_freelib(native_handle);
-            woort_recursive_mutex_unlock(g_named_libs_mx);
-            if (panic_when_fail)
-                woort_panic(WOORT_PANIC_USER, "Failed to load library: out of memory.");
-            return NULL;
+            goto _label_failed_oom;
         }
 
         dylib->m_native_handle = native_handle;
