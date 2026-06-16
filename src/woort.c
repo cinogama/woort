@@ -24,6 +24,7 @@
 #include "woort_utf8.h"
 #include "woort_vm_debugger_api.h"
 #include "woort_setting.h"
+#include "woort_platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -2295,7 +2296,7 @@ WOORT_NODISCARD size_t woort_str_to_wstr(const char* str, /* OPTIONAL */ wchar_t
 
 WOORT_NODISCARD size_t woort_strn_to_wstr(const char* str, size_t size, /* OPTIONAL */ wchar_t* outbuf, size_t buflen)
 {
-#if defined(_WIN32)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
     return woort_strn_to_u16str(str, size, (char16_t*)outbuf, buflen);
 #else
     return woort_strn_to_u32str(str, size, (char32_t*)outbuf, buflen);
@@ -2309,7 +2310,7 @@ WOORT_NODISCARD size_t woort_wstr_to_str(const wchar_t* str, /* OPTIONAL */ char
 
 WOORT_NODISCARD size_t woort_wstrn_to_str(const wchar_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen)
 {
-#if defined(_WIN32)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
     return woort_u16strn_to_str((const char16_t*)str, size, outbuf, buflen);
 #else
     return woort_u32strn_to_str((const char32_t*)str, size, outbuf, buflen);

@@ -12,6 +12,7 @@
 #include "woort_serialize.h"
 #include "woort_util.h"
 #include "woort_utf8.h"
+#include "woort_platform.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -166,7 +167,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_clear(
     (void)args;
     (void)arg_count;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
     { int _woort_sys_ret = system("cls"); (void)_woort_sys_ret; }
 #else
     { int _woort_sys_ret = system("clear"); (void)_woort_sys_ret; }

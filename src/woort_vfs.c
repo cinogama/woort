@@ -3,6 +3,7 @@
 #include "woort_diagnosis.h"
 #include "woort_hashmap.h"
 #include "woort_util.h"
+#include "woort_platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -520,7 +521,7 @@ WOORT_NODISCARD bool woort_vfs_resolve_path(
  Platform-specific 64-bit seek/tell wrappers so the vfile API
  can handle large files portably.
  */
-#if defined(_MSC_VER)
+#if defined(WOORT_COMPILER_MSVC)
 #   define _WOORT_VFILE_FSEEK _fseeki64
 #   define _WOORT_VFILE_FTELL _ftelli64
 #else

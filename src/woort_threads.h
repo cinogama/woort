@@ -5,6 +5,7 @@ woort_threads.h
 */
 
 #include "woort_diagnosis.h"
+#include "woort_platform.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -61,9 +62,9 @@ void woort_condition_variable_broadcast(woort_ConditionVariable* cv);
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_THREADS__)
 #   define WOORT_THREADS_USE_C11 1
-#elif defined(_WIN32) || defined(_WIN64)
+#elif defined(WOORT_PLATFORM_OS_WINDOWS)
 #   define WOORT_THREADS_USE_WIN32 1
-#elif defined(__unix__) || defined(__unix) || defined(__APPLE__) || defined(__MACH__)
+#elif defined(WOORT_PLATFORM_OS_POSIX)
 #   define WOORT_THREADS_USE_PTHREAD 1
 #else
 #   error "Unsupported platform for threading"

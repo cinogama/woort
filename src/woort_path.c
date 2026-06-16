@@ -2,19 +2,20 @@
 
 #include "woort_diagnosis.h"
 #include "woort_utf8.h"
+#include "woort_platform.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
 #   include <windows.h>
-#elif defined(__APPLE__)
+#elif defined(WOORT_PLATFORM_OS_MACOS)
 #   include <mach-o/dyld.h>
 #   include <sys/param.h>
 #   include <unistd.h>
-#elif defined(__unix__) || defined(__unix)
+#elif defined(WOORT_PLATFORM_OS_POSIX)
 #   include <unistd.h>
 #endif
 
@@ -38,7 +39,7 @@ WOORT_NODISCARD bool _woort_path_build_exe_cache(void)
     char* full_path = NULL;
     bool perm_fail = false;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
     {
         wchar_t wbuf[WOORT_MAX_EXE_PATH_LEN];
         DWORD len = GetModuleFileNameW(NULL, wbuf, WOORT_MAX_EXE_PATH_LEN);
@@ -54,7 +55,7 @@ WOORT_NODISCARD bool _woort_path_build_exe_cache(void)
             full_path = u8path;
         }
     }
-#elif defined(__APPLE__)
+#elif defined(WOORT_PLATFORM_OS_MACOS)
     {
         char buf[WOORT_MAX_EXE_PATH_LEN];
         uint32_t size = WOORT_MAX_EXE_PATH_LEN;
@@ -72,7 +73,7 @@ WOORT_NODISCARD bool _woort_path_build_exe_cache(void)
             /* else: OOM, falls through */
         }
     }
-#elif defined(__unix__) || defined(__unix)
+#elif defined(WOORT_PLATFORM_OS_POSIX)
     {
         char buf[WOORT_MAX_EXE_PATH_LEN];
         ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
@@ -136,7 +137,7 @@ WOORT_NODISCARD size_t woort_exe_path(char* buf, size_t bufsz)
 
 WOORT_NODISCARD size_t woort_work_path(char* buf, size_t bufsz)
 {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
     {
         wchar_t wbuf[WOORT_MAX_EXE_PATH_LEN];
         DWORD wlen = GetCurrentDirectoryW(WOORT_MAX_EXE_PATH_LEN, wbuf);
@@ -162,7 +163,7 @@ WOORT_NODISCARD size_t woort_work_path(char* buf, size_t bufsz)
         free(u8);
         return u8len;
     }
-#elif defined(__unix__) || defined(__unix) || defined(__APPLE__) || defined(__MACH__)
+#elif defined(WOORT_PLATFORM_OS_POSIX)
     {
         char tmp[WOORT_MAX_EXE_PATH_LEN];
         if (getcwd(tmp, sizeof(tmp)) == NULL)
@@ -190,7 +191,7 @@ WOORT_NODISCARD size_t woort_work_path(char* buf, size_t bufsz)
 
 bool woort_set_work_path(const char* path)
 {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
     {
         size_t wlen;
         char16_t* wpath = woort_u8strtou16(path, strlen(path), &wlen);
@@ -201,7 +202,7 @@ bool woort_set_work_path(const char* path)
         free(wpath);
         return ok != 0;
     }
-#elif defined(__unix__) || defined(__unix) || defined(__APPLE__) || defined(__MACH__)
+#elif defined(WOORT_PLATFORM_OS_POSIX)
     {
         return chdir(path) == 0;
     }
@@ -225,7 +226,7 @@ WOORT_NODISCARD size_t woort_get_file_loc(
        only turns '\\' into '/' on Windows, so the separator position in the raw
        path is the same as in the normalized result. */
     const char* last = strrchr(path, '/');
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
     const char* lastbs = strrchr(path, '\\');
     if (lastbs > last)
         last = lastbs;
@@ -251,7 +252,7 @@ void woort_normalize_path(char* path)
     if (path == NULL)
         return;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
     for (char* p = path; *p != '\0'; p++)
     {
         if (*p == '\\')

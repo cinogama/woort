@@ -4,13 +4,15 @@
 woort_threads.h
 */
 
+#include "woort_platform.h"
+
 #include <stddef.h>
 #include <wchar.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <limits.h>
 
-#if defined(_MSC_VER)
+#if defined(WOORT_COMPILER_MSVC)
 #   ifndef _CHAR16T
 #       define _CHAR16T
 typedef uint16_t char16_t;
@@ -19,7 +21,7 @@ typedef uint16_t char16_t;
 #       define _CHAR32T
 typedef uint32_t char32_t;
 #   endif
-#elif defined(__GNUC__) && (__STDC_VERSION__ < 202311L)
+#elif defined(WOORT_COMPILER_GCC_COMPAT) && (__STDC_VERSION__ < 202311L)
 #   ifndef _CHAR16T
 #       define _CHAR16T
 typedef __CHAR16_TYPE__ char16_t;

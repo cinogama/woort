@@ -1,5 +1,7 @@
 #include "woort.h"
 
+#include "woort_platform.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -188,7 +190,7 @@ static void test_normalize_path(void)
 
     strcpy(buf, "c:\\foo\\bar\\baz");
     woort_normalize_path(buf);
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
     TEST_ASSERT_STREQ("C:/foo/bar/baz", buf);
 #else
     /* On non-Windows, no change */

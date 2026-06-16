@@ -1025,7 +1025,7 @@ struct woort_TimeMutex
 
 static void _woort_get_abs_timeout(struct timespec* ts, uint32_t timeout_ms)
 {
-#if defined(__APPLE__)
+#if defined(WOORT_PLATFORM_OS_MACOS)
     struct timeval tv;
     gettimeofday(&tv, NULL);
     ts->tv_sec = tv.tv_sec + (timeout_ms / 1000);
@@ -1080,7 +1080,7 @@ WOORT_NODISCARD bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t t
 {
     assert(NULL != mutex);
 
-#if defined(__APPLE__)
+#if defined(WOORT_PLATFORM_OS_MACOS)
     /* macOS doesn't have pthread_mutex_timedlock, use polling */
     uint32_t elapsed = 0;
     const uint32_t sleep_interval = 1; /* 1 ms */
@@ -1217,7 +1217,7 @@ WOORT_NODISCARD bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex
 {
     assert(NULL != mutex);
 
-#if defined(__APPLE__)
+#if defined(WOORT_PLATFORM_OS_MACOS)
     /* macOS doesn't have pthread_mutex_timedlock, use polling */
     uint32_t elapsed = 0;
     const uint32_t sleep_interval = 1; /* 1 ms */

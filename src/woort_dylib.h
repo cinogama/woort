@@ -8,12 +8,13 @@ woort_dylib.h
 #include "woort_atomic.h"
 #include "woort_hashmap.h"
 #include "woort_spin.h"
+#include "woort_platform.h"
 
 #include <stdbool.h>
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
 #   include <windows.h>
-#elif defined(__unix__) || defined(__unix) || defined(__APPLE__) || defined(__MACH__)
+#elif defined(WOORT_PLATFORM_OS_POSIX)
 #   include <dlfcn.h>
 #else
 #   define WOORT_DYLIB_DISABLED 1

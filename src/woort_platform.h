@@ -20,6 +20,24 @@ woort_platform.h - Platform detection macros
 #   endif
 #endif
 
+/*
+ * POSIX umbrella: any non-Windows, unix-like system
+ * (Linux/Android/macOS/iOS/generic Unix). Used for features that are common
+ * across these platforms, such as dlopen, pthread and fseeko.
+ */
+#if !defined(WOORT_PLATFORM_OS_WINDOWS) && \
+    (defined(WOORT_PLATFORM_OS_LINUX)  || defined(WOORT_PLATFORM_OS_ANDROID) || \
+     defined(WOORT_PLATFORM_OS_MACOS)  || defined(WOORT_PLATFORM_OS_IOS)     || \
+     defined(__unix__) || defined(__unix) || defined(__MACH__))
+#   define WOORT_PLATFORM_OS_POSIX 1
+#endif
+
+#if !defined(WOORT_PLATFORM_OS_WINDOWS) && !defined(WOORT_PLATFORM_OS_LINUX)  && \
+    !defined(WOORT_PLATFORM_OS_ANDROID) && !defined(WOORT_PLATFORM_OS_MACOS)  && \
+    !defined(WOORT_PLATFORM_OS_IOS)     && !defined(WOORT_PLATFORM_OS_POSIX)
+#   error "Unknown operating system, please extend woort_platform.h."
+#endif
+
 /* Architecture detection */
 #if defined(_M_IX86) || defined(__i386__)
 #   ifndef WOORT_PLATFORM_32
@@ -47,4 +65,26 @@ woort_platform.h - Platform detection macros
 #   elif !defined(WOORT_PLATFORM_32) && !defined(WOORT_PLATFORM_64)
 #       error "Unknown platform, you must specify platform manually."
 #   endif
+#endif
+
+/* Compiler detection */
+#if defined(_MSC_VER)
+#   define WOORT_COMPILER_MSVC 1
+#endif
+#if defined(__clang__)
+#   define WOORT_COMPILER_CLANG 1
+#endif
+/*
+ * Note: clang also defines __GNUC__, so the GCC check must exclude clang
+ * to avoid mis-classifying clang builds as GCC.
+ */
+#if defined(__GNUC__) && !defined(__clang__)
+#   define WOORT_COMPILER_GCC 1
+#endif
+/*
+ * GCC-compatible family: corresponds to the common
+ * "defined(__clang__) || defined(__GNUC__)" idiom used across the codebase.
+ */
+#if defined(WOORT_COMPILER_CLANG) || defined(WOORT_COMPILER_GCC)
+#   define WOORT_COMPILER_GCC_COMPAT 1
 #endif

@@ -4,14 +4,15 @@
 #include "woort_log.h"
 #include "woort_utf8.h"
 #include "woort_diagnosis.h"
+#include "woort_platform.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
 #   include <windows.h>
-#elif defined(__unix__) || defined(__unix) || defined(__APPLE__) || defined(__MACH__)
+#elif defined(WOORT_PLATFORM_OS_POSIX)
 #   include <stdio.h>
 #endif
 
@@ -19,9 +20,9 @@
  * Locale name per platform
  * ================================================================ */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
 #   define WOORT_DEFAULT_LOCALE_NAME ".UTF-8"
-#elif defined(__APPLE__)
+#elif defined(WOORT_PLATFORM_OS_MACOS)
 #   define WOORT_DEFAULT_LOCALE_NAME "en_US.UTF-8"
 #else
 #   define WOORT_DEFAULT_LOCALE_NAME "C.UTF-8"
@@ -31,7 +32,7 @@
  * Windows console readline constants
  * ================================================================ */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
 #   ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #       define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
 #   endif
@@ -52,7 +53,7 @@ const char* woort_env_locale_name(void)
 void _woort_env_bootup(void)
 {
     /* Enable ANSI/VT terminal processing on Windows console */
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
     {
         HANDLE console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
         if (console_handle != INVALID_HANDLE_VALUE)
@@ -84,7 +85,7 @@ void _woort_env_shutdown(void)
  * woort_console_readline / woort_console_freeline (public)
  * ================================================================ */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
 
 WOORT_NODISCARD /* OPTIONAL */ char* woort_console_readline(void)
 {

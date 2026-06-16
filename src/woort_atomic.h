@@ -4,6 +4,8 @@
 woort_atomic.h
 */
 
+#include "woort_platform.h"
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -45,14 +47,14 @@ typedef enum woort_atomic_MemoryOrder
  * Platform detection and intrinsics
  * ============================================================================ */
 
-#if defined(_MSC_VER)
+#if defined(WOORT_COMPILER_MSVC)
     /* Microsoft Visual C++ */
 #   include <intrin.h>
-#   if defined(_M_IX86) || defined(_M_X64)
+#   if defined(WOORT_PLATFORM_X86) || defined(WOORT_PLATFORM_X64)
 #       pragma intrinsic(_mm_mfence)
 #   endif
 #   define WOORT_ATOMIC_MSVC 1
-#elif defined(__GNUC__) || defined(__clang__)
+#elif defined(WOORT_COMPILER_GCC_COMPAT)
     /* GCC or Clang */
 #   define WOORT_ATOMIC_GCC 1
 #else
@@ -180,7 +182,7 @@ static inline void woort_atomic_store_uint32(woort_AtomicUInt32* obj, uint32_t v
     _InterlockedExchange((volatile long*)obj, (long)value);
 }
 
-#if defined(_M_X64) || defined(_M_ARM64)
+#if defined(WOORT_PLATFORM_64)
 static inline void woort_atomic_store_int64(woort_AtomicInt64* obj, int64_t value)
 {
     _InterlockedExchange64((volatile __int64*)obj, (__int64)value);
@@ -319,7 +321,7 @@ static inline uint32_t woort_atomic_exchange_uint32(woort_AtomicUInt32* obj, uin
     return (uint32_t)_InterlockedExchange((volatile long*)obj, (long)value);
 }
 
-#if defined(_M_X64) || defined(_M_ARM64)
+#if defined(WOORT_PLATFORM_64)
 static inline int64_t woort_atomic_exchange_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedExchange64((volatile __int64*)obj, (__int64)value);
@@ -457,7 +459,7 @@ static inline uint32_t woort_atomic_load_uint32(woort_AtomicUInt32* obj)
     return (uint32_t)_InterlockedOr((volatile long*)obj, 0);
 }
 
-#if defined(_M_X64) || defined(_M_ARM64)
+#if defined(WOORT_PLATFORM_64)
 static inline int64_t woort_atomic_load_int64(woort_AtomicInt64* obj)
 {
     return (int64_t)_InterlockedOr64((volatile __int64*)obj, 0);
@@ -587,7 +589,7 @@ static inline uint32_t woort_atomic_fetch_add_uint32(woort_AtomicUInt32* obj, ui
     return (uint32_t)_InterlockedExchangeAdd((volatile long*)obj, (long)value);
 }
 
-#if defined(_M_X64) || defined(_M_ARM64)
+#if defined(WOORT_PLATFORM_64)
 static inline int64_t woort_atomic_fetch_add_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedExchangeAdd64((volatile __int64*)obj, (__int64)value);
@@ -714,7 +716,7 @@ static inline uint32_t woort_atomic_fetch_sub_uint32(woort_AtomicUInt32* obj, ui
     return (uint32_t)_InterlockedExchangeAdd((volatile long*)obj, -(long)value);
 }
 
-#if defined(_M_X64) || defined(_M_ARM64)
+#if defined(WOORT_PLATFORM_64)
 static inline int64_t woort_atomic_fetch_sub_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedExchangeAdd64((volatile __int64*)obj, -(__int64)value);
@@ -841,7 +843,7 @@ static inline uint32_t woort_atomic_fetch_or_uint32(woort_AtomicUInt32* obj, uin
     return (uint32_t)_InterlockedOr((volatile long*)obj, (long)value);
 }
 
-#if defined(_M_X64) || defined(_M_ARM64)
+#if defined(WOORT_PLATFORM_64)
 static inline int64_t woort_atomic_fetch_or_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedOr64((volatile __int64*)obj, (__int64)value);
@@ -968,7 +970,7 @@ static inline uint32_t woort_atomic_fetch_xor_uint32(woort_AtomicUInt32* obj, ui
     return (uint32_t)_InterlockedXor((volatile long*)obj, (long)value);
 }
 
-#if defined(_M_X64) || defined(_M_ARM64)
+#if defined(WOORT_PLATFORM_64)
 static inline int64_t woort_atomic_fetch_xor_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedXor64((volatile __int64*)obj, (__int64)value);
@@ -1095,7 +1097,7 @@ static inline uint32_t woort_atomic_fetch_and_uint32(woort_AtomicUInt32* obj, ui
     return (uint32_t)_InterlockedAnd((volatile long*)obj, (long)value);
 }
 
-#if defined(_M_X64) || defined(_M_ARM64)
+#if defined(WOORT_PLATFORM_64)
 static inline int64_t woort_atomic_fetch_and_int64(woort_AtomicInt64* obj, int64_t value)
 {
     return (int64_t)_InterlockedAnd64((volatile __int64*)obj, (__int64)value);
@@ -1460,9 +1462,9 @@ static inline void woort_atomic_thread_fence(woort_atomic_MemoryOrder order)
 {
 #if defined(WOORT_ATOMIC_MSVC)
     (void)order;
-#   if defined(_M_IX86) || defined(_M_X64)
+#   if defined(WOORT_PLATFORM_X86) || defined(WOORT_PLATFORM_X64)
     _mm_mfence();
-#   elif defined(_M_ARM) || defined(_M_ARM64)
+#   elif defined(WOORT_PLATFORM_ARM) || defined(WOORT_PLATFORM_ARM64)
     __dmb(_ARM_BARRIER_ISH);
 #   endif
 #elif defined(WOORT_ATOMIC_GCC)
