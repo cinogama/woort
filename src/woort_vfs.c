@@ -73,6 +73,33 @@ static /* OPTIONAL */ woort_VFSEntry* _woort_vfs_find_entry(
     return NULL;
 }
 
+ /*
+ Free the storage owned by an entry (filepath, data, and the entry itself).
+ The entry must already have been removed from the registry and have a
+ reference count of zero.
+ */
+static void _woort_vfs_entry_free(woort_VFSEntry* entry)
+{
+    assert(entry != NULL);
+    free(entry->m_filepath);
+    free(entry->m_data);
+    free(entry);
+}
+
+ /*
+ Drop one reference to an entry.  If the reference count falls to zero the
+ entry is freed immediately.  Safe to call with or without @p g_vfs_lock held:
+ when the count reaches zero no other thread can hold a reference, so the
+ entry is unreachable and freeing without the lock is safe.
+ */
+static void _woort_vfs_entry_unref(woort_VFSEntry* entry)
+{
+    assert(entry != NULL);
+    uint64_t old = woort_atomic_fetch_sub(&entry->m_refcount, 1);
+    if (old == 1)
+        _woort_vfs_entry_free(entry);
+}
+
 /* ================================================================
  *  Public API
  * ================================================================ */
@@ -96,29 +123,13 @@ WOORT_NODISCARD bool woort_vfs_create(
             return false;
         }
 
-        /* Update existing entry */
-        existing->m_enable_modify = enable_modify;
-        free(existing->m_data);
-
-        if (length > 0)
-        {
-            existing->m_data = (char*)malloc(length);
-            if (existing->m_data == NULL)
-            {
-                existing->m_data_length = 0;
-                woort_rwspinlock_write_unlock(&g_vfs_lock);
-                return false;
-            }
-            memcpy(existing->m_data, data, length);
-        }
-        else
-        {
-            existing->m_data = NULL;
-        }
-        existing->m_data_length = length;
-
-        woort_rwspinlock_write_unlock(&g_vfs_lock);
-        return true;
+        /*
+        Remove the old entry from the registry and drop the registry
+        reference.  The entry survives if open handles still hold refs,
+        so existing readers keep their data snapshot.
+        */
+        (void)woort_hashmap_remove(&g_vfs_entries, &filepath);
+        _woort_vfs_entry_unref(existing);
     }
 
     /* Create new entry */
@@ -151,21 +162,16 @@ WOORT_NODISCARD bool woort_vfs_create(
         if (data != NULL)
             memcpy(entry->m_data, data, length);
     }
-    else
-    {
-        entry->m_data = NULL;
-    }
 
     entry->m_data_length = length;
     entry->m_enable_modify = enable_modify;
+    woort_atomic_init(&entry->m_refcount, 1);   /* registry reference */
 
     woort_hashmap_Result result = woort_hashmap_insert(
         &g_vfs_entries, &entry->m_filepath, &entry);
     if (result != WOORT_HASHMAP_RESULT_OK)
     {
-        free(entry->m_data);
-        free(entry->m_filepath);
-        free(entry);
+        _woort_vfs_entry_free(entry);
         woort_rwspinlock_write_unlock(&g_vfs_lock);
         return false;
     }
@@ -199,9 +205,7 @@ WOORT_NODISCARD bool woort_vfs_remove(const char* filepath)
         return false;
     }
 
-    free(entry->m_filepath);
-    free(entry->m_data);
-    free(entry);
+    _woort_vfs_entry_unref(entry);   /* drop registry reference */
 
     woort_rwspinlock_write_unlock(&g_vfs_lock);
     return true;
@@ -215,13 +219,12 @@ WOORT_NODISCARD bool woort_vfs_is_virtual_uri(const char* uri)
     return strncmp(uri, WOORT_VFS_SCHEME, WOORT_VFS_SCHEME_LEN) == 0;
 }
 
-WOORT_NODISCARD bool woort_vfs_read(
+WOORT_NODISCARD bool woort_vfs_open(
     const char* filepath,
-    /* OPTIONAL */ void* out_data,
-    size_t* inout_len)
+    woort_VFSEntry** out_vfsentry)
 {
     assert(filepath != NULL);
-    assert(inout_len != NULL);
+    assert(out_vfsentry != NULL);
 
     const char* lookup_path = filepath;
     if (woort_vfs_is_virtual_uri(filepath))
@@ -236,20 +239,22 @@ WOORT_NODISCARD bool woort_vfs_read(
         return false;
     }
 
-    size_t content_length = entry->m_data_length;
-
-    if (out_data != NULL)
-    {
-        size_t capacity = *inout_len;
-        size_t copy_len = (content_length < capacity) ? content_length : capacity;
-        if (copy_len > 0)
-            memcpy(out_data, entry->m_data, copy_len);
-    }
-
-    *inout_len = content_length;
+    /*
+    Increment the reference count while holding the read lock so that
+    a concurrent woort_vfs_remove / woort_vfs_create cannot free the
+    entry between the lookup and the increment.
+    */
+    woort_atomic_fetch_add(&entry->m_refcount, 1);
+    *out_vfsentry = entry;
 
     woort_rwspinlock_read_unlock(&g_vfs_lock);
     return true;
+}
+
+void woort_vfs_close(woort_VFSEntry* entry)
+{
+    assert(entry != NULL);
+    _woort_vfs_entry_unref(entry);
 }
 
 WOORT_NODISCARD bool woort_vfs_exists(const char* filepath)
@@ -557,30 +562,28 @@ WOORT_NODISCARD bool woort_vfile_open(
     {
         file->m_type = WOORT_VFILE_TYPE_VIRTUAL;
 
-        char* data = NULL;
-        size_t length = 0;
-        if (!woort_vfs_read(filepath, NULL, &length))
+        woort_VFSEntry* entry = NULL;
+        if (!woort_vfs_open(filepath, &entry))
         {
             free(file);
             return false;
         }
 
+        size_t length = entry->m_data_length;
+        char* data = NULL;
         if (length > 0)
         {
             data = (char*)malloc(length);
             if (data == NULL)
             {
+                woort_vfs_close(entry);
                 free(file);
                 return false;
             }
-
-            if (!woort_vfs_read(filepath, data, &length))
-            {
-                free(data);
-                free(file);
-                return false;
-            }
+            memcpy(data, entry->m_data, length);
         }
+
+        woort_vfs_close(entry);
 
         file->m_virtual.m_data = data;
         file->m_virtual.m_size = length;

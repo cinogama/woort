@@ -9,6 +9,7 @@ shutdown hooks are called by woort.c.
 */
 
 #include "woort.h"
+#include "woort_atomic.h"
 #include "woort_spin.h"
 
 #include <stdio.h>
@@ -20,10 +21,11 @@ shutdown hooks are called by woort.c.
 
 typedef struct woort_VFSEntry
 {
-    /* OPTIONAL */ char*    m_filepath;      /* owned copy of the key     */
-    bool                    m_enable_modify; /* can be overwritten        */
-    size_t                  m_data_length;   /* length of m_data          */
-    /* OPTIONAL */ char*    m_data;          /* owned copy of file content */
+    /* OPTIONAL */ char*        m_filepath;       /* owned copy of the key      */
+    bool                        m_enable_modify;  /* can be overwritten         */
+    size_t                      m_data_length;    /* length of m_data           */
+    /* OPTIONAL */ char*        m_data;           /* owned copy of file content */
+    woort_AtomicUInt64          m_refcount;       /* reference count            */
 } woort_VFSEntry;
 
 typedef enum woort_VFileType
@@ -58,25 +60,27 @@ void _woort_vfs_bootup(void);
 void _woort_vfs_shutdown(void);
 
 /**
- * @brief Read the content of a virtual file.
+ * @brief Look up a virtual file entry by path and acquire a reference.
  *
  * The path may be supplied with or without the "woovf://" prefix.
+ * On success @p out_vfsentry receives a pointer to the entry whose lifetime
+ * is extended until woort_vfs_close() is called.  The caller must not free
+ * the entry directly.
  *
- * If @p out_data is NULL, only the length is queried: @p inout_len is set to
- * the actual content length of the file.
- * If @p out_data is not NULL, it must point to a buffer whose capacity is given
- * by @p inout_len on input; at most that many bytes are copied into it. After
- * the call, @p inout_len is set to the actual content length of the file (a
- * value larger than the capacity passed in indicates the buffer was too small
- * and the content was truncated).
- *
- * @param filepath   The virtual file path.
- * @param out_data   Receives the content (may be NULL to query length only).
- * @param inout_len  On input the capacity of @p out_data (ignored when NULL);
- *                   on output the actual content length. Must not be NULL.
+ * @param filepath     The virtual file path.
+ * @param out_vfsentry Receives the entry pointer.
  * @return true if the file was found.
  */
-WOORT_NODISCARD bool woort_vfs_read(
+WOORT_NODISCARD bool woort_vfs_open(
     const char* filepath,
-    /* OPTIONAL */ void* out_data,
-    size_t* inout_len);
+    woort_VFSEntry** out_vfsentry);
+
+/**
+ * @brief Release a reference acquired with woort_vfs_open().
+ *
+ * When the last reference is released (and the entry has been removed from
+ * the registry), the entry is freed.
+ *
+ * @param entry  The entry pointer returned by woort_vfs_open().
+ */
+void woort_vfs_close(woort_VFSEntry* entry);
