@@ -63,7 +63,7 @@ void woort_hashmap_deinit(woort_HashMap* map)
     {
         for (size_t bucket_id = 0; bucket_id < map->m_bucket_count; ++bucket_id)
         {
-            // Free entries in each bucket.
+            /* Free entries in each bucket. */
             for (woort_HashMapEntry* free_entry = map->m_buckets[bucket_id];
                 free_entry != NULL;)
             {
@@ -87,7 +87,7 @@ woort_HashMapEntry* _woort_hashmap_get_free_entry_and_reset_prev(woort_HashMap* 
     }
     else
     {
-        // No free entry in list, malloc a new one.
+        /* No free entry in list, malloc a new one. */
         const size_t aligned_key_size =
             (map->m_key_size + WOORT_HASHMAP_KEY_VALUE_MAX_ALIGN_MASK)
             & ~WOORT_HASHMAP_KEY_VALUE_MAX_ALIGN_MASK;
@@ -140,23 +140,23 @@ WOORT_NODISCARD bool _woort_hashmap_rehash_to_externed(woort_HashMap* map)
         const size_t new_hash_mask = new_bucket_count - 1;
         for (size_t bucket_id = 0; bucket_id < map->m_bucket_count; ++bucket_id)
         {
-            // Rehash entries in each bucket.
-            for (woort_HashMapEntry* enrty = map->m_buckets[bucket_id];
-                enrty != NULL;)
+            /* Rehash entries in each bucket. */
+            for (woort_HashMapEntry* entry = map->m_buckets[bucket_id];
+                entry != NULL;)
             {
-                woort_HashMapEntry* const current_enrty = enrty;
-                enrty = enrty->m_next;
+                woort_HashMapEntry* const current_entry = entry;
+                entry = entry->m_next;
 
-                const size_t bucket_id =
-                    map->m_hash_fn(current_enrty->m_kv_storage) & new_hash_mask;
+                const size_t new_bucket_id =
+                    map->m_hash_fn(current_entry->m_kv_storage) & new_hash_mask;
 
-                current_enrty->m_prev = NULL;
-                current_enrty->m_next = new_bucket_list[bucket_id];
+                current_entry->m_prev = NULL;
+                current_entry->m_next = new_bucket_list[new_bucket_id];
 
-                if (current_enrty->m_next != NULL)
-                    current_enrty->m_next->m_prev = current_enrty;
+                if (current_entry->m_next != NULL)
+                    current_entry->m_next->m_prev = current_entry;
 
-                new_bucket_list[bucket_id] = current_enrty;
+                new_bucket_list[new_bucket_id] = current_entry;
             }
         }
         free(map->m_buckets);
@@ -183,7 +183,7 @@ WOORT_NODISCARD woort_hashmap_Result woort_hashmap_insert(
         woort_hashmap_get_or_emplace(map, key, &storage);
 
     if (r == WOORT_HASHMAP_RESULT_OK && map->m_value_size != 0)
-        // New kvpair inserted, copy value into storage.
+        /* New kvpair inserted, copy value into storage. */
         memcpy(storage, value, map->m_value_size);
 
     return r;
@@ -201,14 +201,14 @@ WOORT_NODISCARD bool woort_hashmap_find(
     const size_t bucket_id =
         map->m_hash_fn(key) & hash_mask;
 
-    // Find if exist?
+    /* Find if exist? */
     for (woort_HashMapEntry* entry = map->m_buckets[bucket_id];
         entry != NULL;
         entry = entry->m_next)
     {
         if (map->m_equal_fn(entry->m_kv_storage, key))
         {
-            // Exist!
+            /* Exist! */
             *out_value_addr = entry->m_value;
             return true;
         }
@@ -282,16 +282,16 @@ WOORT_NODISCARD bool woort_hashmap_remove(
     const size_t bucket_id =
         map->m_hash_fn(key) & hash_mask;
 
-    // Find if exist?
+    /* Find if exist? */
     for (woort_HashMapEntry* entry = map->m_buckets[bucket_id];
         entry != NULL;
         entry = entry->m_next)
     {
         if (map->m_equal_fn(entry->m_kv_storage, key))
         {
-            // Exist!
+            /* Exist! */
             if (entry->m_prev == NULL)
-                // First node in bucket.
+                /* First node in bucket. */
                 map->m_buckets[bucket_id] = entry->m_next;
             else
                 entry->m_prev->m_next = entry->m_next;
@@ -333,13 +333,13 @@ WOORT_NODISCARD bool woort_hashmap_foreach(
 {
     for (size_t bucket_id = 0; bucket_id < map->m_bucket_count; ++bucket_id)
     {
-        // Drop all entries in each bucket.
-        for (woort_HashMapEntry* enrty = map->m_buckets[bucket_id];
-            enrty != NULL;
-            enrty = enrty->m_next)
+        /* Iterate entries in each bucket. */
+        for (woort_HashMapEntry* entry = map->m_buckets[bucket_id];
+            entry != NULL;
+            entry = entry->m_next)
         {
-            if (!callback(enrty->m_kv_storage, enrty->m_value, user_data))
-                // Break.
+            if (!callback(entry->m_kv_storage, entry->m_value, user_data))
+                /* Break. */
                 return false;
         }
     }

@@ -220,42 +220,8 @@ static void _woort_ordermap_insert_fixup(
     map->m_root->m_color = WOORT_ORDERMAP_BLACK;
 }
 
-/* BST 方式插入新节点（不修复红黑树） */
-static void _woort_ordermap_bst_insert(
-    woort_OrderMap* map, woort_OrderMapNode* new_node)
-{
-    woort_OrderMapNode* y = map->m_nil;
-    woort_OrderMapNode* x = map->m_root;
-
-    while (x != map->m_nil)
-    {
-        y = x;
-        if (map->m_compare_fn(
-                _woort_ordermap_node_key(new_node),
-                _woort_ordermap_node_key(x)) < 0)
-            x = x->m_left;
-        else
-            x = x->m_right;
-    }
-
-    new_node->m_parent = y;
-
-    if (y == map->m_nil)
-        map->m_root = new_node;
-    else if (map->m_compare_fn(
-                 _woort_ordermap_node_key(new_node),
-                 _woort_ordermap_node_key(y)) < 0)
-        y->m_left = new_node;
-    else
-        y->m_right = new_node;
-
-    new_node->m_left = map->m_nil;
-    new_node->m_right = map->m_nil;
-    new_node->m_color = WOORT_ORDERMAP_RED;
-}
-
 /* 查找键对应的节点。找到返回节点指针，否则返回 NULL。 */
-/* OPTIONAL */
+WOORT_NODISCARD /* OPTIONAL */
 static woort_OrderMapNode* _woort_ordermap_find_node(
     woort_OrderMap* map, const void* key)
 {
@@ -276,7 +242,7 @@ static woort_OrderMapNode* _woort_ordermap_find_node(
 }
 
 /* 查找第一个键 >= key 的节点。没找到返回 NULL。 */
-/* OPTIONAL */
+WOORT_NODISCARD /* OPTIONAL */
 static woort_OrderMapNode* _woort_ordermap_lower_bound_node(
     woort_OrderMap* map, const void* key)
 {
@@ -299,7 +265,7 @@ static woort_OrderMapNode* _woort_ordermap_lower_bound_node(
 }
 
 /* 查找第一个键 > key 的节点。没找到返回 NULL。 */
-/* OPTIONAL */
+WOORT_NODISCARD /* OPTIONAL */
 static woort_OrderMapNode* _woort_ordermap_upper_bound_node(
     woort_OrderMap* map, const void* key)
 {
@@ -322,7 +288,7 @@ static woort_OrderMapNode* _woort_ordermap_upper_bound_node(
 }
 
 /* 查找最后一个键 <= key 的节点。没找到返回 NULL。 */
-/* OPTIONAL */
+WOORT_NODISCARD /* OPTIONAL */
 static woort_OrderMapNode* _woort_ordermap_find_le_node(
     woort_OrderMap* map, const void* key)
 {
@@ -347,6 +313,7 @@ static woort_OrderMapNode* _woort_ordermap_find_le_node(
 }
 
 /* 获取子树中的最小节点 */
+WOORT_NODISCARD
 static woort_OrderMapNode* _woort_ordermap_subtree_min(
     woort_OrderMap* map, woort_OrderMapNode* x)
 {
@@ -504,32 +471,38 @@ static bool _woort_ordermap_inorder_foreach(
     return true;
 }
 
-/* 预先对字符串或自定义类型应用比较函数 */
-/* OPTIONAL */
+/* 预先对字符串或自定义类型应用比较函数。
+   找到已存在节点时返回该节点（此时 *out_last_cmp 为 0）；
+   未找到时返回 NULL，*out_parent 为待插入位置的父节点，
+   *out_last_cmp 为最后一次与 *out_parent 比较的结果（< 0 挂左，> 0 挂右）。 */
+WOORT_NODISCARD /* OPTIONAL */
 static inline woort_OrderMapNode* _woort_ordermap_find_insert_pos(
     woort_OrderMap* map,
     const void* key,
-    woort_OrderMapNode** out_parent)
+    woort_OrderMapNode** out_parent,
+    int* out_last_cmp)
 {
     woort_OrderMapNode* y = map->m_nil;
     woort_OrderMapNode* x = map->m_root;
+    int last_cmp = 0;
 
     while (x != map->m_nil)
     {
         y = x;
-        const int cmp = map->m_compare_fn(key, _woort_ordermap_node_key(x));
-        if (cmp == 0)
+        last_cmp = map->m_compare_fn(key, _woort_ordermap_node_key(x));
+        if (last_cmp == 0)
         {
             *out_parent = x;
             return x; /* 找到了，已存在 */
         }
-        else if (cmp < 0)
+        else if (last_cmp < 0)
             x = x->m_left;
         else
             x = x->m_right;
     }
 
     *out_parent = y;
+    *out_last_cmp = last_cmp;
     return NULL;
 }
 
@@ -623,7 +596,8 @@ WOORT_NODISCARD woort_ordermap_Result woort_ordermap_get_or_emplace(
     void** out_value_addr)
 {
     woort_OrderMapNode* parent;
-    woort_OrderMapNode* existing = _woort_ordermap_find_insert_pos(map, key, &parent);
+    int last_cmp;
+    woort_OrderMapNode* existing = _woort_ordermap_find_insert_pos(map, key, &parent, &last_cmp);
 
     if (existing != NULL)
     {
@@ -648,7 +622,7 @@ WOORT_NODISCARD woort_ordermap_Result woort_ordermap_get_or_emplace(
     /* 连接到树中 */
     if (parent == map->m_nil)
         map->m_root = new_node;
-    else if (map->m_compare_fn(key, _woort_ordermap_node_key(parent)) < 0)
+    else if (last_cmp < 0)
         parent->m_left = new_node;
     else
         parent->m_right = new_node;
@@ -665,6 +639,8 @@ WOORT_NODISCARD woort_ordermap_Result woort_ordermap_insert(
     const void* key,
     /* OPTIONAL if value size is 0 */ const void* value)
 {
+    assert(value != NULL || map->m_value_size == 0);
+
     void* storage;
     const woort_ordermap_Result r =
         woort_ordermap_get_or_emplace(map, key, &storage);
