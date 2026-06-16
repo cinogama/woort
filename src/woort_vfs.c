@@ -569,24 +569,7 @@ WOORT_NODISCARD bool woort_vfile_open(
             return false;
         }
 
-        size_t length = entry->m_data_length;
-        char* data = NULL;
-        if (length > 0)
-        {
-            data = (char*)malloc(length);
-            if (data == NULL)
-            {
-                woort_vfs_close(entry);
-                free(file);
-                return false;
-            }
-            memcpy(data, entry->m_data, length);
-        }
-
-        woort_vfs_close(entry);
-
-        file->m_virtual.m_data = data;
-        file->m_virtual.m_size = length;
+        file->m_virtual.m_entry = entry;
         file->m_virtual.m_pos = 0;
     }
     else
@@ -614,11 +597,11 @@ WOORT_NODISCARD size_t woort_vfile_read(
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
     {
-        size_t available = file->m_virtual.m_size - file->m_virtual.m_pos;
+        size_t available = file->m_virtual.m_entry->m_data_length - file->m_virtual.m_pos;
         size_t to_read = (size < available) ? size : available;
 
         if (buffer != NULL && to_read > 0)
-            memcpy(buffer, file->m_virtual.m_data + file->m_virtual.m_pos, to_read);
+            memcpy(buffer, file->m_virtual.m_entry->m_data + file->m_virtual.m_pos, to_read);
 
         file->m_virtual.m_pos += to_read;
         total_read = to_read;
@@ -664,7 +647,7 @@ WOORT_NODISCARD bool woort_vfile_seek(
             new_pos = (int64_t)file->m_virtual.m_pos + offset;
             break;
         case SEEK_END:
-            new_pos = (int64_t)file->m_virtual.m_size + offset;
+            new_pos = (int64_t)file->m_virtual.m_entry->m_data_length + offset;
             break;
         default:
             return false;
@@ -673,8 +656,8 @@ WOORT_NODISCARD bool woort_vfile_seek(
         if (new_pos < 0)
             return false;
 
-        file->m_virtual.m_pos = (new_pos > (int64_t)file->m_virtual.m_size)
-            ? file->m_virtual.m_size
+        file->m_virtual.m_pos = (new_pos > (int64_t)file->m_virtual.m_entry->m_data_length)
+            ? file->m_virtual.m_entry->m_data_length
             : (size_t)new_pos;
 
         return true;
@@ -730,7 +713,7 @@ WOORT_NODISCARD int64_t woort_vfile_size(woort_VFile* file)
     assert(file != NULL);
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
-        return (int64_t)file->m_virtual.m_size;
+        return (int64_t)file->m_virtual.m_entry->m_data_length;
 
     if (file->m_type == WOORT_VFILE_TYPE_READER)
         return (int64_t)file->m_reader.m_size;
@@ -757,7 +740,7 @@ void woort_vfile_close(woort_VFile* file)
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
     {
-        free(file->m_virtual.m_data);
+        woort_vfs_close(file->m_virtual.m_entry);
     }
     else if (file->m_type == WOORT_VFILE_TYPE_REAL)
     {

@@ -40,18 +40,17 @@ struct woort_VFile
     woort_VFileType m_type;
     union
     {
-        /* OPTIONAL */ FILE* m_real_file;
+        FILE* m_real_file;
         struct
         {
-            /* OPTIONAL */ char* m_data;      /* owned copy of VFS data */
-            size_t      m_size;               /* total size in bytes     */
-            size_t      m_pos;                /* current read position   */
+            woort_VFSEntry* m_entry;        /* borrowed VFS entry, released on close */
+            size_t      m_pos;              /* current read position                 */
         } m_virtual;
         struct
         {
-            /* OPTIONAL */ const void* m_data; /* external buffer, not owned */
-            size_t                  m_size;   /* total size in bytes         */
-            size_t                  m_pos;    /* current read position       */
+            const void* m_data;             /* external buffer, not owned */
+            size_t                  m_size; /* total size in bytes         */
+            size_t                  m_pos;  /* current read position       */
         } m_reader;
     };
 };
