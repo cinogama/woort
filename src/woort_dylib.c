@@ -458,18 +458,20 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     /* 1) Try from script_path */
     if (script_path != NULL)
     {
-        char* script_dir = woort_get_file_loc(script_path);
-        if (script_dir != NULL)
+        size_t dir_len = woort_get_file_loc(script_path, NULL, 0);
+        if (dir_len > 0)
         {
-            char* try_path = script_dir[0] != '\0'
-                ? _woort_dylib_build_search_path(script_dir, name_with_ext)
-                : NULL;
-            free(script_dir);
-
-            if (try_path != NULL)
+            char* script_dir = (char*)malloc(dir_len + 1);
+            if (script_dir != NULL)
             {
-                native_handle = _woort_dylib_try_open_lib(try_path);
-                free(try_path);
+                woort_get_file_loc(script_path, script_dir, dir_len + 1);
+                char* try_path = _woort_dylib_build_search_path(script_dir, name_with_ext);
+                free(script_dir);
+                if (try_path != NULL)
+                {
+                    native_handle = _woort_dylib_try_open_lib(try_path);
+                    free(try_path);
+                }
             }
         }
     }
@@ -477,32 +479,42 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
     /* 2) Try from work_path */
     if (native_handle == NULL)
     {
-        char* wd = woort_work_path();
-        if (wd != NULL)
+        size_t wd_need = woort_work_path(NULL, 0) + 1;
+        if (wd_need > 1)
         {
-            char* try_path = _woort_dylib_build_search_path(wd, name_with_ext);
-            if (try_path != NULL)
+            char* wd = (char*)malloc(wd_need);
+            if (wd != NULL)
             {
-                native_handle = _woort_dylib_try_open_lib(try_path);
-                free(try_path);
+                woort_work_path(wd, wd_need);
+                char* try_path = _woort_dylib_build_search_path(wd, name_with_ext);
+                if (try_path != NULL)
+                {
+                    native_handle = _woort_dylib_try_open_lib(try_path);
+                    free(try_path);
+                }
+                free(wd);
             }
-            free(wd);
         }
     }
 
     /* 3) Try from exe_path */
     if (native_handle == NULL)
     {
-        char* ed = woort_exe_path();
-        if (ed != NULL)
+        size_t ed_need = woort_exe_path(NULL, 0) + 1;
+        if (ed_need > 1)
         {
-            char* try_path = _woort_dylib_build_search_path(ed, name_with_ext);
-            if (try_path != NULL)
+            char* ed = (char*)malloc(ed_need);
+            if (ed != NULL)
             {
-                native_handle = _woort_dylib_try_open_lib(try_path);
-                free(try_path);
+                woort_exe_path(ed, ed_need);
+                char* try_path = _woort_dylib_build_search_path(ed, name_with_ext);
+                if (try_path != NULL)
+                {
+                    native_handle = _woort_dylib_try_open_lib(try_path);
+                    free(try_path);
+                }
+                free(ed);
             }
-            free(ed);
         }
     }
 

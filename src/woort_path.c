@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #   include <windows.h>
@@ -32,52 +33,43 @@ void _woort_path_shutdown(void)
     g_exe_path_cache = NULL;
 }
 
-WOORT_NODISCARD char* woort_exe_path(void)
+WOORT_NODISCARD bool _woort_path_build_exe_cache(void)
 {
-    if (g_exe_path_cache != NULL)
-    {
-        char* copy = (char*)malloc(strlen(g_exe_path_cache) + 1);
-        if (copy != NULL)
-            strcpy(copy, g_exe_path_cache);
-        return copy;
-    }
-
     char* full_path = NULL;
+    bool perm_fail = false;
 
 #if defined(_WIN32) || defined(_WIN64)
     {
         wchar_t wbuf[WOORT_MAX_EXE_PATH_LEN];
         DWORD len = GetModuleFileNameW(NULL, wbuf, WOORT_MAX_EXE_PATH_LEN);
         if (len == 0 || len >= WOORT_MAX_EXE_PATH_LEN)
-            woort_panic(WOORT_PANIC_USER, "Failed to get executable path.");
-
-        size_t u8len;
-        char* u8path = woort_u16strtou8(
-            (const char16_t*)wbuf, (size_t)len, &u8len);
-        if (u8path == NULL)
-            woort_panic(WOORT_PANIC_USER, "Failed to convert executable path to UTF-8.");
-
-        full_path = u8path;
+            perm_fail = true;
+        else
+        {
+            size_t u8len;
+            char* u8path = woort_u16strtou8(
+                (const char16_t*)wbuf, (size_t)len, &u8len);
+            if (u8path == NULL)
+                return false;   /* OOM: retryable */
+            full_path = u8path;
+        }
     }
 #elif defined(__APPLE__)
     {
         char buf[WOORT_MAX_EXE_PATH_LEN];
         uint32_t size = WOORT_MAX_EXE_PATH_LEN;
         if (_NSGetExecutablePath(buf, &size) != 0)
-            woort_panic(WOORT_PANIC_USER, "Failed to get executable path.");
-
-        char resolved[WOORT_MAX_EXE_PATH_LEN];
-        if (realpath(buf, resolved) != NULL)
-        {
-            full_path = (char*)malloc(strlen(resolved) + 1);
-            if (full_path != NULL)
-                strcpy(full_path, resolved);
-        }
+            perm_fail = true;
         else
         {
-            full_path = (char*)malloc(strlen(buf) + 1);
+            char resolved[WOORT_MAX_EXE_PATH_LEN];
+            const char* src = buf;
+            if (realpath(buf, resolved) != NULL)
+                src = resolved;
+            full_path = (char*)malloc(strlen(src) + 1);
             if (full_path != NULL)
-                strcpy(full_path, buf);
+                strcpy(full_path, src);
+            /* else: OOM, falls through */
         }
     }
 #elif defined(__unix__) || defined(__unix)
@@ -85,68 +77,114 @@ WOORT_NODISCARD char* woort_exe_path(void)
         char buf[WOORT_MAX_EXE_PATH_LEN];
         ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
         if (len < 0 || (size_t)len >= sizeof(buf) - 1)
-            woort_panic(WOORT_PANIC_USER, "Failed to get executable path.");
-
-        buf[len] = '\0';
-        full_path = (char*)malloc((size_t)len + 1);
-        if (full_path != NULL)
-            strcpy(full_path, buf);
+            perm_fail = true;
+        else
+        {
+            buf[len] = '\0';
+            full_path = (char*)malloc((size_t)len + 1);
+            if (full_path != NULL)
+                strcpy(full_path, buf);
+            /* else: OOM, falls through */
+        }
     }
 #else
-    woort_panic(WOORT_PANIC_USER, "Exe path not supported on this platform.");
+    perm_fail = true;
 #endif
 
-    if (full_path == NULL)
-        woort_panic(WOORT_PANIC_USER, "Failed to get executable path.");
-
-    woort_normalize_path(full_path);
-
-    g_exe_path_cache = woort_get_file_loc(full_path);
-    free(full_path);
-
-    if (g_exe_path_cache != NULL)
+    if (perm_fail)
     {
-        char* copy = (char*)malloc(strlen(g_exe_path_cache) + 1);
-        if (copy != NULL)
-            strcpy(copy, g_exe_path_cache);
-        return copy;
+        /* Cache an empty string so we don't retry the OS on every call. */
+        g_exe_path_cache = (char*)malloc(1);
+        if (g_exe_path_cache == NULL)
+            return false;   /* OOM: retryable */
+        g_exe_path_cache[0] = '\0';
+        return false;
     }
-    return NULL;
+
+    if (full_path == NULL)
+        return false;   /* OOM: retryable */
+
+    /* In-place: the directory part is always shorter than full_path, so it
+       fits within full_path's own buffer. full_path is then kept as the
+       cache -- no second allocation and no separate normalization. */
+    woort_get_file_loc(full_path, full_path, strlen(full_path) + 1);
+    g_exe_path_cache = full_path;
+    return true;
 }
 
-WOORT_NODISCARD char* woort_work_path(void)
+WOORT_NODISCARD size_t woort_exe_path(char* buf, size_t bufsz)
+{
+    if (g_exe_path_cache == NULL)
+    {
+        if (!_woort_path_build_exe_cache())
+            return 0;
+    }
+
+    size_t len = strlen(g_exe_path_cache);
+
+    if (bufsz != 0)
+    {
+        assert(buf != NULL);
+
+        size_t copy = (len < bufsz) ? len : bufsz - 1;
+        memcpy(buf, g_exe_path_cache, copy);
+        buf[copy] = '\0';
+    }
+
+    return len;
+}
+
+WOORT_NODISCARD size_t woort_work_path(char* buf, size_t bufsz)
 {
 #if defined(_WIN32) || defined(_WIN64)
     {
         wchar_t wbuf[WOORT_MAX_EXE_PATH_LEN];
-        DWORD len = GetCurrentDirectoryW(WOORT_MAX_EXE_PATH_LEN, wbuf);
-        if (len == 0 || len >= WOORT_MAX_EXE_PATH_LEN)
-        {
-            wbuf[0] = L'\0';
-            len = 0;
-        }
+        DWORD wlen = GetCurrentDirectoryW(WOORT_MAX_EXE_PATH_LEN, wbuf);
+        if (wlen == 0 || wlen >= WOORT_MAX_EXE_PATH_LEN)
+            return 0;
 
         size_t u8len;
-        char* result = woort_u16strtou8(
-            (const char16_t*)wbuf, (size_t)len, &u8len);
-        woort_normalize_path(result);
-        return result;
+        char* u8 = woort_u16strtou8(
+            (const char16_t*)wbuf, (size_t)wlen, &u8len);
+        if (u8 == NULL)
+            return 0;
+
+        woort_normalize_path(u8);
+
+        if (bufsz != 0)
+        {
+            assert(buf != NULL);
+
+            size_t copy = (u8len < bufsz) ? u8len : bufsz - 1;
+            memcpy(buf, u8, copy);
+            buf[copy] = '\0';
+        }
+        free(u8);
+        return u8len;
     }
 #elif defined(__unix__) || defined(__unix) || defined(__APPLE__) || defined(__MACH__)
     {
-        char buf[WOORT_MAX_EXE_PATH_LEN];
-        if (getcwd(buf, sizeof(buf)) == NULL)
-            woort_panic(WOORT_PANIC_USER, "Failed to get current working directory.");
+        char tmp[WOORT_MAX_EXE_PATH_LEN];
+        if (getcwd(tmp, sizeof(tmp)) == NULL)
+            return 0;
 
-        char* result = (char*)malloc(strlen(buf) + 1);
-        if (result != NULL)
-            strcpy(result, buf);
-        woort_normalize_path(result);
-        return result;
+        woort_normalize_path(tmp);
+        size_t len = strlen(tmp);
+
+        if (bufsz != 0)
+        {
+            assert(buf != NULL);
+
+            size_t copy = (len < bufsz) ? len : bufsz - 1;
+            memcpy(buf, tmp, copy);
+            buf[copy] = '\0';
+        }
+        return len;
     }
 #else
-    woort_panic(WOORT_PANIC_USER, "Work path not supported on this platform.");
-    return NULL;
+    (void)buf;
+    (void)bufsz;
+    return 0;
 #endif
 }
 
@@ -173,24 +211,39 @@ bool woort_set_work_path(const char* path)
 #endif
 }
 
-WOORT_NODISCARD char* woort_get_file_loc(const char* path)
+WOORT_NODISCARD size_t woort_get_file_loc(
+    const char* path, char* buf, size_t bufsz)
 {
     if (path == NULL)
-        return NULL;
+    {
+        if (bufsz != 0)
+            buf[0] = '\0';
+        return 0;
+    }
 
-    char* buf = (char*)malloc(strlen(path) + 1);
-    if (buf == NULL)
-        return NULL;
-    strcpy(buf, path);
-    woort_normalize_path(buf);
+    /* Locate the last directory separator (after normalization). Normalization
+       only turns '\\' into '/' on Windows, so the separator position in the raw
+       path is the same as in the normalized result. */
+    const char* last = strrchr(path, '/');
+#if defined(_WIN32) || defined(_WIN64)
+    const char* lastbs = strrchr(path, '\\');
+    if (lastbs > last)
+        last = lastbs;
+#endif
+    const size_t result_len = (last != NULL) ? (size_t)(last - path) : 0;
 
-    char* last = strrchr(buf, '/');
-    if (last != NULL)
-        *last = '\0';
-    else
-        buf[0] = '\0';
+    if (bufsz != 0)
+    {
+        assert(buf != NULL);
 
-    return buf;
+        const size_t copy = (result_len < bufsz) ? result_len : bufsz - 1;
+        if (buf != path)
+            memcpy(buf, path, copy);
+        buf[copy] = '\0';
+        woort_normalize_path(buf);
+    }
+
+    return result_len;
 }
 
 void woort_normalize_path(char* path)

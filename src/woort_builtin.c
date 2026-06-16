@@ -289,10 +289,15 @@ static woort_api woort_builtin_cmdlines(void)
 }
 static woort_api woort_builtin_host_path(void)
 {
-    char* path = woort_exe_path();
+    size_t need = woort_exe_path(NULL, 0) + 1;
+    if (need <= 1)
+        return woort_ret_panic("Failed to get executable path.");
+
+    char* path = (char*)malloc(need);
     if (path == NULL)
         return woort_ret_panic("Failed to get executable path.");
 
+    woort_exe_path(path, need);
     woort_set_string((woort_StackValue)-1, path);
     free(path);
     return WOORT_VM_CALL_STATUS_NORMAL;

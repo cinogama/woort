@@ -435,32 +435,42 @@ WOORT_NODISCARD bool woort_vfs_resolve_path(
 
     /* 2) Try: work_path + "/" + filepath */
     {
-        char* work = woort_work_path();
-        if (work != NULL)
+        size_t work_need = woort_work_path(NULL, 0) + 1;
+        if (work_need > 1)
         {
-            bool found = _woort_vfs_try_search_dir(filepath, work, out_resolved_path);
-            free(work);
-            if (found)
+            char* work = (char*)malloc(work_need);
+            if (work != NULL)
             {
-                if (out_resolved_path != NULL)
-                    woort_normalize_path(*out_resolved_path);
-                return true;
+                woort_work_path(work, work_need);
+                bool found = _woort_vfs_try_search_dir(filepath, work, out_resolved_path);
+                free(work);
+                if (found)
+                {
+                    if (out_resolved_path != NULL)
+                        woort_normalize_path(*out_resolved_path);
+                    return true;
+                }
             }
         }
     }
 
     /* 3) Try: exe_path + "/" + filepath */
     {
-        char* exe = woort_exe_path();
-        if (exe != NULL)
+        size_t exe_need = woort_exe_path(NULL, 0) + 1;
+        if (exe_need > 1)
         {
-            bool found = _woort_vfs_try_search_dir(filepath, exe, out_resolved_path);
-            free(exe);
-            if (found)
+            char* exe = (char*)malloc(exe_need);
+            if (exe != NULL)
             {
-                if (out_resolved_path != NULL)
-                    woort_normalize_path(*out_resolved_path);
-                return true;
+                woort_exe_path(exe, exe_need);
+                bool found = _woort_vfs_try_search_dir(filepath, exe, out_resolved_path);
+                free(exe);
+                if (found)
+                {
+                    if (out_resolved_path != NULL)
+                        woort_normalize_path(*out_resolved_path);
+                    return true;
+                }
             }
         }
     }

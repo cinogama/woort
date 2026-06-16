@@ -4080,20 +4080,52 @@ WOORT_API void woort_struct_set_bool(
  * Path utilities
  * ================================================================ */
 
- /**
+/**
   * @brief Get the directory containing the executable.
   *
-  * The result is cached after the first call. Returns a malloc'd string
-  * that the caller must `woort_free`. Never returns NULL under normal operation.
+  * The result is cached after the first call. Fills @p buf following
+  * snprintf semantics:
+  *  - Returns the path length EXCLUDING the NUL terminator.
+  *  - Success iff the returned value is less than @p bufsz.
+  *  - If @p bufsz is 0, @p buf may be NULL; nothing is written and only the
+  *    required length is returned.
+  *  - If @p bufsz is too small, the output is truncated (still NUL-terminated)
+  *    and the full required length is returned.
+  *  - Returns 0 on failure (unsupported platform or OS error).
+  *
+  * Typical usage:
+  * @code
+  *   size_t need = woort_exe_path(NULL, 0) + 1;   // +1 for NUL
+  *   char* path = (char*)malloc(need);
+  *   woort_exe_path(path, need);
+  *   ...
+  *   free(path);
+  * @endcode
   */
-WOORT_NODISCARD WOORT_API char* woort_exe_path(void);
+WOORT_NODISCARD WOORT_API size_t woort_exe_path(/* OPTIONAL */ char* buf, size_t bufsz);
 
 /**
  * @brief Get the current working directory.
  *
- * Returns a malloc'd string that the caller must woort_free.
+ * Fills @p buf following snprintf semantics:
+ *  - Returns the path length EXCLUDING the NUL terminator.
+ *  - Success iff the returned value is less than @p bufsz.
+ *  - If @p bufsz is 0, @p buf may be NULL; nothing is written and only the
+ *    required length is returned.
+ *  - If @p bufsz is too small, the output is truncated (still NUL-terminated)
+ *    and the full required length is returned.
+ *  - Returns 0 on failure (unsupported platform or OS error).
+ *
+ * Typical usage:
+ * @code
+ *   size_t need = woort_work_path(NULL, 0) + 1;   // +1 for NUL
+ *   char* path = (char*)malloc(need);
+ *   woort_work_path(path, need);
+ *   ...
+ *   free(path);
+ * @endcode
  */
-WOORT_NODISCARD WOORT_API char* woort_work_path(void);
+WOORT_NODISCARD WOORT_API size_t woort_work_path(/* OPTIONAL */ char* buf, size_t bufsz);
 
 /**
  * @brief Set the current working directory.
@@ -4105,15 +4137,35 @@ WOORT_API bool woort_set_work_path(const char* path);
 /**
  * @brief Get the directory part of a file path.
  *
- * Returns everything before the last '/' (after normalization).
- * Returns an empty string if there is no directory separator.
- * The returned string is malloc'd; the caller must free it.
+ * Fills @p buf with everything before the last directory separator
+ * (after normalization), following snprintf semantics:
+ *  - Returns the directory length EXCLUDING the NUL terminator.
+ *  - Success iff the returned value is less than @p bufsz.
+ *  - If @p bufsz is 0, @p buf may be NULL; nothing is written and only the
+ *    required length is returned.
+ *  - If @p bufsz is too small, the output is truncated (still NUL-terminated)
+ *    and the full required length is returned.
+ *  - Returns 0 if @p path is NULL or contains no directory separator.
  *
- * @param path  The file path to extract the directory from.
- * @return A malloc'd directory path, or NULL if path is NULL.
+ * @par Guarantee
+ *  When @p path is non-empty, the returned length is always strictly less than
+ *  @c strlen(path), so passing @c bufsz = @c strlen(path)+1 is always
+ *  sufficient. @p buf may alias @p path for in-place stripping:
+ *  @code
+ *  woort_get_file_loc(path, path, strlen(path) + 1);   // in-place
+ *  @endcode
+ *
+ * @param path  The file path to extract the directory from. May be NULL.
+ * @param buf   Destination buffer. May be NULL iff @p bufsz is 0. May alias
+ *              @p path for in-place operation.
+ * @param bufsz Capacity of @p buf in bytes.
+ * @return Directory length excluding NUL (always < @c strlen(path) for
+ *         non-empty @p path); 0 for NULL @p path.
  */
-WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_get_file_loc(
-    /* OPTIONAL */ const char* path);
+WOORT_NODISCARD WOORT_API size_t woort_get_file_loc(
+    /* OPTIONAL */ const char* path,
+    /* OPTIONAL */ char* buf,
+    size_t bufsz);
 
 /**
  * @brief Normalize path separators in-place.

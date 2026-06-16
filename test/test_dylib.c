@@ -54,9 +54,14 @@ static int g_tests_passed = 0;
 
 static void test_exe_path(void)
 {
-    TEST_BEGIN("exe_path returns non-NULL");
-    char* path = woort_exe_path();
+    TEST_BEGIN("exe_path returns nonzero length");
+    size_t need = woort_exe_path(NULL, 0);
+    TEST_ASSERT(need > 0);
+    char* path = (char*)malloc(need + 1);
     TEST_ASSERT_NOT_NULL(path);
+    size_t got = woort_exe_path(path, need + 1);
+    TEST_ASSERT(got == need);
+    TEST_ASSERT(got < need + 1);
     (void)printf("(%s) ", path);
     free(path);
     TEST_END();
@@ -65,10 +70,16 @@ static void test_exe_path(void)
 static void test_exe_path_cached(void)
 {
     TEST_BEGIN("exe_path consistent on 2nd call");
-    char* p1 = woort_exe_path();
-    char* p2 = woort_exe_path();
+    size_t need1 = woort_exe_path(NULL, 0);
+    size_t need2 = woort_exe_path(NULL, 0);
+    TEST_ASSERT(need1 > 0);
+    TEST_ASSERT(need1 == need2);
+    char* p1 = (char*)malloc(need1 + 1);
+    char* p2 = (char*)malloc(need1 + 1);
     TEST_ASSERT_NOT_NULL(p1);
     TEST_ASSERT_NOT_NULL(p2);
+    woort_exe_path(p1, need1 + 1);
+    woort_exe_path(p2, need1 + 1);
     TEST_ASSERT_STREQ(p1, p2);
     free(p1);
     free(p2);
@@ -77,9 +88,14 @@ static void test_exe_path_cached(void)
 
 static void test_work_path(void)
 {
-    TEST_BEGIN("work_path returns non-NULL");
-    char* path = woort_work_path();
+    TEST_BEGIN("work_path returns nonzero length");
+    size_t need = woort_work_path(NULL, 0);
+    TEST_ASSERT(need > 0);
+    char* path = (char*)malloc(need + 1);
     TEST_ASSERT_NOT_NULL(path);
+    size_t got = woort_work_path(path, need + 1);
+    TEST_ASSERT(got == need);
+    TEST_ASSERT(got < need + 1);
     free(path);
     TEST_END();
 }
@@ -87,15 +103,21 @@ static void test_work_path(void)
 static void test_set_work_path(void)
 {
     TEST_BEGIN("set_work_path round-trip");
-    char* orig = woort_work_path();
+
+    size_t orig_need = woort_work_path(NULL, 0);
+    TEST_ASSERT(orig_need > 0);
+    char* orig = (char*)malloc(orig_need + 1);
     TEST_ASSERT_NOT_NULL(orig);
+    woort_work_path(orig, orig_need + 1);
 
     /* Set to same path, should succeed */
     bool ok = woort_set_work_path(orig);
     TEST_ASSERT(ok);
 
-    char* restored = woort_work_path();
+    size_t rest_need = woort_work_path(NULL, 0);
+    char* restored = (char*)malloc(rest_need + 1);
     TEST_ASSERT_NOT_NULL(restored);
+    woort_work_path(restored, rest_need + 1);
     TEST_ASSERT_STREQ(orig, restored);
 
     free(restored);
@@ -106,27 +128,54 @@ static void test_set_work_path(void)
 static void test_get_file_loc(void)
 {
     TEST_BEGIN("get_file_loc normal cases");
-    char* d;
 
-    d = woort_get_file_loc("/foo/bar/baz.txt");
-    TEST_ASSERT_NOT_NULL(d);
-    TEST_ASSERT_STREQ("/foo/bar", d);
-    free(d);
+    /* "/foo/bar/baz.txt" -> "/foo/bar" */
+    {
+        const char* src = "/foo/bar/baz.txt";
+        size_t need = woort_get_file_loc(src, NULL, 0);
+        TEST_ASSERT(need < strlen(src));
+        char* d = (char*)malloc(need + 1);
+        TEST_ASSERT_NOT_NULL(d);
+        woort_get_file_loc(src, d, need + 1);
+        TEST_ASSERT_STREQ("/foo/bar", d);
+        free(d);
+    }
 
-    d = woort_get_file_loc("file.txt");
-    TEST_ASSERT_NOT_NULL(d);
-    TEST_ASSERT_STREQ("", d);
-    free(d);
+    /* "file.txt" -> "" (no separator) */
+    {
+        const char* src = "file.txt";
+        size_t need = woort_get_file_loc(src, NULL, 0);
+        TEST_ASSERT(need == 0);
+        char* d = (char*)malloc(need + 1);
+        TEST_ASSERT_NOT_NULL(d);
+        woort_get_file_loc(src, d, need + 1);
+        TEST_ASSERT_STREQ("", d);
+        free(d);
+    }
 
-    d = woort_get_file_loc("/");
-    TEST_ASSERT_NOT_NULL(d);
-    TEST_ASSERT_STREQ("", d);
-    free(d);
+    /* "/" -> "" */
+    {
+        const char* src = "/";
+        size_t need = woort_get_file_loc(src, NULL, 0);
+        TEST_ASSERT(need == 0);
+        char* d = (char*)malloc(need + 1);
+        TEST_ASSERT_NOT_NULL(d);
+        woort_get_file_loc(src, d, need + 1);
+        TEST_ASSERT_STREQ("", d);
+        free(d);
+    }
 
-    d = woort_get_file_loc("/foo/");
-    TEST_ASSERT_NOT_NULL(d);
-    TEST_ASSERT_STREQ("/foo", d);
-    free(d);
+    /* "/foo/" -> "/foo" */
+    {
+        const char* src = "/foo/";
+        size_t need = woort_get_file_loc(src, NULL, 0);
+        TEST_ASSERT(need < strlen(src));
+        char* d = (char*)malloc(need + 1);
+        TEST_ASSERT_NOT_NULL(d);
+        woort_get_file_loc(src, d, need + 1);
+        TEST_ASSERT_STREQ("/foo", d);
+        free(d);
+    }
 
     TEST_END();
 }
