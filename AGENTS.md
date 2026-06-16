@@ -52,6 +52,15 @@ CI builds both Debug and Release on all platforms (see `.gitlab-ci.yml`).
 - Inline functions use `static inline`.
 - `_Static_assert` for size/alignment checks.
 
+### No Defensive Programming (Required)
+
+**Do NOT write "defensive" code that checks for contract violations and then silently handles or special-cases them.** Invalid/erroneous parameters should be handled in exactly one of two ways:
+
+1. Assume the input is valid (caller's responsibility) and do nothing.
+2. Add an `assert()` to document and enforce the precondition in debug builds.
+
+Never branch on a bad input to "recover" or fall back. The codebase enforces preconditions with plain `assert()` from `<assert.h>` (e.g. `assert(vm != NULL);`, `assert((size_t)cidx < code_env->m_constant_count);`). Reserve `bool`/result-enum return values for genuinely fallible *operations* (allocation, lookup), not for screening out programmer errors.
+
 ### Include Order
 1. `"woort.h"` (project public header)
 2. Project internal headers (`"woort_codeenv.h"`, etc.)
@@ -108,7 +117,7 @@ WOORT_NODISCARD bool woort_hashmap_get_or_emplace(
 
 1. `bool` return for success/failure (`true` = success)
 2. Output via `Type** out_result` pointer-to-pointer
-3. `woort_panic(reason, msgfmt, ...)` for unrecoverable errors (declared in `src/woort_diagnosis.h`)
+3. `woort_panic(reason, msgfmt, ...)` for unrecoverable errors (it's a `#define` macro in `include/woort.h`)
 4. Result enums for multi-outcome: `woort_hashmap_Result` with `WOORT_HASHMAP_RESULT_*`
 
 ### Platform Detection

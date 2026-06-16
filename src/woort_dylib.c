@@ -660,7 +660,8 @@ WOORT_NODISCARD /* OPTIONAL */ const char* woort_dylib_get_func_name(
     woort_Dylib* lib,
     void* func_addr)
 {
-    if (lib == NULL || func_addr == NULL)
+    assert(lib != NULL);
+    if (func_addr == NULL)
         return NULL;
 
     const char* name = NULL;

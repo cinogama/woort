@@ -83,8 +83,7 @@ WOORT_NODISCARD bool woort_vfs_create(
     size_t length,
     bool enable_modify)
 {
-    if (filepath == NULL)
-        return false;
+    assert(filepath != NULL);
 
     woort_rwspinlock_write_lock(&g_vfs_lock);
 
@@ -177,8 +176,7 @@ WOORT_NODISCARD bool woort_vfs_create(
 
 WOORT_NODISCARD bool woort_vfs_remove(const char* filepath)
 {
-    if (filepath == NULL)
-        return false;
+    assert(filepath != NULL);
 
     woort_rwspinlock_write_lock(&g_vfs_lock);
 
@@ -222,8 +220,7 @@ WOORT_NODISCARD bool woort_vfs_read(
     /* OPTIONAL */ char** out_data,
     /* OPTIONAL */ size_t* out_length)
 {
-    if (filepath == NULL)
-        return false;
+    assert(filepath != NULL);
 
     const char* lookup_path = filepath;
     if (woort_vfs_is_virtual_uri(filepath))
@@ -265,8 +262,7 @@ WOORT_NODISCARD bool woort_vfs_read(
 
 WOORT_NODISCARD bool woort_vfs_exists(const char* filepath)
 {
-    if (filepath == NULL)
-        return false;
+    assert(filepath != NULL);
 
     const char* lookup_path = filepath;
     if (woort_vfs_is_virtual_uri(filepath))
@@ -400,8 +396,7 @@ WOORT_NODISCARD bool woort_vfs_resolve_path(
     size_t search_dir_count,
     /* OPTIONAL */ char** out_resolved_path)
 {
-    if (filepath == NULL)
-        return false;
+    assert(filepath != NULL);
 
     /* 0) If the filepath itself is a virtual URI, return it as-is */
     if (woort_vfs_is_virtual_uri(filepath))
@@ -705,7 +700,7 @@ WOORT_NODISCARD bool woort_vfile_seek(
     return _WOORT_VFILE_FSEEK(file->m_real_file, offset, whence) == 0;
 }
 
-WOORT_NODISCARD int64_t woort_vfile_tell(/* OPTIONAL */ woort_VFile* file)
+WOORT_NODISCARD int64_t woort_vfile_tell(woort_VFile* file)
 {
     assert(file != NULL);
 

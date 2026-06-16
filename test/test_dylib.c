@@ -344,8 +344,7 @@ static void test_dylib_get_func_name_fake(void)
     const char* bad = woort_dylib_get_func_name(lib, (void*)0xDEAD);
     TEST_ASSERT_NULL(bad);
 
-    /* NULL lib or NULL addr returns NULL */
-    TEST_ASSERT_NULL(woort_dylib_get_func_name(NULL, addr));
+    /* NULL addr returns NULL (func_addr is OPTIONAL); NULL lib is a contract violation (asserted). */
     TEST_ASSERT_NULL(woort_dylib_get_func_name(lib, NULL));
 
     woort_dylib_unload(lib, WOORT_DYLIB_UNREF_AND_BURY);

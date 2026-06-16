@@ -787,20 +787,19 @@ WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
      * 注意：这里不能用 woort_StringPool_intern 因为它会修改池（插入新字符串）。
      * 改用 hashmap_find 做只读查找。
      */
+    assert(filepath != NULL);
+
     const char* interned_path = NULL;
-    if (filepath != NULL)
+    void* value_addr;
+    if (woort_hashmap_find(
+        &((woort_CodeEnv*)env)->m_pdb.m_srcloc_string_pool.m_map,
+        &filepath, &value_addr))
     {
-        void* value_addr;
-        if (woort_hashmap_find(
-            &((woort_CodeEnv*)env)->m_pdb.m_srcloc_string_pool.m_map,
-            &filepath, &value_addr))
-        {
-            interned_path = *(const char**)value_addr;
-        }
-        else
-        {
-            return false; /* 池中无此路径，不可能有匹配 */
-        }
+        interned_path = *(const char**)value_addr;
+    }
+    else
+    {
+        return false; /* 池中无此路径，不可能有匹配 */
     }
 
     return woort_SourceMap_find_by_line(
