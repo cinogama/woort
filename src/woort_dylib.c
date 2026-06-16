@@ -48,7 +48,7 @@ static void _woort_dylib_os_freelib(void* handle)
 }
 
 #else
-#   if defined(WOORT_PLATFORM_OS_MACOS) || defined(WOORT_PLATFORM_OS_IOS)
+#   if defined(WOORT_PLATFORM_OS_APPLE)
 #       define WOORT_DYLIB_EXT ".dylib"
 #   else
 #       define WOORT_DYLIB_EXT ".so"

@@ -11,7 +11,7 @@
 
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
 #   include <windows.h>
-#elif defined(WOORT_PLATFORM_OS_MACOS)
+#elif defined(WOORT_PLATFORM_OS_APPLE)
 #   include <mach-o/dyld.h>
 #   include <sys/param.h>
 #   include <unistd.h>
@@ -55,7 +55,7 @@ WOORT_NODISCARD bool _woort_path_build_exe_cache(void)
             full_path = u8path;
         }
     }
-#elif defined(WOORT_PLATFORM_OS_MACOS)
+#elif defined(WOORT_PLATFORM_OS_APPLE)
     {
         char buf[WOORT_MAX_EXE_PATH_LEN];
         uint32_t size = WOORT_MAX_EXE_PATH_LEN;

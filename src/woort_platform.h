@@ -12,6 +12,7 @@ woort_platform.h - Platform detection macros
 #elif defined(__ANDROID__)
 #   define WOORT_PLATFORM_OS_ANDROID
 #elif defined(__APPLE__)
+#   define WOORT_PLATFORM_OS_APPLE 1
 #   include <TargetConditionals.h>
 #   if TARGET_OS_OSX
 #       define WOORT_PLATFORM_OS_MACOS
@@ -27,7 +28,7 @@ woort_platform.h - Platform detection macros
  */
 #if !defined(WOORT_PLATFORM_OS_WINDOWS) && \
     (defined(WOORT_PLATFORM_OS_LINUX)  || defined(WOORT_PLATFORM_OS_ANDROID) || \
-     defined(WOORT_PLATFORM_OS_MACOS)  || defined(WOORT_PLATFORM_OS_IOS)     || \
+     defined(WOORT_PLATFORM_OS_APPLE)  || \
      defined(__unix__) || defined(__unix) || defined(__MACH__))
 #   define WOORT_PLATFORM_OS_POSIX 1
 #endif
