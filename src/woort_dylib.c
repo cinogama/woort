@@ -464,7 +464,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
             char* script_dir = (char*)malloc(dir_len + 1);
             if (script_dir != NULL)
             {
-                woort_get_file_loc(script_path, script_dir, dir_len + 1);
+                (void)woort_get_file_loc(script_path, script_dir, dir_len + 1);
                 char* try_path = _woort_dylib_build_search_path(script_dir, name_with_ext);
                 free(script_dir);
                 if (try_path != NULL)
@@ -485,7 +485,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
             char* wd = (char*)malloc(wd_need);
             if (wd != NULL)
             {
-                woort_work_path(wd, wd_need);
+                (void)woort_work_path(wd, wd_need);
                 char* try_path = _woort_dylib_build_search_path(wd, name_with_ext);
                 if (try_path != NULL)
                 {
@@ -506,7 +506,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_load(
             char* ed = (char*)malloc(ed_need);
             if (ed != NULL)
             {
-                woort_exe_path(ed, ed_need);
+                (void)woort_exe_path(ed, ed_need);
                 char* try_path = _woort_dylib_build_search_path(ed, name_with_ext);
                 if (try_path != NULL)
                 {

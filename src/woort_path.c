@@ -108,7 +108,7 @@ WOORT_NODISCARD bool _woort_path_build_exe_cache(void)
     /* In-place: the directory part is always shorter than full_path, so it
        fits within full_path's own buffer. full_path is then kept as the
        cache -- no second allocation and no separate normalization. */
-    woort_get_file_loc(full_path, full_path, strlen(full_path) + 1);
+    (void)woort_get_file_loc(full_path, full_path, strlen(full_path) + 1);
     g_exe_path_cache = full_path;
     return true;
 }

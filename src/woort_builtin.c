@@ -297,7 +297,7 @@ static woort_api woort_builtin_host_path(void)
     if (path == NULL)
         return woort_ret_panic("Failed to get executable path.");
 
-    woort_exe_path(path, need);
+    (void)woort_exe_path(path, need);
     woort_set_string((woort_StackValue)-1, path);
     free(path);
     return WOORT_VM_CALL_STATUS_NORMAL;

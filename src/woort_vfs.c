@@ -434,7 +434,7 @@ WOORT_NODISCARD bool woort_vfs_resolve_path(
             char* work = (char*)malloc(work_need);
             if (work != NULL)
             {
-                woort_work_path(work, work_need);
+                (void)woort_work_path(work, work_need);
                 bool found = _woort_vfs_try_search_dir(filepath, work, out_resolved_path);
                 free(work);
                 if (found)
@@ -455,7 +455,7 @@ WOORT_NODISCARD bool woort_vfs_resolve_path(
             char* exe = (char*)malloc(exe_need);
             if (exe != NULL)
             {
-                woort_exe_path(exe, exe_need);
+                (void)woort_exe_path(exe, exe_need);
                 bool found = _woort_vfs_try_search_dir(filepath, exe, out_resolved_path);
                 free(exe);
                 if (found)

@@ -80,8 +80,8 @@ static void test_exe_path_cached(void)
     char* p2 = (char*)malloc(need1 + 1);
     TEST_ASSERT_NOT_NULL(p1);
     TEST_ASSERT_NOT_NULL(p2);
-    woort_exe_path(p1, need1 + 1);
-    woort_exe_path(p2, need1 + 1);
+    (void)woort_exe_path(p1, need1 + 1);
+    (void)woort_exe_path(p2, need1 + 1);
     TEST_ASSERT_STREQ(p1, p2);
     free(p1);
     free(p2);
@@ -110,7 +110,7 @@ static void test_set_work_path(void)
     TEST_ASSERT(orig_need > 0);
     char* orig = (char*)malloc(orig_need + 1);
     TEST_ASSERT_NOT_NULL(orig);
-    woort_work_path(orig, orig_need + 1);
+    (void)woort_work_path(orig, orig_need + 1);
 
     /* Set to same path, should succeed */
     bool ok = woort_set_work_path(orig);
@@ -119,7 +119,7 @@ static void test_set_work_path(void)
     size_t rest_need = woort_work_path(NULL, 0);
     char* restored = (char*)malloc(rest_need + 1);
     TEST_ASSERT_NOT_NULL(restored);
-    woort_work_path(restored, rest_need + 1);
+    (void)woort_work_path(restored, rest_need + 1);
     TEST_ASSERT_STREQ(orig, restored);
 
     free(restored);
@@ -138,7 +138,7 @@ static void test_get_file_loc(void)
         TEST_ASSERT(need < strlen(src));
         char* d = (char*)malloc(need + 1);
         TEST_ASSERT_NOT_NULL(d);
-        woort_get_file_loc(src, d, need + 1);
+        (void)woort_get_file_loc(src, d, need + 1);
         TEST_ASSERT_STREQ("/foo/bar", d);
         free(d);
     }
@@ -150,7 +150,7 @@ static void test_get_file_loc(void)
         TEST_ASSERT(need == 0);
         char* d = (char*)malloc(need + 1);
         TEST_ASSERT_NOT_NULL(d);
-        woort_get_file_loc(src, d, need + 1);
+        (void)woort_get_file_loc(src, d, need + 1);
         TEST_ASSERT_STREQ("", d);
         free(d);
     }
@@ -162,7 +162,7 @@ static void test_get_file_loc(void)
         TEST_ASSERT(need == 0);
         char* d = (char*)malloc(need + 1);
         TEST_ASSERT_NOT_NULL(d);
-        woort_get_file_loc(src, d, need + 1);
+        (void)woort_get_file_loc(src, d, need + 1);
         TEST_ASSERT_STREQ("", d);
         free(d);
     }
@@ -174,7 +174,7 @@ static void test_get_file_loc(void)
         TEST_ASSERT(need < strlen(src));
         char* d = (char*)malloc(need + 1);
         TEST_ASSERT_NOT_NULL(d);
-        woort_get_file_loc(src, d, need + 1);
+        (void)woort_get_file_loc(src, d, need + 1);
         TEST_ASSERT_STREQ("/foo", d);
         free(d);
     }
