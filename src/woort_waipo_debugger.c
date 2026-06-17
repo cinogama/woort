@@ -15,7 +15,7 @@
 Watch And Inspect Program Operation
 */
 
-void _woort_WAIPO_BreakpointCollection_init(woort_WAIPO_BreakpointCollection* collection)
+static void _woort_WAIPO_BreakpointCollection_init(woort_WAIPO_BreakpointCollection* collection)
 {
     woort_hashmap_init(
         &collection->m_breakpoints,
@@ -36,7 +36,7 @@ void _woort_WAIPO_BreakpointCollection_init(woort_WAIPO_BreakpointCollection* co
         sizeof(woort_WAIPO_UserBreakpoint));
 }
 
-void _woort_WAIPO_BreakpointCollection_deinit(woort_WAIPO_BreakpointCollection* collection)
+static void _woort_WAIPO_BreakpointCollection_deinit(woort_WAIPO_BreakpointCollection* collection)
 {
     woort_hashmap_deinit(&collection->m_breakpoints);
     woort_hashmap_deinit(&collection->m_debug_breakpoints);

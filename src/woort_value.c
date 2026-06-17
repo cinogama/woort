@@ -35,7 +35,7 @@ const woort_GCUnitProxy WOORT_EX_BOX_PROXY = {
 static const int64_t WOORT_BOXED_INT62_MAX = (1LL << 61) - 1;
 static const int64_t WOORT_BOXED_INT62_MIN = -(1LL << 61);
 
-WOORT_NODISCARD bool _woort_try_box_float63(double val, woort_BoxedFloat63* out_val)
+WOORT_NODISCARD static bool _woort_try_box_float63(double val, woort_BoxedFloat63* out_val)
 {
     /* 使用 union 进行二进制重解释 */
     const union { double d; uint64_t u; } conv = { .d = val };
@@ -56,7 +56,7 @@ WOORT_NODISCARD bool _woort_try_box_float63(double val, woort_BoxedFloat63* out_
 
     return true;
 }
-WOORT_NODISCARD bool _woort_try_box_int62(woort_Int val, woort_BoxedInt62* out_val)
+WOORT_NODISCARD static bool _woort_try_box_int62(woort_Int val, woort_BoxedInt62* out_val)
 {
     if (val >= WOORT_BOXED_INT62_MIN && val <= WOORT_BOXED_INT62_MAX)
     {
@@ -67,7 +67,7 @@ WOORT_NODISCARD bool _woort_try_box_int62(woort_Int val, woort_BoxedInt62* out_v
     }
     return false;
 }
-WOORT_NODISCARD woort_BoxedBool _woort_box_bool(bool val)
+WOORT_NODISCARD static woort_BoxedBool _woort_box_bool(bool val)
 {
     return  (woort_BoxedBool)(
         (uint64_t)val << 3) | WOORT_BOX_VALUE_TYPE_BOOL;

@@ -337,7 +337,7 @@ void woort_CodeEnv_set_const_struct(
         WOORT_CONST_TYPE_STRUCT, NULL, NULL);
 }
 
-WOORT_NODISCARD woort_GCStruct* _woort_set_union(
+WOORT_NODISCARD static woort_GCStruct* _woort_set_union(
     woort_Value* dst, woort_Int id)
 {
     assert(dst != NULL);
@@ -962,7 +962,7 @@ void woort_import_value(
         _WOORT_API_VM_STACK(src_vm, src_in_vm));
 }
 
-WOORT_NODISCARD bool _woort_pre_invoke(woort_VMRuntime* vm, const woort_GCClosure* target)
+WOORT_NODISCARD static bool _woort_pre_invoke(woort_VMRuntime* vm, const woort_GCClosure* target)
 {
     while (vm->m_sp - 2 - target->m_size < vm->m_stack)
     {

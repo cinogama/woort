@@ -883,7 +883,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
-int _woort_WAIPO_empty_cb(const char* fmt, ...)
+static int _woort_WAIPO_empty_cb(const char* fmt, ...)
 {
     (void)fmt;
     return 0;

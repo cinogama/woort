@@ -11,7 +11,7 @@ const woort_GCUnitProxy WOORT_GCCLOSURE_UNIT_PROXY = {
     .m_marker = NULL,
 };
 
-WOORT_NODISCARD woort_GCClosure* _woort_GCClosure_new(size_t captured_count)
+WOORT_NODISCARD static woort_GCClosure* _woort_GCClosure_new(size_t captured_count)
 {
     woort_GCClosure* const gcclosure = woort_GCUnit_alloc_delay_init(
         sizeof(woort_GCClosure)
@@ -25,7 +25,7 @@ WOORT_NODISCARD woort_GCClosure* _woort_GCClosure_new(size_t captured_count)
 
     return gcclosure;
 }
-WOORT_NODISCARD woort_GCClosure* _woort_GCClosure_new_for_env_constant(
+WOORT_NODISCARD static woort_GCClosure* _woort_GCClosure_new_for_env_constant(
     woort_CodeEnv* cenv)
 {
     woort_GCClosure* gcclosure;

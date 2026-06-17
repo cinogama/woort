@@ -41,7 +41,7 @@ const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
 const uint8_t WOORT_VM_SHRINK_STACK_COUNT = 3;
 const uint8_t WOORT_VM_SHRINK_STACK_MAX_EDGE = 16;
 
-void _woort_VMRuntime_destroy(woort_VMRuntime* vm)
+static void _woort_VMRuntime_destroy(woort_VMRuntime* vm)
 {
     if (vm->m_stack != NULL)
         free(vm->m_stack);

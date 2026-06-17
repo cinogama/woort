@@ -77,7 +77,7 @@ void woort_hashmap_deinit(woort_HashMap* map)
     }
 }
 
-WOORT_NODISCARD /* OPTIONAL */
+WOORT_NODISCARD static /* OPTIONAL */
 woort_HashMapEntry* _woort_hashmap_get_free_entry_and_reset_prev(woort_HashMap* map)
 {
     woort_HashMapEntry* free_entry = map->m_free_entries;
@@ -111,7 +111,7 @@ woort_HashMapEntry* _woort_hashmap_get_free_entry_and_reset_prev(woort_HashMap* 
     return free_entry;
 }
 
-void _woort_hashmap_drop_entry(
+static void _woort_hashmap_drop_entry(
     woort_HashMap* map, woort_HashMapEntry* entry_to_drop)
 {
     /* Only use next ptr for entries. */
@@ -119,7 +119,7 @@ void _woort_hashmap_drop_entry(
     map->m_free_entries = entry_to_drop;
 }
 
-WOORT_NODISCARD bool _woort_hashmap_rehash_to_externed(woort_HashMap* map)
+WOORT_NODISCARD static bool _woort_hashmap_rehash_to_externed(woort_HashMap* map)
 {
     const size_t new_bucket_count = map->m_bucket_count != 0
         ? map->m_bucket_count * 2

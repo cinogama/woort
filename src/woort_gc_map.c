@@ -93,7 +93,7 @@ static void _woort_GCMap_link_bucket_to_head(
     gcmap->m_entries[entry_idx] = bucket_idx;
 }
 
-void _woort_GCMap_rehash(woort_GCMap* gcmap)
+static void _woort_GCMap_rehash(woort_GCMap* gcmap)
 {
     /* NULL_BUCKET_INDEX == 0xFFFFFFFF，可用 memset 按字节填充 0xFF */
     memset(gcmap->m_entries, 0xFF, (gcmap->m_mask + 1) * sizeof(uint32_t));
@@ -162,7 +162,7 @@ static woort_GCMap_Bucket* _woort_GCMap_create_bucket(
     return new_bucket;
 }
 
-woort_GCMap_Bucket* _woort_GCMap_get_writable_bucket_for_key(
+static woort_GCMap_Bucket* _woort_GCMap_get_writable_bucket_for_key(
     woort_GCMap* gcmap, woort_DynBox key)
 {
     /* 查找已存在的 key */

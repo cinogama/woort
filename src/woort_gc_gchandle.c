@@ -8,20 +8,20 @@
 #include "woort_diagnosis.h"
 #include "woort_gc.h"
 
-void _woort_GCStruct_close_impl(woort_GCHandle* gcstruct)
+static void _woort_GCStruct_close_impl(woort_GCHandle* gcstruct)
 {
     gcstruct->m_user_destruct_callback(gcstruct->m_user_handle);
     if (gcstruct->m_dylib != NULL)
         woort_dylib_unload(gcstruct->m_dylib, WOORT_DYLIB_UNREF);
 }
-void _woort_GCStruct_marker(woort_GCUnit* unit)
+static void _woort_GCStruct_marker(woort_GCUnit* unit)
 {
     woort_GCHandle* const gcstruct = (woort_GCHandle*)unit;
 
     if (gcstruct->m_user_handle != NULL)
         gcstruct->m_user_mark_callback(gcstruct->m_user_handle);
 }
-void _woort_GCHandle_destructor(woort_GCUnit* unit)
+static void _woort_GCHandle_destructor(woort_GCUnit* unit)
 {
     woort_GCHandle* const gcstruct = (woort_GCHandle*)unit;
 

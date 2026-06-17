@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 4, 4)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 4, 5)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -2925,6 +2925,18 @@ WOORT_API void woort_set_union_string_fmt(
 /** @brief Set union to a buffer variant (copied). */
 WOORT_API void woort_set_union_buffer(
     woort_StackValue dst, woort_Int id, const void* src, size_t len);
+
+/** @brief Set union to a vec variant (new GCVec, pre-sized to @p cap). */
+WOORT_API void woort_set_union_vec(
+    woort_StackValue dst, woort_Int id, size_t cap);
+
+/** @brief Set union to a map variant (new GCMap, pre-reserved to @p reserve). */
+WOORT_API void woort_set_union_map(
+    woort_StackValue dst, woort_Int id, size_t reserve);
+
+/** @brief Set union to a struct variant (new GCStruct with @p cap fields). */
+WOORT_API void woort_set_union_struct(
+    woort_StackValue dst, woort_Int id, size_t cap);
 
 /**
  * @brief Set union to a GC handle variant.

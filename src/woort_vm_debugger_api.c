@@ -40,7 +40,7 @@ void woort_VMRuntime_Debugger_shutdown(void)
     g_debugger_execute_mx = NULL;
 }
 
-void _woort_VMRuntime_Debugger_release_impl(woort_VMRuntime_Debugger* debugger)
+static void _woort_VMRuntime_Debugger_release_impl(woort_VMRuntime_Debugger* debugger)
 {
     if (debugger->m_context_destroy_callback != NULL)
         debugger->m_context_destroy_callback(debugger->m_debugger_context);
@@ -48,7 +48,7 @@ void _woort_VMRuntime_Debugger_release_impl(woort_VMRuntime_Debugger* debugger)
     free(debugger);
 }
 
-void _woort_VMRuntime_Debugger_disref(woort_VMRuntime_Debugger* debugger)
+static void _woort_VMRuntime_Debugger_disref(woort_VMRuntime_Debugger* debugger)
 {
     if (woort_atomic_fetch_sub_explicit(
         &debugger->m_ref_count,

@@ -3,7 +3,7 @@
 #include "woort_threads.h"
 #include "woort_platform.h"
 
-void _woort_spin_loop_hint()
+static void _woort_spin_loop_hint()
 {
     // If in msvc
 #if defined(WOORT_COMPILER_MSVC) && _MSC_VER >= 1900

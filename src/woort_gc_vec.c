@@ -26,7 +26,7 @@ woort_GCVec* woort_GCVec_new(void)
     return gcvec;
 }
 
-void _woort_GCVec_assure_vec_space(woort_GCVec* vec, size_t size)
+static void _woort_GCVec_assure_vec_space(woort_GCVec* vec, size_t size)
 {
     if (vec->m_space >= size)
         return;

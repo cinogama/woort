@@ -34,7 +34,7 @@ void _woort_path_shutdown(void)
     g_exe_path_cache = NULL;
 }
 
-WOORT_NODISCARD bool _woort_path_build_exe_cache(void)
+WOORT_NODISCARD static bool _woort_path_build_exe_cache(void)
 {
     char* full_path = NULL;
     bool perm_fail = false;
