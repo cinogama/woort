@@ -42,6 +42,16 @@ struct woort_IRLabel
 };
 
 /*
+ * 常量加载放置信息（放置在 block 的 m_const_loads 中）
+ * 由常量加载放置阶段写入，字节码发射阶段读取。
+ */
+typedef struct _woort_ConstLoadInfo
+{
+    woort_IRConstantIndex m_const_index;
+    int32_t m_stack_offset; /* 目标栈槽偏移 */
+} _woort_ConstLoadInfo;
+
+/*
  * 基本块（内部数据结构）
  *
  * 在 finish() 时由框架根据 Label 和跳转指令自动切分。

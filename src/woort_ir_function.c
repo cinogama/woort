@@ -24,15 +24,6 @@
 
  /* ========== 私有类型 ========== */
 
- /*
-  * 常量加载放置信息（放置在 block 的 m_const_loads 中）
-  */
-typedef struct _woort_ConstLoadInfo
-{
-    woort_IRConstantIndex m_const_index;
-    int32_t m_stack_offset; /* 目标栈槽偏移 */
-} _woort_ConstLoadInfo;
-
 /*
  * 线性扫描用的活跃区间
  */

@@ -34,18 +34,9 @@
   * 私有类型
   * ======================================================================== */
 
-  /*
-   * 常量加载放置信息（与 woort_ir_function.c 中的定义一致）
-   */
-typedef struct _woort_ConstLoadInfo
-{
-    woort_IRConstantIndex m_const_index;
-    int32_t m_stack_offset; /* 目标栈槽偏移 */
-} _woort_ConstLoadInfo;
-
 /*
  * 跳转修正记录
- */
+  */
 typedef struct _JumpPatch
 {
     uint32_t m_block_idx;       /* 跳转指令所在 block 的索引 */
@@ -1470,7 +1461,7 @@ _handle_call_result:
 
         /*
          * VM: desired = SB[A8] (read), expected = SB[BC16] (read+write)
-         * IR: m_src[0] = expected, m_dst = desired
+         * IR: m_src[0] = desired, m_dst = expected
          */
         int8_t desired;
         if (!_load_to_s8(blk, op->m_src[0], -128, &desired))
@@ -1687,6 +1678,10 @@ static bool _emit_function(
     /* 上一条 IR 指令的 srcloc_index，用于检测边界变化 */
     uint32_t last_srcloc_index = WOORT_SRCLOC_INVALID_INDEX;
 
+    /* 累积偏移：之前所有 block 的字节码总数。
+     * 用于 O(1) 计算当前指令的全局字节码偏移，避免每条指令重新求和。 */
+    uint32_t prev_blocks_offset = 0;
+
     for (uint32_t bi = 0; bi < block_count; ++bi)
     {
         woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, bi);
@@ -1694,7 +1689,7 @@ static bool _emit_function(
         /*
          * 发射 block 的常量加载（m_const_loads）
          */
-        if (blk->m_const_loads.m_size > 0 && blk->m_const_loads.m_element_size > 0)
+        if (blk->m_const_loads.m_size > 0)
         {
             const size_t load_count = blk->m_const_loads.m_size;
             for (size_t li = 0; li < load_count; ++li)
@@ -1729,16 +1724,11 @@ static bool _emit_function(
                 op->m_srcloc_index != last_srcloc_index &&
                 op->m_srcloc_index != WOORT_SRCLOC_INVALID_INDEX)
             {
-                /* 计算当前全局字节码偏移：
-                 * = 之前所有 block 的字节码数 + 当前 block 已发射的字节码数 */
-                uint32_t current_offset = 0;
-                for (uint32_t prev_bi = 0; prev_bi < bi; ++prev_bi)
-                {
-                    woort_IRBlock* prev_blk =
-                        (woort_IRBlock*)woort_vector_at(&f->m_blocks, prev_bi);
-                    current_offset += (uint32_t)prev_blk->m_bytecodes.m_size;
-                }
-                current_offset += (uint32_t)blk->m_bytecodes.m_size;
+                /* 当前全局字节码偏移：
+                 * = 之前所有 block 的字节码数(prev_blocks_offset)
+                 *   + 当前 block 已发射的字节码数 */
+                const uint32_t current_offset =
+                    prev_blocks_offset + (uint32_t)blk->m_bytecodes.m_size;
 
                 const woort_SourceLocation* loc =
                     (const woort_SourceLocation*)woort_vector_at(
@@ -1756,6 +1746,8 @@ static bool _emit_function(
             if (!_emit_op(blk, op, c, jump_patches, bi))
                 return false;
         }
+
+        prev_blocks_offset += (uint32_t)blk->m_bytecodes.m_size;
     }
 
     return true;
