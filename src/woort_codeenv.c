@@ -330,28 +330,30 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         0,
         total_data_count * sizeof(woort_Value));
 
-    // 将新创建的 CodeEnv 注册到全局容器
-    // 
-    // NOTE: 因为 woort_CodeEnv 使用 GC 管理，即便此处注册失败也不需要
-    // 手动执行释放
-    const woort_ordermap_Result register_result = woort_ordermap_insert(
-        _codeenv_global_ctx->m_codeenvs,
-        &code_env_instance->m_code_begin,
-        &code_env_instance);
+    bool succ =
+        woort_mutex_create(&code_env_instance->m_mutex);
 
-    assert(register_result != WOORT_ORDERMAP_RESULT_ALREADY_EXIST);
+    if (succ)
+    {
+        woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
 
-    /* 提前上锁，确保 code_env_instance 不会 Missing mark. */
-    woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
+        const woort_ordermap_Result register_result = woort_ordermap_insert(
+            _codeenv_global_ctx->m_codeenvs,
+            &code_env_instance->m_code_begin,
+            &code_env_instance);
+
+        assert(register_result != WOORT_ORDERMAP_RESULT_ALREADY_EXIST);
+        woort_rwspinlock_write_unlock(
+            &_codeenv_global_ctx->m_codeenvs_lock);
+
+        if (register_result != WOORT_ORDERMAP_RESULT_OK)
+            succ = false;
+    }
 
     woort_GCUnit_init_delay_alloc(M, codes);
     woort_GCUnit_init_delay_alloc(AF, code_env_instance);
 
-    woort_rwspinlock_write_unlock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
-
-    if (register_result != WOORT_ORDERMAP_RESULT_OK
-        || !woort_mutex_create(&code_env_instance->m_mutex))
+    if (!succ)
         return false;
 
     *out_code_env = code_env_instance;
