@@ -352,6 +352,29 @@ void woort_CodeEnv_set_const_struct(
         WOORT_CONST_TYPE_STRUCT, NULL, NULL);
 }
 
+void woort_CodeEnv_set_static_value(
+    woort_CodeEnv* code_env,
+    woort_IRStaticIndex sidx,
+    const woort_Value* val)
+{
+    assert(code_env != NULL);
+    assert((size_t)(code_env->m_constant_count + sidx) < code_env->m_data_count);
+
+    woort_GC_mixed_write_barrier_value(
+        &code_env->m_data_begin[code_env->m_constant_count + sidx], *val);
+}
+
+WOORT_NODISCARD WOORT_API void woort_CodeEnv_get_static_value(
+    woort_CodeEnv* code_env,
+    woort_IRStaticIndex sidx,
+    woort_Value* out_val)
+{
+    assert(code_env != NULL);
+    assert((size_t)(code_env->m_constant_count + sidx) < code_env->m_data_count);
+
+    *out_val = code_env->m_data_begin[code_env->m_constant_count + sidx];
+}
+
 WOORT_NODISCARD static woort_GCStruct* _woort_set_union(
     woort_Value* dst, woort_Int id)
 {

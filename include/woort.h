@@ -2606,6 +2606,44 @@ WOORT_API void woort_CodeEnv_set_const_struct(
 
 /** @} */ /* end CodeEnv Constant Pool Setters */
 
+/* ========== CodeEnv Static Storage Access ========== */
+
+/**
+ * @brief Write a typed value into a static storage slot.
+ *
+ * Static slots are the per-CodeEnv storage for global/static variables,
+ * located after the constant pool in @ref woort_CodeEnv::m_data_begin.
+ * They are zero-initialized at CodeEnv creation and normally written by
+ * bytecode STORE instructions during execution. This function allows the
+ * host to inject values before booting the CodeEnv (e.g., for REPL session
+ * state restoration).
+ *
+ * @param code_env  The locked code environment.
+ * @param sidx      The static storage index (allocated via
+ *                  woort_IRCompiler_add_static() before finish()).
+ * @param val       The value to store.
+ *
+ * @note The caller must hold woort_CodeEnv_lock() around this call.
+ */
+WOORT_API void woort_CodeEnv_set_static_value(
+    woort_CodeEnv* code_env,
+    woort_IRStaticIndex sidx,
+    const woort_Value* val);
+
+/**
+ * @brief Read a typed value from a static storage slot.
+ *
+ * @param code_env  The locked code environment.
+ * @param sidx      The static storage index.
+ * @return The value stored in the slot.
+ *
+ * @note The caller must hold woort_CodeEnv_lock() around this call.
+ */
+WOORT_NODISCARD WOORT_API void woort_CodeEnv_get_static_value(
+    woort_CodeEnv* code_env,
+    woort_IRStaticIndex sidx,
+    woort_Value* out_val);
+
 /* ============ Runtime API ============ */
 
 /* For ease of writing, aliases for types/methods are provided here. */
