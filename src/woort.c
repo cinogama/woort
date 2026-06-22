@@ -375,7 +375,7 @@ WOORT_NODISCARD void woort_CodeEnv_get_static_value(
     *out_val = code_env->m_data_begin[code_env->m_constant_count + sidx];
 }
 
-WOORT_API size_t woort_CodeEnv_get_static_storage_count(
+WOORT_NODISCARD size_t woort_CodeEnv_get_static_storage_count(
     const woort_CodeEnv* code_env)
 {
     assert(code_env != NULL);

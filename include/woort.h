@@ -2654,7 +2654,7 @@ WOORT_NODISCARD WOORT_API void woort_CodeEnv_get_static_value(
  * @param code_env  The code environment. Must not be NULL.
  * @return The number of static storage slots.
  */
-WOORT_API size_t woort_CodeEnv_get_static_storage_count(
+WOORT_NODISCARD WOORT_API size_t woort_CodeEnv_get_static_storage_count(
     const woort_CodeEnv* code_env);
 
 /* ============ Runtime API ============ */
