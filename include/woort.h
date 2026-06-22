@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 4, 9)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 4, 10)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -2643,6 +2643,19 @@ WOORT_NODISCARD WOORT_API void woort_CodeEnv_get_static_value(
     woort_CodeEnv* code_env,
     woort_IRStaticIndex sidx,
     woort_Value* out_val);
+
+/**
+ * @brief Get the number of static storage slots in a CodeEnv.
+ *
+ * Static slots are located after the constant pool in
+ * @ref woort_CodeEnv::m_data_begin. This returns the count of those
+ * slots (i.e., total data slots minus constant pool slots).
+ *
+ * @param code_env  The code environment. Must not be NULL.
+ * @return The number of static storage slots.
+ */
+WOORT_API size_t woort_CodeEnv_get_static_storage_count(
+    const woort_CodeEnv* code_env);
 
 /* ============ Runtime API ============ */
 
