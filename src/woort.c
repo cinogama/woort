@@ -364,7 +364,7 @@ void woort_CodeEnv_set_static_value(
         &code_env->m_data_begin[code_env->m_constant_count + sidx], *val);
 }
 
-WOORT_NODISCARD void woort_CodeEnv_get_static_value(
+void woort_CodeEnv_get_static_value(
     woort_CodeEnv* code_env,
     woort_IRStaticIndex sidx,
     woort_Value* out_val)

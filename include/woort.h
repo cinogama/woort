@@ -2639,7 +2639,7 @@ WOORT_API void woort_CodeEnv_set_static_value(
  *
  * @note The caller must hold woort_CodeEnv_lock() around this call.
  */
-WOORT_NODISCARD WOORT_API void woort_CodeEnv_get_static_value(
+WOORT_API void woort_CodeEnv_get_static_value(
     woort_CodeEnv* code_env,
     woort_IRStaticIndex sidx,
     woort_Value* out_val);
