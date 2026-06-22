@@ -95,6 +95,21 @@ void woort_init(int argc, char** argv)
         abort();
     }
 }
+void woort_print_runtime_help(void)
+{
+    /* Values & defaults mirror woort_init() and woort_setting.c. */
+    printf("Woort Runtime Options (prefix: --woort-):\n");
+    printf("    --woort-enable-ctrlc-debug <0|1>\n");
+    printf("        Hook Ctrl+C to bring up the interactive debugger. Default: 1.\n");
+    printf("    --woort-gc-max-reserved-memory <MB>\n");
+    printf("        Maximum memory (MB) the GC may reserve. Default: 1024.\n");
+    printf("    --woort-halt-panic-vm <0|1|2|3>\n");
+    printf("        Behavior when a VM panics. Default: 0.\n");
+    printf("        0 = interactive prompt (abort/ignore/terminate/attach).\n");
+    printf("        1 = abort only the panicking VM.\n");
+    printf("        2 = abort() the whole process.\n");
+    printf("        3 = raise(SIGABRT).\n");
+}
 void woort_shutdown(woort_ShutdownPostCallback do_after_shutdown, void* custom_data)
 {
     if (_woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER)

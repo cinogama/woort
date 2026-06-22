@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 4, 6)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 4, 7)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -105,6 +105,16 @@ typedef void(*woort_ShutdownPostCallback)(void*);
  */
 WOORT_API void woort_shutdown(
     /* OPTIONAL */ woort_ShutdownPostCallback do_after_shutdown, void* custom_data);
+
+/* ========== Runtime Options Help API ========== */
+
+/**
+ * @brief Print the available woort runtime command-line options to stdout.
+ *
+ * Lists every --woort-* option recognized by woort_init(), with accepted
+ * values and defaults.
+ */
+WOORT_API void woort_print_runtime_help(void);
 
 /* ========== Console I/O API ========== */
 
