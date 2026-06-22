@@ -8,12 +8,11 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <locale.h>
 
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
 #   include <windows.h>
-#elif defined(WOORT_PLATFORM_OS_POSIX)
-#   include <stdio.h>
 #endif
 
 /* ================================================================
@@ -45,6 +44,11 @@ const char* woort_env_locale_name(void)
 {
     return WOORT_DEFAULT_LOCALE_NAME;
 }
+
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+/* Reset console-input static state; defined near the conin impl below. */
+static void woort_conin_reset(void);
+#endif
 
 /* ================================================================
  * _woort_env_bootup / _woort_env_shutdown (internal)
@@ -78,7 +82,11 @@ void _woort_env_bootup(void)
 
 void _woort_env_shutdown(void)
 {
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+    woort_conin_reset();
+#else
     /* Nothing to clean up currently. */
+#endif
 }
 
 /* ================================================================
@@ -224,4 +232,230 @@ WOORT_NODISCARD /* OPTIONAL */ char* woort_console_readline(void)
 void woort_free(/* OPTIONAL */ void* buf)
 {
     free(buf);
+}
+
+/* ================================================================
+ * woort_conin_getc / woort_conin_ungetc / woort_conin_readline
+ *
+ * Internal UTF-8 console input byte stream for the built-in input
+ * functions. A real Windows console is read with ReadConsoleW (UTF-16)
+ * and converted to UTF-8 (UNICODE -> UTF-8); redirected stdin and all
+ * POSIX platforms use the C stdin directly (bytes are already UTF-8 in
+ * this runtime's locale).
+ * Console I/O is inherently single-stream, so the state below is a
+ * process-global singleton with no locking, mirroring
+ * woort_console_readline.
+ * ================================================================ */
+
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+
+#   define WOORT_CONIN_CHUNK_WCHARS 256
+
+static char*  s_conin_u8buf  = NULL;   /* pending UTF-8 bytes   */
+static size_t s_conin_u8cap  = 0;      /* allocated bytes       */
+static size_t s_conin_u8len  = 0;      /* valid bytes           */
+static size_t s_conin_u8pos  = 0;      /* next byte to serve    */
+static int    s_conin_ungot  = EOF;    /* 1-deep ungetc slot    */
+static int    s_conin_is_console = -1; /* lazy: -1 unknown, 0/1 */
+
+static int woort_conin_is_console_handle(void)
+{
+    HANDLE hin = GetStdHandle(STD_INPUT_HANDLE);
+    return (GetFileType(hin) == FILE_TYPE_CHAR) ? 1 : 0;
+}
+
+/* Read one UTF-16 chunk from the console, convert to UTF-8 and append it
+ * to the pending buffer. Returns 1 if bytes became available, 0 on
+ * end-of-file / unrecoverable error. */
+static int woort_conin_refill(void)
+{
+    wchar_t wbuf[WOORT_CONIN_CHUNK_WCHARS];
+    DWORD   read_count = 0;
+    HANDLE  hin = GetStdHandle(STD_INPUT_HANDLE);
+    size_t  u8len = 0;
+    char*   u8;
+
+    if (!ReadConsoleW(hin, wbuf, WOORT_CONIN_CHUNK_WCHARS, &read_count, NULL))
+    {
+        DWORD err = GetLastError();
+        if (err == ERROR_OPERATION_ABORTED)
+        {
+            /* Ctrl+C: behave like an empty line (matches woort_console_readline). */
+            wbuf[0] = L'\n';
+            read_count = 1;
+        }
+        else
+        {
+            return 0; /* real error -> treat as EOF */
+        }
+    }
+
+    if (read_count == 0)
+        return 0; /* EOF */
+
+    u8 = woort_u16strtou8((const char16_t*)wbuf, (size_t)read_count, &u8len);
+    if (u8 == NULL)
+        return 0; /* out of memory -> EOF-ish */
+
+    /* Drop already-consumed prefix (compact in place). */
+    if (s_conin_u8pos > 0)
+    {
+        if (s_conin_u8len > s_conin_u8pos)
+            memmove(s_conin_u8buf, s_conin_u8buf + s_conin_u8pos,
+                    s_conin_u8len - s_conin_u8pos);
+        s_conin_u8len -= s_conin_u8pos;
+        s_conin_u8pos = 0;
+    }
+
+    /* Ensure capacity for the new bytes plus a NUL. */
+    if (s_conin_u8cap < s_conin_u8len + u8len + 1)
+    {
+        size_t newcap = (s_conin_u8len + u8len + 1) * 2;
+        char*  nb = (char*)realloc(s_conin_u8buf, newcap);
+        if (nb == NULL)
+        {
+            free(u8);
+            return 0;
+        }
+        s_conin_u8buf = nb;
+        s_conin_u8cap = newcap;
+    }
+
+    memcpy(s_conin_u8buf + s_conin_u8len, u8, u8len);
+    s_conin_u8len += u8len;
+    free(u8);
+    return 1;
+}
+
+/* Free and re-initialize the console-input statics so a subsequent
+ * _woort_env_bootup within the same process starts from a clean slate
+ * (no leaked buffer, no leftover bytes, console-ness re-detected). */
+static void woort_conin_reset(void)
+{
+    free(s_conin_u8buf);
+    s_conin_u8buf      = NULL;
+    s_conin_u8cap      = 0;
+    s_conin_u8len      = 0;
+    s_conin_u8pos      = 0;
+    s_conin_ungot      = EOF;
+    s_conin_is_console = -1;  /* re-detect on next use */
+}
+
+#endif /* WOORT_PLATFORM_OS_WINDOWS */
+
+int woort_conin_getc(void)
+{
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+    if (s_conin_ungot != EOF)
+    {
+        int c = s_conin_ungot;
+        s_conin_ungot = EOF;
+        return c;
+    }
+
+    if (s_conin_is_console < 0)
+        s_conin_is_console = woort_conin_is_console_handle();
+
+    if (s_conin_is_console)
+    {
+        if (s_conin_u8pos >= s_conin_u8len)
+        {
+            if (!woort_conin_refill())
+                return EOF;
+        }
+        return (unsigned char)s_conin_u8buf[s_conin_u8pos++];
+    }
+    /* redirected stdin (pipe/file): byte passthrough (already UTF-8) */
+#endif
+    return getchar();
+}
+
+int woort_conin_ungetc(int ch)
+{
+    if (ch == EOF)
+        return EOF;
+
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+    if (s_conin_is_console < 0)
+        s_conin_is_console = woort_conin_is_console_handle();
+
+    if (s_conin_is_console)
+    {
+        s_conin_ungot = ch;
+        return ch;
+    }
+#endif
+    return ungetc(ch, stdin);
+}
+
+WOORT_NODISCARD /* OPTIONAL */ char* woort_conin_readline(size_t* out_len)
+{
+    char*  buf = NULL;
+    size_t len = 0;
+    size_t cap = 0;
+    int    c;
+
+    for (;;)
+    {
+        c = woort_conin_getc();
+        if (c == EOF)
+        {
+            if (len == 0)
+            {
+                /* EOF with nothing read */
+                free(buf);
+                if (out_len != NULL)
+                    *out_len = 0;
+                return NULL;
+            }
+            break; /* EOF terminates the current (partial) line */
+        }
+        if (c == '\n')
+            break;
+
+        /* ensure room for the byte and a future NUL terminator */
+        if (len + 2 > cap)
+        {
+            size_t newcap = (cap == 0) ? 64 : cap * 2;
+            char*  nb;
+            while (newcap < len + 2)
+                newcap *= 2;
+            nb = (char*)realloc(buf, newcap);
+            if (nb == NULL)
+            {
+                free(buf);
+                if (out_len != NULL)
+                    *out_len = 0;
+                return NULL;
+            }
+            buf = nb;
+            cap = newcap;
+        }
+        buf[len++] = (char)c;
+    }
+
+    /* strip a trailing '\r' (CRLF consoles) */
+    while (len > 0 && buf[len - 1] == '\r')
+        len--;
+
+    /* 确保至少 len+1 字节空间：空行（仅 '\n'）时 buf 仍为 NULL、cap==0，
+     * 扩容分支从未执行，故在此为 NUL 终止符补足空间。正常情况下
+     * cap >= len+1 已成立，realloc 分支为 no-op。 */
+    if (len + 1 > cap)
+    {
+        char* nb = (char*)realloc(buf, len + 1);
+        if (nb == NULL)
+        {
+            free(buf);
+            if (out_len != NULL)
+                *out_len = 0;
+            return NULL;
+        }
+        buf = nb;
+        cap = len + 1;
+    }
+    buf[len] = '\0';
+    if (out_len != NULL)
+        *out_len = len;
+    return buf;
 }

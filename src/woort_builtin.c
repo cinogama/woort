@@ -2,6 +2,7 @@
 
 #include "woort_builtin.h"
 
+#include "woort_env.h"
 #include "woort_vector.h"
 #include "woort_atomic.h"
 #include "woort_threads.h"
@@ -82,34 +83,105 @@ static woort_api woort_builtin_print(void)
     return woort_ret_void();
 }
 
+/* ASCII whitespace test that is safe for EOF and high (UTF-8) bytes:
+ * non-ASCII continuation/lead bytes are never whitespace, so they form part
+ * of a token, which keeps non-ASCII input intact. */
+static int woort_builtin_input_is_space(int c)
+{
+    return c == ' ' || c == '\t' || c == '\n'
+        || c == '\r' || c == '\v' || c == '\f';
+}
 static woort_api woort_builtin_input_read_i(void)
 {
-    long long result;
+    long long result = 0;
 
     woort_vm* this_vm = woort_vm_swap(NULL);
-    while (scanf("%lld", &result) != 1)
+    for (;;)
     {
-        int c;
-        while ((c = getchar()) != '\n' && c != EOF)
-            ;
-    }
-    (void)woort_vm_swap(this_vm);
+        char  tok[64];
+        size_t tlen = 0;
+        int    c;
+        char*  endptr;
 
+        /* skip leading whitespace */
+        do
+            c = woort_conin_getc();
+        while (c != EOF && woort_builtin_input_is_space(c));
+
+        if (c == EOF)
+            break; /* absolute EOF -> return 0 */
+
+        /* gather a whitespace-delimited token */
+        do
+        {
+            if (tlen < sizeof(tok) - 1)
+                tok[tlen++] = (char)c;
+            c = woort_conin_getc();
+        } while (c != EOF && !woort_builtin_input_is_space(c));
+
+        /* leave the whitespace terminator for the next read */
+        if (c != EOF)
+            (void)woort_conin_ungetc(c);
+
+        tok[tlen] = '\0';
+        result = strtoll(tok, &endptr, 10);
+        if (endptr != tok)
+        {
+            /* parsed at least one digit */
+            (void)woort_vm_swap(this_vm);
+            return woort_ret_int((woort_Int)result);
+        }
+
+        /* parse failed: discard the rest of this line, then retry */
+        while (c != '\n' && c != EOF)
+            c = woort_conin_getc();
+    }
+
+    (void)woort_vm_swap(this_vm);
     return woort_ret_int((woort_Int)result);
 }
 static woort_api woort_builtin_input_read_r(void)
 {
-    double result;
+    double result = 0.0;
 
     woort_vm* this_vm = woort_vm_swap(NULL);
-    while (scanf("%lf", &result) != 1)
+    for (;;)
     {
-        int c;
-        while ((c = getchar()) != '\n' && c != EOF)
-            ;
-    }
-    (void)woort_vm_swap(this_vm);
+        char   tok[128];
+        size_t tlen = 0;
+        int    c;
+        char*  endptr;
 
+        do
+            c = woort_conin_getc();
+        while (c != EOF && woort_builtin_input_is_space(c));
+
+        if (c == EOF)
+            break; /* absolute EOF -> return 0.0 */
+
+        do
+        {
+            if (tlen < sizeof(tok) - 1)
+                tok[tlen++] = (char)c;
+            c = woort_conin_getc();
+        } while (c != EOF && !woort_builtin_input_is_space(c));
+
+        if (c != EOF)
+            (void)woort_conin_ungetc(c);
+
+        tok[tlen] = '\0';
+        result = strtod(tok, &endptr);
+        if (endptr != tok)
+        {
+            (void)woort_vm_swap(this_vm);
+            return woort_ret_real((woort_Real)result);
+        }
+
+        while (c != '\n' && c != EOF)
+            c = woort_conin_getc();
+    }
+
+    (void)woort_vm_swap(this_vm);
     return woort_ret_real((woort_Real)result);
 }
 static woort_api woort_builtin_input_read_s(void)
@@ -119,19 +191,14 @@ static woort_api woort_builtin_input_read_s(void)
     woort_Vector vec;
     woort_vector_init(&vec, sizeof(char));
 
-    for (;;)
-    {
-        int c;
-        /* Skip leading whitespace (same semantics as scanf %s) */
-        while ((c = getchar()) != EOF
-            && (c == ' ' || c == '\t' || c == '\n' || c == '\r'))
-            ;
-        if (c == EOF)
-        {
-            woort_vector_clear(&vec);
-            continue;
-        }
+    int c;
+    /* Skip leading whitespace (same semantics as scanf %s) */
+    do
+        c = woort_conin_getc();
+    while (c != EOF && woort_builtin_input_is_space(c));
 
+    if (c != EOF)
+    {
         /* Read non-whitespace characters */
         do
         {
@@ -142,58 +209,45 @@ static woort_api woort_builtin_input_read_s(void)
                 (void)woort_vm_swap(this_vm);
                 return woort_ret_panic("Out of memory.");
             }
-        } while ((c = getchar()) != EOF
-            && c != ' ' && c != '\t' && c != '\n' && c != '\r');
+            c = woort_conin_getc();
+        } while (c != EOF && !woort_builtin_input_is_space(c));
 
         /* Put back the whitespace terminator (matching scanf/std::cin>>) */
         if (c != EOF)
-            ungetc(c, stdin);
-
-        break;
+            (void)woort_conin_ungetc(c);
     }
 
     (void)woort_vm_swap(this_vm);
 
-    const woort_api r = woort_ret_buffer(vec.m_data, vec.m_size);
-    woort_vector_deinit(&vec);
-
-    return r;
+    {
+        /* EOF / empty input -> "" (avoid passing NULL to woort_ret_buffer,
+           which would trigger memcpy(_, NULL, 0) UB per C11 7.24.2.1) */
+        const char* data = (vec.m_size == 0) ? "" : vec.m_data;
+        const woort_api r = woort_ret_buffer(data, vec.m_size);
+        woort_vector_deinit(&vec);
+        return r;
+    }
 }
 static woort_api woort_builtin_input_readline(void)
 {
     woort_vm* this_vm = woort_vm_swap(NULL);
 
-    woort_Vector vec;
-    woort_vector_init(&vec, sizeof(char));
-
-    for (;;)
-    {
-        int c;
-        while ((c = getchar()) != EOF && c != '\n')
-        {
-            const char ch = (char)c;
-            if (!woort_vector_push_back(&vec, 1, &ch))
-            {
-                woort_vector_deinit(&vec);
-                (void)woort_vm_swap(this_vm);
-                return woort_ret_panic("Out of memory.");
-            }
-        }
-
-        if (c == EOF && vec.m_size == 0)
-        {
-            woort_vector_clear(&vec);
-            continue;
-        }
-
-        break;
-    }
+    size_t len = 0;
+    char* line = woort_conin_readline(&len);
 
     (void)woort_vm_swap(this_vm);
 
-    const woort_api r = woort_ret_buffer(vec.m_data, vec.m_size);
-    woort_vector_deinit(&vec);
-    return r;
+    if (line == NULL)
+    {
+        /* EOF -> empty string */
+        return woort_ret_buffer("", 0);
+    }
+
+    {
+        const woort_api r = woort_ret_buffer(line, len);
+        woort_free(line);
+        return r;
+    }
 }
 static uint64_t _woort_random_u64(void)
 {
