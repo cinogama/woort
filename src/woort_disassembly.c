@@ -57,6 +57,20 @@ label_reentry_for_debug_trap:;
             callback("STOREEX     G[%u] = [SB %+d]\n", dst, src);
             return c + 2;
         }
+        case 2:
+        {
+            const int8_t dst = (int8_t)WOORT_BYTECODE(A8, bc);
+            const int16_t src = (int16_t)WOORT_BYTECODE(BC16, bc);
+            callback("LOADPVALUE  [SB %+d] = *[SB %+d]\n", dst, src);
+            return c + 1;
+        }
+        case 3:
+        {
+            const int8_t src = (int8_t)WOORT_BYTECODE(A8, bc);
+            const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
+            callback("STOREPVALUE *[SB %+d] = [SB %+d]\n", dst, src);
+            return c + 1;
+        }
         }
         break;
     }
@@ -988,6 +1002,13 @@ label_reentry_for_debug_trap:;
         {
             const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
             callback("CLNOT       ![SB %+d]\n", dst);
+            return c + 1;
+        }
+        case 3:
+        {
+            const int8_t src = (int8_t)WOORT_BYTECODE(A8, bc);
+            const int16_t dst = (int16_t)WOORT_BYTECODE(BC16, bc);
+            callback("MKPVALUE    *[SB %+d] = [SB %+d]\n", dst, src);
             return c + 1;
         }
         }

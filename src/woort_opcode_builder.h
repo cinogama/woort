@@ -41,6 +41,20 @@
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDSTEX, 1, bc16)
 
 /*
+ * LOADPVALUE - 解指针加载（pvalue）
+ * LOADPVALUE [SB + a8] = *[SB + bc16].m_pvalue
+ */
+#define woort_OpCode_LOADPVALUE(a8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_LDSTEX, 2, a8, bc16)
+
+/*
+ * STOREPVALUE - 解指针存储（pvalue，带写屏障）
+ * STOREPVALUE *[SB + bc16].m_pvalue = [SB + a8]
+ */
+#define woort_OpCode_STOREPVALUE(a8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_LDSTEX, 3, a8, bc16)
+
+/*
  * CHKDIVI - 整数除法检查
  * CHKDIVIL  (mode=0): 检查被除数 [SB + bc16] 是否为 INT64_MIN（溢出）
  * CHKDIVIR  (mode=1): 检查被除数 [SB + bc16] 是否为 0 或 -1
@@ -508,6 +522,13 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCLAON, 1, a8, bc16)
 #define woort_OpCode_CLNOT(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_OPCLAON, 2, bc16)
+
+/*
+ * MKPVALUE - 装箱为 pvalue 指针（分配 GC box）
+ * MKPVALUE [SB + bc16].m_pvalue = new box; *box = [SB + a8]
+ */
+#define woort_OpCode_MKPVALUE(a8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCLAON, 3, a8, bc16)
 
 /*
  * LDIDX - 索引加载

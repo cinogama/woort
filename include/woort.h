@@ -1237,6 +1237,24 @@ WOORT_NODISCARD WOORT_API bool woort_IR_STORE(
     woort_IRStaticIndex idx,
     const woort_IRValue* src);
 
+/** @brief Load through pvalue pointer: dst = *ptr. */
+WOORT_NODISCARD WOORT_API bool woort_IR_LOADPVALUE(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* ptr);
+
+/** @brief Store through pvalue pointer (with write barrier): *ptr = src. */
+WOORT_NODISCARD WOORT_API bool woort_IR_STOREPVALUE(
+    woort_IRFunction* f,
+    const woort_IRValue* ptr,
+    const woort_IRValue* src);
+
+/** @brief Box src into a new pvalue pointer: dst = new box(src). */
+WOORT_NODISCARD WOORT_API bool woort_IR_MKPVALUE(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* src);
+
 /**@}*/
 
 /** @name Stack Operations */
