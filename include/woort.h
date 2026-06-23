@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 4, 12)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 4, 13)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -136,6 +136,49 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_console_readline(void);
  * @param buf  The buffer to free (may be NULL).
  */
 WOORT_API void woort_free(/* OPTIONAL */ void* buf);
+
+/**
+ * @brief Test whether stdin is an interactive console (terminal).
+ *
+ * Windows: checks the input handle is a character device (console).
+ * POSIX: wraps isatty() on stdin.
+ *
+ * @return 1 if stdin is an interactive console, 0 otherwise.
+ */
+WOORT_API int woort_stdin_isatty(void);
+
+/**
+ * @brief Read one raw UTF-8 byte from the console (char-at-a-time stream).
+ *
+ * Intended for key-event / live line-editor consumers. Independent from
+ * woort_console_readline(): it does not wait for a full line.
+ *
+ * Windows: a real console is read with ReadConsoleW (UTF-16) and converted to
+ *          UTF-8; redirected stdin (pipe/file) is byte-passthrough.
+ * POSIX:   read(2) directly (NOT stdio), so it is safe under termios raw mode
+ *          and never entangles with the libc stdin buffer.
+ *
+ * A Ctrl+C interrupt on Windows (ReadConsoleW failing with
+ * ERROR_OPERATION_ABORTED) is delivered as the byte 0x03 (ETX) so callers can
+ * map it to a "cancel" key event.
+ *
+ * Console input is a single OS stream; do not mix concurrent callers.
+ *
+ * @return The next byte (0-255), or EOF (-1) on end-of-stream / read error.
+ */
+WOORT_API int woort_console_getc(void);
+
+/**
+ * @brief Push back one byte (1-deep) onto the console byte stream.
+ *
+ * Re-read by the next woort_console_getc(). Only one byte of pushback is
+ * supported; pushing EOF or calling twice without an intervening getc is
+ * undefined beyond the 1-deep slot.
+ *
+ * @param ch  The byte (0-255) to push back; EOF is ignored.
+ * @return The pushed byte, or EOF if @p ch was EOF.
+ */
+WOORT_API int woort_console_ungetc(int ch);
 
 /**
  * @brief Get the default locale name for the current platform.

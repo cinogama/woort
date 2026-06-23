@@ -13,6 +13,9 @@
 
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
 #   include <windows.h>
+#else
+#   include <unistd.h>
+#   include <errno.h>
 #endif
 
 /* ================================================================
@@ -48,6 +51,8 @@ const char* woort_env_locale_name(void)
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
 /* Reset console-input static state; defined near the conin impl below. */
 static void woort_conin_reset(void);
+/* Reset the raw console byte-stream static state (woort_console_getc). */
+static void woort_raw_reset(void);
 #endif
 
 /* ================================================================
@@ -84,6 +89,7 @@ void _woort_env_shutdown(void)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     woort_conin_reset();
+    woort_raw_reset();
 #else
     /* Nothing to clean up currently. */
 #endif
@@ -458,4 +464,202 @@ WOORT_NODISCARD /* OPTIONAL */ char* woort_conin_readline(size_t* out_len)
     if (out_len != NULL)
         *out_len = len;
     return buf;
+}
+
+/* ================================================================
+ * woort_stdin_isatty / woort_console_getc / woort_console_ungetc
+ *
+ * Public raw UTF-8 console byte stream for char-at-a-time consumers
+ * (live line editors, key-event decoders). Independent from the
+ * internal woort_conin_* stream used by the built-in input functions,
+ * so the two never share buffered state.
+ *
+ * Windows: a real console is read with ReadConsoleW (UTF-16) and
+ * converted to UTF-8 (UNICODE -> UTF-8); redirected stdin (pipe/file)
+ * is byte passthrough. POSIX: read(2) directly (NOT stdio), so it is
+ * safe under termios raw mode and never entangles with the libc stdin
+ * buffer.
+ *
+ * A Ctrl+C interrupt on Windows (ReadConsoleW failing with
+ * ERROR_OPERATION_ABORTED) is delivered as the byte 0x03 (ETX) so a key
+ * decoder can map it to a "cancel" event.
+ * Console I/O is inherently single-stream, so the state below is a
+ * process-global singleton with no locking, mirroring woort_conin_*.
+ * ================================================================ */
+
+int woort_stdin_isatty(void)
+{
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+    HANDLE hin = GetStdHandle(STD_INPUT_HANDLE);
+    return (hin != INVALID_HANDLE_VALUE
+        && GetFileType(hin) == FILE_TYPE_CHAR) ? 1 : 0;
+#else
+    return isatty(fileno(stdin)) ? 1 : 0;
+#endif
+}
+
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+
+#   define WOORT_RAW_CHUNK_WCHARS 256
+
+static char*  s_raw_u8buf      = NULL;  /* pending UTF-8 bytes         */
+static size_t s_raw_u8cap      = 0;     /* allocated bytes             */
+static size_t s_raw_u8len      = 0;     /* valid bytes                 */
+static size_t s_raw_u8pos      = 0;     /* next byte to serve          */
+static int    s_raw_is_console = -1;    /* lazy: -1 unknown, 0/1       */
+
+static int woort_raw_is_console_handle(void)
+{
+    HANDLE hin = GetStdHandle(STD_INPUT_HANDLE);
+    return (GetFileType(hin) == FILE_TYPE_CHAR) ? 1 : 0;
+}
+
+/* Read one UTF-16 chunk from the console, convert to UTF-8 and append it
+ * to the pending buffer. Returns 1 if bytes became available, 0 on
+ * end-of-file / unrecoverable error. */
+static int woort_raw_refill(void)
+{
+    wchar_t wbuf[WOORT_RAW_CHUNK_WCHARS];
+    DWORD   read_count = 0;
+    HANDLE  hin = GetStdHandle(STD_INPUT_HANDLE);
+    size_t  u8len = 0;
+    char*   u8;
+
+    if (!ReadConsoleW(hin, wbuf, WOORT_RAW_CHUNK_WCHARS, &read_count, NULL))
+    {
+        if (GetLastError() == ERROR_OPERATION_ABORTED)
+        {
+            /* Ctrl+C: deliver ETX so a key decoder maps it to "cancel". */
+            wbuf[0] = L'\x03';
+            read_count = 1;
+        }
+        else
+        {
+            return 0; /* real error -> treat as EOF */
+        }
+    }
+
+    if (read_count == 0)
+        return 0; /* EOF */
+
+    u8 = woort_u16strtou8((const char16_t*)wbuf, (size_t)read_count, &u8len);
+    if (u8 == NULL)
+        return 0; /* out of memory -> EOF-ish */
+
+    /* Drop already-consumed prefix (compact in place). */
+    if (s_raw_u8pos > 0)
+    {
+        if (s_raw_u8len > s_raw_u8pos)
+            memmove(s_raw_u8buf, s_raw_u8buf + s_raw_u8pos,
+                    s_raw_u8len - s_raw_u8pos);
+        s_raw_u8len -= s_raw_u8pos;
+        s_raw_u8pos = 0;
+    }
+
+    /* Ensure capacity for the new bytes plus a NUL. */
+    if (s_raw_u8cap < s_raw_u8len + u8len + 1)
+    {
+        size_t newcap = (s_raw_u8len + u8len + 1) * 2;
+        char*  nb = (char*)realloc(s_raw_u8buf, newcap);
+        if (nb == NULL)
+        {
+            free(u8);
+            return 0;
+        }
+        s_raw_u8buf = nb;
+        s_raw_u8cap = newcap;
+    }
+
+    memcpy(s_raw_u8buf + s_raw_u8len, u8, u8len);
+    s_raw_u8len += u8len;
+    free(u8);
+    return 1;
+}
+
+static void woort_raw_reset(void)
+{
+    free(s_raw_u8buf);
+    s_raw_u8buf      = NULL;
+    s_raw_u8cap      = 0;
+    s_raw_u8len      = 0;
+    s_raw_u8pos      = 0;
+    s_raw_is_console = -1;  /* re-detect on next use */
+}
+
+#endif /* WOORT_PLATFORM_OS_WINDOWS */
+
+/* 1-deep pushback slot shared by both backends. */
+static int s_raw_ungot = EOF;
+
+int woort_console_getc(void)
+{
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+    if (s_raw_ungot != EOF)
+    {
+        int c = s_raw_ungot;
+        s_raw_ungot = EOF;
+        return c;
+    }
+
+    if (s_raw_is_console < 0)
+        s_raw_is_console = woort_raw_is_console_handle();
+
+    if (s_raw_is_console)
+    {
+        if (s_raw_u8pos >= s_raw_u8len)
+        {
+            if (!woort_raw_refill())
+                return EOF;
+        }
+        return (unsigned char)s_raw_u8buf[s_raw_u8pos++];
+    }
+    /* redirected stdin (pipe/file): byte passthrough (already UTF-8) */
+    return getchar();
+#else
+    /* POSIX: read(2) directly, NOT stdio, so termios raw mode is safe and
+     * we never entangle with the libc stdin buffer. */
+    if (s_raw_ungot != EOF)
+    {
+        int c = s_raw_ungot;
+        s_raw_ungot = EOF;
+        return c;
+    }
+
+    for (;;)
+    {
+        unsigned char c;
+        ssize_t n = read(STDIN_FILENO, &c, 1);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+                continue; /* interrupted by signal (e.g. SIGINT handled) */
+            return EOF;
+        }
+        if (n == 0)
+            return EOF; /* EOF */
+        return (int)c;
+    }
+#endif
+}
+
+int woort_console_ungetc(int ch)
+{
+    if (ch == EOF)
+        return EOF;
+
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+    if (s_raw_is_console < 0)
+        s_raw_is_console = woort_raw_is_console_handle();
+
+    if (s_raw_is_console)
+    {
+        s_raw_ungot = ch;
+        return ch;
+    }
+    return ungetc(ch, stdin);
+#else
+    /* 1-deep pushback over read(2). */
+    s_raw_ungot = ch;
+    return ch;
+#endif
 }
