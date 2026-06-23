@@ -2089,13 +2089,11 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCLAON, 3):
         {
             woort_Value* const vp = woort_GCUnit_alloc_delay_init(sizeof(woort_Value));
-            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_pvalue = vp;
 
+            woort_GC_init_write_barrier_value(vp, rt_sb[(int8_t)WOORT_BYTECODE(A8, c)]);
             woort_GCUnit_init_delay_alloc(A, vp);
 
-            woort_GC_init_write_barrier_value(
-                vp, rt_sb[(int8_t)WOORT_BYTECODE(A8, c)]);
-
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_pvalue = vp;
             break;
         }
         // LDIDXVEC
