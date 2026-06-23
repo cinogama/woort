@@ -196,7 +196,7 @@ struct woort_CodeEnv {
     /*
      * 常量池元数据（与 m_data_begin 并行）。
      * 每个条目记录该常量槽的类型和 extern 解析信息。
-     * 长度与 m_data_count 一致。
+     * 长度与 m_constant_count 一致。
      * CodeEnv 拥有所有权，GC destroy 时释放。
      */
     woort_Vector /* woort_ConstRecord */ m_const_records;

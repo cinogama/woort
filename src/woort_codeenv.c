@@ -27,7 +27,7 @@
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
-    woort_OrderMap* m_codeenvs;
+    woort_OrderMap*     m_codeenvs;
     woort_GCUnitProxy   m_env_proxy;
     woort_GCUnitProxy   m_code_proxy;
 
@@ -310,7 +310,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
         if (!woort_vector_emplace_back(
             &code_env_instance->m_const_records,
-            total_data_count,
+            constant_storage_count,
             &buffer))
         {
             /* OOM: 不影响正常运行，但序列化将失败 */
@@ -318,7 +318,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         }
         else
         {
-            memset(buffer, 0, sizeof(woort_ConstRecord) * total_data_count);
+            memset(buffer, 0, sizeof(woort_ConstRecord) * constant_storage_count);
         }
     }
 

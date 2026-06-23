@@ -339,7 +339,7 @@ void woort_CodeEnv_set_const_struct(
     assert(s != NULL);
 
     for (size_t i = 0; i < member_count; ++i) {
-        assert((size_t)members[i] < code_env->m_data_count);
+        assert((size_t)members[i] < code_env->m_constant_count);
         woort_GC_init_write_barrier_value(
             &s->m_datas[i], code_env->m_data_begin[members[i]]);
     }

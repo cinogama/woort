@@ -392,7 +392,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
      */
 
      /* 遍历常量数据，收集字符串/库名/函数名 */
-    for (size_t i = 0; ok && i < data_count; ++i)
+    for (size_t i = 0; ok && i < const_count; ++i)
     {
         const woort_ConstRecord* rec = (const woort_ConstRecord*)woort_vector_at(
             &code_env->m_const_records, i);
@@ -784,7 +784,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
                     woort_IRConstantIndex found_idx = (woort_IRConstantIndex)mi; /* fallback */
                     bool found = false;
 
-                    for (size_t j = 0; j < data_count; ++j)
+                    for (size_t j = 0; j < const_count; ++j)
                     {
                         const woort_ConstRecord* rec_j =
                             (const woort_ConstRecord*)woort_vector_at(
