@@ -77,6 +77,7 @@ typedef struct woort_RetBP
 
 union woort_Value
 {
+    woort_Value*            m_pvalue;
     woort_GCUnit*           m_gcinstance;
     woort_Int               m_integer;
     woort_Real              m_real;

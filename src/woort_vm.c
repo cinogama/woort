@@ -469,6 +469,21 @@ _label_continue_execution:
             rt_ip += 2;
             continue;
         }
+        // LOADPVALUE
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDSTEX, 2):
+        {
+            rt_sb[(int8_t)WOORT_BYTECODE(A8, c)] =
+                *rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_pvalue;
+            break;
+        }
+        // STOREPVALUE
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDSTEX, 3):
+        {
+            woort_GC_mixed_write_barrier_value(
+                rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_pvalue,
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)]);
+            break;
+        }
         // MOVLD
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_MOV, 0):
         {
@@ -2068,6 +2083,19 @@ _label_continue_execution:
         {
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer =
                 !rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            break;
+        }
+        // MKPVALUE
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPCLAON, 3):
+        {
+            woort_Value* const vp = woort_GCUnit_alloc_delay_init(sizeof(woort_Value));
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_pvalue = vp;
+
+            woort_GCUnit_init_delay_alloc(A, vp);
+
+            woort_GC_init_write_barrier_value(
+                vp, rt_sb[(int8_t)WOORT_BYTECODE(A8, c)]);
+
             break;
         }
         // LDIDXVEC
@@ -3859,7 +3887,7 @@ _label_continue_execution:
                 {
                     if (_woort_VMRuntime_shrink_stack(vm))
                         vm->m_shrink_stack_edge =
-                            WOORT_VM_SHRINK_STACK_COUNT;
+                        WOORT_VM_SHRINK_STACK_COUNT;
                 }
             }
             else if (request_mask
@@ -3867,7 +3895,7 @@ _label_continue_execution:
             {
                 (void)woort_VMRuntime_request_accept(
                     vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED);
-            }         
+            }
             else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_YIELD)
             {
@@ -4026,7 +4054,7 @@ void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
             if (vm->m_is_weak)
                 woort_VMRuntime_mark_weak_vm_after_sync(vm);
             else
-                woort_VMRuntime_mark_vm_after_sync(vm);               
+                woort_VMRuntime_mark_vm_after_sync(vm);
         }
         // else: VM has been marked, do nothing.
 
