@@ -230,6 +230,36 @@ WOORT_NODISCARD bool woort_IR_STORE(
     _EMIT_END();
 }
 
+/* ========== pvalue 指针操作 ========== */
+
+WOORT_NODISCARD bool woort_IR_LOADPVALUE(
+    woort_IRFunction* f, woort_IRValue* dst, const woort_IRValue* ptr)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_LOADPVALUE);
+    op_->m_dst = dst;
+    op_->m_src[0] = ptr;
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_STOREPVALUE(
+    woort_IRFunction* f, const woort_IRValue* ptr, const woort_IRValue* src)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_STOREPVALUE);
+    op_->m_dst = NULL;
+    op_->m_src[0] = ptr;
+    op_->m_src[1] = src;
+    _EMIT_END();
+}
+
+WOORT_NODISCARD bool woort_IR_MKPVALUE(
+    woort_IRFunction* f, woort_IRValue* dst, const woort_IRValue* src)
+{
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_MKPVALUE);
+    op_->m_dst = dst;
+    op_->m_src[0] = src;
+    _EMIT_END();
+}
+
 /* ========== 栈操作 ========== */
 
 WOORT_NODISCARD bool woort_IR_PUSHCHK(

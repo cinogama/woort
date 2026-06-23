@@ -610,6 +610,45 @@ static bool _emit_op(
         return _emit_static_store(blk, r, storage);
     }
 
+    /* ============ LOADPVALUE (解指针加载) ============ */
+    case WOORT_IROP_KIND_LOADPVALUE:
+    {
+        assert(op->m_dst != NULL && op->m_src[0] != NULL);
+        int16_t ptr;
+        if (!_load_to_s16(blk, op->m_src[0], -128, &ptr))
+            return false;
+        const int8_t w = _get_store_s8(op->m_dst, -127);
+        if (!_emit_bc(blk, woort_OpCode_LOADPVALUE(w, ptr)))
+            return false;
+        return _apply_store(blk, op->m_dst, w);
+    }
+
+    /* ============ STOREPVALUE (解指针存储，带写屏障) ============ */
+    case WOORT_IROP_KIND_STOREPVALUE:
+    {
+        assert(op->m_src[0] != NULL && op->m_src[1] != NULL);
+        int8_t val;
+        if (!_load_to_s8(blk, op->m_src[1], -128, &val))
+            return false;
+        int16_t ptr;
+        if (!_load_to_s16(blk, op->m_src[0], -127, &ptr))
+            return false;
+        return _emit_bc(blk, woort_OpCode_STOREPVALUE(val, ptr));
+    }
+
+    /* ============ MKPVALUE (装箱为 pvalue 指针) ============ */
+    case WOORT_IROP_KIND_MKPVALUE:
+    {
+        assert(op->m_dst != NULL && op->m_src[0] != NULL);
+        int8_t val;
+        if (!_load_to_s8(blk, op->m_src[0], -128, &val))
+            return false;
+        const int16_t w = _get_store_s16(op->m_dst, -127);
+        if (!_emit_bc(blk, woort_OpCode_MKPVALUE(val, w)))
+            return false;
+        return _apply_store(blk, op->m_dst, w);
+    }
+
     /* ============ PUSHCHK ============ */
     case WOORT_IROP_KIND_PUSHCHK:
     {

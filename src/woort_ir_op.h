@@ -24,6 +24,9 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_MOV,            /* dst = src */
     WOORT_IROP_KIND_LOAD,           /* dst = G[static_idx] */
     WOORT_IROP_KIND_STORE,          /* G[static_idx] = src */
+    WOORT_IROP_KIND_LOADPVALUE,     /* dst = *ptr (load through pvalue) */
+    WOORT_IROP_KIND_STOREPVALUE,    /* *ptr = src (store through pvalue, write barrier) */
+    WOORT_IROP_KIND_MKPVALUE,       /* dst = new box(src); dst.m_pvalue -> box */
 
     /* ============ 栈操作 ============ */
     WOORT_IROP_KIND_PUSHCHK,        /* push src (with stack check) */
