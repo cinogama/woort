@@ -32,6 +32,38 @@
 #include <assert.h>
 #include <stdarg.h>
 
+/* ========== Version API ========== */
+
+#define WOORT_VERSION_INT(MAJOR, MINOR, PATCH, TWEAK)              \
+    ((uint64_t)(0x##MAJOR##ull) << (3 * 16)) |                     \
+    ((uint64_t)(0x##MINOR##ull) << (2 * 16)) |                     \
+    ((uint64_t)(0x##PATCH##ull) << (1 * 16)) |                     \
+    ((uint64_t)(0x##TWEAK##ull) << (0 * 16))
+
+#define WOORT_VERSION_STR(MAJOR, MINOR, PATCH, TWEAK)              \
+    #MAJOR "." #MINOR "." #PATCH "." #TWEAK
+
+#define WOORT_VERSION_WRAP WOORT_VERSION_INT
+static const uint64_t g_woort_version_int = WOORT_VERSION;
+#undef WOORT_VERSION_WRAP
+
+#define WOORT_VERSION_WRAP WOORT_VERSION_STR
+static const char g_woort_version_str[] = WOORT_VERSION;
+#undef WOORT_VERSION_WRAP
+
+#undef WOORT_VERSION_INT
+#undef WOORT_VERSION_STR
+
+const char* woort_version(void)
+{
+    return g_woort_version_str;
+}
+
+uint64_t woort_version_int(void)
+{
+    return g_woort_version_int;
+}
+
 #undef woort_init
 void woort_init(int argc, char** argv)
 {

@@ -78,6 +78,24 @@ extern "C" {
 #   endif
 #endif
 
+/* ========== Version API ========== */
+
+/**
+ * @brief Get the woort runtime version string.
+ * @return A version string in the form "major.minor.patch.tweak" (e.g. "1.0.5.1").
+ */
+WOORT_NODISCARD WOORT_API const char* woort_version(void);
+
+/**
+ * @brief Get the woort runtime version as a packed 64-bit integer.
+ *
+ * Each 16-bit slot holds one component (major, minor, patch, tweak),
+ * from most-significant to least-significant.
+ *
+ * @return The version encoded as a 64-bit integer.
+ */
+WOORT_NODISCARD WOORT_API uint64_t woort_version_int(void);
+
 /**
  * @brief Initialize the Woolang runtime.
  *
