@@ -487,14 +487,14 @@ WOORT_NODISCARD /* OPTIONAL */ char* woort_conin_readline(size_t* out_len)
  * process-global singleton with no locking, mirroring woort_conin_*.
  * ================================================================ */
 
-int woort_stdin_isatty(void)
+bool woort_stdin_isatty(void)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     HANDLE hin = GetStdHandle(STD_INPUT_HANDLE);
     return (hin != INVALID_HANDLE_VALUE
-        && GetFileType(hin) == FILE_TYPE_CHAR) ? 1 : 0;
+        && GetFileType(hin) == FILE_TYPE_CHAR) ? true : false;
 #else
-    return isatty(fileno(stdin)) ? 1 : 0;
+    return isatty(fileno(stdin)) ? true : false;
 #endif
 }
 

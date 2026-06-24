@@ -145,7 +145,7 @@ WOORT_API void woort_free(/* OPTIONAL */ void* buf);
  *
  * @return 1 if stdin is an interactive console, 0 otherwise.
  */
-WOORT_API int woort_stdin_isatty(void);
+WOORT_API bool woort_stdin_isatty(void);
 
 /**
  * @brief Read one raw UTF-8 byte from the console (char-at-a-time stream).
