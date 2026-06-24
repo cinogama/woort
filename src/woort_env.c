@@ -103,18 +103,65 @@ void _woort_env_shutdown(void)
 
 WOORT_NODISCARD /* OPTIONAL */ char* woort_console_readline(void)
 {
+    HANDLE console_in = GetStdHandle(STD_INPUT_HANDLE);
+
+    /* If stdin is not a real console (pipe / file redirect), fall back to
+     * C stdio so piped or redirected input works correctly.
+     * ReadConsoleW only succeeds on actual console handles. */
+    if (console_in == INVALID_HANDLE_VALUE
+        || GetFileType(console_in) != FILE_TYPE_CHAR)
+    {
+        /* OPTIONAL */ char* line = NULL;
+        size_t cap = 0;
+        size_t len = 0;
+        int    ch;
+
+        while ((ch = fgetc(stdin)) != EOF && ch != '\n')
+        {
+            if (ch == '\r')
+                continue;
+
+            if (len + 1 >= cap)
+            {
+                size_t      new_cap = (cap == 0) ? 128 : cap * 2;
+                /* OPTIONAL */ char* tmp = (char*)realloc(line, new_cap);
+                if (tmp == NULL)
+                {
+                    free(line);
+                    return NULL;
+                }
+                line = tmp;
+                cap  = new_cap;
+            }
+            line[len++] = (char)ch;
+        }
+
+        /* EOF with no data at all → signal end-of-input. */
+        if (ch == EOF && len == 0 && line == NULL)
+            return NULL;
+
+        /* Ensure a buffer exists (handles the empty-line case). */
+        if (line == NULL)
+        {
+            line = (char*)malloc(1);
+            if (line == NULL)
+                return NULL;
+        }
+        line[len] = '\0';
+        return line;
+    }
+
+    {
     wchar_t* wbuf;
     size_t wbuf_cap;
     size_t wbuf_used;
     DWORD read_count;
-    HANDLE console_in;
 
     wbuf_cap = WOORT_CONSOLE_READ_INITIAL_SIZE;
     wbuf = (wchar_t*)malloc(wbuf_cap * sizeof(wchar_t));
     if (wbuf == NULL)
         return NULL;
 
-    console_in = GetStdHandle(STD_INPUT_HANDLE);
     wbuf_used = 0;
 
     for (;;)
@@ -205,6 +252,9 @@ WOORT_NODISCARD /* OPTIONAL */ char* woort_console_readline(void)
 
         return result;
     }
+    }
+
+    return NULL; /* unreachable — silences non-void warning */
 }
 
 #else /* POSIX (Linux / macOS) */
