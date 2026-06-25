@@ -1606,7 +1606,17 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
 
                 const char* name = _RESTORE_CSTR(name_off, name_len);
                 if (name != NULL)
-                    (void)woort_CodeEnv_register_extern_constant(cenv, name, cidx);
+                {
+                    /*
+                     * 注册失败视为 OOM（序列化数据不会出现重复名，
+                     * 故 register 返回 false 即为内存不足）。
+                     */
+                    if (!woort_CodeEnv_register_extern_constant(cenv, name, cidx))
+                    {
+                        result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                        goto _restore_fail_after_create;
+                    }
+                }
             }
         }
 

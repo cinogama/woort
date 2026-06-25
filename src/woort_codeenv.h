@@ -226,8 +226,10 @@ void woort_CodeEnv_GC_mark_all_envs(void);
  *
  * function_source_map: woort_Vector<woort_Function_SourceMap>
  *   每个条目包含 IR 函数指针（含名称、偏移、长度）和源码映射条目。
+ *
+ * @return true on success, false on out-of-memory.
  */
-void woort_CodeEnv_set_source_maps(
+WOORT_NODISCARD bool woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
     const woort_Vector* function_source_map);
 

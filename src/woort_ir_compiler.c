@@ -2491,10 +2491,19 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
         /*
          * 将源码映射数据转移到 CodeEnv。
          * CodeEnv 拥有映射数据的所有权，路径字符串会被复制。
+         * OOM 时视为编译失败：释放已创建的 CodeEnv（由 GC 回收），
+         * 清空输出参数，并跳过后续调试信息构建。
          */
-        woort_CodeEnv_set_source_maps(
-            *out_cenv,
-            &function_source_map);
+        if (!woort_CodeEnv_set_source_maps(*out_cenv, &function_source_map))
+        {
+            woort_CodeEnv_drop(*out_cenv);
+            *out_cenv = NULL;
+            result = false;
+        }
+    }
+
+    if (result)
+    {
 
         /*
          * 构建局部变量和静态变量调试信息，转移到 CodeEnv。

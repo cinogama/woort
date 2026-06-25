@@ -303,6 +303,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
     woort_vector_init(&code_env_instance->m_const_records, sizeof(woort_ConstRecord));
 
+    bool succ = true;
+
     /* 预填充 m_const_records 为 NIL 类型 */
     {
         void* buffer;
@@ -313,8 +315,13 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
             constant_storage_count,
             &buffer))
         {
-            /* OOM: 不影响正常运行，但序列化将失败 */
+            /*
+             * OOM: 视为内存不足失败。
+             * 后续 woort_CodeEnv_set_const_record() 依赖 m_size 与 cidx 对齐，
+             * 预填充失败会导致其断言中止，故不可继续运行。
+             */
             WOORT_DEBUG("Out of memory filling const_records.");
+            succ = false;
         }
         else
         {
@@ -330,8 +337,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         0,
         total_data_count * sizeof(woort_Value));
 
-    bool succ =
-        woort_mutex_create(&code_env_instance->m_mutex);
+    if (succ)
+        succ = woort_mutex_create(&code_env_instance->m_mutex);
 
     if (succ)
     {
@@ -563,7 +570,7 @@ WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
  * 源码映射 API
  * ======================================================================== */
 
-void woort_CodeEnv_set_source_maps(
+WOORT_NODISCARD bool woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
     const woort_Vector* function_source_map)
 {
@@ -636,7 +643,7 @@ build_function_boundaries:
      * 即使没有源码映射条目，函数边界信息仍然有用。
      */
     if (func_count == 0)
-        return;
+        return true;
 
     for (uint32_t i = 0; i < func_count; ++i)
     {
@@ -661,9 +668,18 @@ build_function_boundaries:
             boundary.m_name = NULL;
         }
 
-        /* 忽略 push_back 失败 —— 边界信息丢失不影响正确性 */
-        (void)woort_vector_push_back(&env->m_function_boundaries, 1, &boundary);
+        /*
+         * push_back 失败视为 OOM。
+         * 边界表缺失会使函数名查找静默失败，行为不可预期，故整体失败。
+         */
+        if (!woort_vector_push_back(&env->m_function_boundaries, 1, &boundary))
+        {
+            WOORT_DEBUG("Out of memory building function_boundaries.");
+            return false;
+        }
     }
+
+    return true;
 }
 
 void woort_CodeEnv_set_debug_info(
@@ -830,7 +846,7 @@ WOORT_NODISCARD bool woort_CodeEnv_register_extern_constant(
         || result == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
     {
         free(name_copy);
-        return result == WOORT_HASHMAP_RESULT_ALREADY_EXIST ? false : false;
+        return false;
     }
 
     return true;
