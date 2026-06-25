@@ -58,7 +58,7 @@ static struct _woort_JIT_GlobalCtx
 /* ======================================================================== */
 
 /* 线性查找 entry 在缓存中的下标；调用方须持锁。返回 SIZE_MAX 表示未找到。 */
-static size_t _cache_find_locked(const woort_Bytecode* entry)
+static WOORT_NODISCARD size_t _woort_JIT_cache_find_locked(const woort_Bytecode* entry)
 {
     for (size_t i = 0; i < _jit_global_ctx->m_cache.m_size; ++i)
     {
@@ -72,7 +72,7 @@ static size_t _cache_find_locked(const woort_Bytecode* entry)
 }
 
 /* 移除并释放缓存中所有条目（调后端 free_func）。调用方须持写锁。 */
-static void _cache_clear_locked(void)
+static void _woort_JIT_cache_clear_locked(void)
 {
     const woort_JIT_Backend* const backend = _jit_global_ctx->m_backend;
 
@@ -105,7 +105,7 @@ static void _cache_clear_locked(void)
  * 返回该 boundary 的指针（只读），或 NULL（未找到 / 表为空）。
  * 复用 woort_CodeEnv_find_function_name_by_offset 同款二分逻辑。
  */
-static const woort_FunctionBoundary* _find_boundary(
+static WOORT_NODISCARD const woort_FunctionBoundary* _woort_JIT_find_boundary(
     const woort_CodeEnv* env, const woort_Bytecode* entry)
 {
     const woort_Vector* const vec = (const woort_Vector*)&env->m_function_boundaries;
@@ -148,7 +148,7 @@ static const woort_FunctionBoundary* _find_boundary(
  * 常量池中 SCRIPT_FUNC 条目存的是 m_script_function == entry。
  * 找不到则返回 SIZE_MAX（可能是匿名/入口未被常量化的函数，框架跳过编译）。
  */
-static size_t _find_const_slot_for_script_func(
+static WOORT_NODISCARD size_t _woort_JIT_find_const_slot_for_script_func(
     const woort_CodeEnv* env, const woort_Bytecode* entry)
 {
     for (size_t i = 0; i < env->m_const_records.m_size; ++i)
@@ -171,7 +171,7 @@ static size_t _find_const_slot_for_script_func(
  * 执行编译流程（不含缓存命中检查）。调用方已确认 entry 有效且有活跃后端。
  * 成功则把产物登记进缓存（持锁）。返回 true/false。
  */
-static bool _compile_one(
+static WOORT_NODISCARD bool _woort_JIT_compile_one(
     woort_CodeEnv* env,
     const woort_FunctionBoundary* boundary)
 {
@@ -185,7 +185,7 @@ static bool _compile_one(
     req.m_code_end = req.m_entry + boundary->m_code_length;
 
     /* 定位常量池槽（写 m_jit_function 用）。无对应槽则不编译。 */
-    const size_t const_idx = _find_const_slot_for_script_func(env, req.m_entry);
+    const size_t const_idx = _woort_JIT_find_const_slot_for_script_func(env, req.m_entry);
     if (const_idx == SIZE_MAX)
     {
         WOORT_DEBUG("JIT: no SCRIPT_FUNC const slot for entry %p; skipped.",
@@ -272,7 +272,7 @@ _cleanup_emitter:
         woort_rwspinlock_write_lock(&_jit_global_ctx->m_cache_lock);
 
         /* 再次确认未在并发下被编译（去重）。 */
-        if (_cache_find_locked(req.m_entry) != SIZE_MAX)
+        if (_woort_JIT_cache_find_locked(req.m_entry) != SIZE_MAX)
         {
             woort_rwspinlock_write_unlock(&_jit_global_ctx->m_cache_lock);
             /* 已有并发编译结果，丢弃本次产物。 */
@@ -310,7 +310,7 @@ _cleanup_emitter:
 /* 框架初始化                                                                  */
 /* ======================================================================== */
 
-static bool _woort_JIT_ensure_inited(void)
+static WOORT_NODISCARD bool _woort_JIT_ensure_inited(void)
 {
     if (_jit_global_ctx != NULL)
         return true;
@@ -360,7 +360,7 @@ WOORT_NODISCARD bool woort_JIT_install_backend(const woort_JIT_Backend* backend)
 
     /* 若已有旧后端，先释放其名下所有已编译代码（避免换后端后入口悬空）。 */
     if (_jit_global_ctx->m_backend != NULL)
-        _cache_clear_locked();
+        _woort_JIT_cache_clear_locked();
 
     _jit_global_ctx->m_backend = backend;
 
@@ -380,7 +380,7 @@ void woort_JIT_uninstall_backend(void)
 
     const bool had = (_jit_global_ctx->m_backend != NULL);
     if (had)
-        _cache_clear_locked();
+        _woort_JIT_cache_clear_locked();
     _jit_global_ctx->m_backend = NULL;
 
     woort_rwspinlock_write_unlock(&_jit_global_ctx->m_cache_lock);
@@ -414,14 +414,14 @@ WOORT_NODISCARD bool woort_JIT_compile_function(const woort_Bytecode* function_e
     /* 2. 缓存命中检查。 */
     {
         woort_rwspinlock_read_lock(&_jit_global_ctx->m_cache_lock);
-        const bool hit = (_cache_find_locked(function_entry) != SIZE_MAX);
+        const bool hit = (_woort_JIT_cache_find_locked(function_entry) != SIZE_MAX);
         woort_rwspinlock_read_unlock(&_jit_global_ctx->m_cache_lock);
         if (hit)
             return true;
     }
 
     /* 3. 定位函数边界。 */
-    const woort_FunctionBoundary* const boundary = _find_boundary(env, function_entry);
+    const woort_FunctionBoundary* const boundary = _woort_JIT_find_boundary(env, function_entry);
     if (boundary == NULL)
     {
         WOORT_DEBUG("JIT: entry %p not at any function boundary.",
@@ -430,7 +430,7 @@ WOORT_NODISCARD bool woort_JIT_compile_function(const woort_Bytecode* function_e
     }
 
     /* 4. 执行编译流程。 */
-    return _compile_one(env, boundary);
+    return _woort_JIT_compile_one(env, boundary);
 }
 
 WOORT_NODISCARD bool woort_JIT_compile_env(woort_CodeEnv* env)

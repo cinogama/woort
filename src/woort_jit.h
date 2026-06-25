@@ -86,6 +86,16 @@ typedef struct woort_JIT_CompileRequest
 /* ======================================================================== */
 
 /*
+ * woort_JIT_Backend vtable 各函数指针成员的签名类型。
+ */
+typedef bool (*woort_JIT_Backend_QuerySupportFn)(void);
+typedef woort_JIT_Emitter* (*woort_JIT_Backend_EmitterBeginFn)(const woort_JIT_CompileRequest* req);
+typedef bool (*woort_JIT_Backend_EmitPrologueFn)(woort_JIT_Emitter* e);
+typedef bool (*woort_JIT_Backend_EmitEpilogueFn)(woort_JIT_Emitter* e);
+typedef bool (*woort_JIT_Backend_EmitterFinalizeFn)(woort_JIT_Emitter* e, woort_JitFunction* out_entry);
+typedef void (*woort_JIT_Backend_FreeFn)(woort_JitFunction entry);
+
+/*
  * const 后端 vtable，由每个后端定义一个静态全局实例并注册。
  * 所有函数指针均为必需（非常规的 OPTIONAL），框架假定注册的后端是完整的。
  */
@@ -94,14 +104,14 @@ typedef struct woort_JIT_Backend
     const char* m_name;   /**< 后端名（"x64"/"arm64"/...），仅诊断用。 */
 
     /* 自检：当前平台/CPU 是否被本后端支持。install_backend 据此决定是否激活。 */
-    bool (*m_query_support)(void);
+    woort_JIT_Backend_QuerySupportFn m_query_support;
 
     /*
      * 发射器生命周期开始。后端在此自行申请可执行内存（VirtualAlloc/mmap），
      * 发射期间保持可写（RW）。框架不参与内存管理。
      * 返回 NULL 表示分配失败。
      */
-    woort_JIT_Emitter* (*m_emitter_begin)(const woort_JIT_CompileRequest* req);
+    woort_JIT_Backend_EmitterBeginFn m_emitter_begin;
 
     /*
      * 函数序言：按 woort_JitFunction 约定接收 (vm, bp)，建立帧。
@@ -109,13 +119,13 @@ typedef struct woort_JIT_Backend
      *   - 读操作数即 bp[signed_offset]（8B 槽）
      * 返回 false 表示发射失败（框架中止本函数编译、回退解释）。
      */
-    bool (*m_emit_prologue)(woort_JIT_Emitter* e);
+    woort_JIT_Backend_EmitPrologueFn m_emit_prologue;
 
     /*
      * 函数尾声：默认正常返回路径（返回 WOORT_VM_CALL_STATUS_NORMAL，
      * 返回值约定写入 *vm->m_sp）。
      */
-    bool (*m_emit_epilogue)(woort_JIT_Emitter* e);
+    woort_JIT_Backend_EmitEpilogueFn m_emit_epilogue;
 
     /*
      * 终结：完成重定位、翻转内存为可执行只读（RX），产出可调用入口。
@@ -124,7 +134,7 @@ typedef struct woort_JIT_Backend
      * 返回 false 表示失败（框架会调用 m_free_func(*out_entry) 已是有效入口时，
      * 或假定后端已在内部清理未完成的发射）。
      */
-    bool (*m_emitter_finalize)(woort_JIT_Emitter* e, woort_JitFunction* out_entry);
+    woort_JIT_Backend_EmitterFinalizeFn m_emitter_finalize;
 
     /*
      * 逐 opcode 降级回调表。框架用 woort_OpcodeDispatcher_decode 驱动，
@@ -142,7 +152,7 @@ typedef struct woort_JIT_Backend
      * 框架在 CodeEnv 销毁、或编译失败回滚时回调。
      * 允许传 NULL 入口（此时为无操作）。
      */
-    void (*m_free_func)(woort_JitFunction entry);
+    woort_JIT_Backend_FreeFn m_free_func;
 
 } woort_JIT_Backend;
 
