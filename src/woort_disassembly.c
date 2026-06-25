@@ -10,9 +10,7 @@
 struct woort_DisassemblyCtx
 {
     woort_Disassembly_DumpCallback callback;
-    const woort_Bytecode* pc;
     int printed;
-    const woort_OpcodeDispatchers* dispatchers;
 };
 
 #define CTX ((struct woort_DisassemblyCtx*)userdata)
@@ -570,21 +568,7 @@ static void _woort_dis_CHKDIVILR(void* userdata, woort_Opcode_Stack divisor, woo
 { CTX->callback("CHKDIVILR   [SB %+d], [SB %+d]\n", divisor, dividend); CTX->printed = 1; }
 
 static void _woort_dis_DEBUGTRAP(void* userdata)
-{
-    struct woort_DisassemblyCtx* ctx = CTX;
-    woort_CodeEnv* cenv;
-    if (woort_CodeEnv_find(ctx->pc, &cenv))
-    {
-        const woort_Bytecode buf[2] = {
-            woort_CodeEnv_raw_trap(cenv, ctx->pc), ctx->pc[1] };
-        (void)woort_OpcodeDispatcher_decode(buf, ctx->dispatchers, ctx);
-    }
-    else
-    {
-        ctx->callback("DEBUGTRAP\n");
-    }
-    ctx->printed = 1;
-}
+{ CTX->callback("DEBUGTRAP\n"); CTX->printed = 1; }
 
 #undef CTX
 
@@ -779,7 +763,7 @@ static const woort_OpcodeDispatchers g_disasm_dispatchers = {
 const woort_Bytecode* woort_disassembly(
     const woort_Bytecode* c, woort_Disassembly_DumpCallback callback)
 {
-    struct woort_DisassemblyCtx ctx = { callback, c, 0, &g_disasm_dispatchers };
+    struct woort_DisassemblyCtx ctx = { callback, 0 };
 
     const woort_Bytecode* next =
         woort_OpcodeDispatcher_decode(c, &g_disasm_dispatchers, &ctx);

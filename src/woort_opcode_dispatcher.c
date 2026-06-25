@@ -2,6 +2,8 @@
 
 #include "woort_opcode.h"
 #include "woort_opcode_formal.h"
+#include "woort_opcode_builder.h"
+#include "woort_codeenv.h"
 
 #define DISPATCH(FIELD, ...)                         \
     do                                               \
@@ -13,7 +15,8 @@
 const woort_Bytecode* woort_OpcodeDispatcher_decode(
     const woort_Bytecode* c, const woort_OpcodeDispatchers* d, void* userdata)
 {
-    const woort_Bytecode bc = c[0];
+    woort_Bytecode bc = c[0];
+_label_retry_entry:
 
     const uint8_t op6 = (uint8_t)WOORT_BYTECODE(OP6, bc);
     const uint8_t m2 = (uint8_t)WOORT_BYTECODE(M2, bc);
@@ -1137,8 +1140,23 @@ const woort_Bytecode* woort_OpcodeDispatcher_decode(
         switch (m2)
         {
         case 0: /* DEBUGTRAP */
+        {
+            /*
+             * 透明解析断点：DEBUGTRAP 是 set_trap 覆盖原指令后留下的占位
+             * 指令。查找其所属 CodeEnv，取回被覆盖的原始指令并重新解码；
+             * 仅当它是没有后备指令的、由 IR 直接发射的 DEBUGTRAP 时，
+             * 才回调 m_DEBUGTRAP。
+             */
+            woort_CodeEnv* cenv;
+            if (woort_CodeEnv_find(c, &cenv))
+            {
+                bc = woort_CodeEnv_raw_trap(cenv, c);
+                if (bc != woort_OpCode_DEBUGTRAP())
+                    goto _label_retry_entry;
+            }
             DISPATCH(m_DEBUGTRAP);
             return c + 1;
+        }
         case 1: /* PANICS */
             DISPATCH(m_PANICS, (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
