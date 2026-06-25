@@ -2,6 +2,7 @@
 
 #include "woort_builtin.h"
 #include "woort_codeenv.h"
+#include "woort_jit.h"
 #include "woort_log.h"
 #include "woort_gc.h"
 #include "woort_vm.h"
@@ -1198,6 +1199,14 @@ WOORT_NODISCARD woort_VmCallStatus woort_bootup_codeenv(
         woort_panic(WOORT_PANIC_STACK_OVERFLOW, "Stack overflow.");
         return WOORT_VM_CALL_STATUS_ABORTED;
     }
+
+    /*
+     * JIT 预编译：若已注册可用后端，在执行前对 CodeEnv 全部函数做全量编译。
+     * 失败的函数自动回退解释执行（常量池槽 m_jit_function 保持 NULL）。
+     * 无后端注册时 woort_JIT_is_enabled() 为 false，此处为空操作，零行为变化。
+     */
+    if (woort_JIT_is_enabled())
+        woort_JIT_compile_env(cenv);
 
     if (!woort_load_extern_const(v, cenv, WOORT_DEFAULT_ENTRY))
     {
