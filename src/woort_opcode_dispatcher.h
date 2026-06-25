@@ -179,9 +179,6 @@ WOORT_OPCODE_DISPATCHER_TYPE_DECL(STIDXMAPXR, woort_Opcode_Stack map, woort_Opco
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(STIDXMAPXB, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(STIDXMAPXX, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(STIDSTRUCT, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src);
-WOORT_OPCODE_DISPATCHER_TYPE_DECL(STIDXVECEXT, woort_Opcode_Stack vec, woort_BoxValueType valtype, woort_Opcode_Stack idx, woort_Opcode_Stack src);
-WOORT_OPCODE_DISPATCHER_TYPE_DECL(STIDXDICTEXT, woort_Opcode_Stack map, woort_BoxValueType keytype, woort_BoxValueType valtype, woort_Opcode_Stack key, woort_Opcode_Stack src);
-WOORT_OPCODE_DISPATCHER_TYPE_DECL(STIDXMAPEXT, woort_Opcode_Stack map, woort_BoxValueType keytype, woort_BoxValueType valtype, woort_Opcode_Stack key, woort_Opcode_Stack src);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(STIDSTRUCTEXT, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(UNPACKVEC, woort_Opcode_Count n, woort_Opcode_Stack vec);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(UNPACKVECX, woort_Opcode_Count n, woort_Opcode_Stack vec);
@@ -375,9 +372,6 @@ typedef struct woort_OpcodeDispatchers
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(STIDXMAPXB);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(STIDXMAPXX);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(STIDSTRUCT);
-    WOORT_OPCODE_DISPATCHER_FIELD_DECL(STIDXVECEXT);
-    WOORT_OPCODE_DISPATCHER_FIELD_DECL(STIDXDICTEXT);
-    WOORT_OPCODE_DISPATCHER_FIELD_DECL(STIDXMAPEXT);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(STIDSTRUCTEXT);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(UNPACKVEC);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(UNPACKVECX);

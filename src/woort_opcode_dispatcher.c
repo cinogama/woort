@@ -961,29 +961,92 @@ const woort_Bytecode* woort_OpcodeDispatcher_decode(
         const woort_Opcode_Stack dst = (woort_Opcode_Stack)(int16_t)(c[1] & 0xFFFFu);
         switch (m2)
         {
-        case 0: /* STIDXVECEXT */
-            DISPATCH(m_STIDXVECEXT,
-                a,
-                (woort_BoxValueType)(uint8_t)WOORT_BYTECODE(A8, bc),
-                b,
-                dst);
+        case 0: /* STIDXVECEXT -> STIDXVEC{I,R,B,X} */
+        {
+            const uint8_t vt = (uint8_t)WOORT_BYTECODE(A8, bc);
+            switch (vt)
+            {
+            case 0: DISPATCH(m_STIDXVECI, a, b, dst); break;
+            case 1: DISPATCH(m_STIDXVECR, a, b, dst); break;
+            case 2: DISPATCH(m_STIDXVECB, a, b, dst); break;
+            case 3: DISPATCH(m_STIDXVECX, a, b, dst); break;
+            }
             return c + 2;
-        case 1: /* STIDXDICTEXT */
-            DISPATCH(m_STIDXDICTEXT,
-                a,
-                (woort_BoxValueType)(uint8_t)((bc >> 20) & 0xFu),
-                (woort_BoxValueType)(uint8_t)((bc >> 16) & 0xFu),
-                b,
-                dst);
+        }
+        case 1: /* STIDXDICTEXT -> STIDXDICT{K}{V} */
+        {
+            const uint8_t kt = (uint8_t)((bc >> 20) & 0xFu);
+            const uint8_t vt = (uint8_t)((bc >> 16) & 0xFu);
+            switch (kt)
+            {
+            case 0:
+                switch (vt) {
+                case 0: DISPATCH(m_STIDXDICTII, a, b, dst); break;
+                case 1: DISPATCH(m_STIDXDICTIR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDXDICTIB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDXDICTIX, a, b, dst); break;
+                } break;
+            case 1:
+                switch (vt) {
+                case 0: DISPATCH(m_STIDXDICTRI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDXDICTRR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDXDICTRB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDXDICTRX, a, b, dst); break;
+                } break;
+            case 2:
+                switch (vt) {
+                case 0: DISPATCH(m_STIDXDICTBI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDXDICTBR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDXDICTBB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDXDICTBX, a, b, dst); break;
+                } break;
+            case 3:
+                switch (vt) {
+                case 0: DISPATCH(m_STIDXDICTXI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDXDICTXR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDXDICTXB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDXDICTXX, a, b, dst); break;
+                } break;
+            }
             return c + 2;
-        case 2: /* STIDXMAPEXT */
-            DISPATCH(m_STIDXMAPEXT,
-                a,
-                (woort_BoxValueType)(uint8_t)((bc >> 20) & 0xFu),
-                (woort_BoxValueType)(uint8_t)((bc >> 16) & 0xFu),
-                b,
-                dst);
+        }
+        case 2: /* STIDXMAPEXT -> STIDXMAP{K}{V} */
+        {
+            const uint8_t kt = (uint8_t)((bc >> 20) & 0xFu);
+            const uint8_t vt = (uint8_t)((bc >> 16) & 0xFu);
+            switch (kt)
+            {
+            case 0:
+                switch (vt) {
+                case 0: DISPATCH(m_STIDXMAPII, a, b, dst); break;
+                case 1: DISPATCH(m_STIDXMAPIR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDXMAPIB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDXMAPIX, a, b, dst); break;
+                } break;
+            case 1:
+                switch (vt) {
+                case 0: DISPATCH(m_STIDXMAPRI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDXMAPRR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDXMAPRB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDXMAPRX, a, b, dst); break;
+                } break;
+            case 2:
+                switch (vt) {
+                case 0: DISPATCH(m_STIDXMAPBI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDXMAPBR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDXMAPBB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDXMAPBX, a, b, dst); break;
+                } break;
+            case 3:
+                switch (vt) {
+                case 0: DISPATCH(m_STIDXMAPXI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDXMAPXR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDXMAPXB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDXMAPXX, a, b, dst); break;
+                } break;
+            }
             return c + 2;
+        }
         case 3: /* STIDSTRUCTEXT */
             DISPATCH(m_STIDSTRUCTEXT,
                 b,
