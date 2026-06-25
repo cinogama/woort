@@ -1040,11 +1040,13 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
 typedef struct _RestoreStrTracker
 {
     woort_Vector m_copies;  /* char* 列表 */
+    bool m_oom;
 } _RestoreStrTracker;
 
 static void _rst_strtracker_init(_RestoreStrTracker* t)
 {
     woort_vector_init(&t->m_copies, sizeof(char*));
+    t->m_oom = false;
 }
 
 static void _rst_strtracker_deinit(_RestoreStrTracker* t)
@@ -1075,13 +1077,17 @@ static /* OPTIONAL */ const char* _rst_make_cstr(
 
         char* copy = (char*)malloc(len + 1);
         if (copy == NULL)
+        {
+            t->m_oom = true;
             return NULL;
+        }
         memcpy(copy, data, len);
         copy[len] = '\0';
 
         if (!woort_vector_push_back(&t->m_copies, 1, &copy))
         {
             free(copy);
+            t->m_oom = true;
             return NULL;
         }
         return copy;
@@ -1605,6 +1611,11 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 }
 
                 const char* name = _RESTORE_CSTR(name_off, name_len);
+                if (str_tracker.m_oom)
+                {
+                    result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                    goto _restore_fail_after_create;
+                }
                 if (name != NULL)
                 {
                     /*
