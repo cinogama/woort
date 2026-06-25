@@ -109,9 +109,6 @@ void woort_CodeEnv_PDB_init(woort_CodeEnv_PDB* pdb)
     pdb->m_source_map.m_entry_count = 0;
     woort_StringPool_init(&pdb->m_srcloc_string_pool);
 
-    woort_vector_init(&pdb->m_function_boundaries,
-        sizeof(woort_FunctionBoundary));
-
     woort_vector_init(&pdb->m_local_var_debug_info,
         sizeof(woort_LocalVarDebugInfo));
     woort_vector_init(&pdb->m_static_var_debug_info,
@@ -124,8 +121,6 @@ void woort_CodeEnv_PDB_deinit(woort_CodeEnv_PDB* pdb)
     pdb->m_source_map.m_entries = NULL;
     pdb->m_source_map.m_entry_count = 0;
     woort_StringPool_deinit(&pdb->m_srcloc_string_pool);
-
-    woort_vector_deinit(&pdb->m_function_boundaries);
 
     woort_vector_deinit(&pdb->m_local_var_debug_info);
     woort_vector_deinit(&pdb->m_static_var_debug_info);
@@ -167,6 +162,8 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
         woort_mutex_destroy(code_env->m_mutex);
 
     woort_CodeEnv_PDB_deinit(&code_env->m_pdb);
+
+    woort_vector_deinit(&code_env->m_function_boundaries);
 
     /* 释放常量记录数据 */
     for (size_t i = 0; i < code_env->m_const_records.m_size; ++i)
@@ -283,6 +280,9 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         code_env_instance->m_code_begin + bytecodes_count;
 
     woort_CodeEnv_PDB_init(&code_env_instance->m_pdb);
+
+    woort_vector_init(&code_env_instance->m_function_boundaries,
+        sizeof(woort_FunctionBoundary));
 
     code_env_instance->m_constant_count = constant_storage_count;
     code_env_instance->m_data_count = total_data_count;
@@ -662,7 +662,7 @@ build_function_boundaries:
         }
 
         /* 忽略 push_back 失败 —— 边界信息丢失不影响正确性 */
-        (void)woort_vector_push_back(&env->m_pdb.m_function_boundaries, 1, &boundary);
+        (void)woort_vector_push_back(&env->m_function_boundaries, 1, &boundary);
     }
 }
 
@@ -736,7 +736,7 @@ WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_o
     const woort_CodeEnv* env,
     uint32_t bytecode_offset)
 {
-    const woort_Vector* vec = &env->m_pdb.m_function_boundaries;
+    const woort_Vector* vec = &env->m_function_boundaries;
     const uint32_t count = (uint32_t)vec->m_size;
 
     if (count == 0)

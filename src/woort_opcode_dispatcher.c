@@ -5,19 +5,14 @@
 #include "woort_opcode_builder.h"
 #include "woort_codeenv.h"
 
-#define DISPATCH(FIELD, ...)                         \
-    do                                               \
-    {                                                \
-        if (d->FIELD)                                \
-            d->FIELD(userdata, ##__VA_ARGS__);       \
-    } while (0)
+#define DISPATCH(FIELD, ...) d->FIELD(userdata, ##__VA_ARGS__)
 
-const woort_Bytecode* woort_OpcodeDispatcher_decode(
+WOORT_NODISCARD const woort_Bytecode* woort_OpcodeDispatcher_decode(
     const woort_Bytecode* c, const woort_OpcodeDispatchers* d, void* userdata)
 {
     woort_Bytecode bc = c[0];
 _label_retry_entry:
-
+    ;
     const uint8_t op6 = (uint8_t)WOORT_BYTECODE(OP6, bc);
     const uint8_t m2 = (uint8_t)WOORT_BYTECODE(M2, bc);
 

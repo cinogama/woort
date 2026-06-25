@@ -398,5 +398,7 @@ typedef struct woort_OpcodeDispatchers
 
 #undef WOORT_OPCODE_DISPATCHER_FIELD_DECL
 
-const woort_Bytecode* woort_OpcodeDispatcher_decode(
-    const woort_Bytecode* c, const woort_OpcodeDispatchers* dispatchers, void* userdata);
+WOORT_NODISCARD const woort_Bytecode* woort_OpcodeDispatcher_decode(
+    const woort_Bytecode* c, 
+    const woort_OpcodeDispatchers* dispatchers,
+    void* userdata);

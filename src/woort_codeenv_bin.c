@@ -504,11 +504,11 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     /* 遍历函数边界名称 */
     if (ok)
     {
-        for (size_t i = 0; i < code_env->m_pdb.m_function_boundaries.m_size; ++i)
+        for (size_t i = 0; i < code_env->m_function_boundaries.m_size; ++i)
         {
             const woort_FunctionBoundary* fb =
                 (const woort_FunctionBoundary*)woort_vector_at(
-                    &code_env->m_pdb.m_function_boundaries, i);
+                    &code_env->m_function_boundaries, i);
             if (fb->m_name != NULL)
                 ok = ok && _bin_strpool_insert(&strpool,
                     fb->m_name, strlen(fb->m_name), NULL);
@@ -891,13 +891,13 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
      */
     if (ok)
     {
-        uint64_t fb_count = (uint64_t)code_env->m_pdb.m_function_boundaries.m_size;
+        uint64_t fb_count = (uint64_t)code_env->m_function_boundaries.m_size;
         ok = ok && _bin_write_u64(&w, fb_count);
-        for (size_t i = 0; ok && i < code_env->m_pdb.m_function_boundaries.m_size; ++i)
+        for (size_t i = 0; ok && i < code_env->m_function_boundaries.m_size; ++i)
         {
             const woort_FunctionBoundary* fb =
                 (const woort_FunctionBoundary*)woort_vector_at(
-                    &code_env->m_pdb.m_function_boundaries, i);
+                    &code_env->m_function_boundaries, i);
             ok = ok && _bin_write_u32(&w, fb->m_offset_begin);
             ok = ok && _bin_write_u32(&w, fb->m_code_length);
 
@@ -1640,7 +1640,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 fb.m_name = name;
 
                 if (!woort_vector_push_back(
-                    &cenv->m_pdb.m_function_boundaries, 1, &fb))
+                    &cenv->m_function_boundaries, 1, &fb))
                 {
                     result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
                     goto _restore_fail_after_create;

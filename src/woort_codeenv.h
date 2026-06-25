@@ -82,15 +82,6 @@ typedef struct woort_CodeEnv_PDB
      */
     woort_StringPool m_srcloc_string_pool;
 
-    /* === 函数边界表 === */
-    /*
-     * 字节码偏移 -> 函数名 的映射表。
-     * 按 m_offset_begin 升序排列，使用二分查找查询。
-     * 由 woort_CodeEnv_set_source_maps() 设置。
-     * CodeEnv 拥有所有权（m_name 指针指向 m_srcloc_string_pool 中的字符串）。
-     */
-    woort_Vector /* woort_FunctionBoundary */ m_function_boundaries;
-
     /*
      * 局部变量调试信息（名称 -> 栈偏移量）。
      * m_name 指针指向 m_srcloc_string_pool 中的字符串。
@@ -185,6 +176,15 @@ struct woort_CodeEnv {
      * CodeEnv 拥有所有权（GC destroy 时释放）。
      */
     woort_CodeEnv_PDB m_pdb;
+
+    /* === 函数边界表 === */
+    /*
+     * 字节码偏移 -> 函数名 的映射表。
+     * 按 m_offset_begin 升序排列，使用二分查找查询。
+     * 由 woort_CodeEnv_set_source_maps() 设置。
+     * CodeEnv 拥有所有权（m_name 指针指向 m_srcloc_string_pool 中的字符串）。
+     */
+    woort_Vector /* woort_FunctionBoundary */ m_function_boundaries;
 
     /* === 外部库句柄跟踪 === */
     /*
