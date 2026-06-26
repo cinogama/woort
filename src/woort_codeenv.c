@@ -5,7 +5,6 @@
 #include <memory.h>
 
 #include "woort_codeenv.h"
-#include "woort_jit.h"
 #include "woort_dylib.h"
 #include "woort_ir_function.h"
 #include "woort_ir_srcloc.h"
@@ -150,14 +149,6 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 
     woort_rwspinlock_write_unlock(
         &_codeenv_global_ctx->m_codeenvs_lock);
-
-    /*
-     * 释放该 CodeEnv 名下所有 JIT 编译产物（调后端 free_func，并清空常量池槽）。
-     * 必须在 mutex 销毁与常量记录释放之前进行：release_env 仍需访问 m_data_begin。
-     * env 正在被 GC 销毁，调用者保证无并发执行，故无需 CodeEnv 锁。
-     * 无活跃后端时为空操作。
-     */
-    woort_JIT_release_env(code_env);
 
     woort_hashmap_deinit(&code_env->m_trap_records);
 

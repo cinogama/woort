@@ -2355,9 +2355,9 @@ WOORT_NODISCARD bool woort_IRCompiler_add_function(
 
 void woort_IRFunction_set_name(
     woort_IRFunction* f,
-    /* OPTIONAL */ const char* name)
+    const char* name)
 {
-    assert(f != NULL);
+    assert(f != NULL && name != NULL);
     f->m_name = name;
 }
 

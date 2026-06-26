@@ -1230,11 +1230,11 @@ WOORT_API void woort_IRFunction_pop_srcloc(woort_IRFunction* f);
  * The pointer must remain valid until after finish() completes.
  *
  * @param f     The IR function. Must not be NULL.
- * @param name  The function name (may be NULL for anonymous functions).
+ * @param name  The function name. Must not be NULL.
  */
 WOORT_API void woort_IRFunction_set_name(
     woort_IRFunction* f,
-    /* OPTIONAL */ const char* name);
+    const char* name);
 
 /**
  * @brief Record a local variable name -> IRValue mapping for debug info.

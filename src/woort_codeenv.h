@@ -29,7 +29,7 @@ typedef struct woort_FunctionBoundary
 {
     uint32_t m_offset_begin;           /**< @brief Bytecode offset where the function starts. */
     uint32_t m_code_length;            /**< @brief Length of the function's bytecode in words. */
-    /* OPTIONAL */ const char* m_name; /**< @brief Function name (may be NULL for anonymous). */
+    /* OPTIONAL */ const char* m_name; /**< @brief Function name (may be NULL if not specified). */
 
 } woort_FunctionBoundary;
 
