@@ -30,5 +30,18 @@ typedef struct woort_JIT_Backend
 
 } woort_JIT_Backend;
 
+typedef enum woort_JIT_Result
+{
+    WOORT_JIT_OK_FINISHED,
+    WOORT_JIT_OK_NO_BACKEND,
+
+    WOORT_JIT_FAILED_OUT_OF_MEMORY,
+
+
+}woort_JIT_Result;
+
 void woort_JIT_bootup(void);
 void woort_JIT_shutdown(void);
+
+void woort_JIT_set_backend(const woort_JIT_Backend* backend);
+WOORT_NODISCARD woort_JIT_Result woort_JIT_compile_env(woort_CodeEnv* cenv);
