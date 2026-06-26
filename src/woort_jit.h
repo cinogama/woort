@@ -9,12 +9,16 @@
 typedef void* woort_JIT_Backend_Emmiter;
 
 typedef bool (*woort_JIT_Backend_EmitPrologue)(
-    const woort_FunctionBoundary*, 
+    const woort_Bytecode*,
+    size_t,
     woort_JIT_Backend_Emmiter* out_emmiter);
 
 typedef bool (*woort_JIT_Backend_EmitEpilogue)(
     woort_JIT_Backend_Emmiter, 
     woort_JitFunction* out_code);
+
+typedef bool (*woort_JIT_Backend_CheckState)(
+    woort_JIT_Backend_Emmiter);
 
 typedef bool (*woort_JIT_Backend_DropCode)(
     woort_JitFunction*);
@@ -23,6 +27,7 @@ typedef struct woort_JIT_Backend
 {
     woort_JIT_Backend_EmitPrologue m_emit_prologue;
     woort_JIT_Backend_EmitEpilogue m_emit_epilogue;
+    woort_JIT_Backend_CheckState m_check_state;
 
     const woort_OpcodeDispatchers* m_dispatchers;
 
@@ -30,18 +35,9 @@ typedef struct woort_JIT_Backend
 
 } woort_JIT_Backend;
 
-typedef enum woort_JIT_Result
-{
-    WOORT_JIT_OK_FINISHED,
-    WOORT_JIT_OK_NO_BACKEND,
-
-    WOORT_JIT_FAILED_OUT_OF_MEMORY,
-
-
-}woort_JIT_Result;
-
 void woort_JIT_bootup(void);
 void woort_JIT_shutdown(void);
 
 void woort_JIT_set_backend(const woort_JIT_Backend* backend);
-WOORT_NODISCARD woort_JIT_Result woort_JIT_compile_env(woort_CodeEnv* cenv);
+
+void woort_JIT_compile_env(woort_CodeEnv* cenv);
