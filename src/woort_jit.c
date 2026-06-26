@@ -76,7 +76,7 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
         if (WOORT_BYTECODE(OP6, *current_opcode) == WOORT_OPCODE_CALLNWO)
             // Will be update to CALLNJIT.
             *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
-                WOORT_OPCODE_CALLNWO, WOORT_BYTECODE(MABC26, *current_opcode));
+                WOORT_OPCODE_CALLNJIT, WOORT_BYTECODE(MABC26, *current_opcode));
 
         current_opcode = woort_OpcodeDispatcher_decode(
             current_opcode, backend->m_dispatchers, func_jit_ctx);
@@ -91,6 +91,25 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
 
     assert(jit_func_result != NULL);
     context->m_jit_function = jit_func_result;
+
+    return true;
+}
+
+static bool /* false if break loop. */ _woort_JIT_drop_compiled_function(
+    const void* key,
+    void* value,
+    void* user_data)
+{
+    (void)key;
+
+    woort_JIT_CompileFunctionContext* const context =
+        (woort_JIT_CompileFunctionContext*)value;
+
+    const woort_JIT_Backend* const backend =
+        (const woort_JIT_Backend*)user_data;
+
+    if (context->m_jit_function != NULL)
+        backend->m_code_dropper(&context->m_jit_function);
 
     return true;
 }
@@ -121,7 +140,7 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
         (const woort_FunctionBoundary*)cenv->m_function_boundaries.m_data;
 
     woort_JIT_CompileFunctionContext value;
-    value.m_jit_function = NULL;;
+    value.m_jit_function = NULL;
 
     for (size_t fidx = 0; fidx < cenv->m_function_boundaries.m_size; ++fidx)
     {
@@ -154,6 +173,7 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
     }
 
     // Ok, all function has been compiled, Update the function constant.
+    // NOTE: 此处之后不能以失败为结束，因为状态无法简单回滚。
     const woort_ConstRecord* const env_constants = 
         (const woort_ConstRecord*)cenv->m_const_records.m_data;
 
@@ -191,8 +211,23 @@ _label_jit_failed:
     if (!jit_compile_result)
     {
         // Drop generated codes here.
+        (void)woort_hashmap_foreach(
+            &jit_compiled_functions_record,
+            _woort_JIT_drop_compiled_function,
+            (void*)backend);
 
         // Rollback CALLNJIT to CALLNWO.
+        woort_Bytecode* current_opcode = (woort_Bytecode*)cenv->m_code_begin;
+        const woort_Bytecode* const env_opcode_end = cenv->m_code_end;
+
+        while (current_opcode < env_opcode_end)
+        {
+            if (WOORT_BYTECODE(OP6, *current_opcode) == WOORT_OPCODE_CALLNJIT)
+                *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
+                    WOORT_OPCODE_CALLNWO, WOORT_BYTECODE(MABC26, *current_opcode));
+
+            ++current_opcode;
+        }
     }
 
     woort_hashmap_deinit(&jit_compiled_functions_record);
