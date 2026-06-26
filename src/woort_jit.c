@@ -226,7 +226,9 @@ _label_jit_failed:
                 *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
                     WOORT_OPCODE_CALLNWO, WOORT_BYTECODE(MABC26, *current_opcode));
 
-            ++current_opcode;
+            current_opcode = 
+                (woort_Bytecode*)woort_OpcodeDispatcher_decode(
+                    current_opcode, NULL, NULL);
         }
     }
 

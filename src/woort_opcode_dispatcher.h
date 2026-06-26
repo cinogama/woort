@@ -400,5 +400,5 @@ typedef struct woort_OpcodeDispatchers
 
 WOORT_NODISCARD const woort_Bytecode* woort_OpcodeDispatcher_decode(
     const woort_Bytecode* c, 
-    const woort_OpcodeDispatchers* dispatchers,
-    void* userdata);
+    /* OPTIONAL */ const woort_OpcodeDispatchers* dispatchers,
+    /* OPTIONAL */ void* userdata);
