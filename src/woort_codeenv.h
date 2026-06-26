@@ -196,12 +196,12 @@ struct woort_CodeEnv {
     /*
      * 常量池元数据（与 m_data_begin 并行）。
      * 每个条目记录该常量槽的类型和 extern 解析信息。
-     * 长度与 m_constant_count 一致。
+     * m_const_records.m_size 即常量数：m_data_begin 的前 m_size 个槽位
+     * 为常量区，其余为静态存储区。
      * CodeEnv 拥有所有权，GC destroy 时释放。
      */
     woort_Vector /* woort_ConstRecord */ m_const_records;
 
-    size_t m_constant_count;
     size_t m_data_count;
     woort_Value m_data_begin[];
 };

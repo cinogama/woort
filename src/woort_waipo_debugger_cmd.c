@@ -195,7 +195,7 @@ static bool _woort_WAIPO_list_codeenv_callback(
         (const void*)cenv->m_code_begin,
         (const void*)cenv->m_code_end,
         cenv->m_data_count,
-        cenv->m_constant_count,
+        cenv->m_const_records.m_size,
         cenv->m_function_boundaries.m_size);
 
     ++ctx->m_index;
@@ -1375,7 +1375,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
             continue;
 
         const size_t global_index =
-            cenv->m_constant_count + (size_t)info->m_static_idx;
+            cenv->m_const_records.m_size + (size_t)info->m_static_idx;
 
         (void)printf(
             "[static] %s@G[%zu] = ",

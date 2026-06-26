@@ -629,7 +629,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     bool ok = true;
 
     const size_t code_size = (size_t)(code_env->m_code_end - code_env->m_code_begin);
-    const size_t const_count = code_env->m_constant_count;
+    const size_t const_count = code_env->m_const_records.m_size;
 
     /*
      * 写入头部。

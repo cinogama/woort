@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
 |--------------|------|
 | `m_code_begin` / `m_code_end` | 字节码区间 |
 | `m_data_begin[]` | 常量池 + 静态存储区（柔性数组，`woort_Value`） |
-| `m_constant_count` / `m_data_count` | 常量数 / 总数据槽数 |
+| `m_const_records.m_size` / `m_data_count` | 常量数 / 总数据槽数（常量区为 `m_data_begin` 前 `m_const_records.m_size` 个槽，其余为静态存储区） |
 | `m_pdb` | 程序调试数据库（源码映射、函数边界、局部变量名） |
 | `m_trap_records` | 断点（trap）记录表 |
 | `m_extern_constants` | 外部常量名 → 索引 注册表 |

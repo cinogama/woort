@@ -191,7 +191,7 @@ void woort_CodeEnv_set_const_int(
     woort_Int val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_Value v;
     v.m_integer = val;
@@ -207,7 +207,7 @@ void woort_CodeEnv_set_const_real(
     woort_Real val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_Value v;
     v.m_real = val;
@@ -224,7 +224,7 @@ void woort_CodeEnv_set_const_buffer(
     size_t buflen)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
     assert(buf != NULL);
 
     const woort_GCString* str =
@@ -246,7 +246,7 @@ void woort_CodeEnv_set_const_script_function(
     const woort_Bytecode* val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_Value v;
     v.m_script_function = val;
@@ -262,7 +262,7 @@ void woort_CodeEnv_set_const_extern_function(
     woort_NativeFunction val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_Value v;
     v.m_native_function = val;
@@ -278,7 +278,7 @@ void woort_CodeEnv_set_const_script_closure(
     const woort_Bytecode* val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_GCClosure* const closure =
         woort_GCClosure_new_script_func_for_env_constant(
@@ -300,7 +300,7 @@ void woort_CodeEnv_set_const_extern_closure(
     woort_NativeFunction val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_GCClosure* const closure =
         woort_GCClosure_new_native_func_for_env_constant(
@@ -322,7 +322,7 @@ void woort_CodeEnv_set_const_box_int(
     woort_Int val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_DynBox boxed = woort_DynBox_box_int_for_env_constant(code_env, val);
     woort_GC_init_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
@@ -336,7 +336,7 @@ void woort_CodeEnv_set_const_box_real(
     woort_Real val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_DynBox boxed = woort_DynBox_box_real_for_env_constant(code_env, val);
     woort_GC_init_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
@@ -350,7 +350,7 @@ void woort_CodeEnv_set_const_box_bool(
     bool val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_DynBox boxed = woort_DynBox_box_bool(val);
     woort_GC_init_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
@@ -365,7 +365,7 @@ void woort_CodeEnv_set_const_struct(
     size_t member_count)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
     assert(member_count == 0 || members != NULL);
 
     woort_GCStruct* const s = 
@@ -374,7 +374,7 @@ void woort_CodeEnv_set_const_struct(
     assert(s != NULL);
 
     for (size_t i = 0; i < member_count; ++i) {
-        assert((size_t)members[i] < code_env->m_constant_count);
+        assert((size_t)members[i] < code_env->m_const_records.m_size);
         woort_GC_init_write_barrier_value(
             &s->m_datas[i], code_env->m_data_begin[members[i]]);
     }
@@ -393,10 +393,11 @@ void woort_CodeEnv_set_static_value(
     const woort_Value* val)
 {
     assert(code_env != NULL);
-    assert((size_t)(code_env->m_constant_count + sidx) < code_env->m_data_count);
+    const size_t const_count = code_env->m_const_records.m_size;
+    assert((size_t)(const_count + sidx) < code_env->m_data_count);
 
     woort_GC_mixed_write_barrier_value(
-        &code_env->m_data_begin[code_env->m_constant_count + sidx], *val);
+        &code_env->m_data_begin[const_count + sidx], *val);
 }
 
 void woort_CodeEnv_get_static_value(
@@ -405,16 +406,17 @@ void woort_CodeEnv_get_static_value(
     woort_Value* out_val)
 {
     assert(code_env != NULL);
-    assert((size_t)(code_env->m_constant_count + sidx) < code_env->m_data_count);
+    const size_t const_count = code_env->m_const_records.m_size;
+    assert((size_t)(const_count + sidx) < code_env->m_data_count);
 
-    *out_val = code_env->m_data_begin[code_env->m_constant_count + sidx];
+    *out_val = code_env->m_data_begin[const_count + sidx];
 }
 
 WOORT_NODISCARD size_t woort_CodeEnv_get_static_storage_count(
     const woort_CodeEnv* code_env)
 {
     assert(code_env != NULL);
-    return code_env->m_data_count - code_env->m_constant_count;
+    return code_env->m_data_count - code_env->m_const_records.m_size;
 }
 
 WOORT_NODISCARD static woort_GCStruct* _woort_set_union(
@@ -449,7 +451,7 @@ void woort_load_const(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     _WOORT_API_STACK(dst) = code_env->m_data_begin[cidx];
 }
@@ -466,7 +468,7 @@ WOORT_NODISCARD bool woort_load_extern_const(
     if (!woort_CodeEnv_find_extern_constant(code_env, name, &cidx))
         return false;
 
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
     _WOORT_API_STACK(dst) = code_env->m_data_begin[cidx];
     return true;
 }

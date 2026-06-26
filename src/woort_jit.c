@@ -118,7 +118,7 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
 
     // Walk through all bounded function.
     const woort_FunctionBoundary* const env_function_boundaries =
-        cenv->m_function_boundaries.m_data;
+        (const woort_FunctionBoundary*)cenv->m_function_boundaries.m_data;
 
     woort_JIT_CompileFunctionContext value;
     value.m_jit_function = NULL;;
@@ -147,15 +147,17 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
     if (!woort_hashmap_foreach(
         &jit_compiled_functions_record,
         _woort_JIT_walk_through_function_to_compile,
-        backend))
+        (void*)backend))
     {
         jit_compile_result = false;
         goto _label_jit_failed;
     }
 
     // Ok, all function has been compiled, Update the function constant.
-    const woort_ConstRecord* const env_constants = cenv->m_const_records.m_data;
-    for (size_t cidx = 0; cidx < cenv->m_constant_count; ++cidx)
+    const woort_ConstRecord* const env_constants = 
+        (const woort_ConstRecord*)cenv->m_const_records.m_data;
+
+    for (size_t cidx = 0; cidx < cenv->m_const_records.m_size; ++cidx)
     {
         switch (env_constants[cidx].m_type)
         {
@@ -194,5 +196,4 @@ _label_jit_failed:
     }
 
     woort_hashmap_deinit(&jit_compiled_functions_record);
-    return jit_compile_result;
 }

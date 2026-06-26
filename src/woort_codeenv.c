@@ -284,7 +284,6 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     woort_vector_init(&code_env_instance->m_function_boundaries,
         sizeof(woort_FunctionBoundary));
 
-    code_env_instance->m_constant_count = constant_storage_count;
     code_env_instance->m_data_count = total_data_count;
 
     woort_hashmap_init(
@@ -893,7 +892,6 @@ WOORT_NODISCARD bool woort_CodeEnv_set_const_record(
     /* OPTIONAL */ const char* func_name)
 {
     assert(env != NULL);
-    assert((size_t)cidx < env->m_constant_count);
     assert((size_t)cidx < env->m_const_records.m_size);
 
     woort_ConstRecord* rec = (woort_ConstRecord*)woort_vector_at(
