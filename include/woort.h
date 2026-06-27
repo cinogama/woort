@@ -331,6 +331,10 @@ typedef int32_t woort_StackValue;
 /** @brief Signature for native (C) functions callable from Woolang. */
 typedef woort_api(*woort_NativeFunction)(void);
 
+/** @brief Signature for JIT (C) functions callable from Woolang. */
+typedef woort_api(*woort_JitFunction)(
+    woort_VMRuntime* vm, const woort_Value* bp);
+
 /** @brief Opaque handle to a compiled code environment containing bytecode and constants. */
 typedef struct woort_CodeEnv woort_CodeEnv;
 
@@ -338,7 +342,6 @@ typedef struct woort_CodeEnv woort_CodeEnv;
  * @brief Opaque handle to a loaded dynamic library (native or fake).
  */
 typedef struct woort_Dylib woort_Dylib;
-
 
 /**
  * @brief Unload method flags for woort_dylib_unload.

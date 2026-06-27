@@ -2,7 +2,6 @@
 
 #include "woort_value.h"
 #include "woort_opcode_dispatcher.h"
-#include "woort_codeenv.h"
 
 #include <stdbool.h>
 

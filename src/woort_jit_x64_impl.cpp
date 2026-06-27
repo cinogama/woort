@@ -1,7 +1,5 @@
-extern "C"
-{
-#include "woort_jit_x64.h"
-}
+#include "woort_jit_x64_bridge.h"
+#include "woort_jit_bridge.h"
 
 bool woort_JIT_Backend_x64_prologue(
     const woort_Bytecode* function,

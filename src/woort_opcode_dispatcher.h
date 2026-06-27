@@ -1,16 +1,8 @@
 #pragma once
 
-#include "woort_opcode.h"
 #include "woort.h"
-
-#include <stdint.h>
-#include <stddef.h>
-
-typedef int32_t woort_Opcode_Stack;
-typedef uint32_t woort_Opcode_Global;
-typedef uint32_t woort_Opcode_Count;
-typedef uint32_t woort_Opcode_CodeAbs;
-typedef uint32_t woort_Opcode_CodeDiff;
+#include "woort_opcode.h"
+#include "woort_opcode_dispatcher_types.h"
 
 #define WOORT_OPCODE_DISPATCHER_TYPE_DECL(NAME, ...) \
     typedef void (*woort_OpcodeDispatcher_##NAME)(void* userctx,##__VA_ARGS__)
