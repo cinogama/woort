@@ -60,10 +60,10 @@ struct woort_JIT_Asmjit_arm64_Emmiter
 
 bool woort_JIT_Backend_arm64_prologue(
     const woort_CodeEnv* cenv,
-    const woort_Bytecode* function_begin,
+    const woort_Bytecode** ip,
     void** out_emmiter)
 {
-    (void)function_begin;
+    (void)ip;
 
     woort_JIT_Asmjit_arm64_Emmiter* const em =
         new (std::nothrow) woort_JIT_Asmjit_arm64_Emmiter(cenv);

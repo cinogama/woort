@@ -20,7 +20,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
     CodeHolder  m_code_holder;
     Error       m_last_error;
 
-    FuncNode* m_func_node;
+    FuncNode*   m_func_node;
+    const woort_Bytecode** m_ip;
 
     /* runtime states */
     Gp          m_vm;
@@ -35,12 +36,13 @@ struct woort_JIT_Asmjit_x64_Emmiter
     woort_JIT_Asmjit_x64_Emmiter& operator =(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
     woort_JIT_Asmjit_x64_Emmiter& operator =(woort_JIT_Asmjit_x64_Emmiter&&) = delete;
 
-    woort_JIT_Asmjit_x64_Emmiter(const woort_CodeEnv* cenv_) noexcept
+    woort_JIT_Asmjit_x64_Emmiter(const woort_CodeEnv* cenv_, const woort_Bytecode** ip) noexcept
         : c(nullptr)
         , cenv(cenv_)
         , m_code_holder{}
         , m_last_error(Error::kOk)
         , m_func_node(nullptr)
+        , m_ip(ip)
     {
         JitRuntime* const asmjit_runtime =
             static_cast<JitRuntime*>(woort_JIT_Asmjit_get_runtime());
@@ -124,11 +126,11 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
 bool woort_JIT_Backend_x64_prologue(
     const woort_CodeEnv* cenv,
-    const woort_Bytecode* function_begin,
+    const woort_Bytecode** ip,
     void** out_emmiter)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em =
-        new (std::nothrow) woort_JIT_Asmjit_x64_Emmiter(cenv);
+        new (std::nothrow) woort_JIT_Asmjit_x64_Emmiter(cenv, ip);
 
     if (em == nullptr)
         return false;
@@ -152,12 +154,11 @@ bool woort_JIT_Backend_x64_prologue(
 
             WOORT_JIT_CODE(cmp  (depth_addr, WOORT_VM_MAX_JIT_CALL_DEPTH));
             WOORT_JIT_CODE(jbe  (L_ok));
-            em->sync_vm_state_with_env(function_begin);
+            em->sync_vm_state_with_env(*ip);
             em->return_with_status_without_reduce_depth(WOORT_VM_CALL_STATUS_RESYNC);
             WOORT_JIT_CODE(bind (L_ok));
             WOORT_JIT_CODE(inc  (depth_addr));
         }
-        // 2. 
     }
     
     if (!em->is_okay())
@@ -180,6 +181,7 @@ bool woort_JIT_Backend_x64_epilogue(
     assert(em != nullptr);
 
     Error err = em->c->end_func();
+
     if (err == Error::kOk)
         err = em->c->finalize();
 
@@ -280,8 +282,9 @@ void woort_JIT_Backend_x64_MOVST(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 void woort_JIT_Backend_x64_PUSHRCHK(void* emmiter, woort_Opcode_Count n)
 {
-    (void)emmiter;
-    (void)n;
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+
 }
 
 void woort_JIT_Backend_x64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src)

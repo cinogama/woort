@@ -26,6 +26,8 @@ WOORT_NODISCARD bool woort_JIT_bootup(void)
 
     woort_rwspinlock_init(&s_jit_context.m_jit_backend_mx);
     s_jit_context.m_jit_backend = NULL;
+
+    return true;
 }
 void woort_JIT_shutdown(void)
 {
@@ -54,7 +56,7 @@ typedef struct woort_JIT_CompileFunctionContext
 {
     const woort_FunctionBoundary* m_boundary;
     /* OPTIONAL */ woort_JitFunction m_jit_function;
-    
+
 }woort_JIT_CompileFunctionContext;
 
 typedef struct woort_JIT_CompileWalkContext
@@ -68,7 +70,7 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
     void* value,
     void* user_data)
 {
-    const woort_Bytecode* const function = 
+    const woort_Bytecode* const function =
         *(const woort_Bytecode**)key;
 
     woort_JIT_CompileFunctionContext* const context =
@@ -79,11 +81,12 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
 
     const woort_JIT_Backend* const backend = walk_ctx->m_backend;
 
+    const woort_Bytecode* current_opcode = function;
+
     void* func_jit_ctx;
-    if (!backend->m_emit_prologue(walk_ctx->m_cenv, function, &func_jit_ctx))
+    if (!backend->m_emit_prologue(walk_ctx->m_cenv, &current_opcode, &func_jit_ctx))
         return false;
 
-    const woort_Bytecode* current_opcode = function;
     const woort_Bytecode* const function_end = function + context->m_boundary->m_code_length;
     while (current_opcode < function_end)
     {
@@ -92,11 +95,13 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
             *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
                 WOORT_OPCODE_CALLNJIT, WOORT_BYTECODE(MABC26, *current_opcode));
 
-        current_opcode = woort_OpcodeDispatcher_decode(
+        const woort_Bytecode* const next_opcode = woort_OpcodeDispatcher_decode(
             current_opcode, backend->m_dispatchers, func_jit_ctx);
 
         if (!backend->m_check_state(func_jit_ctx))
             return false;
+
+        current_opcode = next_opcode;
     }
 
     woort_JitFunction jit_func_result;
@@ -192,7 +197,7 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
 
     // Ok, all function has been compiled, Update the function constant.
     // NOTE: 此处之后不能以失败为结束，因为状态无法简单回滚。
-    const woort_ConstRecord* const env_constants = 
+    const woort_ConstRecord* const env_constants =
         (const woort_ConstRecord*)cenv->m_const_records.m_data;
 
     for (size_t cidx = 0; cidx < cenv->m_const_records.m_size; ++cidx)
@@ -216,7 +221,7 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
                 &cenv->m_data_begin[cidx].m_closure->m_script_function);
 
             assert(ctx->m_jit_function != NULL);
-            ((woort_GCClosure*)cenv->m_data_begin[cidx].m_closure)->m_jit_function = 
+            ((woort_GCClosure*)cenv->m_data_begin[cidx].m_closure)->m_jit_function =
                 ctx->m_jit_function;
             break;
         }
@@ -244,7 +249,7 @@ _label_jit_failed:
                 *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
                     WOORT_OPCODE_CALLNWO, WOORT_BYTECODE(MABC26, *current_opcode));
 
-            current_opcode = 
+            current_opcode =
                 (woort_Bytecode*)woort_OpcodeDispatcher_decode(
                     current_opcode, NULL, NULL);
         }

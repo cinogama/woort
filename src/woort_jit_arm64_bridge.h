@@ -9,7 +9,7 @@ extern "C" {
 
     bool woort_JIT_Backend_arm64_prologue(
         const woort_CodeEnv* cenv,
-        const woort_Bytecode* function_begin,
+        const woort_Bytecode** ip,
         void** out_emmiter);
     bool woort_JIT_Backend_arm64_epilogue(
         void* emmiter,
