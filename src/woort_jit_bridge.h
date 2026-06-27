@@ -3,6 +3,8 @@
 #include "woort.h"
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,6 +15,13 @@ extern "C" {
 
     void* woort_JIT_Asmjit_get_runtime(void);
 
+#define WOORT_VM_MAX_JIT_CALL_DEPTH 128
+    
+    extern const size_t WOORT_VM_OFFSETOF_JIT_CALL_DEPTH;
+    extern const size_t WOORT_VM_OFFSETOF_IP;
+    extern const size_t WOORT_VM_OFFSETOF_SP;
+    extern const size_t WOORT_VM_OFFSETOF_SB;
+    extern const size_t WOORT_VM_OFFSETOF_ENV;
 #ifdef __cplusplus
 }
 #endif

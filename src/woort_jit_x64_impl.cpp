@@ -10,6 +10,8 @@
 using namespace asmjit;
 using namespace asmjit::x86;
 
+#define WOORT_JIT_CODE(CMD) em->update_last_error(em->c->CMD)
+
 struct woort_JIT_Asmjit_x64_Emmiter
 {
     Compiler* c;
@@ -71,6 +73,23 @@ struct woort_JIT_Asmjit_x64_Emmiter
     {
         return m_last_error == Error::kOk;
     }
+    void update_last_error(Error err)
+    {
+        if (err != Error::kOk)
+            m_last_error = err;
+    }
+
+    // ===================================================== //
+    void sync_vm_state_with_env(const woort_Bytecode* ip)
+    {
+        /*
+        SYNC 是将 JIT 运行时状态正向同步到 VM 运行时
+        需要同步的状态，参阅 woort_vm.c 的 WOORT_VM_SYNC_STATE_WITH_ENV
+        */
+
+        auto* const em = this;
+        WOORT_JIT_CODE(mov  ());
+    }
 };
 
 bool woort_JIT_Backend_x64_prologue(
@@ -87,6 +106,22 @@ bool woort_JIT_Backend_x64_prologue(
     {
         delete em;
         return false;
+    }
+
+    // Ok, generate codes for JIT function overload.
+
+    // 1.Check JIT function if too depth.
+    {
+        const Label L_ok = em->c->new_label();
+
+        const Mem depth_addr =
+            dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_JIT_CALL_DEPTH);
+
+        WOORT_JIT_CODE(cmp  (depth_addr, WOORT_VM_MAX_JIT_CALL_DEPTH));
+        WOORT_JIT_CODE(jbe  (L_ok));
+        WOORT_JIT_CODE(int3 ());
+        WOORT_JIT_CODE(bind (L_ok));
+        WOORT_JIT_CODE(add  (depth_addr, 1));
     }
 
     *out_emmiter = em;

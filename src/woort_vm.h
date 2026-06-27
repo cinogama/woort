@@ -143,6 +143,8 @@ struct woort_VMRuntime
     woort_Value*            m_sp;
     const woort_Bytecode*   m_ip;
 
+    uint32_t                m_jit_call_depth;
+
     /*
     NOTE: m_env 的设计用意如下：
         考虑到：
@@ -174,7 +176,7 @@ struct woort_VMRuntime
 
     /* OPTIONAL */ woort_CodeEnv*    m_env;
 
-    woort_AtomicUInt32      m_check_request_mask;
+    woort_AtomicUInt32          m_check_request_mask;
 
     bool                        m_is_weak;
 
@@ -182,8 +184,8 @@ struct woort_VMRuntime
     woort_Mutex*                m_hangup_mx;
     woort_ConditionVariable*    m_hangup_cv;
 
-    uint8_t                 m_shrink_stack_count;
-    uint8_t                 m_shrink_stack_edge;
+    uint8_t                     m_shrink_stack_count;
+    uint8_t                     m_shrink_stack_edge;
 
 };
 
