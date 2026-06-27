@@ -10,17 +10,17 @@ const int32_t WOORT_VM_OFFSETOF_ENV = (int32_t)offsetof(woort_VMRuntime, m_env);
 const int32_t WOORT_VM_OFFSETOF_STACK = (int32_t)offsetof(woort_VMRuntime, m_stack);
 const int32_t WOORT_VM_OFFSETOF_STACK_END = (int32_t)offsetof(woort_VMRuntime, m_stack_end);
 
-const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv)
+WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv)
 {
     return cenv->m_code_begin;
 }
 
-size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv)
+WOORT_NODISCARD size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv)
 {
     return cenv->m_const_records.m_size;
 }
 
-woort_Value* woort_JIT_CodeEnv_static_data(const woort_CodeEnv* cenv)
+WOORT_NODISCARD const woort_Value* woort_JIT_CodeEnv_static_data(const woort_CodeEnv* cenv)
 {
     return cenv->m_data_begin;
 }

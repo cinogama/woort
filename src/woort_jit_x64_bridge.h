@@ -17,7 +17,7 @@ extern "C" {
     bool woort_JIT_Backend_x64_post_dispatch(
         void* emmiter);
     bool woort_JIT_Backend_x64_pre_dispatch(
-        void* emmiter, const woort_Bytecode* current_opcode);
+        void* emmiter);
     void woort_JIT_Backend_x64_droper(
         woort_JitFunction* code);
     void woort_JIT_Backend_x64_NOP(void* emmiter);
