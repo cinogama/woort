@@ -6,7 +6,6 @@ woort_value.h
 
 #include "woort.h"
 
-#include "woort_diagnosis.h"
 #include "woort_gc_units.h"
 
 #include <stdint.h>

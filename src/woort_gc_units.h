@@ -4,10 +4,11 @@
 woort_gc_units.h
 */
 
+#include "woort.h"
+
 #include "woomem.h"
 
-#include "woort_threads.h"
-
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -28,8 +29,6 @@ struct woort_GCUnit
     const woort_GCUnitProxy* m_proxy;
 };
 
-extern woort_Mutex* _woort_gc_allocate_failed_log_mx;
-
 #define WOORT_GCUNIT_ALLOC_ATTRIB_O 0
 #define WOORT_GCUNIT_ALLOC_ATTRIB_A WOOMEM_ATTRIB_AUTO_MARK
 #define WOORT_GCUNIT_ALLOC_ATTRIB_M WOOMEM_ATTRIB_MARK_CALLBACK
@@ -45,6 +44,9 @@ extern woort_Mutex* _woort_gc_allocate_failed_log_mx;
     (WOORT_GCUNIT_ALLOC_ATTRIB_AM | WOORT_GCUNIT_ALLOC_ATTRIB_F)
 
 void _woort_GCUnit_alloc_failed(void);
+
+WOORT_NODISCARD bool woort_GCUnit_bootup(void);
+void woort_GCUnit_shutdown(void);
 
 inline static void* woort_GCUnit_realloc(void* ptr, size_t sz)
 {

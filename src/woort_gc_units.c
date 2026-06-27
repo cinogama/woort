@@ -5,10 +5,21 @@
 #include "woort_diagnosis.h"
 #include "woort_log.h"
 #include "woort_vector.h"
+#include "woort_threads.h"
 
 #include <assert.h>
 
 woort_Mutex* _woort_gc_allocate_failed_log_mx;
+
+WOORT_NODISCARD bool woort_GCUnit_bootup(void)
+{
+    return woort_mutex_create(&_woort_gc_allocate_failed_log_mx);
+}
+
+void woort_GCUnit_shutdown(void)
+{
+    woort_mutex_destroy(_woort_gc_allocate_failed_log_mx);
+}
 
 void _woort_GCUnit_alloc_failed(void)
 {

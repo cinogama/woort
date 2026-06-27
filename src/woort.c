@@ -7,6 +7,7 @@
 #include "woort_vm.h"
 #include "woort_ir_compiler.h"
 #include "woort_value.h"
+#include "woort_gc_units.h"
 #include "woort_gc_string.h"
 #include "woort_gc_vec.h"
 #include "woort_gc_map.h"
@@ -105,6 +106,12 @@ void woort_init(int argc, char** argv)
     if (_woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER)
         woort_ctrlc_setup();
 
+    if (!woort_GCUnit_bootup())
+    {
+        WOORT_DEBUG("Failed to bootup gcunit.");
+        abort();
+    }
+
     if (!woort_GC_bootup(_woort_setting_MAX_RESERVED_MEMORY_IN_MB * 1024 * 1024))
     {
         WOORT_DEBUG("Failed to bootup gc.");
@@ -152,6 +159,7 @@ void woort_shutdown(woort_ShutdownPostCallback do_after_shutdown, void* custom_d
     woort_VMRuntime_Debugger_shutdown();
 
     woort_GC_shutdown();
+    woort_GCUnit_shutdown();
     woort_GCPin_shutdown();
     _woort_builtin_shutdown();
 
