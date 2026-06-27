@@ -8,6 +8,7 @@
 #include "woort_opcode_dispatcher.h"
 #include "woort_value.h"
 #include "woort_gc_closure.h"
+#include "woort_jit_bridge.h"
 
 #include <assert.h>
 
@@ -18,8 +19,11 @@ typedef struct woort_JITContext {
 
 static woort_JITContext s_jit_context;
 
-void woort_JIT_bootup(void)
+WOORT_NODISCARD bool woort_JIT_bootup(void)
 {
+    if (!woort_JIT_Asmjit_bootup())
+        return false;
+
     woort_rwspinlock_init(&s_jit_context.m_jit_backend_mx);
     s_jit_context.m_jit_backend = NULL;
 }
@@ -27,6 +31,8 @@ void woort_JIT_shutdown(void)
 {
     woort_rwspinlock_deinit(&s_jit_context.m_jit_backend_mx);
     s_jit_context.m_jit_backend = NULL;
+
+    woort_JIT_Asmjit_shutdown();
 }
 
 void woort_JIT_set_backend(const woort_JIT_Backend* backend)

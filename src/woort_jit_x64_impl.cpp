@@ -1,6 +1,61 @@
 #include "woort_jit_x64_bridge.h"
 #include "woort_jit_bridge.h"
 
+#include "asmjit/x86.h"
+
+#include <new>
+#include <memory>
+#include <cassert>
+
+using namespace asmjit;
+using namespace asmjit::x86;
+
+struct woort_JIT_Asmjit_x64_Emmiter
+{
+    Compiler* c;
+
+    CodeHolder  m_code_holder;
+    Error       m_last_error;
+
+    FuncNode*   m_func_node;
+
+    woort_JIT_Asmjit_x64_Emmiter(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
+    woort_JIT_Asmjit_x64_Emmiter(woort_JIT_Asmjit_x64_Emmiter&&) = delete;
+    woort_JIT_Asmjit_x64_Emmiter& operator =(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
+    woort_JIT_Asmjit_x64_Emmiter& operator =(woort_JIT_Asmjit_x64_Emmiter&&) = delete;
+
+    woort_JIT_Asmjit_x64_Emmiter() noexcept
+        : c(nullptr)
+        , m_code_holder{}
+        , m_last_error(Error::kOk)
+        , m_func_node(nullptr)
+    {
+        JitRuntime* const asmjit_runtime =
+            static_cast<JitRuntime*>(woort_JIT_Asmjit_get_runtime());
+
+        m_last_error = m_code_holder.init(asmjit_runtime->environment());
+        if (m_last_error != Error::kOk)
+            return;
+
+        c = new (std::nothrow) Compiler(&m_code_holder);
+        if (c == nullptr)
+            m_last_error = Error::kOutOfMemory;
+
+        m_last_error = c->add_func_node(Out(m_func_node),
+            FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
+    }
+    ~woort_JIT_Asmjit_x64_Emmiter() noexcept
+    {
+        if (c != nullptr)
+            delete c;
+    }
+
+    bool is_okay() const
+    {
+        return m_last_error == Error::kOk;
+    }
+};
+
 bool woort_JIT_Backend_x64_prologue(
     const woort_Bytecode* function,
     size_t function_len,
@@ -9,36 +64,69 @@ bool woort_JIT_Backend_x64_prologue(
     (void)function;
     (void)function_len;
 
-    *out_emmiter = NULL;
-    return false;
+    woort_JIT_Asmjit_x64_Emmiter* const em =
+        new (std::nothrow) woort_JIT_Asmjit_x64_Emmiter();
+
+    if (em == nullptr)
+        return false;
+
+    if (!em->is_okay())
+    {
+        delete em;
+        return false;
+    }
+
+    *out_emmiter = em;
+    return true;
 }
 
 bool woort_JIT_Backend_x64_epilogue(
     void* emmiter,
     woort_JitFunction* out_code)
 {
-    (void)emmiter;
+    JitRuntime* const asmjit_runtime =
+        static_cast<JitRuntime*>(woort_JIT_Asmjit_get_runtime());
+
+    woort_JIT_Asmjit_x64_Emmiter* const em =
+        static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    assert(em != nullptr);
+
+    delete em;
 
     *out_code = NULL;
-    return false;
+    return true;
 }
 
 bool woort_JIT_Backend_x64_check_state(
     void* emmiter)
 {
-    (void)emmiter;
+    woort_JIT_Asmjit_x64_Emmiter* const em =
+        static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
-    return false;
+    if (!em->is_okay())
+    {
+        delete em;
+        return false;
+    }
+
+    return true;
 }
 
 void woort_JIT_Backend_x64_droper(
     woort_JitFunction* code)
 {
-    (void)code;
+    if (code != NULL && *code != NULL) {
+        JitRuntime* const asmjit_runtime =
+            static_cast<JitRuntime*>(woort_JIT_Asmjit_get_runtime());
+
+        asmjit_runtime->release(*code);
+        *code = NULL;
+    }
 }
 
 /* -------------------------------------------------------------------------- */
-/* 指令派发接口：以下均为占位实现，暂无实际代码生成。                          */
+/* 指令派发接口                                                               */
 /* -------------------------------------------------------------------------- */
 
 void woort_JIT_Backend_x64_NOP(void* emmiter)
