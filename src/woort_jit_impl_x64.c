@@ -3,10 +3,10 @@
 #include "woort_jit_impl_x64.h"
 
 
-static bool woort_JIT_prologue_for_backend_x64(
+static bool woort_JIT_Backend_x64_prologue(
     const woort_Bytecode* function, 
     size_t function_len, 
-    woort_JIT_Backend_Emmiter* out_emmiter)
+    void** out_emmiter)
 {
     (void)function;
     (void)function_len;
@@ -15,8 +15,8 @@ static bool woort_JIT_prologue_for_backend_x64(
     return false;
 }
 
-static bool woort_JIT_epilogue_for_backend_x64(
-    woort_JIT_Backend_Emmiter emmiter,
+static bool woort_JIT_Backend_x64_epilogue(
+    void* emmiter,
     woort_JitFunction* out_code)
 {
     (void)emmiter;
@@ -25,27 +25,1616 @@ static bool woort_JIT_epilogue_for_backend_x64(
     return false;
 }
 
-static bool woort_JIT_check_for_backend_x64(
-    woort_JIT_Backend_Emmiter emmiter)
+static bool woort_JIT_Backend_x64_check_state(
+    void* emmiter)
 {
     (void)emmiter;
 
     return false;
 }
 
-static void woort_JIT_code_droper_for_backend_x64(
+static void woort_JIT_Backend_x64_droper(
     woort_JitFunction* code)
 {
     (void)code;
 }
 
-static const woort_OpcodeDispatchers 
-    _WOORT_JIT_BACKEND_CODE_DISPATCHERS_IMPL_X64;
+/* -------------------------------------------------------------------------- */
+/* 指令派发接口：以下均为占位实现，暂无实际代码生成。                          */
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_NOP(void* emmiter)
+{
+    (void)emmiter;
+}
+
+static void woort_JIT_Backend_x64_LOAD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Global src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STORE(void* emmiter, woort_Opcode_Global dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_LOADPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STOREPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_MOVLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_MOVST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_PUSHRCHK(void* emmiter, woort_Opcode_Count n)
+{
+    (void)emmiter;
+    (void)n;
+}
+
+static void woort_JIT_Backend_x64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_PUSHCCHK(void* emmiter, woort_Opcode_Global src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_ASSURESSZ(void* emmiter, woort_Opcode_Count n)
+{
+    (void)emmiter;
+    (void)n;
+}
+
+static void woort_JIT_Backend_x64_PUSHS(void* emmiter, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_PUSHC(void* emmiter, woort_Opcode_Global src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_POPR(void* emmiter, woort_Opcode_Count n)
+{
+    (void)emmiter;
+    (void)n;
+}
+
+static void woort_JIT_Backend_x64_POPS(void* emmiter, woort_Opcode_Stack dst)
+{
+    (void)emmiter;
+    (void)dst;
+}
+
+static void woort_JIT_Backend_x64_POPC(void* emmiter, woort_Opcode_Global dst)
+{
+    (void)emmiter;
+    (void)dst;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_ITORST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_ITORLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_ITOSST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_ITOSLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_RTOIST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_RTOILD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_RTOSST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_RTOSLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_CASTSTO(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)target;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CASTSFROM(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType srctype, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)srctype;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CASTDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)target;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_ASSERTDYN(void* emmiter, woort_BoxValueType target, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)target;
+    (void)src;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_CALLNWO(void* emmiter, woort_Opcode_Global func)
+{
+    (void)emmiter;
+    (void)func;
+}
+
+static void woort_JIT_Backend_x64_CALLNFP(void* emmiter, woort_Opcode_Global func)
+{
+    (void)emmiter;
+    (void)func;
+}
+
+static void woort_JIT_Backend_x64_CALLNJIT(void* emmiter, woort_Opcode_Global func)
+{
+    (void)emmiter;
+    (void)func;
+}
+
+static void woort_JIT_Backend_x64_CALLS(void* emmiter, woort_Opcode_Stack func)
+{
+    (void)emmiter;
+    (void)func;
+}
+
+static void woort_JIT_Backend_x64_CALLC(void* emmiter, woort_Opcode_Global func)
+{
+    (void)emmiter;
+    (void)func;
+}
+
+static void woort_JIT_Backend_x64_RET(void* emmiter)
+{
+    (void)emmiter;
+}
+
+static void woort_JIT_Backend_x64_RETVS(void* emmiter, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_RETVC(void* emmiter, woort_Opcode_Global src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_POPRS(void* emmiter, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_RESULT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)n;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_JFWD(void* emmiter, woort_Opcode_CodeAbs target)
+{
+    (void)emmiter;
+    (void)target;
+}
+
+static void woort_JIT_Backend_x64_JBCK(void* emmiter, woort_Opcode_CodeAbs target)
+{
+    (void)emmiter;
+    (void)target;
+}
+
+static void woort_JIT_Backend_x64_JFWDNZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)cond;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JFWDZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)cond;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JFWDEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JFWDNEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JBCKNZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)cond;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JBCKZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)cond;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JBCKEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JBCKNEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JFWDLT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JFWDGT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JFWDEL(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JFWDEG(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JBCKLT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JBCKGT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JBCKEL(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+static void woort_JIT_Backend_x64_JBCKEG(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+{
+    (void)emmiter;
+    (void)a;
+    (void)b;
+    (void)off;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_MKVEC(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)n;
+}
+
+static void woort_JIT_Backend_x64_MKMAP(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)n;
+}
+
+static void woort_JIT_Backend_x64_MKSTRUCT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)n;
+}
+
+static void woort_JIT_Backend_x64_MKUNION(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)idx;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_MKCLOSURE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)n;
+    (void)tmpl;
+}
+
+static void woort_JIT_Backend_x64_BOXDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)type;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)type;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CHECKDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)type;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_PUSHBOXDYN(void* emmiter, woort_BoxValueType type, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)type;
+    (void)src;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_ADDI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_SUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_MULI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_DIVI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_MODI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_NEGI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_LTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_GTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_LEI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_GEI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_EQI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_NEI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_ADDR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_SUBR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_MULR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_DIVR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_MODR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_NEGR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_LTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_GTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_LER(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_GER(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_EQR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_NER(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_ADDS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_LTS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_GTS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_LES(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_GES(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_EQS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_NES(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_LAND(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_LOR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)a;
+    (void)b;
+}
+
+static void woort_JIT_Backend_x64_LNOT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_CADDI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CSUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CMULI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CDIVI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CADDR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CSUBR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CMULR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CDIVR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CADDS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CVADDS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CMODI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CMODR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CLAND(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CLOR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CLNOT(void* emmiter, woort_Opcode_Stack dst)
+{
+    (void)emmiter;
+    (void)dst;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_MKPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)src;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_LDIDXVEC(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)vec;
+    (void)idx;
+}
+
+static void woort_JIT_Backend_x64_LDIDXVECX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)vec;
+    (void)idx;
+}
+
+static void woort_JIT_Backend_x64_LDIDSTRUCT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)idx;
+    (void)obj;
+}
+
+static void woort_JIT_Backend_x64_LDIDSTRING(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack str, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)str;
+    (void)idx;
+}
+
+static void woort_JIT_Backend_x64_LDIDXDICTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)map;
+    (void)idx;
+}
+
+static void woort_JIT_Backend_x64_LDIDXDICTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)map;
+    (void)idx;
+}
+
+static void woort_JIT_Backend_x64_LDIDXDICTB(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)map;
+    (void)idx;
+}
+
+static void woort_JIT_Backend_x64_LDIDXDICTX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)map;
+    (void)idx;
+}
+
+static void woort_JIT_Backend_x64_LDIDXDICTIX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)map;
+    (void)idx;
+}
+
+static void woort_JIT_Backend_x64_LDIDXDICTRX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)map;
+    (void)idx;
+}
+
+static void woort_JIT_Backend_x64_LDIDXDICTBX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)map;
+    (void)idx;
+}
+
+static void woort_JIT_Backend_x64_LDIDXDICTXX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)map;
+    (void)idx;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_STIDXVECI(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)vec;
+    (void)idx;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXVECR(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)vec;
+    (void)idx;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXVECB(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)vec;
+    (void)idx;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXVECX(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)vec;
+    (void)idx;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTII(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTIR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTIB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTIX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTRI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTRR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTRB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTRX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTBI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTBR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTBB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTBX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTXI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTXR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXDICTXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPII(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPIR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPIB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPIX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPRI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPRR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPRB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPRX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPBI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPBR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPBB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPBX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPXI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPXR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDXMAPXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)map;
+    (void)key;
+    (void)src;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)obj;
+    (void)idx;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_STIDSTRUCTEXT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)obj;
+    (void)idx;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_UNPACKVEC(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec)
+{
+    (void)emmiter;
+    (void)n;
+    (void)vec;
+}
+
+static void woort_JIT_Backend_x64_UNPACKVECX(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec)
+{
+    (void)emmiter;
+    (void)n;
+    (void)vec;
+}
+
+static void woort_JIT_Backend_x64_UNPACKVECALL(void* emmiter, woort_Opcode_Stack count_dst, woort_Opcode_Count n, woort_Opcode_Stack vec)
+{
+    (void)emmiter;
+    (void)count_dst;
+    (void)n;
+    (void)vec;
+}
+
+static void woort_JIT_Backend_x64_UNPACKVECXALL(void* emmiter, woort_Opcode_Stack count_dst, woort_Opcode_Count n, woort_Opcode_Stack vec)
+{
+    (void)emmiter;
+    (void)count_dst;
+    (void)n;
+    (void)vec;
+}
+
+static void woort_JIT_Backend_x64_PUSHIDXSTRUCT(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{
+    (void)emmiter;
+    (void)idx;
+    (void)obj;
+}
+
+static void woort_JIT_Backend_x64_PUSHIDXSTBOXI(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{
+    (void)emmiter;
+    (void)idx;
+    (void)obj;
+}
+
+static void woort_JIT_Backend_x64_PUSHIDXSTBOXR(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{
+    (void)emmiter;
+    (void)idx;
+    (void)obj;
+}
+
+static void woort_JIT_Backend_x64_PUSHIDXSTBOXB(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{
+    (void)emmiter;
+    (void)idx;
+    (void)obj;
+}
+
+static void woort_JIT_Backend_x64_PACKARG(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count skip)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)skip;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void woort_JIT_Backend_x64_ASTORE(void* emmiter, woort_Opcode_Global storage, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)storage;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_ALOAD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Global storage)
+{
+    (void)emmiter;
+    (void)dst;
+    (void)storage;
+}
+
+static void woort_JIT_Backend_x64_CAS(void* emmiter, woort_Opcode_Global storage, woort_Opcode_Stack desired, woort_Opcode_Stack expected)
+{
+    (void)emmiter;
+    (void)storage;
+    (void)desired;
+    (void)expected;
+}
+
+static void woort_JIT_Backend_x64_JIFINITED(void* emmiter, woort_Opcode_Global flag, woort_Opcode_CodeAbs target)
+{
+    (void)emmiter;
+    (void)flag;
+    (void)target;
+}
+
+static void woort_JIT_Backend_x64_DEBUGTRAP(void* emmiter)
+{
+    (void)emmiter;
+}
+
+static void woort_JIT_Backend_x64_PANICS(void* emmiter, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_PANICC(void* emmiter, woort_Opcode_Global src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CHKDIVIL(void* emmiter, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CHKDIVIR(void* emmiter, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CHKDIVIRZ(void* emmiter, woort_Opcode_Stack src)
+{
+    (void)emmiter;
+    (void)src;
+}
+
+static void woort_JIT_Backend_x64_CHKDIVILR(void* emmiter, woort_Opcode_Stack divisor, woort_Opcode_Stack dividend)
+{
+    (void)emmiter;
+    (void)divisor;
+    (void)dividend;
+}
+
+/* -------------------------------------------------------------------------- */
+
+static const woort_OpcodeDispatchers _WOORT_JIT_BACKEND_CODE_DISPATCHERS_IMPL_X64 = {
+    .m_NOP = woort_JIT_Backend_x64_NOP,
+    .m_LOAD = woort_JIT_Backend_x64_LOAD,
+    .m_STORE = woort_JIT_Backend_x64_STORE,
+    .m_LOADPVALUE = woort_JIT_Backend_x64_LOADPVALUE,
+    .m_STOREPVALUE = woort_JIT_Backend_x64_STOREPVALUE,
+    .m_MOVLD = woort_JIT_Backend_x64_MOVLD,
+    .m_MOVST = woort_JIT_Backend_x64_MOVST,
+    .m_PUSHRCHK = woort_JIT_Backend_x64_PUSHRCHK,
+    .m_PUSHSCHK = woort_JIT_Backend_x64_PUSHSCHK,
+    .m_PUSHCCHK = woort_JIT_Backend_x64_PUSHCCHK,
+    .m_ASSURESSZ = woort_JIT_Backend_x64_ASSURESSZ,
+    .m_PUSHS = woort_JIT_Backend_x64_PUSHS,
+    .m_PUSHC = woort_JIT_Backend_x64_PUSHC,
+    .m_POPR = woort_JIT_Backend_x64_POPR,
+    .m_POPS = woort_JIT_Backend_x64_POPS,
+    .m_POPC = woort_JIT_Backend_x64_POPC,
+    .m_ITORST = woort_JIT_Backend_x64_ITORST,
+    .m_ITORLD = woort_JIT_Backend_x64_ITORLD,
+    .m_ITOSST = woort_JIT_Backend_x64_ITOSST,
+    .m_ITOSLD = woort_JIT_Backend_x64_ITOSLD,
+    .m_RTOIST = woort_JIT_Backend_x64_RTOIST,
+    .m_RTOILD = woort_JIT_Backend_x64_RTOILD,
+    .m_RTOSST = woort_JIT_Backend_x64_RTOSST,
+    .m_RTOSLD = woort_JIT_Backend_x64_RTOSLD,
+    .m_CASTSTO = woort_JIT_Backend_x64_CASTSTO,
+    .m_CASTSFROM = woort_JIT_Backend_x64_CASTSFROM,
+    .m_CASTDYN = woort_JIT_Backend_x64_CASTDYN,
+    .m_ASSERTDYN = woort_JIT_Backend_x64_ASSERTDYN,
+    .m_CALLNWO = woort_JIT_Backend_x64_CALLNWO,
+    .m_CALLNFP = woort_JIT_Backend_x64_CALLNFP,
+    .m_CALLNJIT = woort_JIT_Backend_x64_CALLNJIT,
+    .m_CALLS = woort_JIT_Backend_x64_CALLS,
+    .m_CALLC = woort_JIT_Backend_x64_CALLC,
+    .m_RET = woort_JIT_Backend_x64_RET,
+    .m_RETVS = woort_JIT_Backend_x64_RETVS,
+    .m_RETVC = woort_JIT_Backend_x64_RETVC,
+    .m_POPRS = woort_JIT_Backend_x64_POPRS,
+    .m_RESULT = woort_JIT_Backend_x64_RESULT,
+    .m_JFWD = woort_JIT_Backend_x64_JFWD,
+    .m_JBCK = woort_JIT_Backend_x64_JBCK,
+    .m_JFWDNZ = woort_JIT_Backend_x64_JFWDNZ,
+    .m_JFWDZ = woort_JIT_Backend_x64_JFWDZ,
+    .m_JFWDEQ = woort_JIT_Backend_x64_JFWDEQ,
+    .m_JFWDNEQ = woort_JIT_Backend_x64_JFWDNEQ,
+    .m_JBCKNZ = woort_JIT_Backend_x64_JBCKNZ,
+    .m_JBCKZ = woort_JIT_Backend_x64_JBCKZ,
+    .m_JBCKEQ = woort_JIT_Backend_x64_JBCKEQ,
+    .m_JBCKNEQ = woort_JIT_Backend_x64_JBCKNEQ,
+    .m_JFWDLT = woort_JIT_Backend_x64_JFWDLT,
+    .m_JFWDGT = woort_JIT_Backend_x64_JFWDGT,
+    .m_JFWDEL = woort_JIT_Backend_x64_JFWDEL,
+    .m_JFWDEG = woort_JIT_Backend_x64_JFWDEG,
+    .m_JBCKLT = woort_JIT_Backend_x64_JBCKLT,
+    .m_JBCKGT = woort_JIT_Backend_x64_JBCKGT,
+    .m_JBCKEL = woort_JIT_Backend_x64_JBCKEL,
+    .m_JBCKEG = woort_JIT_Backend_x64_JBCKEG,
+    .m_MKVEC = woort_JIT_Backend_x64_MKVEC,
+    .m_MKMAP = woort_JIT_Backend_x64_MKMAP,
+    .m_MKSTRUCT = woort_JIT_Backend_x64_MKSTRUCT,
+    .m_MKUNION = woort_JIT_Backend_x64_MKUNION,
+    .m_MKCLOSURE = woort_JIT_Backend_x64_MKCLOSURE,
+    .m_BOXDYN = woort_JIT_Backend_x64_BOXDYN,
+    .m_UNBOXDYN = woort_JIT_Backend_x64_UNBOXDYN,
+    .m_CHECKDYN = woort_JIT_Backend_x64_CHECKDYN,
+    .m_PUSHBOXDYN = woort_JIT_Backend_x64_PUSHBOXDYN,
+    .m_ADDI = woort_JIT_Backend_x64_ADDI,
+    .m_SUBI = woort_JIT_Backend_x64_SUBI,
+    .m_MULI = woort_JIT_Backend_x64_MULI,
+    .m_DIVI = woort_JIT_Backend_x64_DIVI,
+    .m_MODI = woort_JIT_Backend_x64_MODI,
+    .m_NEGI = woort_JIT_Backend_x64_NEGI,
+    .m_LTI = woort_JIT_Backend_x64_LTI,
+    .m_GTI = woort_JIT_Backend_x64_GTI,
+    .m_LEI = woort_JIT_Backend_x64_LEI,
+    .m_GEI = woort_JIT_Backend_x64_GEI,
+    .m_EQI = woort_JIT_Backend_x64_EQI,
+    .m_NEI = woort_JIT_Backend_x64_NEI,
+    .m_ADDR = woort_JIT_Backend_x64_ADDR,
+    .m_SUBR = woort_JIT_Backend_x64_SUBR,
+    .m_MULR = woort_JIT_Backend_x64_MULR,
+    .m_DIVR = woort_JIT_Backend_x64_DIVR,
+    .m_MODR = woort_JIT_Backend_x64_MODR,
+    .m_NEGR = woort_JIT_Backend_x64_NEGR,
+    .m_LTR = woort_JIT_Backend_x64_LTR,
+    .m_GTR = woort_JIT_Backend_x64_GTR,
+    .m_LER = woort_JIT_Backend_x64_LER,
+    .m_GER = woort_JIT_Backend_x64_GER,
+    .m_EQR = woort_JIT_Backend_x64_EQR,
+    .m_NER = woort_JIT_Backend_x64_NER,
+    .m_ADDS = woort_JIT_Backend_x64_ADDS,
+    .m_LTS = woort_JIT_Backend_x64_LTS,
+    .m_GTS = woort_JIT_Backend_x64_GTS,
+    .m_LES = woort_JIT_Backend_x64_LES,
+    .m_GES = woort_JIT_Backend_x64_GES,
+    .m_EQS = woort_JIT_Backend_x64_EQS,
+    .m_NES = woort_JIT_Backend_x64_NES,
+    .m_LAND = woort_JIT_Backend_x64_LAND,
+    .m_LOR = woort_JIT_Backend_x64_LOR,
+    .m_LNOT = woort_JIT_Backend_x64_LNOT,
+    .m_CADDI = woort_JIT_Backend_x64_CADDI,
+    .m_CSUBI = woort_JIT_Backend_x64_CSUBI,
+    .m_CMULI = woort_JIT_Backend_x64_CMULI,
+    .m_CDIVI = woort_JIT_Backend_x64_CDIVI,
+    .m_CADDR = woort_JIT_Backend_x64_CADDR,
+    .m_CSUBR = woort_JIT_Backend_x64_CSUBR,
+    .m_CMULR = woort_JIT_Backend_x64_CMULR,
+    .m_CDIVR = woort_JIT_Backend_x64_CDIVR,
+    .m_CADDS = woort_JIT_Backend_x64_CADDS,
+    .m_CVADDS = woort_JIT_Backend_x64_CVADDS,
+    .m_CMODI = woort_JIT_Backend_x64_CMODI,
+    .m_CMODR = woort_JIT_Backend_x64_CMODR,
+    .m_CLAND = woort_JIT_Backend_x64_CLAND,
+    .m_CLOR = woort_JIT_Backend_x64_CLOR,
+    .m_CLNOT = woort_JIT_Backend_x64_CLNOT,
+    .m_MKPVALUE = woort_JIT_Backend_x64_MKPVALUE,
+    .m_LDIDXVEC = woort_JIT_Backend_x64_LDIDXVEC,
+    .m_LDIDXVECX = woort_JIT_Backend_x64_LDIDXVECX,
+    .m_LDIDSTRUCT = woort_JIT_Backend_x64_LDIDSTRUCT,
+    .m_LDIDSTRING = woort_JIT_Backend_x64_LDIDSTRING,
+    .m_LDIDXDICTI = woort_JIT_Backend_x64_LDIDXDICTI,
+    .m_LDIDXDICTR = woort_JIT_Backend_x64_LDIDXDICTR,
+    .m_LDIDXDICTB = woort_JIT_Backend_x64_LDIDXDICTB,
+    .m_LDIDXDICTX = woort_JIT_Backend_x64_LDIDXDICTX,
+    .m_LDIDXDICTIX = woort_JIT_Backend_x64_LDIDXDICTIX,
+    .m_LDIDXDICTRX = woort_JIT_Backend_x64_LDIDXDICTRX,
+    .m_LDIDXDICTBX = woort_JIT_Backend_x64_LDIDXDICTBX,
+    .m_LDIDXDICTXX = woort_JIT_Backend_x64_LDIDXDICTXX,
+    .m_STIDXVECI = woort_JIT_Backend_x64_STIDXVECI,
+    .m_STIDXVECR = woort_JIT_Backend_x64_STIDXVECR,
+    .m_STIDXVECB = woort_JIT_Backend_x64_STIDXVECB,
+    .m_STIDXVECX = woort_JIT_Backend_x64_STIDXVECX,
+    .m_STIDXDICTII = woort_JIT_Backend_x64_STIDXDICTII,
+    .m_STIDXDICTIR = woort_JIT_Backend_x64_STIDXDICTIR,
+    .m_STIDXDICTIB = woort_JIT_Backend_x64_STIDXDICTIB,
+    .m_STIDXDICTIX = woort_JIT_Backend_x64_STIDXDICTIX,
+    .m_STIDXDICTRI = woort_JIT_Backend_x64_STIDXDICTRI,
+    .m_STIDXDICTRR = woort_JIT_Backend_x64_STIDXDICTRR,
+    .m_STIDXDICTRB = woort_JIT_Backend_x64_STIDXDICTRB,
+    .m_STIDXDICTRX = woort_JIT_Backend_x64_STIDXDICTRX,
+    .m_STIDXDICTBI = woort_JIT_Backend_x64_STIDXDICTBI,
+    .m_STIDXDICTBR = woort_JIT_Backend_x64_STIDXDICTBR,
+    .m_STIDXDICTBB = woort_JIT_Backend_x64_STIDXDICTBB,
+    .m_STIDXDICTBX = woort_JIT_Backend_x64_STIDXDICTBX,
+    .m_STIDXDICTXI = woort_JIT_Backend_x64_STIDXDICTXI,
+    .m_STIDXDICTXR = woort_JIT_Backend_x64_STIDXDICTXR,
+    .m_STIDXDICTXB = woort_JIT_Backend_x64_STIDXDICTXB,
+    .m_STIDXDICTXX = woort_JIT_Backend_x64_STIDXDICTXX,
+    .m_STIDXMAPII = woort_JIT_Backend_x64_STIDXMAPII,
+    .m_STIDXMAPIR = woort_JIT_Backend_x64_STIDXMAPIR,
+    .m_STIDXMAPIB = woort_JIT_Backend_x64_STIDXMAPIB,
+    .m_STIDXMAPIX = woort_JIT_Backend_x64_STIDXMAPIX,
+    .m_STIDXMAPRI = woort_JIT_Backend_x64_STIDXMAPRI,
+    .m_STIDXMAPRR = woort_JIT_Backend_x64_STIDXMAPRR,
+    .m_STIDXMAPRB = woort_JIT_Backend_x64_STIDXMAPRB,
+    .m_STIDXMAPRX = woort_JIT_Backend_x64_STIDXMAPRX,
+    .m_STIDXMAPBI = woort_JIT_Backend_x64_STIDXMAPBI,
+    .m_STIDXMAPBR = woort_JIT_Backend_x64_STIDXMAPBR,
+    .m_STIDXMAPBB = woort_JIT_Backend_x64_STIDXMAPBB,
+    .m_STIDXMAPBX = woort_JIT_Backend_x64_STIDXMAPBX,
+    .m_STIDXMAPXI = woort_JIT_Backend_x64_STIDXMAPXI,
+    .m_STIDXMAPXR = woort_JIT_Backend_x64_STIDXMAPXR,
+    .m_STIDXMAPXB = woort_JIT_Backend_x64_STIDXMAPXB,
+    .m_STIDXMAPXX = woort_JIT_Backend_x64_STIDXMAPXX,
+    .m_STIDSTRUCT = woort_JIT_Backend_x64_STIDSTRUCT,
+    .m_STIDSTRUCTEXT = woort_JIT_Backend_x64_STIDSTRUCTEXT,
+    .m_UNPACKVEC = woort_JIT_Backend_x64_UNPACKVEC,
+    .m_UNPACKVECX = woort_JIT_Backend_x64_UNPACKVECX,
+    .m_UNPACKVECALL = woort_JIT_Backend_x64_UNPACKVECALL,
+    .m_UNPACKVECXALL = woort_JIT_Backend_x64_UNPACKVECXALL,
+    .m_PUSHIDXSTRUCT = woort_JIT_Backend_x64_PUSHIDXSTRUCT,
+    .m_PUSHIDXSTBOXI = woort_JIT_Backend_x64_PUSHIDXSTBOXI,
+    .m_PUSHIDXSTBOXR = woort_JIT_Backend_x64_PUSHIDXSTBOXR,
+    .m_PUSHIDXSTBOXB = woort_JIT_Backend_x64_PUSHIDXSTBOXB,
+    .m_PACKARG = woort_JIT_Backend_x64_PACKARG,
+    .m_ASTORE = woort_JIT_Backend_x64_ASTORE,
+    .m_ALOAD = woort_JIT_Backend_x64_ALOAD,
+    .m_CAS = woort_JIT_Backend_x64_CAS,
+    .m_JIFINITED = woort_JIT_Backend_x64_JIFINITED,
+    .m_DEBUGTRAP = woort_JIT_Backend_x64_DEBUGTRAP,
+    .m_PANICS = woort_JIT_Backend_x64_PANICS,
+    .m_PANICC = woort_JIT_Backend_x64_PANICC,
+    .m_CHKDIVIL = woort_JIT_Backend_x64_CHKDIVIL,
+    .m_CHKDIVIR = woort_JIT_Backend_x64_CHKDIVIR,
+    .m_CHKDIVIRZ = woort_JIT_Backend_x64_CHKDIVIRZ,
+    .m_CHKDIVILR = woort_JIT_Backend_x64_CHKDIVILR,
+};
 
 const woort_JIT_Backend WOORT_JIT_BACKEND_IMPL_X64 = {
-    .m_emit_prologue = woort_JIT_prologue_for_backend_x64,
-    .m_emit_epilogue = woort_JIT_epilogue_for_backend_x64,
-    .m_check_state = woort_JIT_check_for_backend_x64,
+    .m_emit_prologue = woort_JIT_Backend_x64_prologue,
+    .m_emit_epilogue = woort_JIT_Backend_x64_prologue,
+    .m_check_state = woort_JIT_Backend_x64_check_state,
     .m_dispatchers = &_WOORT_JIT_BACKEND_CODE_DISPATCHERS_IMPL_X64,
-    .m_code_dropper = &woort_JIT_code_droper_for_backend_x64,
+    .m_drop_code = woort_JIT_Backend_x64_droper,
 };

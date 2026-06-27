@@ -6,19 +6,17 @@
 
 #include <stdbool.h>
 
-typedef void* woort_JIT_Backend_Emmiter;
-
 typedef bool (*woort_JIT_Backend_EmitPrologue)(
     const woort_Bytecode*,
     size_t,
-    woort_JIT_Backend_Emmiter* out_emmiter);
+    void** out_emmiter);
 
 typedef bool (*woort_JIT_Backend_EmitEpilogue)(
-    woort_JIT_Backend_Emmiter, 
+    void*,
     woort_JitFunction* out_code);
 
 typedef bool (*woort_JIT_Backend_CheckState)(
-    woort_JIT_Backend_Emmiter);
+    void*);
 
 typedef void (*woort_JIT_Backend_DropCode)(
     woort_JitFunction*);
@@ -51,7 +49,7 @@ typedef struct woort_JIT_Backend
     /*
     JIT 函数释放接口，负责释放已经产生的 JIT 函数实例。
     */
-    woort_JIT_Backend_DropCode m_code_dropper;
+    woort_JIT_Backend_DropCode m_drop_code;
 
 } woort_JIT_Backend;
 

@@ -12,7 +12,7 @@
 #include <assert.h>
 
 typedef struct woort_JITContext {
-    woort_RWSpinlock            m_jit_backend_mx;
+    woort_RWSpinlock m_jit_backend_mx;
     const woort_JIT_Backend* m_jit_backend;
 } woort_JITContext;
 
@@ -65,7 +65,7 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
     const woort_JIT_Backend* const backend =
         (const woort_JIT_Backend*)user_data;
 
-    woort_JIT_Backend_Emmiter func_jit_ctx;
+    void* func_jit_ctx;
     if (!backend->m_emit_prologue(function, context->m_boundary->m_code_length, &func_jit_ctx))
         return false;
 
@@ -109,7 +109,7 @@ static bool /* false if break loop. */ _woort_JIT_drop_compiled_function(
         (const woort_JIT_Backend*)user_data;
 
     if (context->m_jit_function != NULL)
-        backend->m_code_dropper(&context->m_jit_function);
+        backend->m_drop_code(&context->m_jit_function);
 
     return true;
 }
