@@ -13,19 +13,28 @@ using namespace asmjit::x86;
 struct woort_JIT_Asmjit_x64_Emmiter
 {
     Compiler* c;
+    const woort_CodeEnv* cenv;
 
     CodeHolder  m_code_holder;
     Error       m_last_error;
 
-    FuncNode*   m_func_node;
+    FuncNode* m_func_node;
+
+    /* runtime states */
+    Gp          m_vm;
+    Gp          m_sb;
+
+    Gp          m_sp;
+    Gp          m_stack_top;
 
     woort_JIT_Asmjit_x64_Emmiter(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
     woort_JIT_Asmjit_x64_Emmiter(woort_JIT_Asmjit_x64_Emmiter&&) = delete;
     woort_JIT_Asmjit_x64_Emmiter& operator =(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
     woort_JIT_Asmjit_x64_Emmiter& operator =(woort_JIT_Asmjit_x64_Emmiter&&) = delete;
 
-    woort_JIT_Asmjit_x64_Emmiter() noexcept
+    woort_JIT_Asmjit_x64_Emmiter(const woort_CodeEnv* cenv_) noexcept
         : c(nullptr)
+        , cenv(cenv_)
         , m_code_holder{}
         , m_last_error(Error::kOk)
         , m_func_node(nullptr)
@@ -41,8 +50,16 @@ struct woort_JIT_Asmjit_x64_Emmiter
         if (c == nullptr)
             m_last_error = Error::kOutOfMemory;
 
+        m_vm = c->new_gp_ptr();
+        m_sp = c->new_gp_ptr();
+        m_sb = c->new_gp_ptr();
+        m_stack_top = c->new_gp_ptr();
+
         m_last_error = c->add_func_node(Out(m_func_node),
             FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
+
+        m_func_node->set_arg(0, m_vm);
+        m_func_node->set_arg(1, m_sb);
     }
     ~woort_JIT_Asmjit_x64_Emmiter() noexcept
     {
@@ -57,15 +74,11 @@ struct woort_JIT_Asmjit_x64_Emmiter
 };
 
 bool woort_JIT_Backend_x64_prologue(
-    const woort_Bytecode* function,
-    size_t function_len,
+    const woort_CodeEnv* cenv,
     void** out_emmiter)
 {
-    (void)function;
-    (void)function_len;
-
     woort_JIT_Asmjit_x64_Emmiter* const em =
-        new (std::nothrow) woort_JIT_Asmjit_x64_Emmiter();
+        new (std::nothrow) woort_JIT_Asmjit_x64_Emmiter(cenv);
 
     if (em == nullptr)
         return false;

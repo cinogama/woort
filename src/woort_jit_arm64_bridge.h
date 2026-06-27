@@ -8,8 +8,7 @@ extern "C" {
 #endif
 
     bool woort_JIT_Backend_arm64_prologue(
-        const woort_Bytecode* function,
-        size_t function_len,
+        const woort_CodeEnv* cenv,
         void** out_emmiter);
     bool woort_JIT_Backend_arm64_epilogue(
         void* emmiter,

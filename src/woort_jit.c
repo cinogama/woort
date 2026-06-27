@@ -57,6 +57,12 @@ typedef struct woort_JIT_CompileFunctionContext
     
 }woort_JIT_CompileFunctionContext;
 
+typedef struct woort_JIT_CompileWalkContext
+{
+    const woort_JIT_Backend* m_backend;
+    const woort_CodeEnv* m_cenv;
+} woort_JIT_CompileWalkContext;
+
 static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compile(
     const void* key,
     void* value,
@@ -68,11 +74,13 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
     woort_JIT_CompileFunctionContext* const context =
         (woort_JIT_CompileFunctionContext*)value;
 
-    const woort_JIT_Backend* const backend =
-        (const woort_JIT_Backend*)user_data;
+    const woort_JIT_CompileWalkContext* const walk_ctx =
+        (const woort_JIT_CompileWalkContext*)user_data;
+
+    const woort_JIT_Backend* const backend = walk_ctx->m_backend;
 
     void* func_jit_ctx;
-    if (!backend->m_emit_prologue(function, context->m_boundary->m_code_length, &func_jit_ctx))
+    if (!backend->m_emit_prologue(walk_ctx->m_cenv, &func_jit_ctx))
         return false;
 
     const woort_Bytecode* current_opcode = function;
@@ -169,10 +177,14 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
     }
 
     // Ok, walk through backend to generate jit codes and update CALLNWO.
+    woort_JIT_CompileWalkContext walk_ctx;
+    walk_ctx.m_backend = backend;
+    walk_ctx.m_cenv = cenv;
+
     if (!woort_hashmap_foreach(
         &jit_compiled_functions_record,
         _woort_JIT_walk_through_function_to_compile,
-        (void*)backend))
+        &walk_ctx))
     {
         jit_compile_result = false;
         goto _label_jit_failed;

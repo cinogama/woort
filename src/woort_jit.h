@@ -6,8 +6,7 @@
 #include <stdbool.h>
 
 typedef bool (*woort_JIT_Backend_EmitPrologue)(
-    const woort_Bytecode*,
-    size_t,
+    const woort_CodeEnv*,
     void** out_emmiter);
 
 typedef bool (*woort_JIT_Backend_EmitEpilogue)(
