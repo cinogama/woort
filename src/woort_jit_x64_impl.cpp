@@ -7,6 +7,9 @@
 #include <new>
 #include <memory>
 #include <cassert>
+#include <cstdint>
+#include <cstring>
+#include <unordered_map>
 
 using namespace asmjit;
 using namespace asmjit::x86;
@@ -17,6 +20,9 @@ struct woort_JIT_Asmjit_x64_Emmiter
 {
     Compiler* c;
     const woort_CodeEnv* cenv;
+
+    const size_t m_cenv_constant_count;
+    const woort_Value* const m_cenv_static_storage;
 
     CodeHolder  m_code_holder;
     Error       m_last_error;
@@ -32,6 +38,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp          m_stack;
     Gp          m_stack_end;
 
+    std::unordered_map<woort_Opcode_Stack, Gp> m_stack_gp;
+
     woort_JIT_Asmjit_x64_Emmiter(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
     woort_JIT_Asmjit_x64_Emmiter(woort_JIT_Asmjit_x64_Emmiter&&) = delete;
     woort_JIT_Asmjit_x64_Emmiter& operator =(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
@@ -40,6 +48,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
     woort_JIT_Asmjit_x64_Emmiter(const woort_CodeEnv* cenv_, const woort_Bytecode** ip) noexcept
         : c(nullptr)
         , cenv(cenv_)
+        , m_cenv_constant_count(woort_JIT_CodeEnv_constant_count(cenv_))
+        , m_cenv_static_storage(woort_JIT_CodeEnv_static_data(cenv_))
         , m_code_holder{}
         , m_last_error(Error::kOk)
         , m_func_node(nullptr)
@@ -122,6 +132,49 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
         WOORT_JIT_CODE(dec(depth_addr));
         return_with_status_without_reduce_depth(status);
+    }
+
+    // ===================================================== //
+    template<typename T>
+    void set_gp_from_stack(woort_Opcode_Stack src, T v)
+    {
+        auto* const em = this;
+
+        Gp reg;
+        const auto it = em->m_stack_gp.find(src);
+        if (it != em->m_stack_gp.end())
+        {
+            reg = it->second;
+        }
+        else
+        {
+            reg = c->new_gp64();
+            em->m_stack_gp.emplace(src, reg);
+        }
+
+        WOORT_JIT_CODE(mov(reg, v));
+
+        const int32_t src_offset =
+            src * static_cast<int32_t>(sizeof(woort_Value));
+
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_sb, src_offset), reg));
+    }
+    Gp get_gp_from_stack(woort_Opcode_Stack src)
+    {
+        auto* const em = this;
+
+        const auto it = em->m_stack_gp.find(src);
+        if (it != em->m_stack_gp.end())
+            return it->second;
+
+        const Gp reg = c->new_gp64();
+        const int32_t src_offset =
+            src * static_cast<int32_t>(sizeof(woort_Value));
+
+        WOORT_JIT_CODE(mov(reg, qword_ptr(em->m_sb, src_offset)));
+
+        em->m_stack_gp.emplace(src, reg);
+        return reg;
     }
 };
 
@@ -239,9 +292,15 @@ void woort_JIT_Backend_x64_NOP(void* emmiter)
 
 void woort_JIT_Backend_x64_LOAD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Global src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
+    const int32_t dst_offset = dst * static_cast<int32_t>(sizeof(woort_Value));
+
+    if (src < em->m_cenv_constant_count)
+        em->set_gp_from_stack(dst, Imm(src_addr->m_integer));
+    else
+        em->set_gp_from_stack(dst, qword_ptr(reinterpret_cast<uintptr_t>(src_addr)));
 }
 
 void woort_JIT_Backend_x64_STORE(void* emmiter, woort_Opcode_Global dst, woort_Opcode_Stack src)
