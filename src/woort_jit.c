@@ -95,6 +95,9 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
             *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
                 WOORT_OPCODE_CALLNJIT, WOORT_BYTECODE(MABC26, *current_opcode));
 
+        if (!backend->m_pre_dispatch(func_jit_ctx))
+            return false;
+
         const woort_Bytecode* const next_opcode = woort_OpcodeDispatcher_decode(
             current_opcode, backend->m_dispatchers, func_jit_ctx);
 

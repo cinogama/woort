@@ -195,6 +195,7 @@ const woort_JIT_Backend WOORT_JIT_BACKEND_IMPL_X64 = {
     .m_emit_prologue = woort_JIT_Backend_x64_prologue,
     .m_emit_epilogue = woort_JIT_Backend_x64_epilogue,
     .m_check_state = woort_JIT_Backend_x64_check_state,
+    .m_pre_dispatch = woort_JIT_Backend_x64_pre_dispatch,
     .m_dispatchers = &_WOORT_JIT_BACKEND_CODE_DISPATCHERS_IMPL_X64,
     .m_drop_code = woort_JIT_Backend_x64_droper,
 };

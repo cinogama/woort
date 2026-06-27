@@ -124,6 +124,13 @@ bool woort_JIT_Backend_arm64_check_state(
     return true;
 }
 
+bool woort_JIT_Backend_arm64_pre_dispatch(
+    void* emmiter)
+{
+    (void)emmiter;
+    return true;
+}
+
 void woort_JIT_Backend_arm64_dropper(
     woort_JitFunction* code)
 {

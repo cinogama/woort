@@ -269,6 +269,13 @@ bool woort_JIT_Backend_x64_check_state(
     return true;
 }
 
+bool woort_JIT_Backend_x64_pre_dispatch(
+    void* emmiter)
+{
+    (void)emmiter;
+    return true;
+}
+
 void woort_JIT_Backend_x64_droper(
     woort_JitFunction* code)
 {
