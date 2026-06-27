@@ -86,9 +86,16 @@ struct woort_JIT_Asmjit_x64_Emmiter
         SYNC 是将 JIT 运行时状态正向同步到 VM 运行时
         需要同步的状态，参阅 woort_vm.c 的 WOORT_VM_SYNC_STATE_WITH_ENV
         */
-
         auto* const em = this;
-        WOORT_JIT_CODE(mov  ());
+
+        const Gp tmp = c->new_gp_ptr();
+
+        WOORT_JIT_CODE(mov(tmp, (uintptr_t)ip));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_IP), tmp));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP), em->m_sp));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB), em->m_sb));
+        WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
     }
 };
 
