@@ -84,18 +84,28 @@ bool woort_JIT_Backend_x64_epilogue(
     void* emmiter,
     woort_JitFunction* out_code)
 {
-    JitRuntime* const asmjit_runtime =
-        static_cast<JitRuntime*>(woort_JIT_Asmjit_get_runtime());
-
     woort_JIT_Asmjit_x64_Emmiter* const em =
         static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
     assert(em != nullptr);
 
-    delete em;
+    Error err = em->c->end_func();
+    if (err == Error::kOk)
+        err = em->c->finalize();
 
-    *out_code = NULL;
-    return true;
+    if (err == Error::kOk)
+    {
+        JitRuntime* const asmjit_runtime =
+            static_cast<JitRuntime*>(woort_JIT_Asmjit_get_runtime());
+
+        woort_JitFunction fn;
+        err = asmjit_runtime->add(&fn, &em->m_code_holder);
+
+        *out_code = fn;
+    }
+
+    delete em;
+    return err == Error::kOk;
 }
 
 bool woort_JIT_Backend_x64_check_state(
