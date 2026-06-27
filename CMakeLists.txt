@@ -11,6 +11,7 @@ set(WOORT_SPECIFY_PLATFORM_TYPE "" CACHE STRING
 
 add_library(woort_options INTERFACE)
 target_compile_features(woort_options INTERFACE c_std_11)
+target_compile_features(woort_options INTERFACE cxx_std_17)
 target_include_directories(woort_options INTERFACE "include")
 
 ####################################################################################################

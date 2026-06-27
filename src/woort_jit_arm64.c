@@ -1,6 +1,4 @@
-#pragma once
-
-#include "woort_jit_impl_arm64.h"
+#include "woort_jit_arm64.h"
 
 
 static bool woort_JIT_Backend_arm64_prologue(

@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.10)
 
 file(GLOB_RECURSE woort_src_c *.c)
 file(GLOB_RECURSE woort_src_h *.h)
+file(GLOB_RECURSE woort_src_cpp *.cpp)
 
 if (MSVC)
     list(APPEND woort_src_c resources.rc)
@@ -10,6 +11,7 @@ endif()
 add_library(woort 
     ${woort_src_c}
     ${woort_src_h}
+    ${woort_src_cpp}
     "../include/woort.h")
 
 target_include_directories(woort PRIVATE "../3rd/woomem/include")
