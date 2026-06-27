@@ -27,6 +27,7 @@ extern "C" {
     extern const int32_t WOORT_VM_OFFSETOF_STACK;
     extern const int32_t WOORT_VM_OFFSETOF_STACK_END;
 
+    const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv);
     size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv);
     woort_Value* woort_JIT_CodeEnv_static_data(const woort_CodeEnv* cenv);
 

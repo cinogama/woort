@@ -21,6 +21,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Compiler* c;
     const woort_CodeEnv* cenv;
 
+    const woort_Bytecode* m_cenv_codes;
     const size_t m_cenv_constant_count;
     const woort_Value* const m_cenv_static_storage;
 
@@ -39,6 +40,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp          m_stack_end;
 
     std::unordered_map<woort_Opcode_Stack, Gp> m_stack_gp;
+    std::unordered_map<const woort_Bytecode*, Label> m_opcode_label;
 
     woort_JIT_Asmjit_x64_Emmiter(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
     woort_JIT_Asmjit_x64_Emmiter(woort_JIT_Asmjit_x64_Emmiter&&) = delete;
@@ -48,6 +50,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
     woort_JIT_Asmjit_x64_Emmiter(const woort_CodeEnv* cenv_, const woort_Bytecode** ip) noexcept
         : c(nullptr)
         , cenv(cenv_)
+        , m_cenv_codes(woort_JIT_CodeEnv_codes(cenv_))
         , m_cenv_constant_count(woort_JIT_CodeEnv_constant_count(cenv_))
         , m_cenv_static_storage(woort_JIT_CodeEnv_static_data(cenv_))
         , m_code_holder{}
@@ -176,6 +179,15 @@ struct woort_JIT_Asmjit_x64_Emmiter
         em->m_stack_gp.emplace(src, reg);
         return reg;
     }
+
+    Label get_label(const woort_Bytecode* c)
+    {
+
+    }
+    void bind_label(const woort_Bytecode* c)
+    {
+
+    }
 };
 
 bool woort_JIT_Backend_x64_prologue(
@@ -254,7 +266,7 @@ bool woort_JIT_Backend_x64_epilogue(
     return err == Error::kOk;
 }
 
-bool woort_JIT_Backend_x64_check_state(
+bool woort_JIT_Backend_x64_post_dispatch(
     void* emmiter)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em =

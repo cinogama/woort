@@ -14,10 +14,10 @@ typedef bool (*woort_JIT_Backend_EmitEpilogue)(
     void*,
     woort_JitFunction* out_code);
 
-typedef bool (*woort_JIT_Backend_CheckState)(
+typedef bool (*woort_JIT_Backend_PreDispatch)(
     void*);
 
-typedef bool (*woort_JIT_Backend_PreDispatch)(
+typedef bool (*woort_JIT_Backend_PostDispatch)(
     void*);
 
 typedef void (*woort_JIT_Backend_DropCode)(
@@ -36,21 +36,21 @@ typedef struct woort_JIT_Backend
     */
     woort_JIT_Backend_EmitEpilogue m_emit_epilogue;
     /*
-    提交检查，对于每一条指令，JIT 在调用 m_dispatchers 中提供的指令生成派发接口
-    之后都会通过此接口检查提交过程是否发生错误；
-    一旦有任何一条指令发生错误，剩余的指令提交和尾声提交都将被跳过——因此，此接口
-    需要在返回失败时，负责清理上下文
-    */
-    woort_JIT_Backend_CheckState m_check_state;
-
-    /*
     预派发钩子：对于每一条指令，在 JIT 调用 m_dispatchers 中对应的指令生成派发
-    接口之前都会通过此接口通知后端；通常用于在当前字节码偏移处记录信息（例如
-    字节码偏移到 JIT 代码偏移的映射、为跳转目标建立标签等）。
-    当其返回失败时，剩余的指令提交和尾声提交都将被跳过——因此，此接口需要在
-    返回失败时，负责清理上下文。
+        接口之前都会通过此接口通知后端；通常用于在当前字节码偏移处记录信息（例如
+        字节码偏移到 JIT 代码偏移的映射、为跳转目标建立标签等）。
+        当其返回失败时，剩余的指令提交和尾声提交都将被跳过——因此，此接口需要在
+        返回失败时，负责清理上下文。
     */
     woort_JIT_Backend_PreDispatch m_pre_dispatch;
+
+    /*
+    派发后检查：对于每一条指令，JIT 在调用 m_dispatchers 中提供的指令生成派发接口
+        之后都会通过此接口检查提交过程是否发生错误；
+        一旦有任何一条指令发生错误，剩余的指令提交和尾声提交都将被跳过——因此，此接口
+        需要在返回失败时，负责清理上下文。
+    */
+    woort_JIT_Backend_PostDispatch m_post_dispatch;
 
     /*
     指令分发接口，对应具体的指令提交

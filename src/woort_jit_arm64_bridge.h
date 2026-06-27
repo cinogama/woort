@@ -14,7 +14,7 @@ extern "C" {
     bool woort_JIT_Backend_arm64_epilogue(
         void* emmiter,
         woort_JitFunction* out_code);
-    bool woort_JIT_Backend_arm64_check_state(
+    bool woort_JIT_Backend_arm64_post_dispatch(
         void* emmiter);
     bool woort_JIT_Backend_arm64_pre_dispatch(
         void* emmiter, const woort_Bytecode* current_opcode);

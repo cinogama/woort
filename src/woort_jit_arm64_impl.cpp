@@ -109,7 +109,7 @@ bool woort_JIT_Backend_arm64_epilogue(
     return err == Error::kOk;
 }
 
-bool woort_JIT_Backend_arm64_check_state(
+bool woort_JIT_Backend_arm64_post_dispatch(
     void* emmiter)
 {
     woort_JIT_Asmjit_arm64_Emmiter* const em =

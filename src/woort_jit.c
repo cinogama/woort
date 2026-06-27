@@ -101,7 +101,7 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
         const woort_Bytecode* const next_opcode = woort_OpcodeDispatcher_decode(
             current_opcode, backend->m_dispatchers, func_jit_ctx);
 
-        if (!backend->m_check_state(func_jit_ctx))
+        if (!backend->m_post_dispatch(func_jit_ctx))
             return false;
 
         current_opcode = next_opcode;
