@@ -1,5 +1,6 @@
 #include "woort_jit_x64_bridge.h"
 #include "woort_jit_bridge.h"
+#include "woort_value_types.h"
 
 #include "asmjit/x86.h"
 
@@ -284,7 +285,21 @@ void woort_JIT_Backend_x64_PUSHRCHK(void* emmiter, woort_Opcode_Count n)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
+    static_assert(sizeof(woort_Value) == 8, "");
 
+    const Gp new_sp = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(new_sp, em->m_sp));
+    WOORT_JIT_CODE(sub(new_sp, Imm(static_cast<int32_t>(static_cast<size_t>(n) * sizeof(woort_Value)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(new_sp, em->m_stack));
+    WOORT_JIT_CODE(jae(L_ok));
+
+    em->sync_vm_state_with_env(*em->m_ip);
+    em->return_with_status(WOORT_VM_CALL_STATUS_RESYNC);
+
+    WOORT_JIT_CODE(bind(L_ok));
+    WOORT_JIT_CODE(mov(em->m_sp, new_sp));
 }
 
 void woort_JIT_Backend_x64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src)
