@@ -4,20 +4,13 @@
 woort_gc_string.h
 */
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdarg.h>
+#include "woort_gc_string_types.h"
 
 #include "woort_gc_units.h"
 #include "woort_value.h"
 
-struct woort_GCString
-{
-    woort_GCUnit    m_gc_unit;
-    /* =========================== */
-    size_t          m_length;
-    char            m_content[];
-};
+#include <stddef.h>
+#include <stdarg.h>
 
 extern const woort_GCUnitProxy WOORT_GCSTRING_UNIT_PROXY;
 

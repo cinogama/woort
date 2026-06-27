@@ -4,22 +4,12 @@
 woort_gc_vec.h
 */
 
-#include <stddef.h>
-#include <stdint.h>
+#include "woort_gc_vec_types.h"
 
 #include "woort_gc_units.h"
 #include "woort_value.h"
 
-typedef struct woort_GCVec
-{
-    woort_GCUnit    m_gc_unit;
-    /* =========================== */
-    size_t          m_space;
-    size_t          m_length;
-    /* OPTIONAL */ woort_DynBox*    
-                    m_datas;
-
-}woort_GCVec;
+#include <stddef.h>
 
 extern const woort_GCUnitProxy WOORT_GCVEC_UNIT_PROXY;
 

@@ -4,32 +4,14 @@
 woort_gc_map.h
 */
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include "woort_gc_map_types.h"
 
 #include "woort_gc_units.h"
 #include "woort_value.h"
 
-typedef struct woort_GCMap_Bucket
-{
-    uint32_t m_next;
-    uint32_t m_prev;
-
-    woort_DynBox m_key;
-    woort_DynBox m_val;
-
-} woort_GCMap_Bucket;
-
-struct woort_GCMap
-{
-    woort_GCUnit        m_gc_unit;
-    /* =========================== */
-    size_t              m_mask;
-    size_t              m_size;
-    /* OPTIONAL */ uint32_t* m_entries;
-    /* OPTIONAL */ woort_GCMap_Bucket* m_buckets;
-};
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 extern const woort_GCUnitProxy WOORT_GCMAP_UNIT_PROXY;
 
@@ -53,7 +35,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_dynbo
     woort_GCMap* gcmap, woort_DynBox key);
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_string(
     woort_GCMap* gcmap, const char* key, size_t len);
- 
+
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_int(
     woort_GCMap* gcmap, woort_Int key);
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_real(
