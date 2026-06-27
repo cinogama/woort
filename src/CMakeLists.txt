@@ -26,10 +26,17 @@ set_target_properties(
 set_target_properties(
     woort PROPERTIES PREFIX "")
 
+set(woort_required_libs "")
+list(APPEND woort_required_libs woomem)
+
+if (WOORT_BUILD_WITH_ASMJIT)
+    list(APPEND woort_required_libs asmjit)
+endif()
+
 target_link_libraries(woort 
     PRIVATE woort_options
     PRIVATE ${CMAKE_DL_LIBS}
-    PUBLIC woomem)
+    PUBLIC ${woort_required_libs})
 
 if (BUILD_SHARED_LIBS)
     set_target_properties(

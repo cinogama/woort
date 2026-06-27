@@ -2,7 +2,8 @@
 
 project ("woort")
 
-option(WOORT_BUILD_FOR_ASAN_TEST "Build woort for code asan test" OFF)
+option(WOORT_BUILD_FOR_ASAN_TEST "Build woort for code asan test." OFF)
+option(WOORT_BUILD_WITH_ASMJIT "Build woort with asmjit support." ON)
 set(WOORT_SPECIFY_PLATFORM_TYPE "" CACHE STRING 
     "Specify the platform type for unknown platform, can be '', 'WOORT_PLATFORM_32' or 'WOORT_PLATFORM_64'")
 
@@ -50,6 +51,11 @@ if (WOORT_BUILD_FOR_ASAN_TEST)
         target_compile_options(woort_options INTERFACE "-fsanitize=address")
         target_link_options(woort_options INTERFACE "-fsanitize=address")
     endif()
+endif()
+
+if (WOORT_BUILD_WITH_ASMJIT)
+    set(ASMJIT_STATIC ON CACHE BOOL "Build static asmjit." FORCE)
+    add_subdirectory("3rd/asmjit")
 endif()
 
 add_subdirectory ("3rd/woomem")
