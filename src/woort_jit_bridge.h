@@ -17,11 +17,13 @@ extern "C" {
 
 #define WOORT_VM_MAX_JIT_CALL_DEPTH 128
     
-    extern const size_t WOORT_VM_OFFSETOF_JIT_CALL_DEPTH;
-    extern const size_t WOORT_VM_OFFSETOF_IP;
-    extern const size_t WOORT_VM_OFFSETOF_SP;
-    extern const size_t WOORT_VM_OFFSETOF_SB;
-    extern const size_t WOORT_VM_OFFSETOF_ENV;
+    extern const int32_t WOORT_VM_OFFSETOF_JIT_CALL_DEPTH;
+    extern const int32_t WOORT_VM_OFFSETOF_IP;
+    extern const int32_t WOORT_VM_OFFSETOF_SP;
+    extern const int32_t WOORT_VM_OFFSETOF_SB;
+    extern const int32_t WOORT_VM_OFFSETOF_ENV;
+    extern const int32_t WOORT_VM_OFFSETOF_STACK;
+    extern const int32_t WOORT_VM_OFFSETOF_STACK_END;
 #ifdef __cplusplus
 }
 #endif

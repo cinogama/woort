@@ -27,7 +27,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp          m_sb;
 
     Gp          m_sp;
-    Gp          m_stack_top;
+    Gp          m_stack;
+    Gp          m_stack_end;
 
     woort_JIT_Asmjit_x64_Emmiter(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
     woort_JIT_Asmjit_x64_Emmiter(woort_JIT_Asmjit_x64_Emmiter&&) = delete;
@@ -55,7 +56,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
         m_vm = c->new_gp_ptr();
         m_sp = c->new_gp_ptr();
         m_sb = c->new_gp_ptr();
-        m_stack_top = c->new_gp_ptr();
+        m_stack = c->new_gp_ptr();
+        m_stack_end = c->new_gp_ptr();
 
         m_last_error = c->add_func_node(Out(m_func_node),
             FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
@@ -97,10 +99,32 @@ struct woort_JIT_Asmjit_x64_Emmiter
         WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
         WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
     }
+    void return_with_status_without_reduce_depth(woort_VmCallStatus status)
+    {
+        auto* const em = this;
+
+        const Mem depth_addr =
+            dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_JIT_CALL_DEPTH);
+
+        const Gp ret_val = c->new_gp32();
+        WOORT_JIT_CODE(mov  (ret_val, (int32_t)status));
+        WOORT_JIT_CODE(ret  (ret_val));
+    }
+    void return_with_status(woort_VmCallStatus status)
+    {
+        auto* const em = this;
+
+        const Mem depth_addr =
+            dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_JIT_CALL_DEPTH);
+
+        WOORT_JIT_CODE(dec(depth_addr));
+        return_with_status_without_reduce_depth(status);
+    }
 };
 
 bool woort_JIT_Backend_x64_prologue(
     const woort_CodeEnv* cenv,
+    const woort_Bytecode* function_begin,
     void** out_emmiter)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em =
@@ -109,26 +133,37 @@ bool woort_JIT_Backend_x64_prologue(
     if (em == nullptr)
         return false;
 
+    if (em->is_okay())
+    {
+        // Ok, generate codes for JIT function overload.
+
+        // 0. Apply state.
+        {
+            WOORT_JIT_CODE(mov  (em->m_sp, em->m_sb));
+            WOORT_JIT_CODE(mov  (em->m_stack, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK)));
+            WOORT_JIT_CODE(mov  (em->m_stack_end, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK_END)));
+        }
+        // 1. Check JIT function depth.
+        {
+            const Label L_ok = em->c->new_label();
+
+            const Mem depth_addr =
+                dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_JIT_CALL_DEPTH);
+
+            WOORT_JIT_CODE(cmp  (depth_addr, WOORT_VM_MAX_JIT_CALL_DEPTH));
+            WOORT_JIT_CODE(jbe  (L_ok));
+            em->sync_vm_state_with_env(function_begin);
+            em->return_with_status_without_reduce_depth(WOORT_VM_CALL_STATUS_RESYNC);
+            WOORT_JIT_CODE(bind (L_ok));
+            WOORT_JIT_CODE(inc  (depth_addr));
+        }
+        // 2. 
+    }
+    
     if (!em->is_okay())
     {
         delete em;
         return false;
-    }
-
-    // Ok, generate codes for JIT function overload.
-
-    // 1.Check JIT function if too depth.
-    {
-        const Label L_ok = em->c->new_label();
-
-        const Mem depth_addr =
-            dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_JIT_CALL_DEPTH);
-
-        WOORT_JIT_CODE(cmp  (depth_addr, WOORT_VM_MAX_JIT_CALL_DEPTH));
-        WOORT_JIT_CODE(jbe  (L_ok));
-        WOORT_JIT_CODE(int3 ());
-        WOORT_JIT_CODE(bind (L_ok));
-        WOORT_JIT_CODE(add  (depth_addr, 1));
     }
 
     *out_emmiter = em;

@@ -80,7 +80,7 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
     const woort_JIT_Backend* const backend = walk_ctx->m_backend;
 
     void* func_jit_ctx;
-    if (!backend->m_emit_prologue(walk_ctx->m_cenv, &func_jit_ctx))
+    if (!backend->m_emit_prologue(walk_ctx->m_cenv, function, &func_jit_ctx))
         return false;
 
     const woort_Bytecode* current_opcode = function;
