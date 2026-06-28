@@ -474,8 +474,12 @@ void woort_JIT_Backend_x64_PUSHRCHK(void* emmiter, woort_Opcode_Count n)
 
 void woort_JIT_Backend_x64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)src;
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp src = em->get_gp_from_stack(src);
+    
+    WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), src));
+    WOORT_JIT_CODE(sub(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
 }
 
 void woort_JIT_Backend_x64_PUSHCCHK(void* emmiter, woort_Opcode_Global src)
@@ -666,32 +670,26 @@ void woort_JIT_Backend_x64_RETVC(void* emmiter, woort_Opcode_Global src)
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
     const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
-
-    Gp ret_val;
-    if (src < em->m_cenv_constant_count)
-    {
-        if (src_addr->m_integer <= INT32_MAX && src_addr->m_integer >= INT32_MIN)
-        {
-            // Short cut.
-            em->emit_ret([&] {
-                WOORT_JIT_CODE(mov(
-                    qword_ptr(em->m_sp, 0), 
-                    Imm(static_cast<int32_t>(src_addr->m_integer))));
-            });
-            return;
-        }
-
-        ret_val = em->c->new_gp64();
-        WOORT_JIT_CODE(mov(ret_val, Imm(src_addr->m_integer)));
-    }
-    else
-    {
-        ret_val = em->c->new_gp64();
-        WOORT_JIT_CODE(mov(ret_val, qword_ptr(reinterpret_cast<uintptr_t>(src_addr))));
-    }
+    const bool is_constant = (src < em->m_cenv_constant_count);
 
     em->emit_ret([&] {
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_sp, 0), ret_val));
+        if (is_constant &&
+            src_addr->m_integer >= INT32_MIN &&
+            src_addr->m_integer <= INT32_MAX)
+        {
+            WOORT_JIT_CODE(mov(
+                qword_ptr(em->m_sp, 0),
+                Imm(static_cast<int32_t>(src_addr->m_integer))));
+        }
+        else
+        {
+            const Gp ret_val = em->c->new_gp64();
+            if (is_constant)
+                WOORT_JIT_CODE(mov(ret_val, Imm(src_addr->m_integer)));
+            else
+                WOORT_JIT_CODE(mov(ret_val, qword_ptr(reinterpret_cast<uintptr_t>(src_addr))));
+            WOORT_JIT_CODE(mov(qword_ptr(em->m_sp, 0), ret_val));
+        }
     });
 }
 
