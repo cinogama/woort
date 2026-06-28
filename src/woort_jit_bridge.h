@@ -26,6 +26,7 @@ extern "C" {
     extern const int32_t WOORT_VM_OFFSETOF_ENV;
     extern const int32_t WOORT_VM_OFFSETOF_STACK;
     extern const int32_t WOORT_VM_OFFSETOF_STACK_END;
+    extern const int32_t WOORT_VM_OFFSETOF_CHECK_REQUEST_MASK;
 
     WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv);
     WOORT_NODISCARD size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv);

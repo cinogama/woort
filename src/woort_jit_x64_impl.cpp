@@ -39,6 +39,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp          m_stack;
     Gp          m_stack_end;
 
+    Label       m_checkpoint_handler;
+
     std::unordered_map<woort_Opcode_Stack, Gp> m_stack_gp;
     std::unordered_map<const woort_Bytecode*, Label> m_opcode_label;
 
@@ -74,6 +76,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
         m_sb = c->new_gp_ptr();
         m_stack = c->new_gp_ptr();
         m_stack_end = c->new_gp_ptr();
+
+        m_checkpoint_handler = c->new_label();
 
         m_last_error = c->add_func_node(Out(m_func_node),
             FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
@@ -200,6 +204,20 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
         WOORT_JIT_CODE(bind(L_normal_ret));
         em->return_with_status(WOORT_VM_CALL_STATUS_NORMAL);
+    }
+
+    void emit_checkpoint()
+    {
+        auto* const em = this;
+
+        const Gp check_mask = c->new_gp32();
+        const Label L_continue = c->new_label();
+
+        WOORT_JIT_CODE(mov(check_mask, dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_CHECK_REQUEST_MASK)));
+        WOORT_JIT_CODE(test(check_mask, check_mask));
+        WOORT_JIT_CODE(jz(L_continue));
+        WOORT_JIT_CODE(call(em->m_checkpoint_handler));
+        WOORT_JIT_CODE(bind(L_continue));
     }
 
     // ===================================================== //
@@ -476,9 +494,17 @@ void woort_JIT_Backend_x64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
-    const Gp src = em->get_gp_from_stack(src);
-    
-    WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), src));
+    const Gp val = em->get_gp_from_stack(src);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(em->m_sp, em->m_stack));
+    WOORT_JIT_CODE(ja(L_ok));
+
+    em->sync_vm_state_with_env(*em->m_ip);
+    em->return_with_status(WOORT_VM_CALL_STATUS_RESYNC);
+
+    WOORT_JIT_CODE(bind(L_ok));
+    WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), val));
     WOORT_JIT_CODE(sub(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
 }
 
