@@ -1095,7 +1095,7 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
         const woort_Value* trace_sb = sb;
         while (trace_sb[1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE)
         {
-            trace_sb = vm->m_stack_end - trace_sb[1].m_ret_bp.m_bp_offset;
+            trace_sb = trace_sb + 2 + trace_sb[1].m_ret_bp.m_bp_offset;
             if (vm->m_stack_end - trace_sb < 3)
                 return false;
         }

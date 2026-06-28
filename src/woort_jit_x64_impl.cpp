@@ -28,7 +28,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
     CodeHolder  m_code_holder;
     Error       m_last_error;
 
-    FuncNode*   m_func_node;
+    FuncNode* m_func_node;
     const woort_Bytecode** m_ip;
 
     /* runtime states */
@@ -115,6 +115,22 @@ struct woort_JIT_Asmjit_x64_Emmiter
         WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
         WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
     }
+    /*
+    重载版本：用于 ip/sp/sb 均为运行期动态值（例如从栈帧中读取）的正同步。
+    env 仍取当前 JIT 编译期常量 cenv。
+    */
+    void sync_vm_state_with_env(Gp ip, Gp sp, Gp sb)
+    {
+        auto* const em = this;
+
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_IP), ip));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP), sp));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB), sb));
+
+        const Gp tmp = c->new_gp_ptr();
+        WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
+    }
     void return_with_status_without_reduce_depth(woort_VmCallStatus status)
     {
         auto* const em = this;
@@ -123,8 +139,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
             dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_JIT_CALL_DEPTH);
 
         const Gp ret_val = c->new_gp32();
-        WOORT_JIT_CODE(mov  (ret_val, (int32_t)status));
-        WOORT_JIT_CODE(ret  (ret_val));
+        WOORT_JIT_CODE(mov(ret_val, (int32_t)status));
+        WOORT_JIT_CODE(ret(ret_val));
     }
     void return_with_status(woort_VmCallStatus status)
     {
@@ -230,9 +246,9 @@ bool woort_JIT_Backend_x64_prologue(
 
         // 0. Apply state.
         {
-            WOORT_JIT_CODE(mov  (em->m_sp, em->m_sb));
-            WOORT_JIT_CODE(mov  (em->m_stack, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK)));
-            WOORT_JIT_CODE(mov  (em->m_stack_end, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK_END)));
+            WOORT_JIT_CODE(mov(em->m_sp, em->m_sb));
+            WOORT_JIT_CODE(mov(em->m_stack, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK)));
+            WOORT_JIT_CODE(mov(em->m_stack_end, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK_END)));
         }
         // 1. Check JIT function depth.
         {
@@ -241,15 +257,15 @@ bool woort_JIT_Backend_x64_prologue(
             const Mem depth_addr =
                 dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_JIT_CALL_DEPTH);
 
-            WOORT_JIT_CODE(cmp  (depth_addr, WOORT_VM_MAX_JIT_CALL_DEPTH));
-            WOORT_JIT_CODE(jbe  (L_ok));
+            WOORT_JIT_CODE(cmp(depth_addr, WOORT_VM_MAX_JIT_CALL_DEPTH));
+            WOORT_JIT_CODE(jbe(L_ok));
             em->sync_vm_state_with_env(*ip);
             em->return_with_status_without_reduce_depth(WOORT_VM_CALL_STATUS_RESYNC);
-            WOORT_JIT_CODE(bind (L_ok));
-            WOORT_JIT_CODE(inc  (depth_addr));
+            WOORT_JIT_CODE(bind(L_ok));
+            WOORT_JIT_CODE(inc(depth_addr));
         }
     }
-    
+
     if (!em->is_okay())
     {
         delete em;
@@ -581,15 +597,15 @@ void woort_JIT_Backend_x64_CALLC(void* emmiter, woort_Opcode_Global func)
 void woort_JIT_Backend_x64_RET(void* emmiter)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
-    
+
     // Get callway.
     static_assert(sizeof(woort_CallWay) == 4, "");
 
     // ret_way = sb[1].m_ret_bp.m_way
     const Mem ret_way = dword_ptr(
-        em->m_sb, 
-       static_cast<int32_t>(
-           1 * sizeof(woort_Value) + offsetof(woort_RetBP, m_way)));
+        em->m_sb,
+        static_cast<int32_t>(
+            1 * sizeof(woort_Value) + offsetof(woort_RetBP, m_way)));
 
     const Gp way = em->c->new_gp32();
     const Label L_normal_ret = em->c->new_label();
@@ -597,8 +613,39 @@ void woort_JIT_Backend_x64_RET(void* emmiter)
     WOORT_JIT_CODE(mov(way, ret_way));
     WOORT_JIT_CODE(cmp(way, Imm(static_cast<int32_t>(WOORT_CALL_WAY_FROM_NATIVE))));
     WOORT_JIT_CODE(jne(L_normal_ret));
-   
-    // SYNC ret_bp & sp & ip & env
+
+    // FROM_NATIVE: 正同步 ret_bp & sp & ip & env 到 VMRuntime。
+    //   ip = sb[2].m_ret_addr
+    //   sp = sb + 2*sizeof(woort_Value)
+    //   sb = m_stack_end - sb[1].m_ret_bp.m_bp_offset * sizeof(woort_Value)
+    {
+        const Gp new_ip = em->c->new_gp64();
+        const Gp new_sb = em->c->new_gp64();
+        const Gp bp_off = em->c->new_gp64();
+
+        // new_ip = sb[2].m_ret_addr (m_ret_addr 为 union 首字段，偏移 0)
+        WOORT_JIT_CODE(mov(new_ip, qword_ptr(em->m_sb, static_cast<int32_t>(sizeof(woort_Value)) * 2)));
+
+        // new_sp = sb + 2*sizeof(woort_Value)
+        WOORT_JIT_CODE(add(em->m_sb, Imm(static_cast<int32_t>(sizeof(woort_Value)) * 2)));
+
+        // bp_off = sb[1].m_ret_bp.m_bp_offset (u32 加载, x86-64 自动零扩展到 u64)
+        const Mem ret_bp_offset =
+            dword_ptr(
+                em->m_sb,
+                static_cast<int32_t>(
+                    sizeof(woort_Value) + offsetof(woort_RetBP, m_bp_offset)));
+        WOORT_JIT_CODE(mov(bp_off.r32(), ret_bp_offset));
+
+        // new_sb = m_stack_end - bp_off*sizeof(woort_Value) (sizeof==8 -> shl 3)
+        WOORT_JIT_CODE(shl(bp_off, Imm(3)));
+        WOORT_JIT_CODE(mov(new_sb, em->m_stack_end));
+        WOORT_JIT_CODE(sub(new_sb, bp_off));
+
+        // 写回 ip/sp/sb/env
+        em->sync_vm_state_with_env(new_ip, em->m_sb, new_sb);
+    }
+    // fall-through 到 bind(L_normal_ret) -> return_with_status(NORMAL)
 
     WOORT_JIT_CODE(bind(L_normal_ret));
     em->return_with_status(WOORT_VM_CALL_STATUS_NORMAL);

@@ -977,7 +977,7 @@ _label_continue_execution:
                 CALLNWO 绝不发生 FAR_CALL，所以直接处理即可
                 */
                 rt_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
-                rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                rt_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_sb - rt_sp - 2);
                 rt_sp[2].m_ret_addr = rt_ip + 1;
 
                 rt_sb = rt_sp;
@@ -1001,7 +1001,7 @@ _label_continue_execution:
                 此处保存到状态仅供调试等目的使用，这些状态实际上不被运行时使用
                 */
                 new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
-                new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_sb - rt_sp);
                 new_sp[2].m_ret_addr = /* Update rt_ip to return place. */ ++rt_ip;
 
                 const woort_NativeFunction native_function =
@@ -1047,7 +1047,7 @@ _label_continue_execution:
             if (new_sp >= rt_stack)
             {
                 new_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
-                new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                new_sp[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_sb - rt_sp);
                 new_sp[2].m_ret_addr = ++rt_ip;
 
                 const woort_JitFunction jit_function =
@@ -1102,7 +1102,7 @@ _label_continue_execution:
                     {
                         // Is JIT function.
                         new_sb[1].m_ret_bp.m_way = WOORT_CALL_WAY_FAR;
-                        new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                        new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_sb - rt_sp);
                         new_sb[2].m_ret_addr = ++rt_ip;
 
                         const woort_VmCallStatus status =
@@ -1120,7 +1120,7 @@ _label_continue_execution:
                     {
                         // Is script function.
                         /* CALL 可能发生 FAR_CALL，需要在跳转完成之后检查是否是 FAR CALL */
-                        new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                        new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_sb - rt_sp);
                         new_sb[2].m_ret_addr = rt_ip + 1;
 
                         rt_sp = new_sp;
@@ -1147,7 +1147,7 @@ _label_continue_execution:
                     此处保存到状态仅供调试等目的使用，这些状态实际上不被运行时使用
                     */
                     new_sb[1].m_ret_bp.m_way = WOORT_CALL_WAY_NEAR;
-                    new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_stack_end - rt_sb);
+                    new_sb[1].m_ret_bp.m_bp_offset = (uint32_t)(rt_sb - rt_sp);
                     new_sb[2].m_ret_addr = /* Update rt_ip to return place. */ ++rt_ip;
 
                     // No need to WOORT_VM_SYNC_STATE_WITHOUT_ENV(), we will do it manually.
@@ -1190,7 +1190,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 0):
         {
             rt_sp = rt_sb + 2;
-            rt_sb = rt_stack_end - rt_sp[-1].m_ret_bp.m_bp_offset;
+            rt_sb = rt_sp + rt_sp[-1].m_ret_bp.m_bp_offset;
             rt_ip = rt_sp[0].m_ret_addr;
 
             switch (rt_sp[-1].m_ret_bp.m_way)
@@ -1220,7 +1220,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 1):
         {
             rt_sp = rt_sb + 2;
-            rt_sb = rt_stack_end - rt_sp[-1].m_ret_bp.m_bp_offset;
+            rt_sb = rt_sp + rt_sp[-1].m_ret_bp.m_bp_offset;
             rt_ip = rt_sp[0].m_ret_addr;
 
             /* 此处使用 rt_sp 寻址，因为这是上一层调用栈的 bp */
@@ -1253,7 +1253,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 2):
         {
             rt_sp = rt_sb + 2;
-            rt_sb = rt_stack_end - rt_sp[-1].m_ret_bp.m_bp_offset;
+            rt_sb = rt_sp + rt_sp[-1].m_ret_bp.m_bp_offset;
             rt_ip = rt_sp[0].m_ret_addr;
 
             rt_sp[0] = rt_env_data[WOORT_BYTECODE(ABC24, c)];
@@ -4262,7 +4262,7 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
                     modify_trace_iter->m_next_tracing_offset_of_base;
 
                 if (sb_addr[2].m_ret_addr == NULL
-                    || sb_addr[1].m_ret_bp.m_bp_offset >= modify_trace_iter->m_next_tracing_offset_of_base)
+                    || (size_t)2 + sb_addr[1].m_ret_bp.m_bp_offset >= modify_trace_iter->m_next_tracing_offset_of_base)
                 {
                     /* Trace end. */
                     break;
@@ -4272,8 +4272,8 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
                     (const woort_Bytecode*)sb_addr[2].m_ret_addr;
 
                 /* Should be CALLWAY & BPOFFSET. */
-                modify_trace_iter->m_next_tracing_offset_of_base =
-                    sb_addr[1].m_ret_bp.m_bp_offset;
+                modify_trace_iter->m_next_tracing_offset_of_base -=
+                    2 + sb_addr[1].m_ret_bp.m_bp_offset;
 
                 if (!_woort_VMRuntime_trace_addr(
                     sb_addr[2].m_ret_addr, -1, out_result))

@@ -1070,7 +1070,7 @@ WOORT_NODISCARD static bool _woort_pre_invoke(woort_VMRuntime* vm, const woort_G
     // Set call way and bp offset.
     vm->m_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FROM_NATIVE;
     vm->m_sp[1].m_ret_bp.m_bp_offset =
-        (uint32_t)(vm->m_stack_end - vm->m_sb);
+        (uint32_t)(vm->m_sb - vm->m_sp - 2);
 
     // Set ret addr (Only for trace).
     vm->m_sp[2].m_ret_addr = vm->m_ip /* trace from current. */;
@@ -1176,7 +1176,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
         vm->m_sp = vm->m_sb + 2;
 
         assert(vm->m_sp[-1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE);
-        vm->m_sb = vm->m_stack_end - vm->m_sp[-1].m_ret_bp.m_bp_offset;
+        vm->m_sb = vm->m_sp + vm->m_sp[-1].m_ret_bp.m_bp_offset;
 
         switch (r)
         {
