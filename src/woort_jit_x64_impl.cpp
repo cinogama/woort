@@ -617,24 +617,29 @@ void woort_JIT_Backend_x64_RET(void* emmiter)
     // 此调用发起自 Native，需要正同步以确保状态回退到调用前
     {
         /*
-        vm->sp = rt_sp + 2;
+        vm->sp = rt_sb + 2;
         vm->sb = vm->sp + vm->sp[-1].m_ret_bp.m_bp_offset
         vm->ip = vm->sp[0].m_ret_addr;
         */
 
         static_assert(0 == offsetof(woort_Value, m_ret_addr), "");
-        const Gp ret_ip = em->c->new_gp_ptr();
 
+        WOORT_JIT_CODE(mov(em->m_sp, em->m_sb));
         WOORT_JIT_CODE(add(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)) * 2)));
-        WOORT_JIT_CODE(mov(em->m_sb, em->m_sp));
 
+        WOORT_JIT_CODE(mov(em->m_sb, em->m_sp));
         const Mem bp_offset =
             dword_ptr(
-                em->m_sb,
+                em->m_sp,
                 static_cast<int32_t>(sizeof(woort_Value)) * -1
                 + static_cast<int32_t>(offsetof(woort_RetBP, m_bp_offset)));
 
-        WOORT_JIT_CODE(add(em->m_sb, bp_offset));
+        const Gp bp_offset_shift = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(bp_offset_shift, bp_offset));
+        WOORT_JIT_CODE(shl(bp_offset_shift, Imm(3)));   // << 3,  * sizeof(woort_Value)
+        WOORT_JIT_CODE(add(em->m_sb, bp_offset_shift));
+
+        const Gp ret_ip = em->c->new_gp64();
         WOORT_JIT_CODE(mov(ret_ip, qword_ptr(em->m_sp)));
 
         em->sync_vm_state_with_env_in_ret_native(ret_ip);
