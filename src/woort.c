@@ -69,7 +69,12 @@ uint64_t woort_version_int(void)
 #undef woort_init
 void woort_init(int argc, char** argv)
 {
-    woort_JIT_bootup();
+    if (!woort_JIT_bootup())
+    {
+        WOORT_DEBUG("Failed to bootup JIT.");
+        abort();
+    }
+
     _woort_env_bootup();
     _woort_path_bootup();
     _woort_vfs_bootup();

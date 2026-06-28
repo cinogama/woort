@@ -115,19 +115,19 @@ struct woort_JIT_Asmjit_x64_Emmiter
         WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
         WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
     }
-    /*
-    重载版本：用于 ip/sp/sb 均为运行期动态值（例如从栈帧中读取）的正同步。
-    env 仍取当前 JIT 编译期常量 cenv。
-    */
-    void sync_vm_state_with_env(Gp ip, Gp sp, Gp sb)
+    void sync_vm_state_with_env_in_ret_native(Gp ip)
     {
+        /*
+       SYNC 是将 JIT 运行时状态正向同步到 VM 运行时
+       需要同步的状态，参阅 woort_vm.c 的 WOORT_VM_SYNC_STATE_WITH_ENV
+       */
         auto* const em = this;
 
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_IP), ip));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP), sp));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB), sb));
-
         const Gp tmp = c->new_gp_ptr();
+
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_IP), ip));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP), em->m_sp));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB), em->m_sb));
         WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
         WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
     }
@@ -614,39 +614,31 @@ void woort_JIT_Backend_x64_RET(void* emmiter)
     WOORT_JIT_CODE(cmp(way, Imm(static_cast<int32_t>(WOORT_CALL_WAY_FROM_NATIVE))));
     WOORT_JIT_CODE(jne(L_normal_ret));
 
-    // FROM_NATIVE: 正同步 ret_bp & sp & ip & env 到 VMRuntime。
-    //   ip = sb[2].m_ret_addr
-    //   sp = sb + 2*sizeof(woort_Value)
-    //   sb = m_stack_end - sb[1].m_ret_bp.m_bp_offset * sizeof(woort_Value)
+    // 此调用发起自 Native，需要正同步以确保状态回退到调用前
     {
-        const Gp new_ip = em->c->new_gp64();
-        const Gp new_sb = em->c->new_gp64();
-        const Gp bp_off = em->c->new_gp64();
+        /*
+        vm->sp = rt_sp + 2;
+        vm->sb = vm->sp + vm->sp[-1].m_ret_bp.m_bp_offset
+        vm->ip = vm->sp[0].m_ret_addr;
+        */
 
-        // new_ip = sb[2].m_ret_addr (m_ret_addr 为 union 首字段，偏移 0)
-        WOORT_JIT_CODE(mov(new_ip, qword_ptr(em->m_sb, static_cast<int32_t>(sizeof(woort_Value)) * 2)));
+        static_assert(0 == offsetof(woort_Value, m_ret_addr), "");
+        const Gp ret_ip = em->c->new_gp_ptr();
 
-        // new_sp = sb + 2*sizeof(woort_Value)
-        WOORT_JIT_CODE(add(em->m_sb, Imm(static_cast<int32_t>(sizeof(woort_Value)) * 2)));
+        WOORT_JIT_CODE(add(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)) * 2)));
+        WOORT_JIT_CODE(mov(em->m_sb, em->m_sp));
 
-        // bp_off = sb[1].m_ret_bp.m_bp_offset (u32 加载, x86-64 自动零扩展到 u64)
-        const Mem ret_bp_offset =
+        const Mem bp_offset =
             dword_ptr(
                 em->m_sb,
-                static_cast<int32_t>(
-                    sizeof(woort_Value) + offsetof(woort_RetBP, m_bp_offset)));
-        WOORT_JIT_CODE(mov(bp_off.r32(), ret_bp_offset));
+                static_cast<int32_t>(sizeof(woort_Value)) * -1
+                + static_cast<int32_t>(offsetof(woort_RetBP, m_bp_offset)));
 
-        // new_sb = m_stack_end - bp_off*sizeof(woort_Value) (sizeof==8 -> shl 3)
-        WOORT_JIT_CODE(shl(bp_off, Imm(3)));
-        WOORT_JIT_CODE(mov(new_sb, em->m_stack_end));
-        WOORT_JIT_CODE(sub(new_sb, bp_off));
+        WOORT_JIT_CODE(add(em->m_sb, bp_offset));
+        WOORT_JIT_CODE(mov(ret_ip, qword_ptr(em->m_sp)));
 
-        // 写回 ip/sp/sb/env
-        em->sync_vm_state_with_env(new_ip, em->m_sb, new_sb);
+        em->sync_vm_state_with_env_in_ret_native(ret_ip);
     }
-    // fall-through 到 bind(L_normal_ret) -> return_with_status(NORMAL)
-
     WOORT_JIT_CODE(bind(L_normal_ret));
     em->return_with_status(WOORT_VM_CALL_STATUS_NORMAL);
 }
