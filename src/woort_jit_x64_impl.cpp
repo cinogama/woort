@@ -150,6 +150,58 @@ struct woort_JIT_Asmjit_x64_Emmiter
         return_with_status_without_reduce_depth(status);
     }
 
+    template<typename WriteValue>
+    void emit_ret(WriteValue&& write_value)
+    {
+        auto* const em = this;
+
+        // Get callway.
+        static_assert(sizeof(woort_CallWay) == 4, "");
+
+        // ret_way = sb[1].m_ret_bp.m_way
+        const Mem ret_way = dword_ptr(
+            em->m_sb,
+            static_cast<int32_t>(
+                1 * sizeof(woort_Value) + offsetof(woort_RetBP, m_way)));
+
+        const Gp way = c->new_gp32();
+        const Label L_normal_ret = c->new_label();
+
+        WOORT_JIT_CODE(mov(way, ret_way));
+        WOORT_JIT_CODE(cmp(way, Imm(static_cast<int32_t>(WOORT_CALL_WAY_FROM_NATIVE))));
+        WOORT_JIT_CODE(jne(L_normal_ret));
+
+        // 此调用发起自 Native，需要正同步以确保状态回退到调用前
+        {
+            /*
+            vm->sp = rt_sb + 2;
+            vm->sb = vm->sp + vm->sp[-1].m_ret_bp.m_bp_offset
+            vm->ip = vm->sp[0].m_ret_addr;
+            */
+
+            static_assert(0 == offsetof(woort_Value, m_ret_addr), "");
+            static_assert(sizeof(woort_Value) == 8, "");
+
+            WOORT_JIT_CODE(lea(em->m_sp, ptr(em->m_sb, static_cast<int32_t>(sizeof(woort_Value)) * 2)));
+
+            const Gp bp_offset = c->new_gp64();
+            WOORT_JIT_CODE(movzx(bp_offset, dword_ptr(
+                em->m_sp,
+                static_cast<int32_t>(sizeof(woort_Value)) * -1
+                + static_cast<int32_t>(offsetof(woort_RetBP, m_bp_offset)))));
+            WOORT_JIT_CODE(lea(em->m_sb, ptr(em->m_sp, bp_offset, 3)));   // shift=3 ⇒ scale=8
+
+            const Gp ret_ip = c->new_gp64();
+            WOORT_JIT_CODE(mov(ret_ip, qword_ptr(em->m_sp)));
+
+            em->sync_vm_state_with_env_in_ret_native(ret_ip);
+        }
+        write_value();
+
+        WOORT_JIT_CODE(bind(L_normal_ret));
+        em->return_with_status(WOORT_VM_CALL_STATUS_NORMAL);
+    }
+
     // ===================================================== //
     template<typename T>
     void set_gp_from_stack(woort_Opcode_Stack src, T v)
@@ -595,61 +647,52 @@ void woort_JIT_Backend_x64_RET(void* emmiter)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
-    // Get callway.
-    static_assert(sizeof(woort_CallWay) == 4, "");
-
-    // ret_way = sb[1].m_ret_bp.m_way
-    const Mem ret_way = dword_ptr(
-        em->m_sb,
-        static_cast<int32_t>(
-            1 * sizeof(woort_Value) + offsetof(woort_RetBP, m_way)));
-
-    const Gp way = em->c->new_gp32();
-    const Label L_normal_ret = em->c->new_label();
-
-    WOORT_JIT_CODE(mov(way, ret_way));
-    WOORT_JIT_CODE(cmp(way, Imm(static_cast<int32_t>(WOORT_CALL_WAY_FROM_NATIVE))));
-    WOORT_JIT_CODE(jne(L_normal_ret));
-
-    // 此调用发起自 Native，需要正同步以确保状态回退到调用前
-    {
-        /*
-        vm->sp = rt_sb + 2;
-        vm->sb = vm->sp + vm->sp[-1].m_ret_bp.m_bp_offset
-        vm->ip = vm->sp[0].m_ret_addr;
-        */
-
-        static_assert(0 == offsetof(woort_Value, m_ret_addr), "");
-        static_assert(sizeof(woort_Value) == 8, "");
-
-        WOORT_JIT_CODE(lea(em->m_sp, ptr(em->m_sb, static_cast<int32_t>(sizeof(woort_Value)) * 2)));
-
-        const Gp bp_offset = em->c->new_gp64();
-        WOORT_JIT_CODE(movzx(bp_offset, dword_ptr(
-            em->m_sp,
-            static_cast<int32_t>(sizeof(woort_Value)) * -1
-            + static_cast<int32_t>(offsetof(woort_RetBP, m_bp_offset)))));
-        WOORT_JIT_CODE(lea(em->m_sb, ptr(em->m_sp, bp_offset, 3)));   // shift=3 ⇒ scale=8
-
-        const Gp ret_ip = em->c->new_gp64();
-        WOORT_JIT_CODE(mov(ret_ip, qword_ptr(em->m_sp)));
-
-        em->sync_vm_state_with_env_in_ret_native(ret_ip);
-    }
-    WOORT_JIT_CODE(bind(L_normal_ret));
-    em->return_with_status(WOORT_VM_CALL_STATUS_NORMAL);
+    em->emit_ret([] {});
 }
 
 void woort_JIT_Backend_x64_RETVS(void* emmiter, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)src;
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp ret_val = em->get_gp_from_stack(src);
+
+    em->emit_ret([&] {
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_sp, 0), ret_val));
+    });
 }
 
 void woort_JIT_Backend_x64_RETVC(void* emmiter, woort_Opcode_Global src)
 {
-    (void)emmiter;
-    (void)src;
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
+
+    Gp ret_val;
+    if (src < em->m_cenv_constant_count)
+    {
+        if (src_addr->m_integer <= INT32_MAX && src_addr->m_integer >= INT32_MIN)
+        {
+            // Short cut.
+            em->emit_ret([&] {
+                WOORT_JIT_CODE(mov(
+                    qword_ptr(em->m_sp, 0), 
+                    Imm(static_cast<int32_t>(src_addr->m_integer))));
+            });
+            return;
+        }
+
+        ret_val = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(ret_val, Imm(src_addr->m_integer)));
+    }
+    else
+    {
+        ret_val = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(ret_val, qword_ptr(reinterpret_cast<uintptr_t>(src_addr))));
+    }
+
+    em->emit_ret([&] {
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_sp, 0), ret_val));
+    });
 }
 
 void woort_JIT_Backend_x64_POPRS(void* emmiter, woort_Opcode_Stack src)
