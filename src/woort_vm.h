@@ -135,15 +135,16 @@ typedef enum woort_VMRuntime_CheckRequestMask
 struct woort_VMRuntime
 {
     // VM Runtime status.
-    uint32_t                m_stack_realloc_version;
     woort_Value*            m_stack;
     // NOTE: m_stack_end 指向栈空间的尾后位置，不可访问其中的内容
-    woort_Value*            m_stack_end; 
+    woort_Value*            m_stack_end;
+
+    uint32_t                m_stack_realloc_version;
+    uint32_t                m_jit_call_depth;
+
     woort_Value*            m_sb;
     woort_Value*            m_sp;
     const woort_Bytecode*   m_ip;
-
-    uint32_t                m_jit_call_depth;
 
     /*
     NOTE: m_env 的设计用意如下：

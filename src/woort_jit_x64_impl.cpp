@@ -580,7 +580,28 @@ void woort_JIT_Backend_x64_CALLC(void* emmiter, woort_Opcode_Global func)
 
 void woort_JIT_Backend_x64_RET(void* emmiter)
 {
-    (void)emmiter;
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+    
+    // Get callway.
+    static_assert(sizeof(woort_CallWay) == 4, "");
+
+    // ret_way = sb[1].m_ret_bp.m_way
+    const Mem ret_way = dword_ptr(
+        em->m_sb, 
+       static_cast<int32_t>(
+           1 * sizeof(woort_Value) + offsetof(woort_RetBP, m_way)));
+
+    const Gp way = em->c->new_gp32();
+    const Label L_normal_ret = em->c->new_label();
+
+    WOORT_JIT_CODE(mov(way, ret_way));
+    WOORT_JIT_CODE(cmp(way, Imm(static_cast<int32_t>(WOORT_CALL_WAY_FROM_NATIVE))));
+    WOORT_JIT_CODE(jne(L_normal_ret));
+   
+    // SYNC ret_bp & sp & ip & env
+
+    WOORT_JIT_CODE(bind(L_normal_ret));
+    em->return_with_status(WOORT_VM_CALL_STATUS_NORMAL);
 }
 
 void woort_JIT_Backend_x64_RETVS(void* emmiter, woort_Opcode_Stack src)
