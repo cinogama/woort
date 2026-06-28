@@ -135,9 +135,6 @@ struct woort_JIT_Asmjit_x64_Emmiter
     {
         auto* const em = this;
 
-        const Mem depth_addr =
-            dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_JIT_CALL_DEPTH);
-
         const Gp ret_val = c->new_gp32();
         WOORT_JIT_CODE(mov(ret_val, (int32_t)status));
         WOORT_JIT_CODE(ret(ret_val));
@@ -623,21 +620,16 @@ void woort_JIT_Backend_x64_RET(void* emmiter)
         */
 
         static_assert(0 == offsetof(woort_Value, m_ret_addr), "");
+        static_assert(sizeof(woort_Value) == 8, "");
 
-        WOORT_JIT_CODE(mov(em->m_sp, em->m_sb));
-        WOORT_JIT_CODE(add(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)) * 2)));
+        WOORT_JIT_CODE(lea(em->m_sp, ptr(em->m_sb, static_cast<int32_t>(sizeof(woort_Value)) * 2)));
 
-        WOORT_JIT_CODE(mov(em->m_sb, em->m_sp));
-        const Mem bp_offset =
-            dword_ptr(
-                em->m_sp,
-                static_cast<int32_t>(sizeof(woort_Value)) * -1
-                + static_cast<int32_t>(offsetof(woort_RetBP, m_bp_offset)));
-
-        const Gp bp_offset_shift = em->c->new_gp64();
-        WOORT_JIT_CODE(mov(bp_offset_shift, bp_offset));
-        WOORT_JIT_CODE(shl(bp_offset_shift, Imm(3)));   // << 3,  * sizeof(woort_Value)
-        WOORT_JIT_CODE(add(em->m_sb, bp_offset_shift));
+        const Gp bp_offset = em->c->new_gp64();
+        WOORT_JIT_CODE(movzx(bp_offset, dword_ptr(
+            em->m_sp,
+            static_cast<int32_t>(sizeof(woort_Value)) * -1
+            + static_cast<int32_t>(offsetof(woort_RetBP, m_bp_offset)))));
+        WOORT_JIT_CODE(lea(em->m_sb, ptr(em->m_sp, bp_offset, 3)));   // shift=3 ⇒ scale=8
 
         const Gp ret_ip = em->c->new_gp64();
         WOORT_JIT_CODE(mov(ret_ip, qword_ptr(em->m_sp)));
