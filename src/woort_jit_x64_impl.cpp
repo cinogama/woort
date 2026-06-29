@@ -10,7 +10,9 @@
 #include <cstdint>
 #include <cstring>
 #include <unordered_map>
+#include <optional>
 
+using namespace std;
 using namespace asmjit;
 using namespace asmjit::x86;
 
@@ -39,23 +41,23 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp          m_stack;
     Gp          m_stack_end;
 
+    optional<JumpAnnotation*> m_checkpoint_resume_annotation;
     Label           m_checkpoint_slow;
-    JumpAnnotation* m_checkpoint_resume_annotation = nullptr;
     Gp              m_checkpoint_resume;
-    size_t          m_checkpoint_site_count = 0;
+    size_t          m_checkpoint_site_count;
 
+    optional<JumpAnnotation*> m_stack_overflow_resume_annotation;
     Label           m_stack_overflow_slow;
-    JumpAnnotation* m_stack_overflow_resume_annotation = nullptr;
     Gp              m_stack_overflow_resume;
-    size_t          m_stack_overflow_site_count = 0;
+    size_t          m_stack_overflow_site_count;
 
+    optional<JumpAnnotation*> m_jit_call_resync_resume_annotation;
     Label           m_jit_call_resync_slow;
-    JumpAnnotation* m_jit_call_resync_resume_annotation = nullptr;
     Gp              m_jit_call_resync_resume;
-    size_t          m_jit_call_resync_site_count = 0;
+    size_t          m_jit_call_resync_site_count;
 
-    std::unordered_map<woort_Opcode_Stack, Gp> m_stack_gp;
-    std::unordered_map<const woort_Bytecode*, Label> m_opcode_label;
+    unordered_map<woort_Opcode_Stack, Gp> m_stack_gp;
+    unordered_map<const woort_Bytecode*, Label> m_opcode_label;
 
     woort_JIT_Asmjit_x64_Emmiter(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
     woort_JIT_Asmjit_x64_Emmiter(woort_JIT_Asmjit_x64_Emmiter&&) = delete;
@@ -72,6 +74,12 @@ struct woort_JIT_Asmjit_x64_Emmiter
         , m_last_error(Error::kOk)
         , m_func_node(nullptr)
         , m_ip(ip)
+        , m_checkpoint_resume_annotation(nullopt)
+        , m_checkpoint_site_count(0)
+        , m_stack_overflow_resume_annotation(nullopt)
+        , m_stack_overflow_site_count(0)
+        , m_jit_call_resync_resume_annotation(nullopt)
+        , m_jit_call_resync_site_count(0)
     {
         JitRuntime* const asmjit_runtime =
             static_cast<JitRuntime*>(woort_JIT_Asmjit_get_runtime());
@@ -80,7 +88,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
         if (m_last_error != Error::kOk)
             return;
 
-        c = new (std::nothrow) Compiler(&m_code_holder);
+        c = new (nothrow) Compiler(&m_code_holder);
         if (c == nullptr)
             m_last_error = Error::kOutOfMemory;
 
@@ -90,24 +98,11 @@ struct woort_JIT_Asmjit_x64_Emmiter
         m_stack = c->new_gp_ptr();
         m_stack_end = c->new_gp_ptr();
 
-        m_checkpoint_slow = c->new_label();
-        m_checkpoint_resume = c->new_gp_ptr();
-
-        m_stack_overflow_slow = c->new_label();
-        m_stack_overflow_resume = c->new_gp_ptr();
-
-        m_jit_call_resync_slow = c->new_label();
-        m_jit_call_resync_resume = c->new_gp_ptr();
-
         m_last_error = c->add_func_node(Out(m_func_node),
             FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
 
         m_func_node->set_arg(0, m_vm);
         m_func_node->set_arg(1, m_sb);
-
-        m_checkpoint_resume_annotation = c->new_jump_annotation();
-        m_stack_overflow_resume_annotation = c->new_jump_annotation();
-        m_jit_call_resync_resume_annotation = c->new_jump_annotation();
     }
     ~woort_JIT_Asmjit_x64_Emmiter() noexcept
     {
@@ -267,6 +262,13 @@ struct woort_JIT_Asmjit_x64_Emmiter
     {
         auto* const em = this;
 
+        if (!em->m_checkpoint_resume_annotation.has_value())
+        {
+            em->m_checkpoint_slow = c->new_label();
+            em->m_checkpoint_resume = c->new_gp_ptr();
+            em->m_checkpoint_resume_annotation = c->new_jump_annotation();
+        }
+
         const Gp    check_mask = c->new_gp32();
         const Label L_continue = c->new_label();
 
@@ -281,7 +283,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
             WOORT_JIT_CODE(lea(em->m_checkpoint_resume, ptr(L_continue)));
             em->update_last_error(
-                em->m_checkpoint_resume_annotation->add_label(L_continue));
+                em->m_checkpoint_resume_annotation.value()->add_label(L_continue));
 
             ++em->m_checkpoint_site_count;
 
@@ -292,6 +294,14 @@ struct woort_JIT_Asmjit_x64_Emmiter
     void emit_extern_stack(const woort_Bytecode* ip, Label L_resume)
     {
         auto* const em = this;
+
+        if (!em->m_stack_overflow_resume_annotation.has_value())
+        {
+            em->m_stack_overflow_slow = c->new_label();
+            em->m_stack_overflow_resume = c->new_gp_ptr();
+            em->m_stack_overflow_resume_annotation = c->new_jump_annotation();
+        }
+
         {
             const Gp ip_tmp = c->new_gp_ptr();
             WOORT_JIT_CODE(mov(ip_tmp, (uintptr_t)ip));
@@ -299,7 +309,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
             WOORT_JIT_CODE(lea(em->m_stack_overflow_resume, ptr(L_resume)));
             em->update_last_error(
-                em->m_stack_overflow_resume_annotation->add_label(L_resume));
+                em->m_stack_overflow_resume_annotation.value()->add_label(L_resume));
 
             ++em->m_stack_overflow_site_count;
 
@@ -310,10 +320,18 @@ struct woort_JIT_Asmjit_x64_Emmiter
     void emit_jit_call_resync(Label L_resume)
     {
         auto* const em = this;
+
+        if (!em->m_jit_call_resync_resume_annotation.has_value())
+        {
+            em->m_jit_call_resync_slow = c->new_label();
+            em->m_jit_call_resync_resume = c->new_gp_ptr();
+            em->m_jit_call_resync_resume_annotation = c->new_jump_annotation();
+        }
+
         {
             WOORT_JIT_CODE(lea(em->m_jit_call_resync_resume, ptr(L_resume)));
             em->update_last_error(
-                em->m_jit_call_resync_resume_annotation->add_label(L_resume));
+                em->m_jit_call_resync_resume_annotation.value()->add_label(L_resume));
 
             ++em->m_jit_call_resync_site_count;
 
@@ -409,7 +427,7 @@ bool woort_JIT_Backend_x64_prologue(
     void** out_emmiter)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em =
-        new (std::nothrow) woort_JIT_Asmjit_x64_Emmiter(cenv, ip);
+        new (nothrow) woort_JIT_Asmjit_x64_Emmiter(cenv, ip);
 
     if (em == nullptr)
         return false;
@@ -488,7 +506,7 @@ bool woort_JIT_Backend_x64_epilogue(
         WOORT_JIT_CODE(jne(checkpoint_exit));
 
         em->resync_vm_stack_state_fully();
-        WOORT_JIT_CODE(jmp(checkpoint_resume_slot, em->m_checkpoint_resume_annotation));
+        WOORT_JIT_CODE(jmp(checkpoint_resume_slot, em->m_checkpoint_resume_annotation.value()));
 
         WOORT_JIT_CODE(bind(checkpoint_exit));
         em->return_with_status(checkpoint_status);
@@ -523,7 +541,7 @@ bool woort_JIT_Backend_x64_epilogue(
         WOORT_JIT_CODE(jne(so_exit));
 
         em->resync_vm_stack_state_fully();
-        WOORT_JIT_CODE(jmp(so_resume_slot, em->m_stack_overflow_resume_annotation));
+        WOORT_JIT_CODE(jmp(so_resume_slot, em->m_stack_overflow_resume_annotation.value()));
 
         WOORT_JIT_CODE(bind(so_exit));
         em->return_with_status(so_status);
@@ -557,7 +575,7 @@ bool woort_JIT_Backend_x64_epilogue(
         WOORT_JIT_CODE(mov(em->m_stack_end, vm_stack_end));
 
         WOORT_JIT_CODE(jmp(jit_call_resync_resume_slot,
-                           em->m_jit_call_resync_resume_annotation));
+                           em->m_jit_call_resync_resume_annotation.value()));
     }
 
     Error err = em->c->end_func();
