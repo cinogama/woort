@@ -52,7 +52,6 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Label           m_jit_call_resync_slow;
     JumpAnnotation* m_jit_call_resync_resume_annotation = nullptr;
     Gp              m_jit_call_resync_resume;
-    Mem             m_jit_call_resync_resume_slot;
     size_t          m_jit_call_resync_site_count = 0;
 
     std::unordered_map<woort_Opcode_Stack, Gp> m_stack_gp;
@@ -99,7 +98,6 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
         m_jit_call_resync_slow = c->new_label();
         m_jit_call_resync_resume = c->new_gp_ptr();
-        m_jit_call_resync_resume_slot = c->new_stack(sizeof(uintptr_t), alignof(uintptr_t));
 
         m_last_error = c->add_func_node(Out(m_func_node),
             FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
@@ -466,6 +464,10 @@ bool woort_JIT_Backend_x64_epilogue(
     {
         WOORT_JIT_CODE(bind(em->m_checkpoint_slow));
 
+        const Mem checkpoint_resume_slot =
+            em->c->new_stack(sizeof(uintptr_t), alignof(uintptr_t));
+        WOORT_JIT_CODE(mov(checkpoint_resume_slot, em->m_checkpoint_resume));
+
         em->sync_vm_stack_base_with_env();
 
         static_assert(sizeof(woort_VmCallStatus) == 4, "");
@@ -486,7 +488,7 @@ bool woort_JIT_Backend_x64_epilogue(
         WOORT_JIT_CODE(jne(checkpoint_exit));
 
         em->resync_vm_stack_state_fully();
-        WOORT_JIT_CODE(jmp(em->m_checkpoint_resume, em->m_checkpoint_resume_annotation));
+        WOORT_JIT_CODE(jmp(checkpoint_resume_slot, em->m_checkpoint_resume_annotation));
 
         WOORT_JIT_CODE(bind(checkpoint_exit));
         em->return_with_status(checkpoint_status);
@@ -496,6 +498,10 @@ bool woort_JIT_Backend_x64_epilogue(
     if (em->m_stack_overflow_site_count > 0)
     {
         WOORT_JIT_CODE(bind(em->m_stack_overflow_slow));
+
+        const Mem so_resume_slot =
+            em->c->new_stack(sizeof(uintptr_t), alignof(uintptr_t));
+        WOORT_JIT_CODE(mov(so_resume_slot, em->m_stack_overflow_resume));
 
         em->sync_vm_stack_base_with_env();
 
@@ -517,8 +523,7 @@ bool woort_JIT_Backend_x64_epilogue(
         WOORT_JIT_CODE(jne(so_exit));
 
         em->resync_vm_stack_state_fully();
-        WOORT_JIT_CODE(jmp(em->m_stack_overflow_resume,
-                           em->m_stack_overflow_resume_annotation));
+        WOORT_JIT_CODE(jmp(so_resume_slot, em->m_stack_overflow_resume_annotation));
 
         WOORT_JIT_CODE(bind(so_exit));
         em->return_with_status(so_status);
@@ -529,7 +534,9 @@ bool woort_JIT_Backend_x64_epilogue(
     {
         WOORT_JIT_CODE(bind(em->m_jit_call_resync_slow));
 
-        WOORT_JIT_CODE(mov(em->m_jit_call_resync_resume_slot, em->m_jit_call_resync_resume));
+        const Mem jit_call_resync_resume_slot =
+            em->c->new_stack(sizeof(uintptr_t), alignof(uintptr_t));
+        WOORT_JIT_CODE(mov(jit_call_resync_resume_slot, em->m_jit_call_resync_resume));
 
         const Gp vm_stack_end = em->c->new_gp_ptr();
         WOORT_JIT_CODE(mov(vm_stack_end, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK_END)));
@@ -549,7 +556,7 @@ bool woort_JIT_Backend_x64_epilogue(
         WOORT_JIT_CODE(mov(em->m_stack, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK)));
         WOORT_JIT_CODE(mov(em->m_stack_end, vm_stack_end));
 
-        WOORT_JIT_CODE(jmp(em->m_jit_call_resync_resume_slot,
+        WOORT_JIT_CODE(jmp(jit_call_resync_resume_slot,
                            em->m_jit_call_resync_resume_annotation));
     }
 
