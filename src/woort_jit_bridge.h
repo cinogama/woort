@@ -34,6 +34,8 @@ extern "C" {
 
     WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMRuntime* vm);
 
+    WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_stack_overflow_handler(woort_VMRuntime* vm);
+
 #ifdef __cplusplus
 }
 #endif

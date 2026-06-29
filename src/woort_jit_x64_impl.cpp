@@ -44,6 +44,11 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp              m_checkpoint_resume;
     size_t          m_checkpoint_site_count = 0;
 
+    Label           m_stack_overflow_slow;
+    JumpAnnotation* m_stack_overflow_resume_annotation = nullptr;
+    Gp              m_stack_overflow_resume;
+    size_t          m_stack_overflow_site_count = 0;
+
     std::unordered_map<woort_Opcode_Stack, Gp> m_stack_gp;
     std::unordered_map<const woort_Bytecode*, Label> m_opcode_label;
 
@@ -83,6 +88,9 @@ struct woort_JIT_Asmjit_x64_Emmiter
         m_checkpoint_slow = c->new_label();
         m_checkpoint_resume = c->new_gp_ptr();
 
+        m_stack_overflow_slow = c->new_label();
+        m_stack_overflow_resume = c->new_gp_ptr();
+
         m_last_error = c->add_func_node(Out(m_func_node),
             FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
 
@@ -90,6 +98,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
         m_func_node->set_arg(1, m_sb);
 
         m_checkpoint_resume_annotation = c->new_jump_annotation();
+        m_stack_overflow_resume_annotation = c->new_jump_annotation();
     }
     ~woort_JIT_Asmjit_x64_Emmiter() noexcept
     {
@@ -276,6 +285,25 @@ struct woort_JIT_Asmjit_x64_Emmiter
         WOORT_JIT_CODE(bind(L_continue));
     }
 
+    void emit_extern_stack(const woort_Bytecode* ip, Label L_resume)
+    {
+        auto* const em = this;
+        {
+            const Gp ip_tmp = c->new_gp_ptr();
+            WOORT_JIT_CODE(mov(ip_tmp, (uintptr_t)ip));
+            WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_IP), ip_tmp));
+
+            WOORT_JIT_CODE(lea(em->m_stack_overflow_resume, ptr(L_resume)));
+            em->update_last_error(
+                em->m_stack_overflow_resume_annotation->add_label(L_resume));
+
+            ++em->m_stack_overflow_site_count;
+
+            WOORT_JIT_CODE(jmp(em->m_stack_overflow_slow));
+        }
+        WOORT_JIT_CODE(bind(L_resume));
+    }
+
     // ===================================================== //
     template<typename T>
     void set_gp_by_stack(woort_Opcode_Stack src, T v)
@@ -427,19 +455,47 @@ bool woort_JIT_Backend_x64_epilogue(
         invoke_node->set_arg(0, em->m_vm);
         invoke_node->set_ret(0, checkpoint_status);
 
-        em->resync_vm_stack_state_fully();
-
         WOORT_JIT_CODE(cmp(checkpoint_status, static_cast<int32_t>(WOORT_VM_CALL_STATUS_NORMAL)));
         WOORT_JIT_CODE(jne(checkpoint_exit));
 
+        em->resync_vm_stack_state_fully();
         WOORT_JIT_CODE(jmp(em->m_checkpoint_resume, em->m_checkpoint_resume_annotation));
 
         WOORT_JIT_CODE(bind(checkpoint_exit));
         em->return_with_status(checkpoint_status);
     }
 
-    // TODO: Check for stack overflow.
+    // Check for stack overflow.
+    if (em->m_stack_overflow_site_count > 0)
+    {
+        WOORT_JIT_CODE(bind(em->m_stack_overflow_slow));
 
+        em->sync_vm_stack_base_with_env();
+
+        static_assert(sizeof(woort_VmCallStatus) == 4, "");
+
+        const Label so_exit   = em->c->new_label();
+        const Gp    so_status = em->c->new_gp32();
+
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_VMRuntime_JIT_stack_overflow_handler)),
+            FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*>()));
+
+        invoke_node->set_arg(0, em->m_vm);
+        invoke_node->set_ret(0, so_status);
+
+        WOORT_JIT_CODE(cmp(so_status, static_cast<int32_t>(WOORT_VM_CALL_STATUS_NORMAL)));
+        WOORT_JIT_CODE(jne(so_exit));
+
+        em->resync_vm_stack_state_fully();
+        WOORT_JIT_CODE(jmp(em->m_stack_overflow_resume,
+                           em->m_stack_overflow_resume_annotation));
+
+        WOORT_JIT_CODE(bind(so_exit));
+        em->return_with_status(so_status);
+    }
 
     Error err = em->c->end_func();
 
@@ -564,6 +620,9 @@ void woort_JIT_Backend_x64_PUSHRCHK(void* emmiter, woort_Opcode_Count n)
 
     static_assert(sizeof(woort_Value) == 8, "");
 
+    const Label L_retry = em->c->new_label();
+    WOORT_JIT_CODE(bind(L_retry));
+
     const Gp new_sp = em->c->new_gp_ptr();
     WOORT_JIT_CODE(mov(new_sp, em->m_sp));
     WOORT_JIT_CODE(sub(new_sp, Imm(static_cast<int32_t>(static_cast<size_t>(n) * sizeof(woort_Value)))));
@@ -572,8 +631,7 @@ void woort_JIT_Backend_x64_PUSHRCHK(void* emmiter, woort_Opcode_Count n)
     WOORT_JIT_CODE(cmp(new_sp, em->m_stack));
     WOORT_JIT_CODE(jae(L_ok));
 
-    em->sync_vm_state_with_env(*em->m_ip);
-    em->return_with_status(WOORT_VM_CALL_STATUS_RESYNC);
+    em->emit_extern_stack(*em->m_ip, L_retry);
 
     WOORT_JIT_CODE(bind(L_ok));
     WOORT_JIT_CODE(mov(em->m_sp, new_sp));
@@ -585,12 +643,14 @@ void woort_JIT_Backend_x64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src)
 
     const Gp val = em->get_gp_from_stack(src);
 
+    const Label L_retry = em->c->new_label();
+    WOORT_JIT_CODE(bind(L_retry));
+
     const Label L_ok = em->c->new_label();
     WOORT_JIT_CODE(cmp(em->m_sp, em->m_stack));
     WOORT_JIT_CODE(ja(L_ok));
 
-    em->sync_vm_state_with_env(*em->m_ip);
-    em->return_with_status(WOORT_VM_CALL_STATUS_RESYNC);
+    em->emit_extern_stack(*em->m_ip, L_retry);
 
     WOORT_JIT_CODE(bind(L_ok));
     WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), val));

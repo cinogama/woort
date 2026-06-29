@@ -4092,6 +4092,19 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
     return WOORT_VM_CALL_STATUS_NORMAL;
 }
 
+WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_stack_overflow_handler(
+    woort_VMRuntime* vm)
+{
+    if (/* UNLIKELY */ !_woort_VMRuntime_extern_stack(vm))
+    {
+        return WOORT_VM_CALL_STATUS_RESYNC;
+    }
+
+    vm->m_shrink_stack_edge = WOORT_VM_SHRINK_EDGE_AFTER_GROW;
+
+    return WOORT_VM_CALL_STATUS_NORMAL;
+}
+
 WOORT_NODISCARD bool woort_VMRuntime_request_set(
     woort_VMRuntime* vm, woort_VMRuntime_CheckRequestMask check_mask)
 {
