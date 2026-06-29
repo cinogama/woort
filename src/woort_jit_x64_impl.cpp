@@ -135,12 +135,14 @@ struct woort_JIT_Asmjit_x64_Emmiter
         WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
         WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
     }
-    void resync_vm_state_without_env_ip()
+    void resync_vm_stack_state_fully()
     {
         auto* const em = this;
 
         WOORT_JIT_CODE(mov(em->m_sp, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP)));
         WOORT_JIT_CODE(mov(em->m_sb, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB)));
+        WOORT_JIT_CODE(mov(em->m_stack, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK)));
+        WOORT_JIT_CODE(mov(em->m_stack_end, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK_END)));
     }
     void return_with_status_without_reduce_depth(woort_VmCallStatus status)
     {
@@ -213,7 +215,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
         em->return_with_status(WOORT_VM_CALL_STATUS_NORMAL);
     }
 
-    void emit_checkpoint()
+    void emit_checkpoint(const woort_Bytecode* ip)
     {
         auto* const em = this;
 
@@ -223,22 +225,21 @@ struct woort_JIT_Asmjit_x64_Emmiter
         WOORT_JIT_CODE(mov(check_mask, dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_CHECK_REQUEST_MASK)));
         WOORT_JIT_CODE(test(check_mask, check_mask));
         WOORT_JIT_CODE(jz(L_continue));
+        sync_vm_state_with_env(ip);
         WOORT_JIT_CODE(call(em->m_checkpoint_handler));
         WOORT_JIT_CODE(bind(L_continue));
     }
 
     // ===================================================== //
     template<typename T>
-    void set_gp_from_stack(woort_Opcode_Stack src, T v)
+    void set_gp_by_stack(woort_Opcode_Stack src, T v)
     {
         auto* const em = this;
 
         Gp reg;
         const auto it = em->m_stack_gp.find(src);
         if (it != em->m_stack_gp.end())
-        {
             reg = it->second;
-        }
         else
         {
             reg = c->new_gp64();
@@ -359,6 +360,27 @@ bool woort_JIT_Backend_x64_epilogue(
 
     assert(em != nullptr);
 
+    // Checkpoint handler:
+    {
+        WOORT_JIT_CODE(bind(em->m_checkpoint_handler));
+
+        const Gp checkpoint_result = em->c->new_gp32();
+        static_assert(sizeof(woort_VmCallStatus) == 4, "");
+
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            em->m_checkpoint_handler,
+            FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*>()));
+
+        invoke_node->set_arg(0, em->m_vm);
+        invoke_node->set_ret(0, checkpoint_result);
+
+        em->resync_vm_stack_state_fully();
+
+        WOORT_JIT_CODE(ret(checkpoint_result));
+    }
+
     Error err = em->c->end_func();
 
     if (err == Error::kOk)
@@ -434,9 +456,9 @@ void woort_JIT_Backend_x64_LOAD(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     const int32_t dst_offset = dst * static_cast<int32_t>(sizeof(woort_Value));
 
     if (src < em->m_cenv_constant_count)
-        em->set_gp_from_stack(dst, Imm(src_addr->m_integer));
+        em->set_gp_by_stack(dst, Imm(src_addr->m_integer));
     else
-        em->set_gp_from_stack(dst, qword_ptr(reinterpret_cast<uintptr_t>(src_addr)));
+        em->set_gp_by_stack(dst, qword_ptr(reinterpret_cast<uintptr_t>(src_addr)));
 }
 
 void woort_JIT_Backend_x64_STORE(void* emmiter, woort_Opcode_Global dst, woort_Opcode_Stack src)
@@ -965,7 +987,7 @@ void woort_JIT_Backend_x64_ADDI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     WOORT_JIT_CODE(mov(result, reg_a));
     WOORT_JIT_CODE(add(result, reg_b));
 
-    em->set_gp_from_stack(dst, result);
+    em->set_gp_by_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_SUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -979,7 +1001,7 @@ void woort_JIT_Backend_x64_SUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     WOORT_JIT_CODE(mov(result, reg_a));
     WOORT_JIT_CODE(sub(result, reg_b));
 
-    em->set_gp_from_stack(dst, result);
+    em->set_gp_by_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_MULI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -993,7 +1015,7 @@ void woort_JIT_Backend_x64_MULI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     WOORT_JIT_CODE(mov(result, reg_a));
     WOORT_JIT_CODE(imul(result, reg_b));
 
-    em->set_gp_from_stack(dst, result);
+    em->set_gp_by_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_DIVI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -1013,7 +1035,7 @@ void woort_JIT_Backend_x64_DIVI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     WOORT_JIT_CODE(idiv(high, dividend, reg_b));
     WOORT_JIT_CODE(mov(result, dividend));
 
-    em->set_gp_from_stack(dst, result);
+    em->set_gp_by_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_MODI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -1033,7 +1055,7 @@ void woort_JIT_Backend_x64_MODI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     WOORT_JIT_CODE(idiv(high, dividend, reg_b));
     WOORT_JIT_CODE(mov(result, high));
 
-    em->set_gp_from_stack(dst, result);
+    em->set_gp_by_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_NEGI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
