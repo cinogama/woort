@@ -1266,6 +1266,8 @@ void woort_JIT_Backend_x64_ADDI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
+    if (dst == b) { const woort_Opcode_Stack tmp = a; a = b; b = tmp; }
+
     const Gp reg_a = em->get_gp_from_stack(a);
     const Gp reg_b = em->get_gp_from_stack(b);
     const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
@@ -1284,8 +1286,18 @@ void woort_JIT_Backend_x64_SUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     const Gp reg_b = em->get_gp_from_stack(b);
     const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
 
-    WOORT_JIT_CODE(mov(result, reg_a));
-    WOORT_JIT_CODE(sub(result, reg_b));
+    if (dst == b)
+    {
+        const Gp temp = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(temp, reg_a));
+        WOORT_JIT_CODE(sub(temp, reg_b));
+        WOORT_JIT_CODE(mov(result, temp));
+    }
+    else
+    {
+        WOORT_JIT_CODE(mov(result, reg_a));
+        WOORT_JIT_CODE(sub(result, reg_b));
+    }
 
     em->apply_gp_to_stack(dst);
 }
@@ -1293,6 +1305,8 @@ void woort_JIT_Backend_x64_SUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
 void woort_JIT_Backend_x64_MULI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    if (dst == b) { const woort_Opcode_Stack tmp = a; a = b; b = tmp; }
 
     const Gp reg_a = em->get_gp_from_stack(a);
     const Gp reg_b = em->get_gp_from_stack(b);

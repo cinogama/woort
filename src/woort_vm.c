@@ -1039,16 +1039,6 @@ _label_continue_execution:
 
                 const woort_VmCallStatus status = native_function();
 
-                /*
-                ATTENTION:
-                    本机调用发生之后，只可能返回到当前调用栈所在的虚拟机函数；
-                不必考虑 rt_env 改变的情况，因为即便 rt_env 发生改变，回
-                到此处时，也应当回到旧的 rt_env，所以不需要更新它们。
-
-                    但是，栈空间完全可能在本机调用期间发生改变，在旧版本（1.15
-                之前）的 Woolang 中，栈空间的更新由调用方负责检查和标记：
-                现在这部分工作由被调用方负责。
-                */
                 WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE();
 
                 // Donot need to restore any status.
@@ -1077,6 +1067,8 @@ _label_continue_execution:
 
                 const woort_VmCallStatus status =
                     jit_function(vm, new_sp);
+
+                WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE();
 
                 if (status == WOORT_VM_CALL_STATUS_RESYNC)
                 {
@@ -1130,6 +1122,8 @@ _label_continue_execution:
                         const woort_VmCallStatus status =
                             target->m_jit_function(vm, new_sb);
 
+                        WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE();
+
                         if (status == WOORT_VM_CALL_STATUS_RESYNC)
                         {
                             WOORT_VM_RESYNC_STATE_WITH_ENV();
@@ -1178,16 +1172,6 @@ _label_continue_execution:
 
                     const woort_VmCallStatus status = target->m_native_function();
 
-                    /*
-                    ATTENTION:
-                        本机调用发生之后，只可能返回到当前调用栈所在的虚拟机函数；
-                    不必考虑 rt_env 改变的情况，因为即便 rt_env 发生改变，回
-                    到此处时，也应当回到旧的 rt_env，所以不需要更新它们。
-
-                        但是，栈空间完全可能在本机调用期间发生改变，在旧版本（1.15
-                    之前）的 Woolang 中，栈空间的更新由调用方负责检查和标记：
-                    现在这部分工作由被调用方负责。
-                    */
                     WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE();
 
                     // Donot need to restore any status.
