@@ -214,8 +214,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
         return_with_status_without_reduce_depth(status);
     }
 
-    template<typename WriteValue>
-    void emit_ret(WriteValue&& write_value)
+    void emit_ret()
     {
         auto* const em = this;
 
@@ -253,15 +252,13 @@ struct woort_JIT_Asmjit_x64_Emmiter
                 em->m_sp,
                 static_cast<int32_t>(sizeof(woort_Value)) * -1
                 + static_cast<int32_t>(offsetof(woort_RetBP, m_bp_offset)))));
-            WOORT_JIT_CODE(lea(em->m_sb, ptr(em->m_sp, bp_offset, 3)));   // shift=3 ⇒ scale=8
+            WOORT_JIT_CODE(lea(em->m_sb, ptr(em->m_sp, bp_offset, 3)));   // shift=3 => scale=8
 
             const Gp ret_ip = c->new_gp64();
             WOORT_JIT_CODE(mov(ret_ip, qword_ptr(em->m_sp)));
 
             em->sync_vm_state_with_env_in_ret_native(ret_ip);
         }
-        write_value();
-
         WOORT_JIT_CODE(bind(L_normal_ret));
         em->return_with_status(WOORT_VM_CALL_STATUS_NORMAL);
     }
@@ -708,6 +705,7 @@ void woort_JIT_Backend_x64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src)
     em->emit_extern_stack(*em->m_ip, L_retry);
 
     WOORT_JIT_CODE(bind(L_ok));
+
     WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), val));
     WOORT_JIT_CODE(sub(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
 }
@@ -980,7 +978,7 @@ void woort_JIT_Backend_x64_RET(void* emmiter)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
-    em->emit_ret([] {});
+    em->emit_ret();
 }
 
 void woort_JIT_Backend_x64_RETVS(void* emmiter, woort_Opcode_Stack src)
@@ -989,9 +987,12 @@ void woort_JIT_Backend_x64_RETVS(void* emmiter, woort_Opcode_Stack src)
 
     const Gp ret_val = em->get_gp_from_stack(src);
 
-    em->emit_ret([&] {
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_sp, 0), ret_val));
-    });
+    const Mem return_place =
+        qword_ptr(em->m_sb, 2 * static_cast<int32_t>(sizeof(woort_Value)));
+
+    WOORT_JIT_CODE(mov(return_place, ret_val));
+
+    em->emit_ret();
 }
 
 void woort_JIT_Backend_x64_RETVC(void* emmiter, woort_Opcode_Global src)
@@ -1001,25 +1002,28 @@ void woort_JIT_Backend_x64_RETVC(void* emmiter, woort_Opcode_Global src)
     const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
     const bool is_constant = (src < em->m_cenv_constant_count);
 
-    em->emit_ret([&] {
-        if (is_constant &&
-            src_addr->m_integer >= INT32_MIN &&
-            src_addr->m_integer <= INT32_MAX)
-        {
-            WOORT_JIT_CODE(mov(
-                qword_ptr(em->m_sp, 0),
-                Imm(static_cast<int32_t>(src_addr->m_integer))));
-        }
+    const Mem return_place =
+        qword_ptr(em->m_sb, 2 * static_cast<int32_t>(sizeof(woort_Value)));
+
+    if (is_constant &&
+        src_addr->m_integer >= INT32_MIN &&
+        src_addr->m_integer <= INT32_MAX)
+    {
+        WOORT_JIT_CODE(mov(
+            return_place,
+            Imm(static_cast<int32_t>(src_addr->m_integer))));
+    }
+    else
+    {
+        const Gp ret_val = em->c->new_gp64();
+        if (is_constant)
+            WOORT_JIT_CODE(mov(ret_val, Imm(src_addr->m_integer)));
         else
-        {
-            const Gp ret_val = em->c->new_gp64();
-            if (is_constant)
-                WOORT_JIT_CODE(mov(ret_val, Imm(src_addr->m_integer)));
-            else
-                WOORT_JIT_CODE(mov(ret_val, qword_ptr(reinterpret_cast<uintptr_t>(src_addr))));
-            WOORT_JIT_CODE(mov(qword_ptr(em->m_sp, 0), ret_val));
-        }
-    });
+            WOORT_JIT_CODE(mov(ret_val, qword_ptr(reinterpret_cast<uintptr_t>(src_addr))));
+        WOORT_JIT_CODE(mov(return_place, ret_val));
+    }
+
+    em->emit_ret();
 }
 
 void woort_JIT_Backend_x64_POPRS(void* emmiter, woort_Opcode_Stack src)
@@ -1035,7 +1039,6 @@ void woort_JIT_Backend_x64_RESULT(void* emmiter, woort_Opcode_Stack dst, woort_O
     static_assert(sizeof(woort_Value) == 8, "");
 
     em->set_gp_by_stack(dst, qword_ptr(em->m_sp));
-
     if (n != 0)
     {
         WOORT_JIT_CODE(add(
@@ -1270,7 +1273,7 @@ void woort_JIT_Backend_x64_ADDI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     WOORT_JIT_CODE(mov(result, reg_a));
     WOORT_JIT_CODE(add(result, reg_b));
 
-    em->set_gp_by_stack(dst, result);
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_SUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -1284,7 +1287,7 @@ void woort_JIT_Backend_x64_SUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     WOORT_JIT_CODE(mov(result, reg_a));
     WOORT_JIT_CODE(sub(result, reg_b));
 
-    em->set_gp_by_stack(dst, result);
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_MULI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -1298,7 +1301,7 @@ void woort_JIT_Backend_x64_MULI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     WOORT_JIT_CODE(mov(result, reg_a));
     WOORT_JIT_CODE(imul(result, reg_b));
 
-    em->set_gp_by_stack(dst, result);
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_DIVI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -1318,7 +1321,7 @@ void woort_JIT_Backend_x64_DIVI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     WOORT_JIT_CODE(idiv(high, dividend, reg_b));
     WOORT_JIT_CODE(mov(result, dividend));
 
-    em->set_gp_by_stack(dst, result);
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_MODI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -1338,7 +1341,7 @@ void woort_JIT_Backend_x64_MODI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
     WOORT_JIT_CODE(idiv(high, dividend, reg_b));
     WOORT_JIT_CODE(mov(result, high));
 
-    em->set_gp_by_stack(dst, result);
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_NEGI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -1584,7 +1587,6 @@ void woort_JIT_Backend_x64_CADDI(void* emmiter, woort_Opcode_Stack dst, woort_Op
     const Gp reg_src = em->get_gp_from_stack(src);
 
     WOORT_JIT_CODE(add(reg_dst, reg_src));
-
     em->apply_gp_to_stack(dst);
 }
 
