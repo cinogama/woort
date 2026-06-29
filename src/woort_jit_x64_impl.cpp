@@ -135,6 +135,13 @@ struct woort_JIT_Asmjit_x64_Emmiter
         WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
         WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
     }
+    void resync_vm_state_without_env_ip()
+    {
+        auto* const em = this;
+
+        WOORT_JIT_CODE(mov(em->m_sp, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP)));
+        WOORT_JIT_CODE(mov(em->m_sb, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB)));
+    }
     void return_with_status_without_reduce_depth(woort_VmCallStatus status)
     {
         auto* const em = this;

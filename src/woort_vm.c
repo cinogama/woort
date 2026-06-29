@@ -38,8 +38,43 @@ WOORT_THREAD_LOCAL woort_VMRuntime* WOORT_t_this_thread_vm;
 const size_t WOORT_VM_DEFAULT_STACK_BEGIN_SIZE = 32;
 const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
 
-const uint8_t WOORT_VM_SHRINK_STACK_COUNT = 3;
-const uint8_t WOORT_VM_SHRINK_STACK_MAX_EDGE = 16;
+const uint8_t WOORT_VM_SHRINK_EDGE_FLOOR = 2;
+const uint8_t WOORT_VM_SHRINK_EDGE_CEIL = 8;
+const uint8_t WOORT_VM_SHRINK_EDGE_AFTER_GROW = 16;
+const uint8_t WOORT_VM_SHRINK_GROWTH_FACTOR = 4;
+
+static uint8_t _woort_shrink_edge_for_capacity(size_t capacity)
+{
+    size_t ratio = capacity / WOORT_VM_DEFAULT_STACK_BEGIN_SIZE;
+    uint8_t edge = 0;
+    while (ratio > 1)
+    {
+        ratio >>= 1;
+        ++edge;
+    }
+    if (edge < WOORT_VM_SHRINK_EDGE_FLOOR)
+        edge = WOORT_VM_SHRINK_EDGE_FLOOR;
+    if (edge > WOORT_VM_SHRINK_EDGE_CEIL)
+        edge = WOORT_VM_SHRINK_EDGE_CEIL;
+    return edge;
+}
+
+static size_t _woort_shrink_target_size(
+    size_t used_stack_size, size_t current_stack_size)
+{
+    size_t need = used_stack_size * WOORT_VM_SHRINK_GROWTH_FACTOR;
+    if (need < WOORT_VM_DEFAULT_STACK_BEGIN_SIZE)
+        need = WOORT_VM_DEFAULT_STACK_BEGIN_SIZE;
+
+    size_t target = WOORT_VM_DEFAULT_STACK_BEGIN_SIZE;
+    while (target < need)
+        target <<= 1;
+
+    if (target >= current_stack_size)
+        return 0;
+
+    return target;
+}
 
 static void _woort_VMRuntime_destroy(woort_VMRuntime* vm)
 {
@@ -74,7 +109,8 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
         vm->m_hangup_cv = NULL;
 
     vm->m_shrink_stack_count = 0;
-    vm->m_shrink_stack_edge = WOORT_VM_SHRINK_STACK_COUNT;
+    vm->m_shrink_stack_edge =
+        _woort_shrink_edge_for_capacity(WOORT_VM_DEFAULT_STACK_BEGIN_SIZE);
 
     // Init stack state.
     vm->m_stack_realloc_version = 0;
@@ -198,17 +234,11 @@ WOORT_NODISCARD static bool _woort_VMRuntime_shrink_stack(
     woort_VMRuntime* vm)
 {
     const size_t current_stack_size = vm->m_stack_end - vm->m_stack;
-    const size_t new_stack_size = current_stack_size / 2;
-
-    /* Do not shrink below the default initial size. */
-    if (new_stack_size < WOORT_VM_DEFAULT_STACK_BEGIN_SIZE)
-        return false;
-
     const size_t used_stack_size = vm->m_stack_end - vm->m_sp;
 
-    /* Reject if new size is too small for current usage
-       (needs at least 2x headroom). */
-    if (used_stack_size * 2 > new_stack_size)
+    const size_t new_stack_size = _woort_shrink_target_size(
+        used_stack_size, current_stack_size);
+    if (new_stack_size == 0)
         return false;
 
     while (woort_VMRuntime_request_set(
@@ -257,10 +287,11 @@ WOORT_NODISCARD bool woort_VMRuntime_advise_shrink_stack(
     return ++vm->m_shrink_stack_count >= vm->m_shrink_stack_edge;
 }
 
-void woort_VMRuntime_reset_shrink_stack_count(
+void woort_VMRuntime_decay_shrink_stack_count(
     woort_VMRuntime* vm)
 {
-    vm->m_shrink_stack_count = 0;
+    if (vm->m_shrink_stack_count > 0)
+        --vm->m_shrink_stack_count;
 }
 
 void woort_VMRuntime_hangup(woort_VMRuntime* vm)
@@ -3885,7 +3916,8 @@ _label_continue_execution:
                 {
                     if (_woort_VMRuntime_shrink_stack(vm))
                         vm->m_shrink_stack_edge =
-                        WOORT_VM_SHRINK_STACK_COUNT;
+                            _woort_shrink_edge_for_capacity(
+                                vm->m_stack_end - vm->m_stack);
                 }
             }
             else if (request_mask
@@ -3922,10 +3954,6 @@ _label_continue_execution:
     }
     WOORT_VM_EXCEPTION_LABEL(stack_overflow) :
     {
-        /* Increase shrink edge as adaptive backoff. */
-        if (vm->m_shrink_stack_edge < WOORT_VM_SHRINK_STACK_MAX_EDGE)
-            ++vm->m_shrink_stack_edge;
-
         // Stack used up, try extern.
         if (/* UNLIKELY */ !_woort_VMRuntime_extern_stack(vm))
         {
@@ -3933,6 +3961,9 @@ _label_continue_execution:
                 WOORT_PANIC_STACK_OVERFLOW,
                 "Stack overflow.");
         }
+
+        vm->m_shrink_stack_edge = WOORT_VM_SHRINK_EDGE_AFTER_GROW;
+
         WOORT_VM_HANDLED();
     }
     WOORT_VM_EXCEPTION_LABEL(env_updated) :
@@ -3971,6 +4002,94 @@ _label_continue_execution:
         return WOORT_VM_CALL_STATUS_ABORTED;
     }
 #undef WOORT_VM_EXCEPTION_LABEL
+}
+
+WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMRuntime* vm)
+{
+    for (;;)
+    {
+        const uint32_t request_mask = woort_atomic_load_explicit(
+            &vm->m_check_request_mask,
+            WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+
+        if (request_mask == 0)
+            break;
+
+        if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
+        {
+            // Already aborted.
+            return WOORT_VM_CALL_STATUS_ABORTED;
+        }
+        if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE)
+        {
+            if (woort_VMRuntime_request_set(vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT))
+            {
+                const char* abort_reason = "Terminated.";
+
+                vm->m_sp->m_string = woort_GCString_make_string(
+                    abort_reason, strlen(abort_reason));
+            }
+        }
+        else if (request_mask
+            & (WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK
+                | WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING))
+        {
+            woort_VMRuntime_handle_gc_check_request_and_mark(vm);
+        }
+        else if (request_mask
+            & WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING)
+        {
+            // Just ignore.
+        }
+        else if (request_mask
+            & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK)
+        {
+            if (woort_VMRuntime_Debugger_try_trap(true))
+            {
+                (void)woort_VMRuntime_request_accept(
+                    vm,
+                    WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+            }
+        }
+        else if (request_mask
+            & WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK)
+        {
+            if (woort_VMRuntime_request_accept(
+                vm,
+                WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK))
+            {
+                if (_woort_VMRuntime_shrink_stack(vm))
+                    vm->m_shrink_stack_edge =
+                        _woort_shrink_edge_for_capacity(
+                            vm->m_stack_end - vm->m_stack);
+            }
+        }
+        else if (request_mask
+            & WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED)
+        {
+            (void)woort_VMRuntime_request_accept(
+                vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED);
+        }
+        else if (request_mask
+            & WOORT_VMRUNTIME_CHECK_REQUEST_YIELD)
+        {
+            (void)woort_VMRuntime_request_accept(
+                vm,
+                WOORT_VMRUNTIME_CHECK_REQUEST_YIELD);
+
+            return WOORT_VM_CALL_STATUS_YIELD;
+        }
+        else
+        {
+            woort_panic(
+                WOORT_PANIC_BAD_VM_REQUEST,
+                "Bad vm request: %x",
+                request_mask);
+        }
+
+    }
+
+    return WOORT_VM_CALL_STATUS_NORMAL;
 }
 
 WOORT_NODISCARD bool woort_VMRuntime_request_set(
@@ -4012,7 +4131,7 @@ static void _woort_VMRuntime_advise_to_shrink_vm_stack_after_sync(woort_VMRuntim
     }
     else
     {
-        woort_VMRuntime_reset_shrink_stack_count(vm);
+        woort_VMRuntime_decay_shrink_stack_count(vm);
     }
 }
 

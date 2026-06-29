@@ -218,7 +218,7 @@ WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm);
 
 WOORT_NODISCARD bool woort_VMRuntime_advise_shrink_stack(woort_VMRuntime* vm);
 
-void woort_VMRuntime_reset_shrink_stack_count(woort_VMRuntime* vm);
+void woort_VMRuntime_decay_shrink_stack_count(woort_VMRuntime* vm);
 
 WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
     woort_VMRuntime* vm);
