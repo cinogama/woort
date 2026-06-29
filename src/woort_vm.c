@@ -407,16 +407,15 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
         }                                                   \
     } while (0)
 
-#define WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(OLD_VERSION)    \
+#define WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE()               \
     do{                                                                     \
-        if (/* Unlikely */ rt_stack_end != vm->m_stack_end)      \
+        if (/* Unlikely */ rt_stack_end != vm->m_stack_end)                 \
         {                                                                   \
             /* Stack updated during native function. */                     \
             rt_sp = vm->m_stack_end - (rt_stack_end - rt_sp);               \
             rt_sb = vm->m_stack_end - (rt_stack_end - rt_sb);               \
             rt_stack = vm->m_stack;                                         \
             rt_stack_end = vm->m_stack_end;                                 \
-            WOORT_VM_CHECKPOINT();                                          \
         }                                                                   \
     }while(0)
 

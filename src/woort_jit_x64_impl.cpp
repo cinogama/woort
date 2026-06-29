@@ -956,7 +956,6 @@ void woort_JIT_Backend_x64_CALLNJIT(void* emmiter, woort_Opcode_Global func)
         WOORT_JIT_CODE(mov(vm_stack_end, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK_END)));
         WOORT_JIT_CODE(cmp(vm_stack_end, em->m_stack_end));
         WOORT_JIT_CODE(je(L_continue));
-
         em->emit_jit_call_resync(L_continue);
     }
     WOORT_JIT_CODE(bind(L_continue));
