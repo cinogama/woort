@@ -99,6 +99,8 @@ int main(int argc, char** argv) {
     woort_CodeEnv_set_const_int(cenv, c_35, 40);
     woort_CodeEnv_unlock(cenv);
 
+    woort_codeenv_jit_compile_(cenv);
+
     woort_CodeEnv_dumps(cenv);
 
     woort_VMRuntime* vm;

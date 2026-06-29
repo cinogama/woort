@@ -49,6 +49,11 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp              m_stack_overflow_resume;
     size_t          m_stack_overflow_site_count = 0;
 
+    Label           m_jit_call_resync_slow;
+    JumpAnnotation* m_jit_call_resync_resume_annotation = nullptr;
+    Gp              m_jit_call_resync_resume;
+    size_t          m_jit_call_resync_site_count = 0;
+
     std::unordered_map<woort_Opcode_Stack, Gp> m_stack_gp;
     std::unordered_map<const woort_Bytecode*, Label> m_opcode_label;
 
@@ -91,6 +96,9 @@ struct woort_JIT_Asmjit_x64_Emmiter
         m_stack_overflow_slow = c->new_label();
         m_stack_overflow_resume = c->new_gp_ptr();
 
+        m_jit_call_resync_slow = c->new_label();
+        m_jit_call_resync_resume = c->new_gp_ptr();
+
         m_last_error = c->add_func_node(Out(m_func_node),
             FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
 
@@ -99,6 +107,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
         m_checkpoint_resume_annotation = c->new_jump_annotation();
         m_stack_overflow_resume_annotation = c->new_jump_annotation();
+        m_jit_call_resync_resume_annotation = c->new_jump_annotation();
     }
     ~woort_JIT_Asmjit_x64_Emmiter() noexcept
     {
@@ -281,8 +290,6 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
             WOORT_JIT_CODE(jmp(em->m_checkpoint_slow));
         }
-
-        WOORT_JIT_CODE(bind(L_continue));
     }
 
     void emit_extern_stack(const woort_Bytecode* ip, Label L_resume)
@@ -301,7 +308,20 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
             WOORT_JIT_CODE(jmp(em->m_stack_overflow_slow));
         }
-        WOORT_JIT_CODE(bind(L_resume));
+    }
+
+    void emit_jit_call_resync(Label L_resume)
+    {
+        auto* const em = this;
+        {
+            WOORT_JIT_CODE(lea(em->m_jit_call_resync_resume, ptr(L_resume)));
+            em->update_last_error(
+                em->m_jit_call_resync_resume_annotation->add_label(L_resume));
+
+            ++em->m_jit_call_resync_site_count;
+
+            WOORT_JIT_CODE(jmp(em->m_jit_call_resync_slow));
+        }
     }
 
     // ===================================================== //
@@ -503,6 +523,33 @@ bool woort_JIT_Backend_x64_epilogue(
 
         WOORT_JIT_CODE(bind(so_exit));
         em->return_with_status(so_status);
+    }
+
+    // Resync cached stack registers after a JIT-to-JIT call that reallocated the stack.
+    if (em->m_jit_call_resync_site_count > 0)
+    {
+        WOORT_JIT_CODE(bind(em->m_jit_call_resync_slow));
+
+        const Gp vm_stack_end = em->c->new_gp_ptr();
+        WOORT_JIT_CODE(mov(vm_stack_end, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK_END)));
+
+        const Gp off = em->c->new_gp64();
+
+        WOORT_JIT_CODE(mov(off, em->m_stack_end));
+        WOORT_JIT_CODE(sub(off, em->m_sp));
+        WOORT_JIT_CODE(mov(em->m_sp, vm_stack_end));
+        WOORT_JIT_CODE(sub(em->m_sp, off));
+
+        WOORT_JIT_CODE(mov(off, em->m_stack_end));
+        WOORT_JIT_CODE(sub(off, em->m_sb));
+        WOORT_JIT_CODE(mov(em->m_sb, vm_stack_end));
+        WOORT_JIT_CODE(sub(em->m_sb, off));
+
+        WOORT_JIT_CODE(mov(em->m_stack, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK)));
+        WOORT_JIT_CODE(mov(em->m_stack_end, vm_stack_end));
+
+        WOORT_JIT_CODE(jmp(em->m_jit_call_resync_resume,
+                           em->m_jit_call_resync_resume_annotation));
     }
 
     Error err = em->c->end_func();
@@ -845,8 +892,76 @@ void woort_JIT_Backend_x64_CALLNFP(void* emmiter, woort_Opcode_Global func)
 
 void woort_JIT_Backend_x64_CALLNJIT(void* emmiter, woort_Opcode_Global func)
 {
-    (void)emmiter;
-    (void)func;
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const woort_Value* const func_addr = &em->m_cenv_static_storage[func];
+
+    const Label L_retry = em->c->new_label();
+    WOORT_JIT_CODE(bind(L_retry));
+
+    const Gp new_sp = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(new_sp, em->m_sp));
+    WOORT_JIT_CODE(sub(new_sp, Imm(static_cast<int32_t>(2 * sizeof(woort_Value)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(new_sp, em->m_stack));
+    WOORT_JIT_CODE(jae(L_ok));
+
+    em->emit_extern_stack(*em->m_ip, L_retry);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    // Apply callstack.
+    {
+        const int32_t way_off  = 1 * (int32_t)sizeof(woort_Value) + (int32_t)offsetof(woort_RetBP, m_way);
+        const int32_t bp_off   = 1 * (int32_t)sizeof(woort_Value) + (int32_t)offsetof(woort_RetBP, m_bp_offset);
+        const int32_t addr_off = 2 * (int32_t)sizeof(woort_Value);
+
+        WOORT_JIT_CODE(mov(dword_ptr(new_sp, way_off),
+            Imm(static_cast<int32_t>(WOORT_CALL_WAY_FAR))));
+
+        const Gp bp_offset = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(bp_offset, em->m_sb));
+        WOORT_JIT_CODE(sub(bp_offset, em->m_sp));
+        WOORT_JIT_CODE(shr(bp_offset, 3));
+        WOORT_JIT_CODE(mov(dword_ptr(new_sp, bp_off), bp_offset.r32()));
+
+        const Gp ret_addr = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(ret_addr, Imm(reinterpret_cast<intptr_t>(*em->m_ip + 1))));
+        WOORT_JIT_CODE(mov(qword_ptr(new_sp, addr_off), ret_addr));
+    }
+
+    const Gp status = em->c->new_gp32();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        qword_ptr(reinterpret_cast<intptr_t>(func_addr)),
+        FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>()));
+
+    invoke_node->set_arg(0, em->m_vm);
+    invoke_node->set_arg(1, new_sp);
+    invoke_node->set_ret(0, status);
+
+    const Label L_normal = em->c->new_label();
+    WOORT_JIT_CODE(cmp(status, static_cast<int32_t>(WOORT_VM_CALL_STATUS_NORMAL)));
+    WOORT_JIT_CODE(je(L_normal));
+
+    em->return_with_status(status);
+
+    WOORT_JIT_CODE(bind(L_normal));
+
+    const Label L_continue = em->c->new_label();
+    {
+        const Gp vm_stack_end = em->c->new_gp_ptr();
+        WOORT_JIT_CODE(mov(vm_stack_end, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK_END)));
+        WOORT_JIT_CODE(cmp(vm_stack_end, em->m_stack_end));
+        WOORT_JIT_CODE(je(L_continue));
+
+        em->emit_jit_call_resync(L_continue);
+    }
+    WOORT_JIT_CODE(bind(L_continue));
 }
 
 void woort_JIT_Backend_x64_CALLS(void* emmiter, woort_Opcode_Stack func)

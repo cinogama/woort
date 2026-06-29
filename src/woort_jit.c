@@ -10,6 +10,8 @@
 #include "woort_gc_closure.h"
 #include "woort_jit_bridge.h"
 
+#include "woort_jit_x64.h"
+
 #include <assert.h>
 
 typedef struct woort_JITContext {
@@ -259,4 +261,10 @@ _label_jit_failed:
     }
 
     woort_hashmap_deinit(&jit_compiled_functions_record);
+}
+
+void woort_codeenv_jit_compile_(woort_CodeEnv* cenv)
+{
+    woort_JIT_set_backend(&WOORT_JIT_BACKEND_IMPL_X64);
+    woort_JIT_compile_env(cenv);
 }

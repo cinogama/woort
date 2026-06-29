@@ -2832,6 +2832,8 @@ WOORT_API void woort_import_value(
     woort_VMRuntime* src_vm,
     woort_StackValue src_in_vm);
 
+WOORT_API void woort_codeenv_jit_compile_(woort_CodeEnv* cenv);
+
 /**
  * @brief Load the default entry function from a CodeEnv and invoke it.
  *

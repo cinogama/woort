@@ -139,7 +139,6 @@ struct woort_VMRuntime
     // NOTE: m_stack_end 指向栈空间的尾后位置，不可访问其中的内容
     woort_Value*            m_stack_end;
 
-    uint32_t                m_stack_realloc_version;
     uint32_t                m_jit_call_depth;
 
     woort_Value*            m_sb;

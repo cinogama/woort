@@ -101,6 +101,7 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
 
     vm->m_hangup_c = 0;
     vm->m_is_weak = false;
+    vm->m_jit_call_depth = 0;
 
     if (!woort_mutex_create(&vm->m_hangup_mx))
         vm->m_hangup_mx = NULL;
@@ -113,7 +114,6 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
         _woort_shrink_edge_for_capacity(WOORT_VM_DEFAULT_STACK_BEGIN_SIZE);
 
     // Init stack state.
-    vm->m_stack_realloc_version = 0;
     vm->m_stack =
         malloc(WOORT_VM_DEFAULT_STACK_BEGIN_SIZE * sizeof(woort_Value));
 
@@ -218,9 +218,6 @@ WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm)
         vm->m_stack = new_stack;
         vm->m_stack_end = new_stack_end;
 
-        // Update stack version.
-        ++vm->m_stack_realloc_version;
-
     } while (0);
 
     (void)woort_VMRuntime_request_accept(
@@ -271,8 +268,6 @@ WOORT_NODISCARD static bool _woort_VMRuntime_shrink_stack(
     vm->m_sb = new_stack_end - (vm->m_stack_end - vm->m_sb);
     vm->m_stack = new_stack;
     vm->m_stack_end = new_stack_end;
-
-    ++vm->m_stack_realloc_version;
 
     (void)woort_VMRuntime_request_accept(
         vm,
@@ -414,7 +409,7 @@ WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
 
 #define WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(OLD_VERSION)    \
     do{                                                                     \
-        if (/* Unlikely */ OLD_VERSION != vm->m_stack_realloc_version)      \
+        if (/* Unlikely */ rt_stack_end != vm->m_stack_end)      \
         {                                                                   \
             /* Stack updated during native function. */                     \
             rt_sp = vm->m_stack_end - (rt_stack_end - rt_sp);               \
@@ -1042,9 +1037,6 @@ _label_continue_execution:
                 vm->m_sb = vm->m_sp = new_sp;
                 vm->m_ip = (const woort_Bytecode*)native_function;
 
-                const uint32_t stack_version_before_native_call =
-                    vm->m_stack_realloc_version;
-
                 const woort_VmCallStatus status = native_function();
 
                 /*
@@ -1057,8 +1049,7 @@ _label_continue_execution:
                 之前）的 Woolang 中，栈空间的更新由调用方负责检查和标记：
                 现在这部分工作由被调用方负责。
                 */
-                WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(
-                    stack_version_before_native_call);
+                WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE();
 
                 // Donot need to restore any status.
                 if (status == WOORT_VM_CALL_STATUS_RESYNC)
@@ -1185,9 +1176,6 @@ _label_continue_execution:
                     vm->m_sp = vm->m_sb = new_sp;
                     vm->m_ip = (const woort_Bytecode*)target->m_native_function;
 
-                    const uint32_t stack_version_before_native_call =
-                        vm->m_stack_realloc_version;
-
                     const woort_VmCallStatus status = target->m_native_function();
 
                     /*
@@ -1200,8 +1188,7 @@ _label_continue_execution:
                     之前）的 Woolang 中，栈空间的更新由调用方负责检查和标记：
                     现在这部分工作由被调用方负责。
                     */
-                    WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE(
-                        stack_version_before_native_call);
+                    WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE();
 
                     // Donot need to restore any status.
                     if (status == WOORT_VM_CALL_STATUS_RESYNC)
