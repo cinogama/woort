@@ -1328,9 +1328,6 @@ _label_continue_execution:
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = rt_sp[0];
             rt_sp += WOORT_BYTECODE(MA10, c);
 
-            if (rt_sp > rt_sb)
-                WOORT_VM_THROW(stack_overflow);
-
             assert(rt_sp <= rt_sb);
 
             break;

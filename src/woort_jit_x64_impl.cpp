@@ -305,6 +305,17 @@ struct woort_JIT_Asmjit_x64_Emmiter
     }
 
     // ===================================================== //
+    void apply_gp_to_stack(woort_Opcode_Stack src)
+    {
+        auto* const em = this;
+
+        const Gp reg = em->m_stack_gp.at(src);
+
+        const int32_t src_offset =
+            src * static_cast<int32_t>(sizeof(woort_Value));
+
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_sb, src_offset), reg));
+    }
     template<typename T>
     void set_gp_by_stack(woort_Opcode_Stack src, T v)
     {
@@ -322,10 +333,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
         WOORT_JIT_CODE(mov(reg, v));
 
-        const int32_t src_offset =
-            src * static_cast<int32_t>(sizeof(woort_Value));
-
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_sb, src_offset), reg));
+        apply_gp_to_stack(src);
     }
     Gp get_gp_from_stack(woort_Opcode_Stack src)
     {
@@ -876,9 +884,18 @@ void woort_JIT_Backend_x64_POPRS(void* emmiter, woort_Opcode_Stack src)
 
 void woort_JIT_Backend_x64_RESULT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)n;
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    em->set_gp_by_stack(dst, qword_ptr(em->m_sp));
+
+    if (n != 0)
+    {
+        WOORT_JIT_CODE(add(
+            em->m_sp,
+            Imm(static_cast<int32_t>(static_cast<size_t>(n) * sizeof(woort_Value)))));
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1415,9 +1432,14 @@ void woort_JIT_Backend_x64_LNOT(void* emmiter, woort_Opcode_Stack dst, woort_Opc
 
 void woort_JIT_Backend_x64_CADDI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+
+    WOORT_JIT_CODE(add(reg_dst, reg_src));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CSUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
