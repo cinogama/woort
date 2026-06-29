@@ -667,8 +667,39 @@ void woort_JIT_Backend_x64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src)
 
 void woort_JIT_Backend_x64_PUSHCCHK(void* emmiter, woort_Opcode_Global src)
 {
-    (void)emmiter;
-    (void)src;
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
+    const bool is_constant = (src < em->m_cenv_constant_count);
+
+    const Label L_retry = em->c->new_label();
+    WOORT_JIT_CODE(bind(L_retry));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(em->m_sp, em->m_stack));
+    WOORT_JIT_CODE(ja(L_ok));
+
+    em->emit_extern_stack(*em->m_ip, L_retry);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    if (is_constant &&
+        src_addr->m_integer >= INT32_MIN &&
+        src_addr->m_integer <= INT32_MAX)
+    {
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), Imm(static_cast<int32_t>(src_addr->m_integer))));
+    }
+    else
+    {
+        const Gp val = em->c->new_gp64();
+        if (is_constant)
+            WOORT_JIT_CODE(mov(val, Imm(src_addr->m_integer)));
+        else
+            WOORT_JIT_CODE(mov(val, qword_ptr(reinterpret_cast<uintptr_t>(src_addr))));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), val));
+    }
+
+    WOORT_JIT_CODE(sub(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
 }
 
 void woort_JIT_Backend_x64_ASSURESSZ(void* emmiter, woort_Opcode_Count n)
