@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
     woort_CodeEnv_set_const_script_closure(cenv, c_c_main, main_addr);
     woort_CodeEnv_set_const_int(cenv, c_1, 1);
     woort_CodeEnv_set_const_int(cenv, c_2, 2);
-    woort_CodeEnv_set_const_int(cenv, c_35, 5);
+    woort_CodeEnv_set_const_int(cenv, c_35, 40);
     woort_CodeEnv_unlock(cenv);
 
     woort_codeenv_jit_compile_(cenv);
