@@ -39,7 +39,10 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp          m_stack;
     Gp          m_stack_end;
 
-    Label       m_checkpoint_handler;
+    Label           m_checkpoint_slow;
+    JumpAnnotation* m_checkpoint_resume_annotation = nullptr;
+    Gp              m_checkpoint_resume;
+    size_t          m_checkpoint_site_count = 0;
 
     std::unordered_map<woort_Opcode_Stack, Gp> m_stack_gp;
     std::unordered_map<const woort_Bytecode*, Label> m_opcode_label;
@@ -77,13 +80,16 @@ struct woort_JIT_Asmjit_x64_Emmiter
         m_stack = c->new_gp_ptr();
         m_stack_end = c->new_gp_ptr();
 
-        m_checkpoint_handler = c->new_label();
+        m_checkpoint_slow = c->new_label();
+        m_checkpoint_resume = c->new_gp_ptr();
 
         m_last_error = c->add_func_node(Out(m_func_node),
             FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
 
         m_func_node->set_arg(0, m_vm);
         m_func_node->set_arg(1, m_sb);
+
+        m_checkpoint_resume_annotation = c->new_jump_annotation();
     }
     ~woort_JIT_Asmjit_x64_Emmiter() noexcept
     {
@@ -135,6 +141,17 @@ struct woort_JIT_Asmjit_x64_Emmiter
         WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
         WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
     }
+    void sync_vm_stack_base_with_env()
+    {
+        auto* const em = this;
+
+        const Gp tmp = c->new_gp_ptr();
+
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP), em->m_sp));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB), em->m_sb));
+        WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
+    }
     void resync_vm_stack_state_fully()
     {
         auto* const em = this;
@@ -152,7 +169,23 @@ struct woort_JIT_Asmjit_x64_Emmiter
         WOORT_JIT_CODE(mov(ret_val, (int32_t)status));
         WOORT_JIT_CODE(ret(ret_val));
     }
+    void return_with_status_without_reduce_depth(const Gp& status)
+    {
+        auto* const em = this;
+
+        WOORT_JIT_CODE(ret(status));
+    }
     void return_with_status(woort_VmCallStatus status)
+    {
+        auto* const em = this;
+
+        const Mem depth_addr =
+            dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_JIT_CALL_DEPTH);
+
+        WOORT_JIT_CODE(dec(depth_addr));
+        return_with_status_without_reduce_depth(status);
+    }
+    void return_with_status(const Gp& status)
     {
         auto* const em = this;
 
@@ -219,14 +252,27 @@ struct woort_JIT_Asmjit_x64_Emmiter
     {
         auto* const em = this;
 
-        const Gp check_mask = c->new_gp32();
+        const Gp    check_mask = c->new_gp32();
         const Label L_continue = c->new_label();
 
         WOORT_JIT_CODE(mov(check_mask, dword_ptr(em->m_vm, WOORT_VM_OFFSETOF_CHECK_REQUEST_MASK)));
         WOORT_JIT_CODE(test(check_mask, check_mask));
         WOORT_JIT_CODE(jz(L_continue));
-        sync_vm_state_with_env(ip);
-        WOORT_JIT_CODE(call(em->m_checkpoint_handler));
+
+        {
+            const Gp ip_tmp = c->new_gp_ptr();
+            WOORT_JIT_CODE(mov(ip_tmp, (uintptr_t)ip));
+            WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_IP), ip_tmp));
+
+            WOORT_JIT_CODE(lea(em->m_checkpoint_resume, ptr(L_continue)));
+            em->update_last_error(
+                em->m_checkpoint_resume_annotation->add_label(L_continue));
+
+            ++em->m_checkpoint_site_count;
+
+            WOORT_JIT_CODE(jmp(em->m_checkpoint_slow));
+        }
+
         WOORT_JIT_CODE(bind(L_continue));
     }
 
@@ -360,26 +406,40 @@ bool woort_JIT_Backend_x64_epilogue(
 
     assert(em != nullptr);
 
-    // Checkpoint handler:
+    // Check for checkpoint
+    if (em->m_checkpoint_site_count > 0)
     {
-        WOORT_JIT_CODE(bind(em->m_checkpoint_handler));
+        WOORT_JIT_CODE(bind(em->m_checkpoint_slow));
 
-        const Gp checkpoint_result = em->c->new_gp32();
+        em->sync_vm_stack_base_with_env();
+
         static_assert(sizeof(woort_VmCallStatus) == 4, "");
+
+        const Label checkpoint_exit = em->c->new_label();
+        const Gp    checkpoint_status = em->c->new_gp32();
 
         InvokeNode* invoke_node;
         WOORT_JIT_CODE(invoke(
             Out(invoke_node),
-            em->m_checkpoint_handler,
+            Imm(reinterpret_cast<intptr_t>(woort_VMRuntime_JIT_request_handler)),
             FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*>()));
 
         invoke_node->set_arg(0, em->m_vm);
-        invoke_node->set_ret(0, checkpoint_result);
+        invoke_node->set_ret(0, checkpoint_status);
 
         em->resync_vm_stack_state_fully();
 
-        WOORT_JIT_CODE(ret(checkpoint_result));
+        WOORT_JIT_CODE(cmp(checkpoint_status, static_cast<int32_t>(WOORT_VM_CALL_STATUS_NORMAL)));
+        WOORT_JIT_CODE(jne(checkpoint_exit));
+
+        WOORT_JIT_CODE(jmp(em->m_checkpoint_resume, em->m_checkpoint_resume_annotation));
+
+        WOORT_JIT_CODE(bind(checkpoint_exit));
+        em->return_with_status(checkpoint_status);
     }
+
+    // TODO: Check for stack overflow.
+
 
     Error err = em->c->end_func();
 
