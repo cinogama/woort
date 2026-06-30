@@ -270,14 +270,6 @@ static bool _emit_const_load(
  * 辅助函数：静态存储 LOAD/STORE 发射
  * ======================================================================== */
 
-static bool _emit_static_load(
-    woort_IRBlock* blk,
-    int32_t stack_offset,
-    uint32_t storage_place)
-{
-    return _emit_const_load(blk, stack_offset, storage_place);
-}
-
 static bool _emit_static_store(
     woort_IRBlock* blk,
     int32_t stack_offset,
@@ -317,14 +309,6 @@ static bool _emit_static_store(
  * ST 变体: a8=src(S8), bc16=dst(S16)
  * LD 变体: a8=dst(S8), bc16=src(S16)
  * ======================================================================== */
-
-typedef woort_Bytecode(*_CastSTFunc)(int8_t a8, int16_t bc16);
-typedef woort_Bytecode(*_CastLDFunc)(int8_t a8, int16_t bc16);
-
-/*
- * 使用宏包装 opcode builder 宏为普通函数指针是不可行的（宏不是函数），
- * 所以我们直接用内联的方式处理每种类型转换。
- */
 
 #define _EMIT_CAST_BODY(blk, op, c, ST_MACRO, LD_MACRO) \
     do { \
@@ -457,35 +441,6 @@ typedef woort_Bytecode(*_CastLDFunc)(int8_t a8, int16_t bc16);
         return _apply_store(blk, op->m_dst, w); \
     } while(0)
 
-/* 三地址三源无写操作数（索引存储等） */
-#define _EMIT_STORE_IDX_3SRC(blk, op, c, OP_MACRO) \
-    do { \
-        (void)(c); \
-        int8_t r1, r2, r3; \
-        if (!_load_to_s8(blk, op->m_src[0], -128, &r1)) \
-            return false; \
-        if (!_load_to_s8(blk, op->m_src[1], -127, &r2)) \
-            return false; \
-        if (!_load_to_s8(blk, op->m_src[2], -126, &r3)) \
-            return false; \
-        return _emit_bc(blk, OP_MACRO(r1, r2, r3)); \
-    } while(0)
-
-/* 索引加载专用：VM 约定 A=idx B=container C=dst，需交换 r1/r2 */
-#define _EMIT_LDIDX_BINOP(blk, op, c, OP_MACRO) \
-    do { \
-        (void)(c); \
-        int8_t r1, r2; \
-        if (!_load_to_s8(blk, op->m_src[0], -128, &r1)) \
-            return false; \
-        if (!_load_to_s8(blk, op->m_src[1], -127, &r2)) \
-            return false; \
-        const int8_t w = _get_store_s8(op->m_dst, -126); \
-        if (!_emit_bc(blk, OP_MACRO(r1, r2, w))) \
-            return false; \
-        return _apply_store(blk, op->m_dst, w); \
-    } while(0)
-
 /* 索引存储专用：VM 约定 A=container B=idx C=val */
 #define _EMIT_STORE_IDX_3SRC_VM(blk, op, c, OP_MACRO) \
     do { \
@@ -499,30 +454,6 @@ typedef woort_Bytecode(*_CastLDFunc)(int8_t a8, int16_t bc16);
             return false; \
         return _emit_bc(blk, OP_MACRO(r1, r2, r3)); \
     } while(0)
-
-/* ========================================================================
- * 指令分类
- * ======================================================================== */
-
-static bool _is_jump_op(woort_IROp_Kind kind)
-{
-    switch (kind)
-    {
-    case WOORT_IROP_KIND_JMP:
-    case WOORT_IROP_KIND_JCC:
-    case WOORT_IROP_KIND_JCCZ:
-    case WOORT_IROP_KIND_JCC_LT:
-    case WOORT_IROP_KIND_JCC_LE:
-    case WOORT_IROP_KIND_JCC_EQ:
-    case WOORT_IROP_KIND_JCC_GT:
-    case WOORT_IROP_KIND_JCC_GE:
-    case WOORT_IROP_KIND_JCC_NE:
-    case WOORT_IROP_KIND_JIFINITED:
-        return true;
-    default:
-        return false;
-    }
-}
 
 /* ========================================================================
  * 单条 IR 指令的字节码发射
@@ -598,7 +529,7 @@ static bool _emit_op(
         assert(op->m_dst != NULL);
         const uint32_t storage = op->m_static_index + c->m_constant_alloc_count;
         const int32_t w = op->m_dst->m_assigned_stack_offset;
-        return _emit_static_load(blk, w, storage);
+        return _emit_const_load(blk, w, storage);
     }
 
     /* ============ STORE (静态存储) ============ */
@@ -1207,10 +1138,10 @@ _handle_call_result:
 
     /* ============ 索引加载 ============ */
     case WOORT_IROP_KIND_LDIDXVEC:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXVEC);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXVEC);
 
     case WOORT_IROP_KIND_LDIDXVECX:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXVECX);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXVECX);
 
     case WOORT_IROP_KIND_LDIDXSTRUCT:
     {
@@ -1227,24 +1158,24 @@ _handle_call_result:
     }
 
     case WOORT_IROP_KIND_LDIDXSTRING:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDSTRING);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDSTRING);
 
     case WOORT_IROP_KIND_LDIDXDICTI:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXDICTI);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTI);
     case WOORT_IROP_KIND_LDIDXDICTR:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXDICTR);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTR);
     case WOORT_IROP_KIND_LDIDXDICTB:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXDICTB);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTB);
     case WOORT_IROP_KIND_LDIDXDICTX:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXDICTX);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTX);
     case WOORT_IROP_KIND_LDIDXDICTIX:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXDICTIX);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTIX);
     case WOORT_IROP_KIND_LDIDXDICTRX:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXDICTRX);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTRX);
     case WOORT_IROP_KIND_LDIDXDICTBX:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXDICTBX);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTBX);
     case WOORT_IROP_KIND_LDIDXDICTXX:
-        _EMIT_LDIDX_BINOP(blk, op, c, woort_OpCode_LDIDXDICTXX);
+        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTXX);
 
         /* ============ 索引存储 - vec ============ */
     case WOORT_IROP_KIND_SDIDXVECI:
