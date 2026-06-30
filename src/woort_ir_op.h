@@ -199,7 +199,7 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_JCC_EQ,         /* if (a == b) goto label */
     WOORT_IROP_KIND_JCC_GT,         /* if (a > b) goto label (sugar: swapped lt) */
     WOORT_IROP_KIND_JCC_GE,         /* if (a >= b) goto label (sugar: swapped le) */
-    WOORT_IROP_KIND_JCC_NE,         /* if (a != b) goto label (sugar: swapped eq args + invert) */
+    WOORT_IROP_KIND_JCC_NE,         /* if (a != b) goto label */
     WOORT_IROP_KIND_JIFINITED,      /* once init guard: if G[static]==2 goto label; else CAS 0->1 fallthrough */
 
     /* ============ 原子操作 ============ */

@@ -426,8 +426,8 @@ static bool _emit_static_store(
         return _apply_store(blk, op->m_dst, w); \
     } while(0)
 
-  /* 纯三地址二元比较运算（无复合形式） */
-#define _EMIT_BINOP_CMP(blk, op, c, OP_MACRO) \
+  /* 纯三地址二元运算（无复合形式，适用于比较与索引加载） */
+#define _EMIT_BINOP_NO_COMPOUND(blk, op, c, OP_MACRO) \
     do { \
         (void)(c); \
         int8_t r1, r2; \
@@ -999,22 +999,22 @@ _handle_call_result:
 
     /* ============ 整数比较 ============ */
     case WOORT_IROP_KIND_LTI:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LTI);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LTI);
 
     case WOORT_IROP_KIND_GTI:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_GTI);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_GTI);
 
     case WOORT_IROP_KIND_LEI:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LEI);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LEI);
 
     case WOORT_IROP_KIND_GEI:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_GEI);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_GEI);
 
     case WOORT_IROP_KIND_EQI:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_EQI);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_EQI);
 
     case WOORT_IROP_KIND_NEI:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_NEI);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_NEI);
 
         /* ============ 实数算术 ============ */
     case WOORT_IROP_KIND_ADDR:
@@ -1046,17 +1046,17 @@ _handle_call_result:
 
     /* ============ 实数比较 ============ */
     case WOORT_IROP_KIND_LTR:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LTR);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LTR);
     case WOORT_IROP_KIND_GTR:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_GTR);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_GTR);
     case WOORT_IROP_KIND_LER:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LER);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LER);
     case WOORT_IROP_KIND_GER:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_GER);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_GER);
     case WOORT_IROP_KIND_EQR:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_EQR);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_EQR);
     case WOORT_IROP_KIND_NER:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_NER);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_NER);
 
         /* ============ 字符串 ============ */
     case WOORT_IROP_KIND_ADDS:
@@ -1099,17 +1099,17 @@ _handle_call_result:
     }
 
     case WOORT_IROP_KIND_LTS:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LTS);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LTS);
     case WOORT_IROP_KIND_GTS:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_GTS);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_GTS);
     case WOORT_IROP_KIND_LES:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LES);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LES);
     case WOORT_IROP_KIND_GES:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_GES);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_GES);
     case WOORT_IROP_KIND_EQS:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_EQS);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_EQS);
     case WOORT_IROP_KIND_NES:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_NES);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_NES);
 
         /* ============ 逻辑运算 ============ */
     case WOORT_IROP_KIND_LAND:
@@ -1138,10 +1138,10 @@ _handle_call_result:
 
     /* ============ 索引加载 ============ */
     case WOORT_IROP_KIND_LDIDXVEC:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXVEC);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXVEC);
 
     case WOORT_IROP_KIND_LDIDXVECX:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXVECX);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXVECX);
 
     case WOORT_IROP_KIND_LDIDXSTRUCT:
     {
@@ -1158,24 +1158,24 @@ _handle_call_result:
     }
 
     case WOORT_IROP_KIND_LDIDXSTRING:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDSTRING);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDSTRING);
 
     case WOORT_IROP_KIND_LDIDXDICTI:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTI);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTI);
     case WOORT_IROP_KIND_LDIDXDICTR:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTR);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTR);
     case WOORT_IROP_KIND_LDIDXDICTB:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTB);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTB);
     case WOORT_IROP_KIND_LDIDXDICTX:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTX);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTX);
     case WOORT_IROP_KIND_LDIDXDICTIX:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTIX);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTIX);
     case WOORT_IROP_KIND_LDIDXDICTRX:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTRX);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTRX);
     case WOORT_IROP_KIND_LDIDXDICTBX:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTBX);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTBX);
     case WOORT_IROP_KIND_LDIDXDICTXX:
-        _EMIT_BINOP_CMP(blk, op, c, woort_OpCode_LDIDXDICTXX);
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTXX);
 
         /* ============ 索引存储 - vec ============ */
     case WOORT_IROP_KIND_SDIDXVECI:

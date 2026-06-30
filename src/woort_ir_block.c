@@ -38,11 +38,7 @@ void _woort_IRBlock_init(woort_IRBlock* block)
     block->m_is_in_loop = false;
     block->m_loop_header = -1;
 
-    /*
-     * m_const_loads 的元素类型是 _woort_ConstLoadInfo (8 bytes)，
-     * 但其定义在 woort_ir_function.c 中。此处使用 8 作为元素大小。
-     */
-    woort_vector_init(&block->m_const_loads, 8);
+    woort_vector_init(&block->m_const_loads, sizeof(_woort_ConstLoadInfo));
     woort_vector_init(&block->m_bytecodes, sizeof(uint32_t));
 }
 
