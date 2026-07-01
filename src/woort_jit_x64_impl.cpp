@@ -57,6 +57,11 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp              m_jit_call_resync_resume;
     size_t          m_jit_call_resync_site_count;
 
+    optional<JumpAnnotation*> m_sync_runtime_status_resume_annotation;
+    Label           m_sync_runtime_status_slow;
+    Gp              m_sync_runtime_status_resume;
+    size_t          m_sync_runtime_status_site_count;
+
     struct VMStackValueGp
     {
         Gp      m_gp;
@@ -97,6 +102,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
         , m_stack_overflow_site_count(0)
         , m_jit_call_resync_resume_annotation(nullopt)
         , m_jit_call_resync_site_count(0)
+        , m_sync_runtime_status_site_count(0)
     {
         JitRuntime* const asmjit_runtime =
             static_cast<JitRuntime*>(woort_JIT_Asmjit_get_runtime());
@@ -138,50 +144,6 @@ struct woort_JIT_Asmjit_x64_Emmiter
     }
 
     // ===================================================== //
-    void sync_vm_state_with_env(const woort_Bytecode* ip)
-    {
-        /*
-        SYNC 是将 JIT 运行时状态正向同步到 VM 运行时
-        需要同步的状态，参阅 woort_vm.c 的 WOORT_VM_SYNC_STATE_WITH_ENV
-        */
-        auto* const em = this;
-
-        const Gp tmp = c->new_gp_ptr();
-
-        WOORT_JIT_CODE(mov(tmp, (uintptr_t)ip));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_IP), tmp));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP), em->m_sp));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB), em->m_sb));
-        WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
-    }
-    void sync_vm_state_with_env_in_ret_native(Gp ip)
-    {
-        /*
-       SYNC 是将 JIT 运行时状态正向同步到 VM 运行时
-       需要同步的状态，参阅 woort_vm.c 的 WOORT_VM_SYNC_STATE_WITH_ENV
-       */
-        auto* const em = this;
-
-        const Gp tmp = c->new_gp_ptr();
-
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_IP), ip));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP), em->m_sp));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB), em->m_sb));
-        WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
-    }
-    void sync_vm_stack_base_with_env()
-    {
-        auto* const em = this;
-
-        const Gp tmp = c->new_gp_ptr();
-
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP), em->m_sp));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB), em->m_sb));
-        WOORT_JIT_CODE(mov(tmp, (uintptr_t)cenv));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), tmp));
-    }
     void resync_vm_stack_state_fully()
     {
         auto* const em = this;
@@ -269,7 +231,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
             const Gp ret_ip = c->new_gp64();
             WOORT_JIT_CODE(mov(ret_ip, qword_ptr(em->m_sp)));
 
-            em->sync_vm_state_with_env_in_ret_native(ret_ip);
+            WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_IP), ret_ip));
+            em->emit_sync_runtime_status(L_normal_ret);
         }
         WOORT_JIT_CODE(bind(L_normal_ret));
         em->return_with_status(WOORT_VM_CALL_STATUS_NORMAL);
@@ -350,6 +313,31 @@ struct woort_JIT_Asmjit_x64_Emmiter
             ++em->m_jit_call_resync_site_count;
 
             WOORT_JIT_CODE(jmp(em->m_jit_call_resync_slow));
+        }
+    }
+    void emit_sync_runtime_status(Label L_resume)
+    {
+        /*
+        将对 SP/SB/ENV 的写入推迟到单一的 slow path（在 epilogue 中发射），
+        调用方需在调用前自行写入 vm->ip。风格仿照 emit_extern_stack。
+        */
+        auto* const em = this;
+
+        if (!em->m_sync_runtime_status_resume_annotation.has_value())
+        {
+            em->m_sync_runtime_status_slow = c->new_label();
+            em->m_sync_runtime_status_resume = c->new_gp_ptr();
+            em->m_sync_runtime_status_resume_annotation = c->new_jump_annotation();
+        }
+
+        {
+            WOORT_JIT_CODE(lea(em->m_sync_runtime_status_resume, ptr(L_resume)));
+            em->update_last_error(
+                em->m_sync_runtime_status_resume_annotation.value()->add_label(L_resume));
+
+            ++em->m_sync_runtime_status_site_count;
+
+            WOORT_JIT_CODE(jmp(em->m_sync_runtime_status_slow));
         }
     }
 
@@ -459,7 +447,15 @@ bool woort_JIT_Backend_x64_prologue(
 
             WOORT_JIT_CODE(cmp(depth_addr, WOORT_VM_MAX_JIT_CALL_DEPTH));
             WOORT_JIT_CODE(jbe(L_ok));
-            em->sync_vm_state_with_env(*ip);
+            {
+                const Gp ip_tmp = em->c->new_gp_ptr();
+                WOORT_JIT_CODE(mov(ip_tmp, (uintptr_t)*ip));
+                WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_IP), ip_tmp));
+
+                const Label L_resync_ret = em->c->new_label();
+                em->emit_sync_runtime_status(L_resync_ret);
+                WOORT_JIT_CODE(bind(L_resync_ret));
+            }
             em->return_with_status_without_reduce_depth(WOORT_VM_CALL_STATUS_RESYNC);
             WOORT_JIT_CODE(bind(L_ok));
             WOORT_JIT_CODE(inc(depth_addr));
@@ -494,7 +490,11 @@ bool woort_JIT_Backend_x64_epilogue(
             em->c->new_stack(sizeof(uintptr_t), alignof(uintptr_t));
         WOORT_JIT_CODE(mov(checkpoint_resume_slot, em->m_checkpoint_resume));
 
-        em->sync_vm_stack_base_with_env();
+        {
+            const Label L_after_sync = em->c->new_label();
+            em->emit_sync_runtime_status(L_after_sync);
+            WOORT_JIT_CODE(bind(L_after_sync));
+        }
 
         static_assert(sizeof(woort_VmCallStatus) == 4, "");
 
@@ -529,7 +529,11 @@ bool woort_JIT_Backend_x64_epilogue(
             em->c->new_stack(sizeof(uintptr_t), alignof(uintptr_t));
         WOORT_JIT_CODE(mov(so_resume_slot, em->m_stack_overflow_resume));
 
-        em->sync_vm_stack_base_with_env();
+        {
+            const Label L_after_sync = em->c->new_label();
+            em->emit_sync_runtime_status(L_after_sync);
+            WOORT_JIT_CODE(bind(L_after_sync));
+        }
 
         static_assert(sizeof(woort_VmCallStatus) == 4, "");
 
@@ -584,6 +588,25 @@ bool woort_JIT_Backend_x64_epilogue(
 
         WOORT_JIT_CODE(jmp(jit_call_resync_resume_slot,
                            em->m_jit_call_resync_resume_annotation.value()));
+    }
+
+    // Shared slow path for SP/SB/ENV sync (caller writes vm->ip inline).
+    assert(em->m_sync_runtime_status_site_count > 0);
+    {
+        WOORT_JIT_CODE(bind(em->m_sync_runtime_status_slow));
+
+        const Mem sync_runtime_status_resume_slot =
+            em->c->new_stack(sizeof(uintptr_t), alignof(uintptr_t));
+        WOORT_JIT_CODE(mov(sync_runtime_status_resume_slot, em->m_sync_runtime_status_resume));
+
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP), em->m_sp));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB), em->m_sb));
+        const Gp env_tmp = em->c->new_gp_ptr();
+        WOORT_JIT_CODE(mov(env_tmp, (uintptr_t)em->cenv));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), env_tmp));
+
+        WOORT_JIT_CODE(jmp(sync_runtime_status_resume_slot,
+                           em->m_sync_runtime_status_resume_annotation.value()));
     }
 
     Error err = em->c->end_func();
