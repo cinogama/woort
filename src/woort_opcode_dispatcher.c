@@ -71,22 +71,22 @@ _label_retry_entry:
         switch (m2)
         {
         case 0: /* MOVLD */
-            DISPATCH(m_MOVLD,
+            DISPATCH(m_MOV,
                 (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc),
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
         case 1: /* MOVST */
-            DISPATCH(m_MOVST,
+            DISPATCH(m_MOV,
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc),
                 (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc));
             return c + 1;
         case 2: /* MOVLDEXT -> MOVLD */
-            DISPATCH(m_MOVLD,
+            DISPATCH(m_MOV,
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc),
                 (woort_Opcode_Stack)(int32_t)c[1]);
             return c + 2;
         case 3: /* MOVSTEXT -> MOVST */
-            DISPATCH(m_MOVST,
+            DISPATCH(m_MOV,
                 (woort_Opcode_Stack)(int32_t)c[1],
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 2;

@@ -25,8 +25,7 @@ extern "C" {
     void woort_JIT_Backend_x64_STORE(void* emmiter, woort_Opcode_Global dst, woort_Opcode_Stack src);
     void woort_JIT_Backend_x64_LOADPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
     void woort_JIT_Backend_x64_STOREPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
-    void woort_JIT_Backend_x64_MOVLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
-    void woort_JIT_Backend_x64_MOVST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
+    void woort_JIT_Backend_x64_MOV(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
     void woort_JIT_Backend_x64_PUSHRCHK(void* emmiter, woort_Opcode_Count n);
     void woort_JIT_Backend_x64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src);
     void woort_JIT_Backend_x64_PUSHCCHK(void* emmiter, woort_Opcode_Global src);

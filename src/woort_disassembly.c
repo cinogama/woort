@@ -30,11 +30,8 @@ static void _woort_dis_LOADPVALUE(void* userdata, woort_Opcode_Stack dst, woort_
 static void _woort_dis_STOREPVALUE(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 { CTX->callback("STOREPVALUE *[SB %+d] = [SB %+d]\n", dst, src); CTX->printed = 1; }
 
-static void _woort_dis_MOVLD(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{ CTX->callback("MOVLD       [SB %+d] = [SB %+d]\n", dst, src); CTX->printed = 1; }
-
-static void _woort_dis_MOVST(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{ CTX->callback("MOVST       [SB %+d] = [SB %+d]\n", dst, src); CTX->printed = 1; }
+static void _woort_dis_MOV(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{ CTX->callback("MOV         [SB %+d] = [SB %+d]\n", dst, src); CTX->printed = 1; }
 
 static void _woort_dis_PUSHRCHK(void* userdata, woort_Opcode_Count n)
 { CTX->callback("PUSHRCHK    %u\n", n); CTX->printed = 1; }
@@ -578,8 +575,7 @@ static const woort_OpcodeDispatchers g_disasm_dispatchers = {
     .m_STORE = _woort_dis_STORE,
     .m_LOADPVALUE = _woort_dis_LOADPVALUE,
     .m_STOREPVALUE = _woort_dis_STOREPVALUE,
-    .m_MOVLD = _woort_dis_MOVLD,
-    .m_MOVST = _woort_dis_MOVST,
+    .m_MOV = _woort_dis_MOV,
     .m_PUSHRCHK = _woort_dis_PUSHRCHK,
     .m_PUSHSCHK = _woort_dis_PUSHSCHK,
     .m_PUSHCCHK = _woort_dis_PUSHCCHK,

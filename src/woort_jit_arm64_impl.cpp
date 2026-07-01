@@ -180,14 +180,7 @@ void woort_JIT_Backend_arm64_STOREPVALUE(void* emmiter, woort_Opcode_Stack dst, 
     (void)src;
 }
 
-void woort_JIT_Backend_arm64_MOVLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-}
-
-void woort_JIT_Backend_arm64_MOVST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_MOV(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)dst;
