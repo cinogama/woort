@@ -605,6 +605,17 @@ bool woort_JIT_Backend_x64_epilogue(
         WOORT_JIT_CODE(mov(env_tmp, (uintptr_t)em->cenv));
         WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), env_tmp));
 
+        /* 将所有写脏的 GP 寄存器写回对应偏移量的虚拟机栈 */
+        for (auto& kv : em->m_stack_gp)
+        {
+            if (kv.second.m_writed)
+            {
+                const int32_t slot_offset =
+                    kv.first * static_cast<int32_t>(sizeof(woort_Value));
+                WOORT_JIT_CODE(mov(qword_ptr(em->m_sb, slot_offset), kv.second.m_gp));
+            }
+        }
+
         WOORT_JIT_CODE(jmp(sync_runtime_status_resume_slot,
                            em->m_sync_runtime_status_resume_annotation.value()));
     }
