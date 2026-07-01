@@ -57,7 +57,23 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp              m_jit_call_resync_resume;
     size_t          m_jit_call_resync_site_count;
 
-    unordered_map<woort_Opcode_Stack, Gp> m_stack_gp;
+    struct VMStackValueGp
+    {
+        Gp      m_gp;
+        bool    m_writed;
+
+        VMStackValueGp(const VMStackValueGp&) = delete;
+        VMStackValueGp(VMStackValueGp&&) = delete;
+        VMStackValueGp& operator =(const VMStackValueGp&) = delete;
+        VMStackValueGp& operator =(VMStackValueGp&&) = delete;
+
+        VMStackValueGp(Gp gp)
+            : m_gp(gp)
+            , m_writed(false)
+        {}
+    };
+
+    unordered_map<woort_Opcode_Stack, VMStackValueGp> m_stack_gp;
     unordered_map<const woort_Bytecode*, Label> m_opcode_label;
 
     woort_JIT_Asmjit_x64_Emmiter(const woort_JIT_Asmjit_x64_Emmiter&) = delete;
@@ -258,7 +274,6 @@ struct woort_JIT_Asmjit_x64_Emmiter
         WOORT_JIT_CODE(bind(L_normal_ret));
         em->return_with_status(WOORT_VM_CALL_STATUS_NORMAL);
     }
-
     void emit_checkpoint(const woort_Bytecode* ip)
     {
         auto* const em = this;
@@ -291,7 +306,6 @@ struct woort_JIT_Asmjit_x64_Emmiter
             WOORT_JIT_CODE(jmp(em->m_checkpoint_slow));
         }
     }
-
     void emit_extern_stack(const woort_Bytecode* ip, Label L_resume)
     {
         auto* const em = this;
@@ -317,7 +331,6 @@ struct woort_JIT_Asmjit_x64_Emmiter
             WOORT_JIT_CODE(jmp(em->m_stack_overflow_slow));
         }
     }
-
     void emit_jit_call_resync(Label L_resume)
     {
         auto* const em = this;
@@ -343,14 +356,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
     // ===================================================== //
     void apply_gp_to_stack(woort_Opcode_Stack src)
     {
-        auto* const em = this;
-
-        const Gp reg = em->m_stack_gp.at(src);
-
-        const int32_t src_offset =
-            src * static_cast<int32_t>(sizeof(woort_Value));
-
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_sb, src_offset), reg));
+        auto& stack_value = m_stack_gp.at(src);
+        stack_value.m_writed = true;
     }
     template<typename T>
     void set_gp_by_stack(woort_Opcode_Stack src, T v)
@@ -360,7 +367,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
         Gp reg;
         const auto it = em->m_stack_gp.find(src);
         if (it != em->m_stack_gp.end())
-            reg = it->second;
+            reg = it->second.m_gp;
         else
         {
             reg = c->new_gp64();
@@ -377,7 +384,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
         const auto it = em->m_stack_gp.find(src);
         if (it != em->m_stack_gp.end())
-            return it->second;
+            return it->second.m_gp;
 
         const Gp reg = c->new_gp64();
         const int32_t src_offset =
@@ -394,7 +401,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
         const auto it = em->m_stack_gp.find(src);
         if (it != em->m_stack_gp.end())
-            return it->second;
+            return it->second.m_gp;
 
         const Gp reg = c->new_gp64();
         em->m_stack_gp.emplace(src, reg);
