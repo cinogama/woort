@@ -831,7 +831,7 @@ _label_continue_execution:
                 woort_DynBox_unbox_no_check_and_get_type(src, &unboxed);
 
             /* Same type: direct unbox */
-            if (src_type == target_type)
+            if (/* UNLIKELY */ src_type == target_type)
             {
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)] = unboxed;
                 break;
