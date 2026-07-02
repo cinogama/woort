@@ -27,7 +27,8 @@
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
-    woort_OrderMap*     m_codeenvs;
+    woort_OrderMap/* const woort_Bytecode*, woort_CodeEnv* */ 
+                        *m_codeenvs;
     woort_GCUnitProxy   m_env_proxy;
     woort_GCUnitProxy   m_code_proxy;
 
