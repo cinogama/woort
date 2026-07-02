@@ -3,6 +3,7 @@
 #include "woort_vm.h"
 #include "woort_gc.h"
 #include "woort_gc_string.h"
+#include "woort_gc_vec.h"
 #include "woort_serialize.h"
 #include "woort_opcode_dispatcher.h"
 
@@ -24,6 +25,19 @@ void woort_JIT_GC_mixed_write_barrier_value(
     woort_Value* modified_value, woort_Value src_value)
 {
     woort_GC_mixed_write_barrier_value(modified_value, src_value);
+}
+
+void woort_JIT_make_vec(
+    woort_VMRuntime* vm, int32_t dst_sb_off, size_t count)
+{
+    woort_GCVec* const gcvec = woort_GCVec_new();
+    vm->m_sb[dst_sb_off].m_vec = gcvec;
+
+    _woort_GCVec_extern(gcvec, count);
+
+    for (size_t i = 1; i <= count; ++i)
+        woort_GC_init_write_barrier_dynbox(
+            &gcvec->m_datas[count - i], vm->m_sp[i].m_dynamic);
 }
 
 WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str)

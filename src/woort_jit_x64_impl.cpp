@@ -1927,10 +1927,40 @@ void woort_JIT_Backend_x64_JBCKEG(void* emmiter, woort_Opcode_Stack a, woort_Opc
 
 void woort_JIT_Backend_x64_MKVEC(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)n;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    em->emit_sync_rt_ip_status(*em->m_ip);
+
+    const Label L_after_sync_st = em->c->new_label();
+    em->emit_sync_runtime_status(L_after_sync_st);
+    WOORT_JIT_CODE(bind(L_after_sync_st));
+
+    const Label L_after_sync_sv = em->c->new_label();
+    em->emit_sync_stack_value(L_after_sync_sv);
+    WOORT_JIT_CODE(bind(L_after_sync_sv));
+
+    {
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_JIT_make_vec)),
+            FuncSignature::build<void, woort_VMRuntime*, int32_t, size_t>()));
+
+        invoke_node->set_arg(0, em->m_vm);
+        invoke_node->set_arg(1, Imm(static_cast<int32_t>(dst)));
+        invoke_node->set_arg(2, Imm(static_cast<int64_t>(static_cast<uint32_t>(n))));
+
+        em->resync_vm_stack_state_fully();
+    }
+
+    if (n != 0)
+    {
+        WOORT_JIT_CODE(add(
+            em->m_sp,
+            Imm(static_cast<int32_t>(static_cast<size_t>(n) * sizeof(woort_Value)))));
+    }
 }
 
 void woort_JIT_Backend_x64_MKMAP(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
