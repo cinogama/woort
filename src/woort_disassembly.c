@@ -60,29 +60,17 @@ static void _woort_dis_POPS(void* userdata, woort_Opcode_Stack dst)
 static void _woort_dis_POPC(void* userdata, woort_Opcode_Global dst)
 { CTX->callback("POPC        G[%u]\n", dst); CTX->printed = 1; }
 
-static void _woort_dis_ITORST(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{ CTX->callback("ITORST      [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
+static void _woort_dis_ITOR(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{ CTX->callback("ITOR        [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
 
-static void _woort_dis_ITORLD(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{ CTX->callback("ITORLD      [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
+static void _woort_dis_ITOS(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{ CTX->callback("ITOS        [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
 
-static void _woort_dis_ITOSST(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{ CTX->callback("ITOSST      [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
+static void _woort_dis_RTOI(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{ CTX->callback("RTOI        [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
 
-static void _woort_dis_ITOSLD(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{ CTX->callback("ITOSLD      [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
-
-static void _woort_dis_RTOIST(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{ CTX->callback("RTOIST      [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
-
-static void _woort_dis_RTOILD(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{ CTX->callback("RTOILD      [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
-
-static void _woort_dis_RTOSST(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{ CTX->callback("RTOSST      [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
-
-static void _woort_dis_RTOSLD(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{ CTX->callback("RTOSLD      [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
+static void _woort_dis_RTOS(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+{ CTX->callback("RTOS        [SB %+d] -> [SB %+d]\n", src, dst); CTX->printed = 1; }
 
 static void _woort_dis_CASTSTO(void* userdata, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src)
 { CTX->callback("CASTSTO     T%u, [SB %+d] -> [SB %+d]\n", target, src, dst); CTX->printed = 1; }
@@ -585,14 +573,10 @@ static const woort_OpcodeDispatchers g_disasm_dispatchers = {
     .m_POPR = _woort_dis_POPR,
     .m_POPS = _woort_dis_POPS,
     .m_POPC = _woort_dis_POPC,
-    .m_ITORST = _woort_dis_ITORST,
-    .m_ITORLD = _woort_dis_ITORLD,
-    .m_ITOSST = _woort_dis_ITOSST,
-    .m_ITOSLD = _woort_dis_ITOSLD,
-    .m_RTOIST = _woort_dis_RTOIST,
-    .m_RTOILD = _woort_dis_RTOILD,
-    .m_RTOSST = _woort_dis_RTOSST,
-    .m_RTOSLD = _woort_dis_RTOSLD,
+    .m_ITOR = _woort_dis_ITOR,
+    .m_ITOS = _woort_dis_ITOS,
+    .m_RTOI = _woort_dis_RTOI,
+    .m_RTOS = _woort_dis_RTOS,
     .m_CASTSTO = _woort_dis_CASTSTO,
     .m_CASTSFROM = _woort_dis_CASTSFROM,
     .m_CASTDYN = _woort_dis_CASTDYN,

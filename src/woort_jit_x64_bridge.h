@@ -35,14 +35,10 @@ extern "C" {
     void woort_JIT_Backend_x64_POPR(void* emmiter, woort_Opcode_Count n);
     void woort_JIT_Backend_x64_POPS(void* emmiter, woort_Opcode_Stack dst);
     void woort_JIT_Backend_x64_POPC(void* emmiter, woort_Opcode_Global dst);
-    void woort_JIT_Backend_x64_ITORST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
-    void woort_JIT_Backend_x64_ITORLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
-    void woort_JIT_Backend_x64_ITOSST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
-    void woort_JIT_Backend_x64_ITOSLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
-    void woort_JIT_Backend_x64_RTOIST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
-    void woort_JIT_Backend_x64_RTOILD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
-    void woort_JIT_Backend_x64_RTOSST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
-    void woort_JIT_Backend_x64_RTOSLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
+    void woort_JIT_Backend_x64_ITOR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
+    void woort_JIT_Backend_x64_ITOS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
+    void woort_JIT_Backend_x64_RTOI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
+    void woort_JIT_Backend_x64_RTOS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src);
     void woort_JIT_Backend_x64_CASTSTO(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src);
     void woort_JIT_Backend_x64_CASTSFROM(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType srctype, woort_Opcode_Stack src);
     void woort_JIT_Backend_x64_CASTDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src);

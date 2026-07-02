@@ -151,22 +151,22 @@ _label_retry_entry:
         switch (m2)
         {
         case 0: /* ITORST */
-            DISPATCH(m_ITORST,
+            DISPATCH(m_ITOR,
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc),
                 (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc));
             return c + 1;
         case 1: /* ITORLD */
-            DISPATCH(m_ITORLD,
+            DISPATCH(m_ITOR,
                 (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc),
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
         case 2: /* ITOSST */
-            DISPATCH(m_ITOSST,
+            DISPATCH(m_ITOS,
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc),
                 (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc));
             return c + 1;
         case 3: /* ITOSLD */
-            DISPATCH(m_ITOSLD,
+            DISPATCH(m_ITOS,
                 (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc),
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
@@ -177,22 +177,22 @@ _label_retry_entry:
         switch (m2)
         {
         case 0: /* RTOIST */
-            DISPATCH(m_RTOIST,
+            DISPATCH(m_RTOI,
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc),
                 (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc));
             return c + 1;
         case 1: /* RTOILD */
-            DISPATCH(m_RTOILD,
+            DISPATCH(m_RTOI,
                 (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc),
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
         case 2: /* RTOSST */
-            DISPATCH(m_RTOSST,
+            DISPATCH(m_RTOS,
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc),
                 (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc));
             return c + 1;
         case 3: /* RTOSLD */
-            DISPATCH(m_RTOSLD,
+            DISPATCH(m_RTOS,
                 (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc),
                 (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;

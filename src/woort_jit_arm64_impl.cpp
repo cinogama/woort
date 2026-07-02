@@ -245,56 +245,28 @@ void woort_JIT_Backend_arm64_POPC(void* emmiter, woort_Opcode_Global dst)
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_ITORST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_ITOR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)dst;
     (void)src;
 }
 
-void woort_JIT_Backend_arm64_ITORLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_ITOS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)dst;
     (void)src;
 }
 
-void woort_JIT_Backend_arm64_ITOSST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_RTOI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)dst;
     (void)src;
 }
 
-void woort_JIT_Backend_arm64_ITOSLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-}
-
-void woort_JIT_Backend_arm64_RTOIST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-}
-
-void woort_JIT_Backend_arm64_RTOILD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-}
-
-void woort_JIT_Backend_arm64_RTOSST(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
-{
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-}
-
-void woort_JIT_Backend_arm64_RTOSLD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_RTOS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)dst;
