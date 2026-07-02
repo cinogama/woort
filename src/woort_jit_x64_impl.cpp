@@ -1665,88 +1665,156 @@ void woort_JIT_Backend_x64_JBCK(void* emmiter, woort_Opcode_CodeAbs target)
 
 void woort_JIT_Backend_x64_JFWDNZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)cond;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg = em->get_gp_from_stack(cond);
+
+    const Label lbl = em->get_label(*em->m_ip + off);
+
+    WOORT_JIT_CODE(test(reg, reg));
+    WOORT_JIT_CODE(jnz(lbl));
 }
 
 void woort_JIT_Backend_x64_JFWDZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)cond;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg = em->get_gp_from_stack(cond);
+
+    const Label lbl = em->get_label(*em->m_ip + off);
+
+    WOORT_JIT_CODE(test(reg, reg));
+    WOORT_JIT_CODE(jz(lbl));
 }
 
 void woort_JIT_Backend_x64_JFWDEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip + off);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(je(lbl));
 }
 
 void woort_JIT_Backend_x64_JFWDNEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip + off);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(jne(lbl));
 }
 
 void woort_JIT_Backend_x64_JBCKNZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)cond;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg = em->get_gp_from_stack(cond);
+
+    const Label lbl = em->get_label(*em->m_ip - off);
+    const Label L_skip = em->c->new_label();
+
+    WOORT_JIT_CODE(test(reg, reg));
+    WOORT_JIT_CODE(jz(L_skip));
+
+    em->emit_checkpoint(*em->m_ip - off);
+
+    WOORT_JIT_CODE(jmp(lbl));
+
+    WOORT_JIT_CODE(bind(L_skip));
 }
 
 void woort_JIT_Backend_x64_JBCKZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)cond;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg = em->get_gp_from_stack(cond);
+
+    const Label lbl = em->get_label(*em->m_ip - off);
+    const Label L_skip = em->c->new_label();
+
+    WOORT_JIT_CODE(test(reg, reg));
+    WOORT_JIT_CODE(jnz(L_skip));
+
+    em->emit_checkpoint(*em->m_ip - off);
+
+    WOORT_JIT_CODE(jmp(lbl));
+
+    WOORT_JIT_CODE(bind(L_skip));
 }
 
 void woort_JIT_Backend_x64_JBCKEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip - off);
+    const Label L_skip = em->c->new_label();
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(jne(L_skip));
+
+    em->emit_checkpoint(*em->m_ip - off);
+
+    WOORT_JIT_CODE(jmp(lbl));
+
+    WOORT_JIT_CODE(bind(L_skip));
 }
 
 void woort_JIT_Backend_x64_JBCKNEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip - off);
+    const Label L_skip = em->c->new_label();
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(je(L_skip));
+
+    em->emit_checkpoint(*em->m_ip - off);
+
+    WOORT_JIT_CODE(jmp(lbl));
+
+    WOORT_JIT_CODE(bind(L_skip));
 }
 
 void woort_JIT_Backend_x64_JFWDLT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip + off);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(jl(lbl));
 }
 
 void woort_JIT_Backend_x64_JFWDGT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip + off);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(jg(lbl));
 }
 
 void woort_JIT_Backend_x64_JFWDEL(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
@@ -1764,47 +1832,95 @@ void woort_JIT_Backend_x64_JFWDEL(void* emmiter, woort_Opcode_Stack a, woort_Opc
 
 void woort_JIT_Backend_x64_JFWDEG(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip + off);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(jge(lbl));
 }
 
 void woort_JIT_Backend_x64_JBCKLT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip - off);
+    const Label L_skip = em->c->new_label();
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(jge(L_skip));
+
+    em->emit_checkpoint(*em->m_ip - off);
+
+    WOORT_JIT_CODE(jmp(lbl));
+
+    WOORT_JIT_CODE(bind(L_skip));
 }
 
 void woort_JIT_Backend_x64_JBCKGT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip - off);
+    const Label L_skip = em->c->new_label();
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(jle(L_skip));
+
+    em->emit_checkpoint(*em->m_ip - off);
+
+    WOORT_JIT_CODE(jmp(lbl));
+
+    WOORT_JIT_CODE(bind(L_skip));
 }
 
 void woort_JIT_Backend_x64_JBCKEL(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip - off);
+    const Label L_skip = em->c->new_label();
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(jg(L_skip));
+
+    em->emit_checkpoint(*em->m_ip - off);
+
+    WOORT_JIT_CODE(jmp(lbl));
+
+    WOORT_JIT_CODE(bind(L_skip));
 }
 
 void woort_JIT_Backend_x64_JBCKEG(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    (void)emmiter;
-    (void)a;
-    (void)b;
-    (void)off;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+
+    const Label lbl = em->get_label(*em->m_ip - off);
+    const Label L_skip = em->c->new_label();
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(jl(L_skip));
+
+    em->emit_checkpoint(*em->m_ip - off);
+
+    WOORT_JIT_CODE(jmp(lbl));
+
+    WOORT_JIT_CODE(bind(L_skip));
 }
 
 /* -------------------------------------------------------------------------- */
