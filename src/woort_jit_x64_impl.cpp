@@ -2061,11 +2061,124 @@ void woort_JIT_Backend_x64_MKCLOSURE(void* emmiter, woort_Opcode_Stack dst, woor
 
 void woort_JIT_Backend_x64_BOXDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)type;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp val = em->get_gp_from_stack(src);
+
+    switch (type)
+    {
+    case WOORT_BOX_VALUE_TYPE_GCUNIT:
+    {
+        em->set_gp_by_stack(dst, val);
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+    {
+        const Gp boxed = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(boxed, val));
+        WOORT_JIT_CODE(shl(boxed, 3));
+        WOORT_JIT_CODE(or_(boxed, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_BOOL))));
+        em->set_gp_by_stack(dst, boxed);
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_INT:
+    {
+        const Gp boxed = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(boxed, val));
+        WOORT_JIT_CODE(shl(boxed, 2));
+        WOORT_JIT_CODE(or_(boxed, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_INT))));
+
+        const Gp check = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(check, boxed));
+        WOORT_JIT_CODE(sar(check, 2));
+
+        const Label L_ok = em->c->new_label();
+        WOORT_JIT_CODE(cmp(check, val));
+        WOORT_JIT_CODE(je(L_ok));
+
+        {
+            const Gp result = em->c->new_gp_ptr();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_JIT_box_int_ex)),
+                FuncSignature::build<woort_BoxedValue, woort_Int>()));
+
+            invoke_node->set_arg(0, val);
+            invoke_node->set_ret(0, result);
+
+            WOORT_JIT_CODE(mov(boxed, result));
+        }
+
+        WOORT_JIT_CODE(bind(L_ok));
+        em->set_gp_by_stack(dst, boxed);
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_REAL:
+    {
+        const Vec xmm_val = em->c->new_xmm_sd();
+        WOORT_JIT_CODE(movq(xmm_val, val));
+
+        const Gp bits = em->c->new_gp64();
+        WOORT_JIT_CODE(movq(bits, xmm_val));
+
+        const Gp exp_b = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(exp_b, bits));
+        WOORT_JIT_CODE(shr(exp_b, 61));
+
+        const Gp exp_t = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(exp_t, exp_b));
+        WOORT_JIT_CODE(shr(exp_t, 1));
+        WOORT_JIT_CODE(xor_(exp_b, exp_t));
+
+        const Label L_ex = em->c->new_label();
+        WOORT_JIT_CODE(test(exp_b, Imm(1)));
+        WOORT_JIT_CODE(jz(L_ex));
+
+        const Gp boxed = em->c->new_gp64();
+        {
+            const Gp sign = em->c->new_gp64();
+            WOORT_JIT_CODE(mov(sign, bits));
+            WOORT_JIT_CODE(and_(sign, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
+
+            const Gp low62 = em->c->new_gp64();
+            WOORT_JIT_CODE(mov(low62, bits));
+            WOORT_JIT_CODE(and_(low62, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
+            WOORT_JIT_CODE(shl(low62, 1));
+
+            WOORT_JIT_CODE(mov(boxed, sign));
+            WOORT_JIT_CODE(or_(boxed, low62));
+            WOORT_JIT_CODE(or_(boxed, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_REAL))));
+        }
+
+        const Label L_done = em->c->new_label();
+        WOORT_JIT_CODE(jmp(L_done));
+
+        WOORT_JIT_CODE(bind(L_ex));
+        {
+            const Gp result = em->c->new_gp_ptr();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_JIT_box_real_ex)),
+                FuncSignature::build<woort_BoxedValue, woort_Real>()));
+
+            invoke_node->set_arg(0, xmm_val);
+            invoke_node->set_ret(0, result);
+
+            WOORT_JIT_CODE(mov(boxed, result));
+        }
+
+        WOORT_JIT_CODE(bind(L_done));
+        em->set_gp_by_stack(dst, boxed);
+        break;
+    }
+    default:
+    {
+        assert(false);
+        break;
+    }
+    }
 }
 
 void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)

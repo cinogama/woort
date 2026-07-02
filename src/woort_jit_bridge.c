@@ -95,6 +95,36 @@ WOORT_NODISCARD woort_GCClosure* woort_JIT_make_closure(
     return gcclosure;
 }
 
+WOORT_NODISCARD woort_BoxedValue woort_JIT_box_int_ex(woort_Int val)
+{
+    woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_delay_init(
+        sizeof(woort_BoxedExValue));
+
+    ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
+
+    ex_box->m_is_int = true;
+    ex_box->m_int = val;
+
+    woort_GCUnit_init_delay_alloc(O, ex_box);
+
+    return _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
+}
+
+WOORT_NODISCARD woort_BoxedValue woort_JIT_box_real_ex(woort_Real val)
+{
+    woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_delay_init(
+        sizeof(woort_BoxedExValue));
+
+    ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
+
+    ex_box->m_is_int = false;
+    ex_box->m_real = val;
+
+    woort_GCUnit_init_delay_alloc(O, ex_box);
+
+    return _woort_gcunit_to_boxed((woort_GCUnit*)ex_box);
+}
+
 WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str)
 {
     return (woort_Int)(0 == strcmp("true", str->m_content));
