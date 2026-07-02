@@ -37,6 +37,15 @@ extern "C" {
     WOORT_NODISCARD woort_GCMap* woort_JIT_make_map(
         woort_Value* sp, size_t count);
 
+    WOORT_NODISCARD woort_GCStruct* woort_JIT_make_struct(
+        woort_Value* sp, size_t count);
+
+    WOORT_NODISCARD woort_GCStruct* woort_JIT_make_union(
+        woort_Int idx, const woort_Value* src);
+
+    WOORT_NODISCARD woort_GCClosure* woort_JIT_make_closure(
+        const woort_GCClosure* tmpl, woort_Value* sp, size_t count);
+
     WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv);
     WOORT_NODISCARD size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv);
     WOORT_NODISCARD const woort_Value* woort_JIT_CodeEnv_static_data(const woort_CodeEnv* cenv);

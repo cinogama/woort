@@ -1981,28 +1981,88 @@ void woort_JIT_Backend_x64_MKMAP(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 void woort_JIT_Backend_x64_MKSTRUCT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)n;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp result = em->c->new_gp_ptr();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_make_struct)),
+        FuncSignature::build<woort_GCStruct*, woort_Value*, size_t>()));
+
+    invoke_node->set_arg(0, em->m_sp);
+    invoke_node->set_arg(1, Imm(static_cast<int64_t>(static_cast<uint32_t>(n))));
+    invoke_node->set_ret(0, result);
+
+    em->set_gp_by_stack(dst, result);
+
+    if (n != 0)
+    {
+        WOORT_JIT_CODE(add(
+            em->m_sp,
+            Imm(static_cast<int32_t>(static_cast<size_t>(n) * sizeof(woort_Value)))));
+    }
 }
 
 void woort_JIT_Backend_x64_MKUNION(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)idx;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Label L_after_sync_sv = em->c->new_label();
+    em->emit_sync_stack_value(L_after_sync_sv);
+    WOORT_JIT_CODE(bind(L_after_sync_sv));
+
+    const Gp src_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(src_ptr,
+        qword_ptr(em->m_sb, static_cast<int32_t>(src) * static_cast<int32_t>(sizeof(woort_Value)))));
+
+    const Gp result = em->c->new_gp_ptr();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_make_union)),
+        FuncSignature::build<woort_GCStruct*, woort_Int, const woort_Value*>()));
+
+    invoke_node->set_arg(0, Imm(static_cast<int64_t>(static_cast<uint32_t>(idx))));
+    invoke_node->set_arg(1, src_ptr);
+    invoke_node->set_ret(0, result);
+
+    em->set_gp_by_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_MKCLOSURE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)n;
-    (void)tmpl;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const woort_GCClosure* const tmpl_closure =
+        em->m_cenv_static_storage[tmpl].m_closure;
+
+    const Gp result = em->c->new_gp_ptr();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_make_closure)),
+        FuncSignature::build<woort_GCClosure*, const woort_GCClosure*, woort_Value*, size_t>()));
+
+    invoke_node->set_arg(0, Imm(reinterpret_cast<intptr_t>(tmpl_closure)));
+    invoke_node->set_arg(1, em->m_sp);
+    invoke_node->set_arg(2, Imm(static_cast<int64_t>(static_cast<uint32_t>(n))));
+    invoke_node->set_ret(0, result);
+
+    em->set_gp_by_stack(dst, result);
+
+    if (n != 0)
+    {
+        WOORT_JIT_CODE(add(
+            em->m_sp,
+            Imm(static_cast<int32_t>(static_cast<size_t>(n) * sizeof(woort_Value)))));
+    }
 }
 
 void woort_JIT_Backend_x64_BOXDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)

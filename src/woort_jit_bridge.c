@@ -5,6 +5,8 @@
 #include "woort_gc_string.h"
 #include "woort_gc_vec.h"
 #include "woort_gc_map.h"
+#include "woort_gc_struct.h"
+#include "woort_gc_closure.h"
 #include "woort_serialize.h"
 #include "woort_opcode_dispatcher.h"
 
@@ -57,6 +59,40 @@ WOORT_NODISCARD woort_GCMap* woort_JIT_make_map(
     }
 
     return gcmap;
+}
+
+WOORT_NODISCARD woort_GCStruct* woort_JIT_make_struct(
+    woort_Value* sp, size_t count)
+{
+    woort_GCStruct* const gcstruct = woort_GCStruct_new(count);
+
+    for (size_t i = 1; i <= count; ++i)
+        woort_GC_init_write_barrier_value(
+            &gcstruct->m_datas[count - i], sp[i]);
+
+    return gcstruct;
+}
+
+WOORT_NODISCARD woort_GCStruct* woort_JIT_make_union(
+    woort_Int idx, const woort_Value* src)
+{
+    woort_GCStruct* const gcstruct = woort_GCStruct_new(2);
+
+    gcstruct->m_datas[0].m_integer = idx;
+    woort_GC_init_write_barrier_value(&gcstruct->m_datas[1], *src);
+
+    return gcstruct;
+}
+
+WOORT_NODISCARD woort_GCClosure* woort_JIT_make_closure(
+    const woort_GCClosure* tmpl, woort_Value* sp, size_t count)
+{
+    woort_GCClosure* const gcclosure = woort_GCClosure_new(tmpl, count);
+
+    for (size_t i = 0; i < count; ++i)
+        gcclosure->m_datas[i] = sp[1 + i];
+
+    return gcclosure;
 }
 
 WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str)
