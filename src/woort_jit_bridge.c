@@ -4,6 +4,7 @@
 #include "woort_gc.h"
 #include "woort_gc_string.h"
 #include "woort_serialize.h"
+#include "woort_opcode_dispatcher.h"
 
 #include <string.h>
 
@@ -64,4 +65,9 @@ WOORT_NODISCARD size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cen
 WOORT_NODISCARD const woort_Value* woort_JIT_CodeEnv_static_data(const woort_CodeEnv* cenv)
 {
     return cenv->m_data_begin;
+}
+
+WOORT_NODISCARD const woort_Bytecode* woort_JIT_next_bytecode(const woort_Bytecode* bc)
+{
+    return woort_OpcodeDispatcher_decode(bc, NULL, NULL);
 }

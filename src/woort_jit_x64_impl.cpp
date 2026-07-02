@@ -1471,7 +1471,7 @@ void woort_JIT_Backend_x64_CALLNFP(void* emmiter, woort_Opcode_Global func)
         const Label L_done = em->c->new_label();
         WOORT_JIT_CODE(cmp(status, static_cast<int32_t>(WOORT_VM_CALL_STATUS_RESYNC)));
         WOORT_JIT_CODE(jne(L_done));
-        em->emit_checkpoint(*em->m_ip + 1);
+        em->emit_checkpoint(woort_JIT_next_bytecode(*em->m_ip));
         WOORT_JIT_CODE(bind(L_done));
     }
 }
