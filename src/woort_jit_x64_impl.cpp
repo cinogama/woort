@@ -740,26 +740,50 @@ void woort_JIT_Backend_x64_STORE(void* emmiter, woort_Opcode_Global dst, woort_O
 
 void woort_JIT_Backend_x64_LOADPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp ptr = em->get_gp_from_stack(src);
+    em->set_gp_by_stack(dst, qword_ptr(ptr));
 }
 
 void woort_JIT_Backend_x64_STOREPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp dst_ptr = em->get_gp_from_stack(dst);
+    const Gp val = em->get_gp_from_stack(src);
+
+    const Label L_fast = em->c->new_label();
+    const Label L_end  = em->c->new_label();
+
+    const Gp flag_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
+    WOORT_JIT_CODE(cmp(byte_ptr(flag_ptr), 0));
+    WOORT_JIT_CODE(je(L_fast));
+    {
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_JIT_GC_mixed_write_barrier_value)),
+            FuncSignature::build<void, woort_Value*, uint64_t>()));
+
+        invoke_node->set_arg(0, dst_ptr);
+        invoke_node->set_arg(1, val);
+    }
+    WOORT_JIT_CODE(jmp(L_end));
+
+    WOORT_JIT_CODE(bind(L_fast));
+    WOORT_JIT_CODE(mov(qword_ptr(dst_ptr), val));
+
+    WOORT_JIT_CODE(bind(L_end));
 }
 
 void woort_JIT_Backend_x64_MOV(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_src = em->get_gp_from_stack(src);
+    em->set_gp_by_stack(dst, reg_src);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -847,44 +871,123 @@ void woort_JIT_Backend_x64_PUSHCCHK(void* emmiter, woort_Opcode_Global src)
 
 void woort_JIT_Backend_x64_ASSURESSZ(void* emmiter, woort_Opcode_Count n)
 {
-    (void)emmiter;
-    (void)n;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Label L_retry = em->c->new_label();
+    WOORT_JIT_CODE(bind(L_retry));
+
+    const Gp new_sp = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(new_sp, em->m_sp));
+    WOORT_JIT_CODE(sub(new_sp, Imm(static_cast<int32_t>(static_cast<size_t>(n) * sizeof(woort_Value)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(new_sp, em->m_stack));
+    WOORT_JIT_CODE(jae(L_ok));
+
+    em->emit_extern_stack(*em->m_ip, L_retry);
+
+    WOORT_JIT_CODE(bind(L_ok));
 }
 
 void woort_JIT_Backend_x64_PUSHS(void* emmiter, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp val = em->get_gp_from_stack(src);
+
+    WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), val));
+    WOORT_JIT_CODE(sub(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
 }
 
 void woort_JIT_Backend_x64_PUSHC(void* emmiter, woort_Opcode_Global src)
 {
-    (void)emmiter;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
+    const bool is_constant = (src < em->m_cenv_constant_count);
+
+    if (is_constant &&
+        src_addr->m_integer >= INT32_MIN &&
+        src_addr->m_integer <= INT32_MAX)
+    {
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), Imm(static_cast<int32_t>(src_addr->m_integer))));
+    }
+    else
+    {
+        const Gp val = em->c->new_gp64();
+        if (is_constant)
+            WOORT_JIT_CODE(mov(val, Imm(src_addr->m_integer)));
+        else
+            WOORT_JIT_CODE(mov(val, qword_ptr(reinterpret_cast<uintptr_t>(src_addr))));
+        WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), val));
+    }
+
+    WOORT_JIT_CODE(sub(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
 }
 
 void woort_JIT_Backend_x64_POPR(void* emmiter, woort_Opcode_Count n)
 {
-    (void)emmiter;
-    (void)n;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    if (n != 0)
+    {
+        WOORT_JIT_CODE(add(
+            em->m_sp,
+            Imm(static_cast<int32_t>(static_cast<size_t>(n) * sizeof(woort_Value)))));
+    }
 }
 
 void woort_JIT_Backend_x64_POPS(void* emmiter, woort_Opcode_Stack dst)
 {
-    (void)emmiter;
-    (void)dst;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    WOORT_JIT_CODE(add(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
+
+    em->set_gp_by_stack(dst, qword_ptr(em->m_sp));
 }
 
 void woort_JIT_Backend_x64_POPC(void* emmiter, woort_Opcode_Global dst)
 {
-    (void)emmiter;
-    (void)dst;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    WOORT_JIT_CODE(add(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
+
+    woort_Value* const dst_addr =
+        const_cast<woort_Value*>(&em->m_cenv_static_storage[dst]);
+
+    const Gp val = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(val, qword_ptr(em->m_sp)));
+
+    const Gp dst_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(dst_ptr, reinterpret_cast<uintptr_t>(dst_addr)));
+
+    const Label L_fast = em->c->new_label();
+    const Label L_end  = em->c->new_label();
+
+    const Gp flag_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
+    WOORT_JIT_CODE(cmp(byte_ptr(flag_ptr), 0));
+    WOORT_JIT_CODE(je(L_fast));
+    {
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_JIT_GC_mixed_write_barrier_value)),
+            FuncSignature::build<void, woort_Value*, uint64_t>()));
+
+        invoke_node->set_arg(0, dst_ptr);
+        invoke_node->set_arg(1, val);
+    }
+    WOORT_JIT_CODE(jmp(L_end));
+
+    WOORT_JIT_CODE(bind(L_fast));
+    WOORT_JIT_CODE(mov(qword_ptr(dst_ptr), val));
+
+    WOORT_JIT_CODE(bind(L_end));
 }
 
 /* -------------------------------------------------------------------------- */
