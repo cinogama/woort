@@ -41,7 +41,7 @@ extern "C" {
         woort_Value* sp, size_t count);
 
     WOORT_NODISCARD woort_GCStruct* woort_JIT_make_union(
-        woort_Int idx, const woort_Value* src);
+        woort_Int idx, woort_Value src);
 
     WOORT_NODISCARD woort_GCClosure* woort_JIT_make_closure(
         const woort_GCClosure* tmpl, woort_Value* sp, size_t count);

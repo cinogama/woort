@@ -74,12 +74,12 @@ WOORT_NODISCARD woort_GCStruct* woort_JIT_make_struct(
 }
 
 WOORT_NODISCARD woort_GCStruct* woort_JIT_make_union(
-    woort_Int idx, const woort_Value* src)
+    woort_Int idx, woort_Value src)
 {
     woort_GCStruct* const gcstruct = woort_GCStruct_new(2);
 
     gcstruct->m_datas[0].m_integer = idx;
-    woort_GC_init_write_barrier_value(&gcstruct->m_datas[1], *src);
+    woort_GC_init_write_barrier_value(&gcstruct->m_datas[1], src);
 
     return gcstruct;
 }

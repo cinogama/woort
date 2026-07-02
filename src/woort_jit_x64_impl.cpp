@@ -2012,23 +2012,17 @@ void woort_JIT_Backend_x64_MKUNION(void* emmiter, woort_Opcode_Stack dst, woort_
 
     static_assert(sizeof(woort_Value) == 8, "");
 
-    const Label L_after_sync_sv = em->c->new_label();
-    em->emit_sync_stack_value(L_after_sync_sv);
-    WOORT_JIT_CODE(bind(L_after_sync_sv));
-
-    const Gp src_ptr = em->c->new_gp_ptr();
-    WOORT_JIT_CODE(lea(src_ptr,
-        qword_ptr(em->m_sb, static_cast<int32_t>(src) * static_cast<int32_t>(sizeof(woort_Value)))));
+    const Gp src_val = em->get_gp_from_stack(src);
 
     const Gp result = em->c->new_gp_ptr();
     InvokeNode* invoke_node;
     WOORT_JIT_CODE(invoke(
         Out(invoke_node),
         Imm(reinterpret_cast<intptr_t>(woort_JIT_make_union)),
-        FuncSignature::build<woort_GCStruct*, woort_Int, const woort_Value*>()));
+        FuncSignature::build<woort_GCStruct*, woort_Int, uint64_t>()));
 
     invoke_node->set_arg(0, Imm(static_cast<int64_t>(static_cast<uint32_t>(idx))));
-    invoke_node->set_arg(1, src_ptr);
+    invoke_node->set_arg(1, src_val);
     invoke_node->set_ret(0, result);
 
     em->set_gp_by_stack(dst, result);
