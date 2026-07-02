@@ -35,6 +35,9 @@ extern "C" {
     WOORT_NODISCARD size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv);
     WOORT_NODISCARD const woort_Value* woort_JIT_CodeEnv_static_data(const woort_CodeEnv* cenv);
 
+    WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int value);
+    WOORT_NODISCARD const woort_GCString* woort_GCString_from_real(woort_Real value);
+
     WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMRuntime* vm);
     WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_stack_overflow_handler(woort_VMRuntime* vm);
 

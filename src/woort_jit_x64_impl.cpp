@@ -1043,34 +1043,70 @@ void woort_JIT_Backend_x64_POPC(void* emmiter, woort_Opcode_Global dst)
 
 void woort_JIT_Backend_x64_ITOR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(cvtsi2sd(xmm, reg_src));
+    WOORT_JIT_CODE(movq(result, xmm));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_ITOS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp int_val = em->get_gp_from_stack(src);
+
+    const Gp result = em->c->new_gp_ptr();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_from_integer)),
+        FuncSignature::build<const woort_GCString*, woort_Int>()));
+
+    invoke_node->set_arg(0, int_val);
+    invoke_node->set_ret(0, result);
+
+    em->set_gp_by_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_RTOI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm, reg_src));
+    WOORT_JIT_CODE(cvttsd2si(result, xmm));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_RTOS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Vec xmm = em->c->new_xmm_sd();
+    WOORT_JIT_CODE(movq(xmm, reg_src));
+
+    const Gp result = em->c->new_gp_ptr();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_from_real)),
+        FuncSignature::build<const woort_GCString*, woort_Real>()));
+
+    invoke_node->set_arg(0, xmm);
+    invoke_node->set_ret(0, result);
+
+    em->set_gp_by_stack(dst, result);
 }
 
 /* -------------------------------------------------------------------------- */
