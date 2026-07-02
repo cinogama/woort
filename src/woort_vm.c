@@ -1932,19 +1932,27 @@ _label_continue_execution:
         // EQS
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPSREN, 1):
         {
+            woort_GCString* const a =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string;
+            woort_GCString* const b =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string;
+
             rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
-                woort_GCString_compare(
-                    rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string,
-                    rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string) == 0;
+                a == b || woort_GCString_compare(a, b) == 0;
+
             break;
         }
         // NES
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPSREN, 2):
         {
+            woort_GCString* const a =
+                rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string;
+            woort_GCString* const b =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string;
+
             rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
-                woort_GCString_compare(
-                    rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string,
-                    rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string) != 0;
+                a != b || woort_GCString_compare(a, b) != 0;
+
             break;
         }
 
@@ -3883,8 +3891,8 @@ _label_continue_execution:
                 {
                     if (_woort_VMRuntime_shrink_stack(vm))
                         vm->m_shrink_stack_edge =
-                            _woort_shrink_edge_for_capacity(
-                                vm->m_stack_end - vm->m_stack);
+                        _woort_shrink_edge_for_capacity(
+                            vm->m_stack_end - vm->m_stack);
                 }
             }
             else if (request_mask
@@ -4027,8 +4035,8 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
             {
                 if (_woort_VMRuntime_shrink_stack(vm))
                     vm->m_shrink_stack_edge =
-                        _woort_shrink_edge_for_capacity(
-                            vm->m_stack_end - vm->m_stack);
+                    _woort_shrink_edge_for_capacity(
+                        vm->m_stack_end - vm->m_stack);
             }
         }
         else if (request_mask

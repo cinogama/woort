@@ -38,6 +38,10 @@ extern "C" {
     WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int value);
     WOORT_NODISCARD const woort_GCString* woort_GCString_from_real(woort_Real value);
 
+    WOORT_NODISCARD woort_Int woort_GCString_to_integer(const woort_GCString* str);
+    WOORT_NODISCARD woort_Real woort_GCString_to_real(const woort_GCString* str);
+    WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str);
+
     WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMRuntime* vm);
     WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_stack_overflow_handler(woort_VMRuntime* vm);
 

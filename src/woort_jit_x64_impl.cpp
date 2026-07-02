@@ -1113,11 +1113,78 @@ void woort_JIT_Backend_x64_RTOS(void* emmiter, woort_Opcode_Stack dst, woort_Opc
 
 void woort_JIT_Backend_x64_CASTSTO(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)target;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    switch (target)
+    {
+    case WOORT_BOX_VALUE_TYPE_STRING:
+        {
+            const Gp reg_src = em->get_gp_from_stack(src);
+            em->set_gp_by_stack(dst, reg_src);
+        }
+        break;
+
+    case WOORT_BOX_VALUE_TYPE_INT:
+        {
+            const Gp str_ptr = em->get_gp_from_stack(src);
+
+            const Gp result = em->c->new_gp64();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_GCString_to_integer)),
+                FuncSignature::build<woort_Int, const woort_GCString*>()));
+
+            invoke_node->set_arg(0, str_ptr);
+            invoke_node->set_ret(0, result);
+
+            em->set_gp_by_stack(dst, result);
+        }
+        break;
+
+    case WOORT_BOX_VALUE_TYPE_REAL:
+        {
+            const Gp str_ptr = em->get_gp_from_stack(src);
+
+            const Vec xmm = em->c->new_xmm_sd();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_GCString_to_real)),
+                FuncSignature::build<woort_Real, const woort_GCString*>()));
+
+            invoke_node->set_arg(0, str_ptr);
+            invoke_node->set_ret(0, xmm);
+
+            const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+            WOORT_JIT_CODE(movq(result, xmm));
+            em->apply_gp_to_stack(dst);
+        }
+        break;
+
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+        {
+            const Gp str_ptr = em->get_gp_from_stack(src);
+
+            const Gp result = em->c->new_gp64();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_JIT_GCString_to_bool)),
+                FuncSignature::build<woort_Int, const woort_GCString*>()));
+
+            invoke_node->set_arg(0, str_ptr);
+            invoke_node->set_ret(0, result);
+
+            em->set_gp_by_stack(dst, result);
+        }
+        break;
+
+    default:
+        assert(false && "unsupported CASTSTO target type");
+        abort();
+        break;
+    }
 }
 
 void woort_JIT_Backend_x64_CASTSFROM(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType srctype, woort_Opcode_Stack src)

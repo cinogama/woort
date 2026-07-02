@@ -2,6 +2,9 @@
 
 #include "woort_vm.h"
 #include "woort_gc.h"
+#include "woort_gc_string.h"
+
+#include <string.h>
 
 const int32_t WOORT_VM_OFFSETOF_JIT_CALL_DEPTH = (int32_t)offsetof(woort_VMRuntime, m_jit_call_depth);
 const int32_t WOORT_VM_OFFSETOF_IP = (int32_t)offsetof(woort_VMRuntime, m_ip);
@@ -19,6 +22,11 @@ void woort_JIT_GC_mixed_write_barrier_value(
     woort_Value* modified_value, woort_Value src_value)
 {
     woort_GC_mixed_write_barrier_value(modified_value, src_value);
+}
+
+WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str)
+{
+    return (woort_Int)(0 == strcmp("true", str->m_content));
 }
 
 WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv)
