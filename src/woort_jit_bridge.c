@@ -27,17 +27,18 @@ void woort_JIT_GC_mixed_write_barrier_value(
     woort_GC_mixed_write_barrier_value(modified_value, src_value);
 }
 
-void woort_JIT_make_vec(
-    woort_VMRuntime* vm, int32_t dst_sb_off, size_t count)
+WOORT_NODISCARD woort_GCVec* woort_JIT_make_vec(
+    woort_Value* sp, size_t count)
 {
     woort_GCVec* const gcvec = woort_GCVec_new();
-    vm->m_sb[dst_sb_off].m_vec = gcvec;
 
     _woort_GCVec_extern(gcvec, count);
 
     for (size_t i = 1; i <= count; ++i)
         woort_GC_init_write_barrier_dynbox(
-            &gcvec->m_datas[count - i], vm->m_sp[i].m_dynamic);
+            &gcvec->m_datas[count - i], sp[i].m_dynamic);
+
+    return gcvec;
 }
 
 WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str)

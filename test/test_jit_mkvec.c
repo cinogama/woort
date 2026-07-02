@@ -2,29 +2,27 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 static int run_mkvec_case(uint32_t count)
 {
+    int failures = 0;
+
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
-    woort_IRFunction* f_main;
-
     woort_IRConstantIndex c_main = woort_IRCompiler_add_constant(irc);
-    woort_IRConstantIndex c_seed = woort_IRCompiler_add_constant(irc);
 
-    woort_IRValue** cvals = (woort_IRValue**)woort_IRCompiler_alloc(irc, sizeof(woort_IRValue*) * (count ? count : 1));
-
+    woort_IRConstantIndex* c_elems =
+        (woort_IRConstantIndex*)malloc(sizeof(woort_IRConstantIndex) * (count ? count : 1));
     for (uint32_t i = 0; i < count; ++i)
-    {
-        woort_IRConstantIndex ci = woort_IRCompiler_add_constant(irc);
-        cvals[i] = woort_IRFunction_fetch_const(f_main_dummy(), ci);
-    }
+        c_elems[i] = woort_IRCompiler_add_constant(irc);
 
+    woort_IRFunction* f_main;
     (void)woort_IRCompiler_add_function(irc, 0, 0, &f_main);
     {
         for (uint32_t i = 0; i < count; ++i)
         {
-            (void)woort_IR_PUSHCHK(f_main, cvals[i]);
+            (void)woort_IR_PUSHCHK(f_main, woort_IRFunction_fetch_const(f_main, c_elems[i]));
         }
 
         woort_IRValue* v = woort_IRFunction_new_vreg(f_main);
@@ -41,9 +39,7 @@ static int run_mkvec_case(uint32_t count)
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_script_closure(cenv, c_main, main_addr);
     for (uint32_t i = 0; i < count; ++i)
-    {
-        woort_CodeEnv_set_const_int(cenv, woort_IRFunction_const_index_of(f_main, cvals[i]), (woort_Int)(1000 + i));
-    }
+        woort_CodeEnv_set_const_int(cenv, c_elems[i], (woort_Int)(1000 + i));
     woort_CodeEnv_unlock(cenv);
 
     woort_codeenv_jit_compile_(cenv);
@@ -56,26 +52,40 @@ static int run_mkvec_case(uint32_t count)
     (void)woort_push_reserve(2, &sv);
     woort_load_const(sv, cenv, c_main);
     const woort_VmCallStatus st = woort_invoke(sv + 1, sv);
-    const int ok = (st == WOORT_VM_CALL_STATUS_NORMAL);
     printf("mkvec count=%u: status=%d\n", (unsigned)count, (int)st);
+    if (st != WOORT_VM_CALL_STATUS_NORMAL)
+    {
+        printf("FAIL: status not NORMAL\n");
+        ++failures;
+    }
 
-    if (ok)
+    if (failures == 0)
     {
         const size_t len = woort_vec_len(sv + 1);
-        printf("  vec_len=%llu\n", (unsigned long long)len);
-        if (len != count) { printf("FAIL: expected len %u got %llu\n", (unsigned)count, (unsigned long long)len); ok = 0; }
+        if (len != count)
+        {
+            printf("FAIL: expected len %u got %llu\n", (unsigned)count, (unsigned long long)len);
+            ++failures;
+        }
 
-        for (uint32_t i = 0; i < count && ok; ++i)
+        for (uint32_t i = 0; i < count && failures == 0; ++i)
         {
             woort_StackValue elem;
             (void)woort_push_reserve(1, &elem);
             const bool got = woort_vec_get(elem, sv + 1, i);
-            if (!got) { printf("FAIL: vec_get(%u) out of range\n", (unsigned)i); ok = 0; }
+            if (!got)
+            {
+                printf("FAIL: vec_get(%u) out of range\n", (unsigned)i);
+                ++failures;
+            }
             else
             {
                 const woort_Int val = woort_int(elem);
-                printf("  vec[%u]=%lld\n", (unsigned)i, (long long)val);
-                if (val != (woort_Int)(1000 + i)) { printf("FAIL: vec[%u] expected %d got %lld\n", (unsigned)i, 1000 + (int)i, (long long)val); ok = 0; }
+                if (val != (woort_Int)(1000 + i))
+                {
+                    printf("FAIL: vec[%u] expected %d got %lld\n", (unsigned)i, 1000 + (int)i, (long long)val);
+                    ++failures;
+                }
             }
             woort_pop(1);
         }
@@ -88,7 +98,8 @@ static int run_mkvec_case(uint32_t count)
     woort_VMRuntime_destroy(vm);
     woort_IRCompiler_close(irc);
 
-    return ok ? 0 : 1;
+    free(c_elems);
+    return failures;
 }
 
 int main(int argc, char** argv)

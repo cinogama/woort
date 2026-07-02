@@ -1931,29 +1931,18 @@ void woort_JIT_Backend_x64_MKVEC(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
     static_assert(sizeof(woort_Value) == 8, "");
 
-    em->emit_sync_rt_ip_status(*em->m_ip);
+    const Gp result = em->c->new_gp_ptr();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_make_vec)),
+        FuncSignature::build<woort_GCVec*, woort_Value*, size_t>()));
 
-    const Label L_after_sync_st = em->c->new_label();
-    em->emit_sync_runtime_status(L_after_sync_st);
-    WOORT_JIT_CODE(bind(L_after_sync_st));
+    invoke_node->set_arg(0, em->m_sp);
+    invoke_node->set_arg(1, Imm(static_cast<int64_t>(static_cast<uint32_t>(n))));
+    invoke_node->set_ret(0, result);
 
-    const Label L_after_sync_sv = em->c->new_label();
-    em->emit_sync_stack_value(L_after_sync_sv);
-    WOORT_JIT_CODE(bind(L_after_sync_sv));
-
-    {
-        InvokeNode* invoke_node;
-        WOORT_JIT_CODE(invoke(
-            Out(invoke_node),
-            Imm(reinterpret_cast<intptr_t>(woort_JIT_make_vec)),
-            FuncSignature::build<void, woort_VMRuntime*, int32_t, size_t>()));
-
-        invoke_node->set_arg(0, em->m_vm);
-        invoke_node->set_arg(1, Imm(static_cast<int32_t>(dst)));
-        invoke_node->set_arg(2, Imm(static_cast<int64_t>(static_cast<uint32_t>(n))));
-
-        em->resync_vm_stack_state_fully();
-    }
+    em->set_gp_by_stack(dst, result);
 
     if (n != 0)
     {
