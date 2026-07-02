@@ -266,6 +266,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
             WOORT_JIT_CODE(jmp(em->m_checkpoint_slow));
         }
+
+        WOORT_JIT_CODE(bind(L_continue));
     }
     void emit_extern_stack(const woort_Bytecode* ip, Label L_resume)
     {
@@ -1615,9 +1617,13 @@ void woort_JIT_Backend_x64_RETVC(void* emmiter, woort_Opcode_Global src)
 
 void woort_JIT_Backend_x64_POPRS(void* emmiter, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp count = em->get_gp_from_stack(src);
+
+    WOORT_JIT_CODE(lea(em->m_sp, ptr(em->m_sp, count, 3)));
 }
 
 void woort_JIT_Backend_x64_RESULT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
@@ -1639,16 +1645,22 @@ void woort_JIT_Backend_x64_RESULT(void* emmiter, woort_Opcode_Stack dst, woort_O
 
 void woort_JIT_Backend_x64_JFWD(void* emmiter, woort_Opcode_CodeAbs target)
 {
-    (void)emmiter;
-    (void)target;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Label lbl = em->get_label(em->m_cenv_codes + target);
+
+    WOORT_JIT_CODE(jmp(lbl));
 }
 
 void woort_JIT_Backend_x64_JBCK(void* emmiter, woort_Opcode_CodeAbs target)
 {
-    (void)emmiter;
-    (void)target;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Label lbl = em->get_label(em->m_cenv_codes + target);
+
+    em->emit_checkpoint(em->m_cenv_codes + target);
+
+    WOORT_JIT_CODE(jmp(lbl));
 }
 
 void woort_JIT_Backend_x64_JFWDNZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
