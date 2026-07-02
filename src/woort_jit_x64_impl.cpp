@@ -1966,7 +1966,7 @@ void woort_JIT_Backend_x64_MKMAP(void* emmiter, woort_Opcode_Stack dst, woort_Op
         FuncSignature::build<woort_GCMap*, woort_Value*, size_t>()));
 
     invoke_node->set_arg(0, em->m_sp);
-    invoke_node->set_arg(1, Imm(static_cast<size_t>(static_cast<uint32_t>(n))));
+    invoke_node->set_arg(1, Imm(static_cast<size_t>(n)));
     invoke_node->set_ret(0, result);
 
     em->set_gp_by_stack(dst, result);
@@ -1993,7 +1993,7 @@ void woort_JIT_Backend_x64_MKSTRUCT(void* emmiter, woort_Opcode_Stack dst, woort
         FuncSignature::build<woort_GCStruct*, woort_Value*, size_t>()));
 
     invoke_node->set_arg(0, em->m_sp);
-    invoke_node->set_arg(1, Imm(static_cast<int64_t>(static_cast<uint32_t>(n))));
+    invoke_node->set_arg(1, Imm(static_cast<size_t>(n)));
     invoke_node->set_ret(0, result);
 
     em->set_gp_by_stack(dst, result);
@@ -2021,7 +2021,7 @@ void woort_JIT_Backend_x64_MKUNION(void* emmiter, woort_Opcode_Stack dst, woort_
         Imm(reinterpret_cast<intptr_t>(woort_JIT_make_union)),
         FuncSignature::build<woort_GCStruct*, woort_Int, uint64_t>()));
 
-    invoke_node->set_arg(0, Imm(static_cast<int64_t>(static_cast<uint32_t>(idx))));
+    invoke_node->set_arg(0, Imm(static_cast<woort_Int>(idx)));
     invoke_node->set_arg(1, src_val);
     invoke_node->set_ret(0, result);
 
@@ -2046,7 +2046,7 @@ void woort_JIT_Backend_x64_MKCLOSURE(void* emmiter, woort_Opcode_Stack dst, woor
 
     invoke_node->set_arg(0, Imm(reinterpret_cast<intptr_t>(tmpl_closure)));
     invoke_node->set_arg(1, em->m_sp);
-    invoke_node->set_arg(2, Imm(static_cast<int64_t>(static_cast<uint32_t>(n))));
+    invoke_node->set_arg(2, Imm(static_cast<size_t>(n)));
     invoke_node->set_ret(0, result);
 
     em->set_gp_by_stack(dst, result);
