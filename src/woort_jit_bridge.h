@@ -28,12 +28,14 @@ extern "C" {
     extern const int32_t WOORT_VM_OFFSETOF_STACK_END;
     extern const int32_t WOORT_VM_OFFSETOF_CHECK_REQUEST_MASK;
 
+    void woort_JIT_GC_mixed_write_barrier_value(
+        woort_Value* modified_value, woort_Value src_value);
+
     WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv);
     WOORT_NODISCARD size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv);
     WOORT_NODISCARD const woort_Value* woort_JIT_CodeEnv_static_data(const woort_CodeEnv* cenv);
 
     WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMRuntime* vm);
-
     WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_stack_overflow_handler(woort_VMRuntime* vm);
 
 #ifdef __cplusplus

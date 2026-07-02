@@ -1,6 +1,7 @@
 #include "woort_jit_bridge.h"
 
 #include "woort_vm.h"
+#include "woort_gc.h"
 
 const int32_t WOORT_VM_OFFSETOF_JIT_CALL_DEPTH = (int32_t)offsetof(woort_VMRuntime, m_jit_call_depth);
 const int32_t WOORT_VM_OFFSETOF_IP = (int32_t)offsetof(woort_VMRuntime, m_ip);
@@ -10,6 +11,15 @@ const int32_t WOORT_VM_OFFSETOF_ENV = (int32_t)offsetof(woort_VMRuntime, m_env);
 const int32_t WOORT_VM_OFFSETOF_STACK = (int32_t)offsetof(woort_VMRuntime, m_stack);
 const int32_t WOORT_VM_OFFSETOF_STACK_END = (int32_t)offsetof(woort_VMRuntime, m_stack_end);
 const int32_t WOORT_VM_OFFSETOF_CHECK_REQUEST_MASK = (int32_t)offsetof(woort_VMRuntime, m_check_request_mask);
+
+const void* const WOORT_JIT_GC_MARKING_STATE_FLAG_ADDR =
+    (const void*)&woomem_gc_marking_state_flag;
+
+void woort_JIT_GC_mixed_write_barrier_value(
+    woort_Value* modified_value, woort_Value src_value)
+{
+    woort_GC_mixed_write_barrier_value(modified_value, src_value);
+}
 
 WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv)
 {

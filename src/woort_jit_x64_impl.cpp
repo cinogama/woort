@@ -2,6 +2,8 @@
 #include "woort_jit_bridge.h"
 #include "woort_value_types.h"
 
+#include "woomem.h"
+
 #include "asmjit/x86.h"
 
 #include <new>
@@ -711,14 +713,29 @@ void woort_JIT_Backend_x64_STORE(void* emmiter, woort_Opcode_Global dst, woort_O
     const Gp dst_ptr = em->c->new_gp_ptr();
     WOORT_JIT_CODE(mov(dst_ptr, reinterpret_cast<uintptr_t>(dst_addr)));
 
-    InvokeNode* invoke_node;
-    WOORT_JIT_CODE(invoke(
-        Out(invoke_node),
-        Imm(reinterpret_cast<intptr_t>(woort_GC_mixed_write_barrier_value)),
-        FuncSignature::build<void, woort_Value*, uint64_t>()));
+    const Label L_fast = em->c->new_label();
+    const Label L_end  = em->c->new_label();
 
-    invoke_node->set_arg(0, dst_ptr);
-    invoke_node->set_arg(1, val);
+    const Gp flag_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
+    WOORT_JIT_CODE(cmp(byte_ptr(flag_ptr), 0));
+    WOORT_JIT_CODE(je(L_fast));
+    {
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_JIT_GC_mixed_write_barrier_value)),
+            FuncSignature::build<void, woort_Value*, uint64_t>()));
+
+        invoke_node->set_arg(0, dst_ptr);
+        invoke_node->set_arg(1, val);
+    }
+    WOORT_JIT_CODE(jmp(L_end));
+
+    WOORT_JIT_CODE(bind(L_fast));
+    WOORT_JIT_CODE(mov(qword_ptr(dst_ptr), val));
+
+    WOORT_JIT_CODE(bind(L_end));
 }
 
 void woort_JIT_Backend_x64_LOADPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
