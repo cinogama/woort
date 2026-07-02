@@ -1198,7 +1198,6 @@ void woort_JIT_Backend_x64_CASTSTO(void* emmiter, woort_Opcode_Stack dst, woort_
     break;
 
     default:
-        assert(false && "unsupported CASTSTO target type");
         abort();
         break;
     }
@@ -1206,11 +1205,171 @@ void woort_JIT_Backend_x64_CASTSTO(void* emmiter, woort_Opcode_Stack dst, woort_
 
 void woort_JIT_Backend_x64_CASTSFROM(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType srctype, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)srctype;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    switch (srctype)
+    {
+    case WOORT_BOX_VALUE_TYPE_STRING:
+    {
+        const Gp reg_src = em->get_gp_from_stack(src);
+        em->set_gp_by_stack(dst, reg_src);
+    }
+    break;
+
+    case WOORT_BOX_VALUE_TYPE_INT:
+    {
+        const Gp int_val = em->get_gp_from_stack(src);
+
+        const Gp result = em->c->new_gp_ptr();
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_GCString_from_integer)),
+            FuncSignature::build<const woort_GCString*, woort_Int>()));
+
+        invoke_node->set_arg(0, int_val);
+        invoke_node->set_ret(0, result);
+
+        em->set_gp_by_stack(dst, result);
+    }
+    break;
+
+    case WOORT_BOX_VALUE_TYPE_REAL:
+    {
+        const Gp reg_src = em->get_gp_from_stack(src);
+        const Vec xmm = em->c->new_xmm_sd();
+        WOORT_JIT_CODE(movq(xmm, reg_src));
+
+        const Gp result = em->c->new_gp_ptr();
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_GCString_from_real)),
+            FuncSignature::build<const woort_GCString*, woort_Real>()));
+
+        invoke_node->set_arg(0, xmm);
+        invoke_node->set_ret(0, result);
+
+        em->set_gp_by_stack(dst, result);
+    }
+    break;
+
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+    {
+        const Gp bool_val = em->get_gp_from_stack(src);
+
+        const Gp result = em->c->new_gp_ptr();
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_JIT_GCString_from_bool)),
+            FuncSignature::build<const woort_GCString*, woort_Int>()));
+
+        invoke_node->set_arg(0, bool_val);
+        invoke_node->set_ret(0, result);
+
+        em->set_gp_by_stack(dst, result);
+    }
+    break;
+
+    case WOORT_BOX_VALUE_TYPE_NIL:
+    case WOORT_BOX_VALUE_TYPE_STRUCT:
+    case WOORT_BOX_VALUE_TYPE_GCHANDLE:
+    case WOORT_BOX_VALUE_TYPE_CLOSURE:
+    {
+        const char* lit;
+        size_t len;
+        switch (srctype)
+        {
+        case WOORT_BOX_VALUE_TYPE_NIL:       lit = "nil";        len = 3;  break;
+        case WOORT_BOX_VALUE_TYPE_STRUCT:    lit = "<struct>";   len = 8;  break;
+        case WOORT_BOX_VALUE_TYPE_GCHANDLE:  lit = "<gchandle>"; len = 10; break;
+        default:                             lit = "<function>"; len = 10; break;
+        }
+
+        const Gp result = em->c->new_gp_ptr();
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_GCString_make_string)),
+            FuncSignature::build<const woort_GCString*, const char*, size_t>()));
+
+        invoke_node->set_arg(0, Imm(reinterpret_cast<intptr_t>(lit)));
+        invoke_node->set_arg(1, Imm(static_cast<intptr_t>(len)));
+        invoke_node->set_ret(0, result);
+
+        em->set_gp_by_stack(dst, result);
+    }
+    break;
+
+    case WOORT_BOX_VALUE_TYPE_VEC:
+    {
+        const Gp obj_ptr = em->get_gp_from_stack(src);
+
+        const Gp dst_addr = em->c->new_gp_ptr();
+        const int32_t dst_offset =
+            static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value));
+        WOORT_JIT_CODE(lea(dst_addr, ptr(em->m_sb, dst_offset)));
+
+        const Gp ok = em->c->new_gp64();
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_JIT_serialize_vec)),
+            FuncSignature::build<woort_Int, woort_Value*, woort_GCVec*>()));
+
+        invoke_node->set_arg(0, dst_addr);
+        invoke_node->set_arg(1, obj_ptr);
+        invoke_node->set_ret(0, ok);
+
+        const Label L_ok = em->c->new_label();
+        WOORT_JIT_CODE(test(ok, ok));
+        WOORT_JIT_CODE(jnz(L_ok));
+
+        em->emit_failed_fallback(*em->m_ip);
+
+        WOORT_JIT_CODE(bind(L_ok));
+
+        em->m_stack_gp.erase(dst);
+    }
+    break;
+
+    case WOORT_BOX_VALUE_TYPE_MAP:
+    {
+        const Gp obj_ptr = em->get_gp_from_stack(src);
+
+        const Gp dst_addr = em->c->new_gp_ptr();
+        const int32_t dst_offset =
+            static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value));
+        WOORT_JIT_CODE(lea(dst_addr, ptr(em->m_sb, dst_offset)));
+
+        const Gp ok = em->c->new_gp64();
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_JIT_serialize_map)),
+            FuncSignature::build<woort_Int, woort_Value*, woort_GCMap*>()));
+
+        invoke_node->set_arg(0, dst_addr);
+        invoke_node->set_arg(1, obj_ptr);
+        invoke_node->set_ret(0, ok);
+
+        const Label L_ok = em->c->new_label();
+        WOORT_JIT_CODE(test(ok, ok));
+        WOORT_JIT_CODE(jnz(L_ok));
+
+        em->emit_failed_fallback(*em->m_ip);
+
+        WOORT_JIT_CODE(bind(L_ok));
+
+        em->m_stack_gp.erase(dst);
+    }
+    break;
+
+    default:
+        abort();
+        break;
+    }
 }
 
 void woort_JIT_Backend_x64_CASTDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src)

@@ -3,6 +3,7 @@
 #include "woort_vm.h"
 #include "woort_gc.h"
 #include "woort_gc_string.h"
+#include "woort_serialize.h"
 
 #include <string.h>
 
@@ -27,6 +28,27 @@ void woort_JIT_GC_mixed_write_barrier_value(
 WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str)
 {
     return (woort_Int)(0 == strcmp("true", str->m_content));
+}
+
+WOORT_NODISCARD const woort_GCString* woort_JIT_GCString_from_bool(woort_Int value)
+{
+    return value
+        ? woort_GCString_make_string("true", 4)
+        : woort_GCString_make_string("false", 5);
+}
+
+WOORT_NODISCARD woort_Int woort_JIT_serialize_vec(woort_Value* dst, woort_GCVec* src)
+{
+    woort_Value tmp;
+    tmp.m_vec = src;
+    return (woort_Int)_woort_serialize_vec_impl(dst, &tmp, WOORT_SERIALIZE_FLAG_NONE);
+}
+
+WOORT_NODISCARD woort_Int woort_JIT_serialize_map(woort_Value* dst, woort_GCMap* src)
+{
+    woort_Value tmp;
+    tmp.m_map = src;
+    return (woort_Int)_woort_serialize_map_impl(dst, &tmp, WOORT_SERIALIZE_FLAG_NONE);
 }
 
 WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv)

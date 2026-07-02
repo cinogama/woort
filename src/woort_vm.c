@@ -745,7 +745,7 @@ _label_continue_execution:
                     str_val;
                 break;
             default:
-                WOORT_VM_THROW(bad_cast);
+                abort();
                 break;
             }
             break;
@@ -814,6 +814,8 @@ _label_continue_execution:
                 rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_string =
                     woort_GCString_make_string("<function>", 10);
                 break;
+            default:
+                abort();
             }
             break;
         }
