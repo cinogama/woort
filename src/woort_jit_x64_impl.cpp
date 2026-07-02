@@ -1400,9 +1400,78 @@ void woort_JIT_Backend_x64_CALLNWO(void* emmiter, woort_Opcode_Global func)
 
 void woort_JIT_Backend_x64_CALLNFP(void* emmiter, woort_Opcode_Global func)
 {
-    (void)emmiter;
-    (void)func;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const woort_Value* const func_addr = &em->m_cenv_static_storage[func];
+
+    const Label L_retry = em->c->new_label();
+    WOORT_JIT_CODE(bind(L_retry));
+
+    const Gp new_sp = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(new_sp, em->m_sp));
+    WOORT_JIT_CODE(sub(new_sp, Imm(static_cast<int32_t>(2 * sizeof(woort_Value)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(new_sp, em->m_stack));
+    WOORT_JIT_CODE(jae(L_ok));
+
+    em->emit_extern_stack(*em->m_ip, L_retry);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    {
+        const int32_t way_off = 1 * (int32_t)sizeof(woort_Value) + (int32_t)offsetof(woort_RetBP, m_way);
+        const int32_t bp_off = 1 * (int32_t)sizeof(woort_Value) + (int32_t)offsetof(woort_RetBP, m_bp_offset);
+        const int32_t addr_off = 2 * (int32_t)sizeof(woort_Value);
+
+        WOORT_JIT_CODE(mov(dword_ptr(new_sp, way_off),
+            Imm(static_cast<int32_t>(WOORT_CALL_WAY_NEAR))));
+
+        const Gp bp_offset = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(bp_offset, em->m_sb));
+        WOORT_JIT_CODE(sub(bp_offset, em->m_sp));
+        WOORT_JIT_CODE(shr(bp_offset, 3));
+        WOORT_JIT_CODE(mov(dword_ptr(new_sp, bp_off), bp_offset.r32()));
+
+        const Gp ret_addr = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(ret_addr, Imm(reinterpret_cast<intptr_t>(*em->m_ip + 1))));
+        WOORT_JIT_CODE(mov(qword_ptr(new_sp, addr_off), ret_addr));
+    }
+
+    const Gp native_fn = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(native_fn, qword_ptr(reinterpret_cast<intptr_t>(func_addr))));
+    em->emit_sync_rt_ip_status(native_fn);
+    WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SP), new_sp));
+    WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_SB), new_sp));
+
+    const Gp status = em->c->new_gp32();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        qword_ptr(reinterpret_cast<intptr_t>(func_addr)),
+        FuncSignature::build<woort_VmCallStatus>()));
+
+    invoke_node->set_ret(0, status);
+
+    {
+        const Label L_after_realloc = em->c->new_label();
+        const Gp vm_stack_end = em->c->new_gp_ptr();
+        WOORT_JIT_CODE(mov(vm_stack_end, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK_END)));
+        WOORT_JIT_CODE(cmp(vm_stack_end, em->m_stack_end));
+        WOORT_JIT_CODE(je(L_after_realloc));
+        em->emit_jit_call_resync(L_after_realloc);
+        WOORT_JIT_CODE(bind(L_after_realloc));
+    }
+
+    {
+        const Label L_done = em->c->new_label();
+        WOORT_JIT_CODE(cmp(status, static_cast<int32_t>(WOORT_VM_CALL_STATUS_RESYNC)));
+        WOORT_JIT_CODE(jne(L_done));
+        em->emit_checkpoint(*em->m_ip + 1);
+        WOORT_JIT_CODE(bind(L_done));
+    }
 }
 
 void woort_JIT_Backend_x64_CALLNJIT(void* emmiter, woort_Opcode_Global func)
