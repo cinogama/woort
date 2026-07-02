@@ -144,9 +144,19 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     woort_rwspinlock_write_lock(
         &_codeenv_global_ctx->m_codeenvs_lock);
 
-    (void)woort_ordermap_remove(
+    woort_CodeEnv** stored_env;
+    if (woort_ordermap_find(
         _codeenv_global_ctx->m_codeenvs,
-        &code_env->m_code_begin);
+        &code_env->m_code_begin,
+        (void**)&stored_env))
+    {
+        if (*stored_env == code_env)
+        {
+            (void)woort_ordermap_remove(
+                _codeenv_global_ctx->m_codeenvs,
+                &code_env->m_code_begin);
+        }
+    }
 
     woort_rwspinlock_write_unlock(
         &_codeenv_global_ctx->m_codeenvs_lock);
@@ -344,17 +354,20 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     {
         woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
 
-        const woort_ordermap_Result register_result = woort_ordermap_insert(
-            _codeenv_global_ctx->m_codeenvs,
-            &code_env_instance->m_code_begin,
-            &code_env_instance);
+        woort_CodeEnv** env_storage;
+        const woort_ordermap_Result register_result =
+            woort_ordermap_get_or_emplace(
+                _codeenv_global_ctx->m_codeenvs,
+                &code_env_instance->m_code_begin,
+                (void**)&env_storage);
 
-        assert(register_result != WOORT_ORDERMAP_RESULT_ALREADY_EXIST);
+        if (register_result != WOORT_ORDERMAP_RESULT_OUT_OF_MEMORY)
+            *env_storage = code_env_instance;
+        else
+            succ = false;
+
         woort_rwspinlock_write_unlock(
             &_codeenv_global_ctx->m_codeenvs_lock);
-
-        if (register_result != WOORT_ORDERMAP_RESULT_OK)
-            succ = false;
     }
 
     woort_GCUnit_init_delay_alloc(M, codes);
