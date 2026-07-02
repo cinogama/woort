@@ -64,6 +64,11 @@ struct woort_JIT_Asmjit_x64_Emmiter
     Gp              m_sync_runtime_status_resume;
     size_t          m_sync_runtime_status_site_count;
 
+    optional<JumpAnnotation*> m_sync_stack_value_resume_annotation;
+    Label           m_sync_stack_value_slow;
+    Gp              m_sync_stack_value_resume;
+    size_t          m_sync_stack_value_site_count;
+
     struct VMStackValueGp
     {
         Gp      m_gp;
@@ -105,6 +110,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
         , m_jit_call_resync_resume_annotation(nullopt)
         , m_jit_call_resync_site_count(0)
         , m_sync_runtime_status_site_count(0)
+        , m_sync_stack_value_resume_annotation(nullopt)
+        , m_sync_stack_value_site_count(0)
     {
         JitRuntime* const asmjit_runtime =
             static_cast<JitRuntime*>(woort_JIT_Asmjit_get_runtime());
@@ -342,6 +349,31 @@ struct woort_JIT_Asmjit_x64_Emmiter
             WOORT_JIT_CODE(jmp(em->m_sync_runtime_status_slow));
         }
     }
+    void emit_sync_stack_value(Label L_resume)
+    {
+        /*
+        将所有写脏的 GP 寄存器写回对应偏移量虚拟机栈的操作，
+        推迟到单一的 slow path（在 epilogue 中发射）。
+        */
+        auto* const em = this;
+
+        if (!em->m_sync_stack_value_resume_annotation.has_value())
+        {
+            em->m_sync_stack_value_slow = c->new_label();
+            em->m_sync_stack_value_resume = c->new_gp_ptr();
+            em->m_sync_stack_value_resume_annotation = c->new_jump_annotation();
+        }
+
+        {
+            WOORT_JIT_CODE(lea(em->m_sync_stack_value_resume, ptr(L_resume)));
+            em->update_last_error(
+                em->m_sync_stack_value_resume_annotation.value()->add_label(L_resume));
+
+            ++em->m_sync_stack_value_site_count;
+
+            WOORT_JIT_CODE(jmp(em->m_sync_stack_value_slow));
+        }
+    }
 
     // ===================================================== //
     void apply_gp_to_stack(woort_Opcode_Stack src)
@@ -493,9 +525,13 @@ bool woort_JIT_Backend_x64_epilogue(
         WOORT_JIT_CODE(mov(checkpoint_resume_slot, em->m_checkpoint_resume));
 
         {
-            const Label L_after_sync = em->c->new_label();
-            em->emit_sync_runtime_status(L_after_sync);
-            WOORT_JIT_CODE(bind(L_after_sync));
+            const Label L_after_sync_sv = em->c->new_label();
+            em->emit_sync_stack_value(L_after_sync_sv);
+            WOORT_JIT_CODE(bind(L_after_sync_sv));
+
+            const Label L_after_sync_st = em->c->new_label();
+            em->emit_sync_runtime_status(L_after_sync_st);
+            WOORT_JIT_CODE(bind(L_after_sync_st));
         }
 
         static_assert(sizeof(woort_VmCallStatus) == 4, "");
@@ -592,6 +628,30 @@ bool woort_JIT_Backend_x64_epilogue(
                            em->m_jit_call_resync_resume_annotation.value()));
     }
 
+    // Shared slow path for dirty GP register writeback to VM stack.
+    if (em->m_sync_stack_value_site_count > 0)
+    {
+        WOORT_JIT_CODE(bind(em->m_sync_stack_value_slow));
+
+        const Mem sync_stack_value_resume_slot =
+            em->c->new_stack(sizeof(uintptr_t), alignof(uintptr_t));
+        WOORT_JIT_CODE(mov(sync_stack_value_resume_slot, em->m_sync_stack_value_resume));
+
+        /* 将所有写脏的 GP 寄存器写回对应偏移量的虚拟机栈 */
+        for (auto& kv : em->m_stack_gp)
+        {
+            if (kv.second.m_writed)
+            {
+                const int32_t slot_offset =
+                    kv.first * static_cast<int32_t>(sizeof(woort_Value));
+                WOORT_JIT_CODE(mov(qword_ptr(em->m_sb, slot_offset), kv.second.m_gp));
+            }
+        }
+
+        WOORT_JIT_CODE(jmp(sync_stack_value_resume_slot,
+                           em->m_sync_stack_value_resume_annotation.value()));
+    }
+
     // Shared slow path for SP/SB/ENV sync (caller writes vm->ip inline).
     assert(em->m_sync_runtime_status_site_count > 0);
     {
@@ -606,17 +666,6 @@ bool woort_JIT_Backend_x64_epilogue(
         const Gp env_tmp = em->c->new_gp_ptr();
         WOORT_JIT_CODE(mov(env_tmp, (uintptr_t)em->cenv));
         WOORT_JIT_CODE(mov(qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_ENV), env_tmp));
-
-        /* 将所有写脏的 GP 寄存器写回对应偏移量的虚拟机栈 */
-        for (auto& kv : em->m_stack_gp)
-        {
-            if (kv.second.m_writed)
-            {
-                const int32_t slot_offset =
-                    kv.first * static_cast<int32_t>(sizeof(woort_Value));
-                WOORT_JIT_CODE(mov(qword_ptr(em->m_sb, slot_offset), kv.second.m_gp));
-            }
-        }
 
         WOORT_JIT_CODE(jmp(sync_runtime_status_resume_slot,
                            em->m_sync_runtime_status_resume_annotation.value()));
