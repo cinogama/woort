@@ -1939,7 +1939,7 @@ void woort_JIT_Backend_x64_MKVEC(void* emmiter, woort_Opcode_Stack dst, woort_Op
         FuncSignature::build<woort_GCVec*, woort_Value*, size_t>()));
 
     invoke_node->set_arg(0, em->m_sp);
-    invoke_node->set_arg(1, Imm(static_cast<int64_t>(static_cast<uint32_t>(n))));
+    invoke_node->set_arg(1, Imm(static_cast<size_t>(n)));
     invoke_node->set_ret(0, result);
 
     em->set_gp_by_stack(dst, result);
@@ -1954,10 +1954,29 @@ void woort_JIT_Backend_x64_MKVEC(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 void woort_JIT_Backend_x64_MKMAP(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)n;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp result = em->c->new_gp_ptr();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_make_map)),
+        FuncSignature::build<woort_GCMap*, woort_Value*, size_t>()));
+
+    invoke_node->set_arg(0, em->m_sp);
+    invoke_node->set_arg(1, Imm(static_cast<size_t>(static_cast<uint32_t>(n))));
+    invoke_node->set_ret(0, result);
+
+    em->set_gp_by_stack(dst, result);
+
+    if (n != 0)
+    {
+        WOORT_JIT_CODE(add(
+            em->m_sp,
+            Imm(static_cast<int32_t>(static_cast<size_t>(n) * 2 * sizeof(woort_Value)))));
+    }
 }
 
 void woort_JIT_Backend_x64_MKSTRUCT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)

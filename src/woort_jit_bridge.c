@@ -4,6 +4,7 @@
 #include "woort_gc.h"
 #include "woort_gc_string.h"
 #include "woort_gc_vec.h"
+#include "woort_gc_map.h"
 #include "woort_serialize.h"
 #include "woort_opcode_dispatcher.h"
 
@@ -39,6 +40,23 @@ WOORT_NODISCARD woort_GCVec* woort_JIT_make_vec(
             &gcvec->m_datas[count - i], sp[i].m_dynamic);
 
     return gcvec;
+}
+
+WOORT_NODISCARD woort_GCMap* woort_JIT_make_map(
+    woort_Value* sp, size_t count)
+{
+    woort_GCMap* const gcmap = woort_GCMap_new();
+
+    woort_GCMap_reserve(gcmap, count);
+
+    for (size_t i = 0; i < count; ++i)
+    {
+        woort_DynBox val = sp[1 + i * 2].m_dynamic;
+        woort_DynBox key = sp[2 + i * 2].m_dynamic;
+        woort_GCMap_set_or_insert(gcmap, key, val);
+    }
+
+    return gcmap;
 }
 
 WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str)
