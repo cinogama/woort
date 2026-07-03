@@ -59,6 +59,18 @@ extern "C" {
 
     void woort_JIT_unbox_dyn_no_check(woort_DynBox val, woort_Value* out);
 
+    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_int(
+        woort_GCMap* map, woort_Int key);
+    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_real(
+        woort_GCMap* map, woort_BoxedValue real_bits);
+    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_bool(
+        woort_GCMap* map, woort_Int key);
+    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_dyn(
+        woort_GCMap* map, woort_DynBox key);
+
+    WOORT_NODISCARD bool woort_JIT_ldidstring(
+        const woort_GCString* str, woort_Int idx, woort_Value* out);
+
     WOORT_NODISCARD bool woort_JIT_check_int_ex(woort_BoxedValue val);
     WOORT_NODISCARD bool woort_JIT_check_real_ex(woort_BoxedValue val);
     WOORT_NODISCARD bool woort_JIT_check_gc(

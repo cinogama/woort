@@ -2,6 +2,7 @@
 #include "woort_jit_bridge.h"
 #include "woort_value_types.h"
 #include "woort_gc_vec_types.h"
+#include "woort_gc_struct_types.h"
 
 #include "woomem.h"
 
@@ -4222,92 +4223,374 @@ void woort_JIT_Backend_x64_LDIDXVECX(void* emmiter, woort_Opcode_Stack dst, woor
 
 void woort_JIT_Backend_x64_LDIDSTRUCT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)idx;
-    (void)obj;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp obj_ptr = em->get_gp_from_stack(obj);
+
+    const int32_t disp =
+        static_cast<int32_t>(offsetof(woort_GCStruct, m_datas)) +
+        static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
+
+    const Gp field = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(field, qword_ptr(obj_ptr, disp)));
+
+    em->set_gp_by_stack(dst, field);
 }
 
 void woort_JIT_Backend_x64_LDIDSTRING(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack str, woort_Opcode_Stack idx)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)str;
-    (void)idx;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp str_ptr = em->get_gp_from_stack(str);
+    const Gp idx_val = em->get_gp_from_stack(idx);
+
+    const Gp out_addr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
+
+    const Gp ok = em->c->new_gp32();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_ldidstring)),
+        FuncSignature::build<bool, const woort_GCString*, woort_Int, woort_Value*>()));
+
+    invoke_node->set_arg(0, str_ptr);
+    invoke_node->set_arg(1, idx_val);
+    invoke_node->set_arg(2, out_addr);
+    invoke_node->set_ret(0, ok);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(ok, ok));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDXDICTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)map;
-    (void)idx;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp map_ptr = em->get_gp_from_stack(map);
+    const Gp key_val = em->get_gp_from_stack(idx);
+
+    const Gp val_ptr = em->c->new_gp_ptr();
+    InvokeNode* lookup_node;
+    WOORT_JIT_CODE(invoke(
+        Out(lookup_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_map_get_int)),
+        FuncSignature::build<woort_DynBox*, woort_GCMap*, woort_Int>()));
+
+    lookup_node->set_arg(0, map_ptr);
+    lookup_node->set_arg(1, key_val);
+    lookup_node->set_ret(0, val_ptr);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val_ptr, val_ptr));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp elem = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(elem, qword_ptr(val_ptr)));
+
+    const Gp out_addr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
+
+    InvokeNode* unbox_node;
+    WOORT_JIT_CODE(invoke(
+        Out(unbox_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_unbox_dyn_no_check)),
+        FuncSignature::build<void, woort_BoxedValue, woort_Value*>()));
+
+    unbox_node->set_arg(0, elem);
+    unbox_node->set_arg(1, out_addr);
+
+    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDXDICTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)map;
-    (void)idx;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp map_ptr = em->get_gp_from_stack(map);
+    const Gp key_val = em->get_gp_from_stack(idx);
+
+    const Gp val_ptr = em->c->new_gp_ptr();
+    InvokeNode* lookup_node;
+    WOORT_JIT_CODE(invoke(
+        Out(lookup_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_map_get_real)),
+        FuncSignature::build<woort_DynBox*, woort_GCMap*, woort_BoxedValue>()));
+
+    lookup_node->set_arg(0, map_ptr);
+    lookup_node->set_arg(1, key_val);
+    lookup_node->set_ret(0, val_ptr);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val_ptr, val_ptr));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp elem = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(elem, qword_ptr(val_ptr)));
+
+    const Gp out_addr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
+
+    InvokeNode* unbox_node;
+    WOORT_JIT_CODE(invoke(
+        Out(unbox_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_unbox_dyn_no_check)),
+        FuncSignature::build<void, woort_BoxedValue, woort_Value*>()));
+
+    unbox_node->set_arg(0, elem);
+    unbox_node->set_arg(1, out_addr);
+
+    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDXDICTB(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)map;
-    (void)idx;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp map_ptr = em->get_gp_from_stack(map);
+    const Gp key_val = em->get_gp_from_stack(idx);
+
+    const Gp val_ptr = em->c->new_gp_ptr();
+    InvokeNode* lookup_node;
+    WOORT_JIT_CODE(invoke(
+        Out(lookup_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_map_get_bool)),
+        FuncSignature::build<woort_DynBox*, woort_GCMap*, woort_Int>()));
+
+    lookup_node->set_arg(0, map_ptr);
+    lookup_node->set_arg(1, key_val);
+    lookup_node->set_ret(0, val_ptr);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val_ptr, val_ptr));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp elem = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(elem, qword_ptr(val_ptr)));
+
+    const Gp out_addr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
+
+    InvokeNode* unbox_node;
+    WOORT_JIT_CODE(invoke(
+        Out(unbox_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_unbox_dyn_no_check)),
+        FuncSignature::build<void, woort_BoxedValue, woort_Value*>()));
+
+    unbox_node->set_arg(0, elem);
+    unbox_node->set_arg(1, out_addr);
+
+    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDXDICTX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)map;
-    (void)idx;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp map_ptr = em->get_gp_from_stack(map);
+    const Gp key_val = em->get_gp_from_stack(idx);
+
+    const Gp val_ptr = em->c->new_gp_ptr();
+    InvokeNode* lookup_node;
+    WOORT_JIT_CODE(invoke(
+        Out(lookup_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_map_get_dyn)),
+        FuncSignature::build<woort_DynBox*, woort_GCMap*, woort_BoxedValue>()));
+
+    lookup_node->set_arg(0, map_ptr);
+    lookup_node->set_arg(1, key_val);
+    lookup_node->set_ret(0, val_ptr);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val_ptr, val_ptr));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp elem = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(elem, qword_ptr(val_ptr)));
+
+    const Gp out_addr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
+
+    InvokeNode* unbox_node;
+    WOORT_JIT_CODE(invoke(
+        Out(unbox_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_unbox_dyn_no_check)),
+        FuncSignature::build<void, woort_BoxedValue, woort_Value*>()));
+
+    unbox_node->set_arg(0, elem);
+    unbox_node->set_arg(1, out_addr);
+
+    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDXDICTIX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)map;
-    (void)idx;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp map_ptr = em->get_gp_from_stack(map);
+    const Gp key_val = em->get_gp_from_stack(idx);
+
+    const Gp val_ptr = em->c->new_gp_ptr();
+    InvokeNode* lookup_node;
+    WOORT_JIT_CODE(invoke(
+        Out(lookup_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_map_get_int)),
+        FuncSignature::build<woort_DynBox*, woort_GCMap*, woort_Int>()));
+
+    lookup_node->set_arg(0, map_ptr);
+    lookup_node->set_arg(1, key_val);
+    lookup_node->set_ret(0, val_ptr);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val_ptr, val_ptr));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp elem = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(elem, qword_ptr(val_ptr)));
+
+    em->set_gp_by_stack(dst, elem);
 }
 
 void woort_JIT_Backend_x64_LDIDXDICTRX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)map;
-    (void)idx;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp map_ptr = em->get_gp_from_stack(map);
+    const Gp key_val = em->get_gp_from_stack(idx);
+
+    const Gp val_ptr = em->c->new_gp_ptr();
+    InvokeNode* lookup_node;
+    WOORT_JIT_CODE(invoke(
+        Out(lookup_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_map_get_real)),
+        FuncSignature::build<woort_DynBox*, woort_GCMap*, woort_BoxedValue>()));
+
+    lookup_node->set_arg(0, map_ptr);
+    lookup_node->set_arg(1, key_val);
+    lookup_node->set_ret(0, val_ptr);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val_ptr, val_ptr));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp elem = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(elem, qword_ptr(val_ptr)));
+
+    em->set_gp_by_stack(dst, elem);
 }
 
 void woort_JIT_Backend_x64_LDIDXDICTBX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)map;
-    (void)idx;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp map_ptr = em->get_gp_from_stack(map);
+    const Gp key_val = em->get_gp_from_stack(idx);
+
+    const Gp val_ptr = em->c->new_gp_ptr();
+    InvokeNode* lookup_node;
+    WOORT_JIT_CODE(invoke(
+        Out(lookup_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_map_get_bool)),
+        FuncSignature::build<woort_DynBox*, woort_GCMap*, woort_Int>()));
+
+    lookup_node->set_arg(0, map_ptr);
+    lookup_node->set_arg(1, key_val);
+    lookup_node->set_ret(0, val_ptr);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val_ptr, val_ptr));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp elem = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(elem, qword_ptr(val_ptr)));
+
+    em->set_gp_by_stack(dst, elem);
 }
 
 void woort_JIT_Backend_x64_LDIDXDICTXX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)map;
-    (void)idx;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp map_ptr = em->get_gp_from_stack(map);
+    const Gp key_val = em->get_gp_from_stack(idx);
+
+    const Gp val_ptr = em->c->new_gp_ptr();
+    InvokeNode* lookup_node;
+    WOORT_JIT_CODE(invoke(
+        Out(lookup_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_map_get_dyn)),
+        FuncSignature::build<woort_DynBox*, woort_GCMap*, woort_BoxedValue>()));
+
+    lookup_node->set_arg(0, map_ptr);
+    lookup_node->set_arg(1, key_val);
+    lookup_node->set_ret(0, val_ptr);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val_ptr, val_ptr));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp elem = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(elem, qword_ptr(val_ptr)));
+
+    em->set_gp_by_stack(dst, elem);
 }
 
 /* -------------------------------------------------------------------------- */

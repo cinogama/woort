@@ -9,6 +9,7 @@
 #include "woort_gc_closure.h"
 #include "woort_gc_gchandle.h"
 #include "woort_serialize.h"
+#include "woort_utf8.h"
 #include "woort_opcode_dispatcher.h"
 
 #include <string.h>
@@ -197,6 +198,40 @@ WOORT_NODISCARD bool woort_JIT_unbox_gc(
 void woort_JIT_unbox_dyn_no_check(woort_DynBox val, woort_Value* out)
 {
     woort_DynBox_unbox_no_check(val, out);
+}
+
+/* OPTIONAL */ woort_DynBox* woort_JIT_map_get_int(woort_GCMap* map, woort_Int key)
+{
+    return woort_GCMap_get_bucket_val_by_int(map, key);
+}
+
+/* OPTIONAL */ woort_DynBox* woort_JIT_map_get_real(woort_GCMap* map, woort_BoxedValue real_bits)
+{
+    woort_Real key;
+    memcpy(&key, &real_bits, sizeof(woort_Real));
+    return woort_GCMap_get_bucket_val_by_real(map, key);
+}
+
+/* OPTIONAL */ woort_DynBox* woort_JIT_map_get_bool(woort_GCMap* map, woort_Int key)
+{
+    return woort_GCMap_get_bucket_val_by_bool(map, key != 0);
+}
+
+/* OPTIONAL */ woort_DynBox* woort_JIT_map_get_dyn(woort_GCMap* map, woort_DynBox key)
+{
+    return woort_GCMap_get_bucket_val_by_dynbox(map, key);
+}
+
+WOORT_NODISCARD bool woort_JIT_ldidstring(
+    const woort_GCString* str, woort_Int idx, woort_Value* out)
+{
+    char32_t ch;
+    if (woort_u8stridx(str->m_content, str->m_length, (size_t)idx, &ch))
+    {
+        out->m_integer = (woort_Int)ch;
+        return true;
+    }
+    return false;
 }
 
 WOORT_NODISCARD bool woort_JIT_check_int_ex(woort_BoxedValue val)
