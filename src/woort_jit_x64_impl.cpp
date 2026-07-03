@@ -4983,11 +4983,6 @@ void woort_JIT_Backend_x64_STIDMAPXX(void* emmiter, woort_Opcode_Stack map, woor
 
 /* -------------------------------------------------------------------------- */
 
-static void woort_JIT_stid_struct_impl(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
-{
-
-}
-
 void woort_JIT_Backend_x64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
