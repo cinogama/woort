@@ -194,6 +194,11 @@ WOORT_NODISCARD bool woort_JIT_unbox_gc(
     return false;
 }
 
+void woort_JIT_unbox_dyn_no_check(woort_DynBox val, woort_Value* out)
+{
+    woort_DynBox_unbox_no_check(val, out);
+}
+
 WOORT_NODISCARD bool woort_JIT_check_int_ex(woort_BoxedValue val)
 {
     return val != 0

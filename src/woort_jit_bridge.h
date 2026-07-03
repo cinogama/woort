@@ -57,6 +57,8 @@ extern "C" {
     WOORT_NODISCARD bool woort_JIT_unbox_gc(
         woort_BoxedValue val, woort_BoxValueType type, woort_Value* out);
 
+    void woort_JIT_unbox_dyn_no_check(woort_DynBox val, woort_Value* out);
+
     WOORT_NODISCARD bool woort_JIT_check_int_ex(woort_BoxedValue val);
     WOORT_NODISCARD bool woort_JIT_check_real_ex(woort_BoxedValue val);
     WOORT_NODISCARD bool woort_JIT_check_gc(
