@@ -3264,28 +3264,68 @@ void woort_JIT_Backend_x64_NES(void* emmiter, woort_Opcode_Stack dst, woort_Opco
 
 void woort_JIT_Backend_x64_LAND(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* LAND: dst.m_integer = (a.m_integer != 0) && (b.m_integer != 0)
+     * 线性计算两个条件的非零布尔值后按位与，避免短路跳转（与 NES 一致）。 */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    /* result = (reg_a != 0) ? 1 : 0 */
+    WOORT_JIT_CODE(test(reg_a, reg_a));
+    WOORT_JIT_CODE(setne(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    /* result &= (reg_b != 0) ? 1 : 0 */
+    WOORT_JIT_CODE(test(reg_b, reg_b));
+    const Gp b_nz = em->c->new_gp64();
+    WOORT_JIT_CODE(setne(b_nz.r8_lo()));
+    WOORT_JIT_CODE(movzx(b_nz, b_nz.r8_lo()));
+    WOORT_JIT_CODE(and_(result, b_nz));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_LOR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* LOR: dst.m_integer = (a.m_integer != 0) || (b.m_integer != 0)
+     * 线性计算两个条件的非零布尔值后按位或，避免短路跳转（与 LAND 一致）。 */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    /* result = (reg_a != 0) ? 1 : 0 */
+    WOORT_JIT_CODE(test(reg_a, reg_a));
+    WOORT_JIT_CODE(setne(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    /* result |= (reg_b != 0) ? 1 : 0 */
+    WOORT_JIT_CODE(test(reg_b, reg_b));
+    const Gp b_nz = em->c->new_gp64();
+    WOORT_JIT_CODE(setne(b_nz.r8_lo()));
+    WOORT_JIT_CODE(movzx(b_nz, b_nz.r8_lo()));
+    WOORT_JIT_CODE(or_(result, b_nz));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_LNOT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* LNOT: dst.m_integer = (src.m_integer == 0) ? 1 : 0
+     * dst 为只写槽，test + sete 取逻辑非。 */
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    WOORT_JIT_CODE(test(reg_src, reg_src));
+    WOORT_JIT_CODE(sete(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -3482,25 +3522,65 @@ void woort_JIT_Backend_x64_CMODR(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 void woort_JIT_Backend_x64_CLAND(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* CLAND: dst.m_integer = (dst.m_integer != 0) && (src.m_integer != 0)
+     * dst 为读写槽，线性计算两个条件的非零布尔值后按位与，避免短路跳转。 */
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+
+    /* reg_dst = (reg_dst != 0) ? 1 : 0 */
+    WOORT_JIT_CODE(test(reg_dst, reg_dst));
+    WOORT_JIT_CODE(setne(reg_dst.r8_lo()));
+    WOORT_JIT_CODE(movzx(reg_dst, reg_dst.r8_lo()));
+
+    /* reg_dst &= (reg_src != 0) ? 1 : 0 */
+    WOORT_JIT_CODE(test(reg_src, reg_src));
+    const Gp src_nz = em->c->new_gp64();
+    WOORT_JIT_CODE(setne(src_nz.r8_lo()));
+    WOORT_JIT_CODE(movzx(src_nz, src_nz.r8_lo()));
+    WOORT_JIT_CODE(and_(reg_dst, src_nz));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CLOR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* CLOR: dst.m_integer = (dst.m_integer != 0) || (src.m_integer != 0)
+     * dst 为读写槽，线性计算两个条件的非零布尔值后按位或，避免短路跳转。 */
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+
+    /* reg_dst = (reg_dst != 0) ? 1 : 0 */
+    WOORT_JIT_CODE(test(reg_dst, reg_dst));
+    WOORT_JIT_CODE(setne(reg_dst.r8_lo()));
+    WOORT_JIT_CODE(movzx(reg_dst, reg_dst.r8_lo()));
+
+    /* reg_dst |= (reg_src != 0) ? 1 : 0 */
+    WOORT_JIT_CODE(test(reg_src, reg_src));
+    const Gp src_nz = em->c->new_gp64();
+    WOORT_JIT_CODE(setne(src_nz.r8_lo()));
+    WOORT_JIT_CODE(movzx(src_nz, src_nz.r8_lo()));
+    WOORT_JIT_CODE(or_(reg_dst, src_nz));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CLNOT(void* emmiter, woort_Opcode_Stack dst)
 {
-    (void)emmiter;
-    (void)dst;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* CLNOT: dst.m_integer = (dst.m_integer == 0) ? 1 : 0
+     * dst 为读写槽，test + sete 取逻辑非。 */
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+
+    WOORT_JIT_CODE(test(reg_dst, reg_dst));
+    WOORT_JIT_CODE(sete(reg_dst.r8_lo()));
+    WOORT_JIT_CODE(movzx(reg_dst, reg_dst.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 /* -------------------------------------------------------------------------- */
