@@ -183,6 +183,41 @@ WOORT_NODISCARD bool woort_JIT_unbox_gc(
     return false;
 }
 
+WOORT_NODISCARD bool woort_JIT_check_int_ex(woort_BoxedValue val)
+{
+    return val != 0
+        && _woort_boxed_to_gcunit(val)->m_proxy == &WOORT_EX_BOX_PROXY
+        && _woort_boxed_to_exvalue(val)->m_is_int;
+}
+
+WOORT_NODISCARD bool woort_JIT_check_real_ex(woort_BoxedValue val)
+{
+    return val != 0
+        && _woort_boxed_to_gcunit(val)->m_proxy == &WOORT_EX_BOX_PROXY
+        && !_woort_boxed_to_exvalue(val)->m_is_int;
+}
+
+WOORT_NODISCARD bool woort_JIT_check_gc(
+    woort_BoxedValue val, woort_BoxValueType type)
+{
+    if (type == WOORT_BOX_VALUE_TYPE_NIL)
+        return val == 0;
+
+    if ((val & 0b0111) || val == 0)
+        return false;
+
+    const woort_GCUnit* const unit = _woort_boxed_to_gcunit(val);
+    const woort_GCUnitProxy* const expected =
+        type == WOORT_BOX_VALUE_TYPE_STRING   ? &WOORT_GCSTRING_UNIT_PROXY   :
+        type == WOORT_BOX_VALUE_TYPE_VEC      ? &WOORT_GCVEC_UNIT_PROXY      :
+        type == WOORT_BOX_VALUE_TYPE_MAP      ? &WOORT_GCMAP_UNIT_PROXY      :
+        type == WOORT_BOX_VALUE_TYPE_STRUCT   ? &WOORT_GCSTRUCT_UNIT_PROXY   :
+        type == WOORT_BOX_VALUE_TYPE_GCHANDLE ? &WOORT_GCHANDLE_UNIT_PROXY  :
+                                                &WOORT_GCCLOSURE_UNIT_PROXY;
+
+    return unit->m_proxy == expected;
+}
+
 WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str)
 {
     return (woort_Int)(0 == strcmp("true", str->m_content));
