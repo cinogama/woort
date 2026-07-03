@@ -71,6 +71,16 @@ extern "C" {
     WOORT_NODISCARD bool woort_JIT_ldidstring(
         const woort_GCString* str, woort_Int idx, woort_Value* out);
 
+    void woort_JIT_store_dynbox_int(woort_DynBox* dst, woort_Int val);
+    void woort_JIT_store_dynbox_real(woort_DynBox* dst, woort_BoxedValue real_bits);
+    void woort_JIT_store_dynbox_bool(woort_DynBox* dst, woort_Int val);
+    void woort_JIT_store_dynbox_dyn(woort_DynBox* dst, woort_DynBox val);
+
+    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_int(woort_GCMap* map, woort_Int key);
+    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_real(woort_GCMap* map, woort_BoxedValue real_bits);
+    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_bool(woort_GCMap* map, woort_Int key);
+    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_dyn(woort_GCMap* map, woort_DynBox key);
+
     WOORT_NODISCARD bool woort_JIT_check_int_ex(woort_BoxedValue val);
     WOORT_NODISCARD bool woort_JIT_check_real_ex(woort_BoxedValue val);
     WOORT_NODISCARD bool woort_JIT_check_gc(

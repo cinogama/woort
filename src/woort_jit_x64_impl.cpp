@@ -4597,346 +4597,427 @@ void woort_JIT_Backend_x64_LDIDDICTXX(void* emmiter, woort_Opcode_Stack dst, woo
 
 void woort_JIT_Backend_x64_STIDVECI(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)vec;
-    (void)idx;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp vec_ptr = em->get_gp_from_stack(vec);
+    const Gp idx_val = em->get_gp_from_stack(idx);
+
+    const Gp length = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(length, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(idx_val, length));
+    WOORT_JIT_CODE(jb(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp datas = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(datas, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_datas)))));
+
+    const Gp dst_addr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(dst_addr, ptr(datas, idx_val, 3)));
+
+    const Gp src_val = em->get_gp_from_stack(src);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_store_dynbox_int)),
+        FuncSignature::build<void, woort_DynBox*, woort_Int>()));
+
+    invoke_node->set_arg(0, dst_addr);
+    invoke_node->set_arg(1, src_val);
 }
 
 void woort_JIT_Backend_x64_STIDVECR(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)vec;
-    (void)idx;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp vec_ptr = em->get_gp_from_stack(vec);
+    const Gp idx_val = em->get_gp_from_stack(idx);
+
+    const Gp length = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(length, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(idx_val, length));
+    WOORT_JIT_CODE(jb(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp datas = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(datas, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_datas)))));
+
+    const Gp dst_addr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(dst_addr, ptr(datas, idx_val, 3)));
+
+    const Gp src_val = em->get_gp_from_stack(src);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_store_dynbox_real)),
+        FuncSignature::build<void, woort_DynBox*, woort_BoxedValue>()));
+
+    invoke_node->set_arg(0, dst_addr);
+    invoke_node->set_arg(1, src_val);
 }
 
 void woort_JIT_Backend_x64_STIDVECB(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)vec;
-    (void)idx;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp vec_ptr = em->get_gp_from_stack(vec);
+    const Gp idx_val = em->get_gp_from_stack(idx);
+
+    const Gp length = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(length, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(idx_val, length));
+    WOORT_JIT_CODE(jb(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp datas = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(datas, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_datas)))));
+
+    const Gp dst_addr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(dst_addr, ptr(datas, idx_val, 3)));
+
+    const Gp src_val = em->get_gp_from_stack(src);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_store_dynbox_bool)),
+        FuncSignature::build<void, woort_DynBox*, woort_Int>()));
+
+    invoke_node->set_arg(0, dst_addr);
+    invoke_node->set_arg(1, src_val);
 }
 
 void woort_JIT_Backend_x64_STIDVECX(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)vec;
-    (void)idx;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp vec_ptr = em->get_gp_from_stack(vec);
+    const Gp idx_val = em->get_gp_from_stack(idx);
+
+    const Gp length = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(length, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(idx_val, length));
+    WOORT_JIT_CODE(jb(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp datas = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(datas, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_datas)))));
+
+    const Gp dst_addr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(dst_addr, ptr(datas, idx_val, 3)));
+
+    const Gp src_val = em->get_gp_from_stack(src);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_store_dynbox_dyn)),
+        FuncSignature::build<void, woort_DynBox*, woort_BoxedValue>()));
+
+    invoke_node->set_arg(0, dst_addr);
+    invoke_node->set_arg(1, src_val);
+}
+
+template <auto LookupFn, typename KeyT, auto StoreFn, typename ValT>
+static void woort_JIT_stid_dict_impl(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp map_ptr = em->get_gp_from_stack(map);
+    const Gp key_val = em->get_gp_from_stack(key);
+
+    const Gp val_ptr = em->c->new_gp_ptr();
+    InvokeNode* lookup_node;
+    WOORT_JIT_CODE(invoke(
+        Out(lookup_node),
+        Imm(reinterpret_cast<intptr_t>(LookupFn)),
+        FuncSignature::build<woort_DynBox*, woort_GCMap*, KeyT>()));
+
+    lookup_node->set_arg(0, map_ptr);
+    lookup_node->set_arg(1, key_val);
+    lookup_node->set_ret(0, val_ptr);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val_ptr, val_ptr));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp src_val = em->get_gp_from_stack(src);
+
+    InvokeNode* store_node;
+    WOORT_JIT_CODE(invoke(
+        Out(store_node),
+        Imm(reinterpret_cast<intptr_t>(StoreFn)),
+        FuncSignature::build<void, woort_DynBox*, ValT>()));
+
+    store_node->set_arg(0, val_ptr);
+    store_node->set_arg(1, src_val);
+}
+
+template <auto LookupFn, typename KeyT, auto StoreFn, typename ValT>
+static void woort_JIT_stid_map_impl(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp map_ptr = em->get_gp_from_stack(map);
+    const Gp key_val = em->get_gp_from_stack(key);
+
+    const Gp val_ptr = em->c->new_gp_ptr();
+    InvokeNode* lookup_node;
+    WOORT_JIT_CODE(invoke(
+        Out(lookup_node),
+        Imm(reinterpret_cast<intptr_t>(LookupFn)),
+        FuncSignature::build<woort_DynBox*, woort_GCMap*, KeyT>()));
+
+    lookup_node->set_arg(0, map_ptr);
+    lookup_node->set_arg(1, key_val);
+    lookup_node->set_ret(0, val_ptr);
+
+    const Gp src_val = em->get_gp_from_stack(src);
+
+    InvokeNode* store_node;
+    WOORT_JIT_CODE(invoke(
+        Out(store_node),
+        Imm(reinterpret_cast<intptr_t>(StoreFn)),
+        FuncSignature::build<void, woort_DynBox*, ValT>()));
+
+    store_node->set_arg(0, val_ptr);
+    store_node->set_arg(1, src_val);
 }
 
 void woort_JIT_Backend_x64_STIDDICTII(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTIR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTIB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTIX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTRI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTRR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTRB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTRX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTBI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTBR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTBB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTBX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTXI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTXR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDDICTXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPII(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPIR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPIB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPIX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPRI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPRR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPRB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPRX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPBI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPBR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPBB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPBX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPXI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPXR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
 }
 
 void woort_JIT_Backend_x64_STIDMAPXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)map;
-    (void)key;
-    (void)src;
-    abort();
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
 }
 
 /* -------------------------------------------------------------------------- */
 
+static void woort_JIT_stid_struct_impl(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
+{
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp obj_ptr = em->get_gp_from_stack(obj);
+
+    const int32_t disp =
+        static_cast<int32_t>(offsetof(woort_GCStruct, m_datas)) +
+        static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
+
+    const Gp dst_addr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(dst_addr, ptr(obj_ptr, disp)));
+
+    const Gp src_val = em->get_gp_from_stack(src);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_GC_mixed_write_barrier_value)),
+        FuncSignature::build<void, woort_Value*, uint64_t>()));
+
+    invoke_node->set_arg(0, dst_addr);
+    invoke_node->set_arg(1, src_val);
+}
+
 void woort_JIT_Backend_x64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)obj;
-    (void)idx;
-    (void)src;
-    abort();
+    woort_JIT_stid_struct_impl(emmiter, obj, idx, src);
 }
 
 void woort_JIT_Backend_x64_STIDSTRUCTEXT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)obj;
-    (void)idx;
-    (void)src;
-    abort();
+    woort_JIT_stid_struct_impl(emmiter, obj, idx, src);
 }
 
 void woort_JIT_Backend_x64_UNPACKVEC(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec)

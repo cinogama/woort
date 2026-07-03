@@ -234,6 +234,50 @@ WOORT_NODISCARD bool woort_JIT_ldidstring(
     return false;
 }
 
+void woort_JIT_store_dynbox_int(woort_DynBox* dst, woort_Int val)
+{
+    woort_DynBox_box_int_with_barrier(dst, val);
+}
+
+void woort_JIT_store_dynbox_real(woort_DynBox* dst, woort_BoxedValue real_bits)
+{
+    woort_Real val;
+    memcpy(&val, &real_bits, sizeof(woort_Real));
+    woort_DynBox_box_real_with_barrier(dst, val);
+}
+
+void woort_JIT_store_dynbox_bool(woort_DynBox* dst, woort_Int val)
+{
+    woort_DynBox_box_bool_with_barrier(dst, val != 0);
+}
+
+void woort_JIT_store_dynbox_dyn(woort_DynBox* dst, woort_DynBox val)
+{
+    woort_GC_mixed_write_barrier_dynbox(dst, val);
+}
+
+/* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_int(woort_GCMap* map, woort_Int key)
+{
+    return woort_GCMap_get_or_create_bucket_val_by_int(map, key);
+}
+
+/* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_real(woort_GCMap* map, woort_BoxedValue real_bits)
+{
+    woort_Real key;
+    memcpy(&key, &real_bits, sizeof(woort_Real));
+    return woort_GCMap_get_or_create_bucket_val_by_real(map, key);
+}
+
+/* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_bool(woort_GCMap* map, woort_Int key)
+{
+    return woort_GCMap_get_or_create_bucket_val_by_bool(map, key != 0);
+}
+
+/* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_dyn(woort_GCMap* map, woort_DynBox key)
+{
+    return woort_GCMap_get_or_create_bucket_val_by_dynbox(map, key);
+}
+
 WOORT_NODISCARD bool woort_JIT_check_int_ex(woort_BoxedValue val)
 {
     return val != 0
