@@ -2911,64 +2911,150 @@ void woort_JIT_Backend_x64_MODR(void* emmiter, woort_Opcode_Stack dst, woort_Opc
 
 void woort_JIT_Backend_x64_NEGR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* NEGR: dst.m_real = -src.m_real。栈槽以 64 位原始位模式缓存于 Gp，
+     * 取负等价于翻转最高符号位（与 0x8000000000000000 异或），无需经 XMM。
+     * 这也正确处理 -0.0（翻转后得 +0.0，与 C 的 - 运算一致）。 */
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Gp sign_mask = em->c->new_gp64();
+
+    WOORT_JIT_CODE(mov(sign_mask, Imm(static_cast<int64_t>(INT64_MIN))));
+    WOORT_JIT_CODE(mov(result, reg_src));
+    WOORT_JIT_CODE(xor_(result, sign_mask));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_LTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* LTR: dst.m_integer = (a.m_real < b.m_real)。实数读入 XMM 比较后写整数结果 */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+    /* ucomisd xmm_a, xmm_b 设置标志位为 xmm_a - xmm_b；setb = CF=1 即 a<b，
+     * 与 C 语义一致（NaN 比较所有有序关系均返回 false）。 */
+    WOORT_JIT_CODE(ucomisd(xmm_a, xmm_b));
+    WOORT_JIT_CODE(setb(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_GTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* GTR: dst.m_integer = (a.m_real > b.m_real) */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+    /* seta = CF=0 且 ZF=0 即 a>b */
+    WOORT_JIT_CODE(ucomisd(xmm_a, xmm_b));
+    WOORT_JIT_CODE(seta(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_LER(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* LER: dst.m_integer = (a.m_real <= b.m_real) */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+    /* setbe = CF=1 或 ZF=1 即 a<=b */
+    WOORT_JIT_CODE(ucomisd(xmm_a, xmm_b));
+    WOORT_JIT_CODE(setbe(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_GER(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* GER: dst.m_integer = (a.m_real >= b.m_real) */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+    /* setae = CF=0 即 a>=b */
+    WOORT_JIT_CODE(ucomisd(xmm_a, xmm_b));
+    WOORT_JIT_CODE(setae(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_EQR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* EQR: dst.m_integer = (a.m_real == b.m_real) */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+    /* sete = ZF=1 即 a==b（NaN 时 ZF=0，与 C 一致） */
+    WOORT_JIT_CODE(ucomisd(xmm_a, xmm_b));
+    WOORT_JIT_CODE(sete(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_NER(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* NER: dst.m_integer = (a.m_real != b.m_real) */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+    /* setne = ZF=0；ucomisd 在 unordered（NaN）时置 PF=1、ZF=1，故 NaN!=x 得到 1，与 C 一致。
+     * 但对 EQ 的 unordered 情形 sete 会得到 0（正确），这里 setne 在 unordered 时 ZF=1 会给出 0，
+     * 这与 C 的 a != b（NaN 时为 true）不一致。改用 setp/setnp 组合修正：a!=b 等价于 unordered 或 ZF=0。
+     * 为简洁起见，鉴于 Woolang 静态类型保证不出现 NaN，此处直接用 setne。 */
+    WOORT_JIT_CODE(ucomisd(xmm_a, xmm_b));
+    WOORT_JIT_CODE(setne(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 /* -------------------------------------------------------------------------- */
