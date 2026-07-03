@@ -3343,26 +3343,43 @@ void woort_JIT_Backend_x64_CADDI(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 void woort_JIT_Backend_x64_CSUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+
+    WOORT_JIT_CODE(sub(reg_dst, reg_src));
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CMULI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+
+    WOORT_JIT_CODE(imul(reg_dst, reg_src));
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CDIVI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+
+    const Gp dividend = em->c->new_gp64();
+    const Gp high = em->c->new_gp64();
+
+    WOORT_JIT_CODE(mov(dividend, reg_dst));
+    WOORT_JIT_CODE(xor_(high, high));
+    WOORT_JIT_CODE(cqo(high, dividend));
+    WOORT_JIT_CODE(idiv(high, dividend, reg_src));
+    WOORT_JIT_CODE(mov(reg_dst, dividend));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CADDR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -3485,10 +3502,21 @@ void woort_JIT_Backend_x64_CVADDS(void* emmiter, woort_Opcode_Stack dst, woort_O
 
 void woort_JIT_Backend_x64_CMODI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+
+    const Gp dividend = em->c->new_gp64();
+    const Gp high = em->c->new_gp64();
+
+    WOORT_JIT_CODE(mov(dividend, reg_dst));
+    WOORT_JIT_CODE(xor_(high, high));
+    WOORT_JIT_CODE(cqo(high, dividend));
+    WOORT_JIT_CODE(idiv(high, dividend, reg_src));
+    WOORT_JIT_CODE(mov(reg_dst, high));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CMODR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
