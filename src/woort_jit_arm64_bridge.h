@@ -179,7 +179,6 @@ extern "C" {
     void woort_JIT_Backend_arm64_STIDMAPXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src);
     void woort_JIT_Backend_arm64_STIDMAPXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src);
     void woort_JIT_Backend_arm64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src);
-    void woort_JIT_Backend_arm64_STIDSTRUCTEXT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src);
     void woort_JIT_Backend_arm64_UNPACKVEC(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec);
     void woort_JIT_Backend_arm64_UNPACKVECX(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec);
     void woort_JIT_Backend_arm64_UNPACKVECALL(void* emmiter, woort_Opcode_Stack count_dst, woort_Opcode_Count n, woort_Opcode_Stack vec);

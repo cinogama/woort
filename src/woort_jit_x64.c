@@ -163,7 +163,6 @@ static const woort_OpcodeDispatchers _WOORT_JIT_BACKEND_CODE_DISPATCHERS_IMPL_X6
     .m_STIDMAPXB = woort_JIT_Backend_x64_STIDMAPXB,
     .m_STIDMAPXX = woort_JIT_Backend_x64_STIDMAPXX,
     .m_STIDSTRUCT = woort_JIT_Backend_x64_STIDSTRUCT,
-    .m_STIDSTRUCTEXT = woort_JIT_Backend_x64_STIDSTRUCTEXT,
     .m_UNPACKVEC = woort_JIT_Backend_x64_UNPACKVEC,
     .m_UNPACKVECX = woort_JIT_Backend_x64_UNPACKVECX,
     .m_UNPACKVECALL = woort_JIT_Backend_x64_UNPACKVECALL,

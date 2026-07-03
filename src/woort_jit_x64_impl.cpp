@@ -4985,6 +4985,11 @@ void woort_JIT_Backend_x64_STIDMAPXX(void* emmiter, woort_Opcode_Stack map, woor
 
 static void woort_JIT_stid_struct_impl(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
 {
+
+}
+
+void woort_JIT_Backend_x64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
+{
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
     static_assert(sizeof(woort_Value) == 8, "");
@@ -5008,16 +5013,6 @@ static void woort_JIT_stid_struct_impl(void* emmiter, woort_Opcode_Stack obj, wo
 
     invoke_node->set_arg(0, dst_addr);
     invoke_node->set_arg(1, src_val);
-}
-
-void woort_JIT_Backend_x64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
-{
-    woort_JIT_stid_struct_impl(emmiter, obj, idx, src);
-}
-
-void woort_JIT_Backend_x64_STIDSTRUCTEXT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
-{
-    woort_JIT_stid_struct_impl(emmiter, obj, idx, src);
 }
 
 void woort_JIT_Backend_x64_UNPACKVEC(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec)

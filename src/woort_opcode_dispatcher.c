@@ -1053,7 +1053,7 @@ _label_retry_entry:
             return c + 2;
         }
         case 3: /* STIDSTRUCTEXT */
-            DISPATCH(m_STIDSTRUCTEXT,
+            DISPATCH(m_STIDSTRUCT,
                 b,
                 (woort_Opcode_Count)WOORT_BYTECODE(ABC24, bc),
                 dst);

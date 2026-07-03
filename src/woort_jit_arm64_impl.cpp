@@ -1364,14 +1364,6 @@ void woort_JIT_Backend_arm64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, w
     (void)src;
 }
 
-void woort_JIT_Backend_arm64_STIDSTRUCTEXT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
-{
-    (void)emmiter;
-    (void)obj;
-    (void)idx;
-    (void)src;
-}
-
 void woort_JIT_Backend_arm64_UNPACKVEC(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec)
 {
     (void)emmiter;

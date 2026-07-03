@@ -492,9 +492,6 @@ static void _woort_dis_STIDMAPXX(void* userdata, woort_Opcode_Stack map, woort_O
 static void _woort_dis_STIDSTRUCT(void* userdata, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
 { CTX->callback("STIDSTRUCT  [SB %+d].%u = [SB %+d]\n", obj, idx, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDSTRUCTEXT(void* userdata, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
-{ CTX->callback("STIDSTRUCTEXT [SB %+d].%u = [SB %+d]\n", obj, idx, src); CTX->printed = 1; }
-
 static void _woort_dis_UNPACKVEC(void* userdata, woort_Opcode_Count n, woort_Opcode_Stack vec)
 { CTX->callback("UNPACKVEC   %u in [SB %+d]\n", n, vec); CTX->printed = 1; }
 
@@ -717,7 +714,6 @@ static const woort_OpcodeDispatchers g_disasm_dispatchers = {
     .m_STIDMAPXB = _woort_dis_STIDMAPXB,
     .m_STIDMAPXX = _woort_dis_STIDMAPXX,
     .m_STIDSTRUCT = _woort_dis_STIDSTRUCT,
-    .m_STIDSTRUCTEXT = _woort_dis_STIDSTRUCTEXT,
     .m_UNPACKVEC = _woort_dis_UNPACKVEC,
     .m_UNPACKVECX = _woort_dis_UNPACKVECX,
     .m_UNPACKVECALL = _woort_dis_UNPACKVECALL,
