@@ -3061,65 +3061,205 @@ void woort_JIT_Backend_x64_NER(void* emmiter, woort_Opcode_Stack dst, woort_Opco
 
 void woort_JIT_Backend_x64_ADDS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* ADDS: dst.m_string = woort_GCString_add_string(a.m_string, b.m_string) */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->c->new_gp_ptr();
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_add_string)),
+        FuncSignature::build<const woort_GCString*, const woort_GCString*, const woort_GCString*>()));
+
+    invoke_node->set_arg(0, reg_a);
+    invoke_node->set_arg(1, reg_b);
+    invoke_node->set_ret(0, result);
+
+    em->set_gp_by_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_LTS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* LTS: dst.m_integer = woort_GCString_compare(a, b) < 0 */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp cmp_result = em->c->new_gp32();
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_compare)),
+        FuncSignature::build<int, const woort_GCString*, const woort_GCString*>()));
+
+    invoke_node->set_arg(0, reg_a);
+    invoke_node->set_arg(1, reg_b);
+    invoke_node->set_ret(0, cmp_result);
+
+    WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
+    WOORT_JIT_CODE(setl(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_GTS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* GTS: dst.m_integer = woort_GCString_compare(a, b) > 0 */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp cmp_result = em->c->new_gp32();
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_compare)),
+        FuncSignature::build<int, const woort_GCString*, const woort_GCString*>()));
+
+    invoke_node->set_arg(0, reg_a);
+    invoke_node->set_arg(1, reg_b);
+    invoke_node->set_ret(0, cmp_result);
+
+    WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
+    WOORT_JIT_CODE(setg(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_LES(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* LES: dst.m_integer = woort_GCString_compare(a, b) <= 0 */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp cmp_result = em->c->new_gp32();
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_compare)),
+        FuncSignature::build<int, const woort_GCString*, const woort_GCString*>()));
+
+    invoke_node->set_arg(0, reg_a);
+    invoke_node->set_arg(1, reg_b);
+    invoke_node->set_ret(0, cmp_result);
+
+    WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
+    WOORT_JIT_CODE(setle(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_GES(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* GES: dst.m_integer = woort_GCString_compare(a, b) >= 0 */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp cmp_result = em->c->new_gp32();
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_compare)),
+        FuncSignature::build<int, const woort_GCString*, const woort_GCString*>()));
+
+    invoke_node->set_arg(0, reg_a);
+    invoke_node->set_arg(1, reg_b);
+    invoke_node->set_ret(0, cmp_result);
+
+    WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
+    WOORT_JIT_CODE(setge(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_EQS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* EQS: dst.m_integer = (a == b) || woort_GCString_compare(a, b) == 0
+     * 不使用短路跳转，直接线性计算：ptr_eq | (compare == 0)，与 LTS/GTS 结构一致更稳健。 */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp cmp_result = em->c->new_gp32();
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_compare)),
+        FuncSignature::build<int, const woort_GCString*, const woort_GCString*>()));
+
+    invoke_node->set_arg(0, reg_a);
+    invoke_node->set_arg(1, reg_b);
+    invoke_node->set_ret(0, cmp_result);
+
+    /* result = (reg_a == reg_b) */
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(sete(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    /* result |= (cmp_result == 0) */
+    WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
+    const Gp eq_zero = em->c->new_gp64();
+    WOORT_JIT_CODE(sete(eq_zero.r8_lo()));
+    WOORT_JIT_CODE(movzx(eq_zero, eq_zero.r8_lo()));
+    WOORT_JIT_CODE(or_(result, eq_zero));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_NES(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* NES: dst.m_integer = (a != b) && woort_GCString_compare(a, b) != 0
+     * NES 是 EQS 的逻辑取反（EQS = (a==b)||(compare==0)），用 && 而非 ||。
+     * 线性计算：ptr_ne & (compare != 0)，避免短路跳转。 */
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp cmp_result = em->c->new_gp32();
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_compare)),
+        FuncSignature::build<int, const woort_GCString*, const woort_GCString*>()));
+
+    invoke_node->set_arg(0, reg_a);
+    invoke_node->set_arg(1, reg_b);
+    invoke_node->set_ret(0, cmp_result);
+
+    /* result = (reg_a != reg_b) */
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(setne(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    /* result &= (cmp_result != 0) */
+    WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
+    const Gp ne_zero = em->c->new_gp64();
+    WOORT_JIT_CODE(setne(ne_zero.r8_lo()));
+    WOORT_JIT_CODE(movzx(ne_zero, ne_zero.r8_lo()));
+    WOORT_JIT_CODE(and_(result, ne_zero));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_LAND(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -3260,18 +3400,47 @@ void woort_JIT_Backend_x64_CDIVR(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 void woort_JIT_Backend_x64_CADDS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* CADDS: [dst].m_string = woort_GCString_add_string([dst].m_string, [src].m_string) */
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Gp result = em->c->new_gp_ptr();
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_add_string)),
+        FuncSignature::build<const woort_GCString*, const woort_GCString*, const woort_GCString*>()));
+
+    invoke_node->set_arg(0, reg_dst);
+    invoke_node->set_arg(1, reg_src);
+    invoke_node->set_ret(0, result);
+
+    em->set_gp_by_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_CVADDS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* CVADDS: [dst].m_string = woort_GCString_add_string([src].m_string, [dst].m_string)
+     * 注意与 CADDS 的操作数顺序相反（src 在前） */
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Gp result = em->c->new_gp_ptr();
+
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_GCString_add_string)),
+        FuncSignature::build<const woort_GCString*, const woort_GCString*, const woort_GCString*>()));
+
+    invoke_node->set_arg(0, reg_src);
+    invoke_node->set_arg(1, reg_dst);
+    invoke_node->set_ret(0, result);
+
+    em->set_gp_by_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_CMODI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)

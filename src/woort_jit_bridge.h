@@ -69,6 +69,11 @@ extern "C" {
 
     WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str, size_t len);
 
+    /* 字符串拼接 / 字典序比较（供 ADDS/LTS.../CADDS 等 JIT 处理器调用） */
+    WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(
+        const woort_GCString* a, const woort_GCString* b);
+    WOORT_NODISCARD int woort_GCString_compare(const woort_GCString* a, const woort_GCString* b);
+
     WOORT_NODISCARD woort_Int woort_GCString_to_integer(const woort_GCString* str);
     WOORT_NODISCARD woort_Real woort_GCString_to_real(const woort_GCString* str);
     WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str);

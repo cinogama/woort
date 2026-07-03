@@ -1934,9 +1934,9 @@ _label_continue_execution:
         // EQS
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPSREN, 1):
         {
-            woort_GCString* const a =
+            const woort_GCString* const a =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string;
-            woort_GCString* const b =
+            const woort_GCString* const b =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string;
 
             rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
@@ -1947,13 +1947,13 @@ _label_continue_execution:
         // NES
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_OPSREN, 2):
         {
-            woort_GCString* const a =
+            const woort_GCString* const a =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string;
-            woort_GCString* const b =
+            const woort_GCString* const b =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_string;
 
             rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_integer =
-                a != b || woort_GCString_compare(a, b) != 0;
+                a != b && woort_GCString_compare(a, b) != 0;
 
             break;
         }
