@@ -2456,10 +2456,136 @@ void woort_JIT_Backend_x64_CHECKDYN(void* emmiter, woort_Opcode_Stack dst, woort
 
 void woort_JIT_Backend_x64_PUSHBOXDYN(void* emmiter, woort_BoxValueType type, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)type;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Label L_retry = em->c->new_label();
+    WOORT_JIT_CODE(bind(L_retry));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(em->m_sp, em->m_stack));
+    WOORT_JIT_CODE(ja(L_ok));
+
+    em->emit_extern_stack(*em->m_ip, L_retry);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Gp val = em->get_gp_from_stack(src);
+
+    const Gp boxed = em->c->new_gp64();
+
+    switch (type)
+    {
+    case WOORT_BOX_VALUE_TYPE_GCUNIT:
+    {
+        WOORT_JIT_CODE(mov(boxed, val));
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+    {
+        WOORT_JIT_CODE(mov(boxed, val));
+        WOORT_JIT_CODE(shl(boxed, 3));
+        WOORT_JIT_CODE(or_(boxed, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_BOOL))));
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_INT:
+    {
+        WOORT_JIT_CODE(mov(boxed, val));
+        WOORT_JIT_CODE(shl(boxed, 2));
+        WOORT_JIT_CODE(or_(boxed, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_INT))));
+
+        const Gp check = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(check, boxed));
+        WOORT_JIT_CODE(sar(check, 2));
+
+        const Label L_ok = em->c->new_label();
+        WOORT_JIT_CODE(cmp(check, val));
+        WOORT_JIT_CODE(je(L_ok));
+
+        {
+            const Gp result = em->c->new_gp_ptr();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_JIT_box_int_ex)),
+                FuncSignature::build<woort_BoxedValue, woort_Int>()));
+
+            invoke_node->set_arg(0, val);
+            invoke_node->set_ret(0, result);
+
+            WOORT_JIT_CODE(mov(boxed, result));
+        }
+
+        WOORT_JIT_CODE(bind(L_ok));
+        break;
+    }
+    case WOORT_BOX_VALUE_TYPE_REAL:
+    {
+        const Vec xmm_val = em->c->new_xmm_sd();
+        WOORT_JIT_CODE(movq(xmm_val, val));
+
+        const Gp bits = em->c->new_gp64();
+        WOORT_JIT_CODE(movq(bits, xmm_val));
+
+        const Gp exp_b = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(exp_b, bits));
+        WOORT_JIT_CODE(shr(exp_b, 61));
+
+        const Gp exp_t = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(exp_t, exp_b));
+        WOORT_JIT_CODE(shr(exp_t, 1));
+        WOORT_JIT_CODE(xor_(exp_b, exp_t));
+
+        const Label L_ex = em->c->new_label();
+        WOORT_JIT_CODE(test(exp_b, Imm(1)));
+        WOORT_JIT_CODE(jz(L_ex));
+
+        {
+            const Gp sign = em->c->new_gp64();
+            WOORT_JIT_CODE(mov(sign, bits));
+            WOORT_JIT_CODE(and_(sign, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
+
+            const Gp low62 = em->c->new_gp64();
+            WOORT_JIT_CODE(mov(low62, bits));
+            WOORT_JIT_CODE(and_(low62, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
+            WOORT_JIT_CODE(shl(low62, 1));
+
+            WOORT_JIT_CODE(mov(boxed, sign));
+            WOORT_JIT_CODE(or_(boxed, low62));
+            WOORT_JIT_CODE(or_(boxed, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_REAL))));
+        }
+
+        const Label L_done = em->c->new_label();
+        WOORT_JIT_CODE(jmp(L_done));
+
+        WOORT_JIT_CODE(bind(L_ex));
+        {
+            const Gp result = em->c->new_gp_ptr();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_JIT_box_real_ex)),
+                FuncSignature::build<woort_BoxedValue, woort_Real>()));
+
+            invoke_node->set_arg(0, xmm_val);
+            invoke_node->set_ret(0, result);
+
+            WOORT_JIT_CODE(mov(boxed, result));
+        }
+
+        WOORT_JIT_CODE(bind(L_done));
+        break;
+    }
+    default:
+    {
+        assert(false);
+        break;
+    }
+    }
+
+    WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), boxed));
+    WOORT_JIT_CODE(sub(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2562,64 +2688,105 @@ void woort_JIT_Backend_x64_MODI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
 
 void woort_JIT_Backend_x64_NEGI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    WOORT_JIT_CODE(mov(result, reg_src));
+    WOORT_JIT_CODE(neg(result));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_LTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(setl(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_GTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(setg(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_LEI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(setle(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_GEI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(setge(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_EQI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(sete(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_NEI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+
+    WOORT_JIT_CODE(cmp(reg_a, reg_b));
+    WOORT_JIT_CODE(setne(result.r8_lo()));
+    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+
+    em->apply_gp_to_stack(dst);
 }
 
 /* -------------------------------------------------------------------------- */
