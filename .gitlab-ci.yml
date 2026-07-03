@@ -27,8 +27,8 @@ winserver22:
     - winserver22
   script:
     - cmake -B build -G "Visual Studio 17 2022" -A x64
-    - cmake --build build --config $CONFIG
-    - ctest --test-dir build -C $CONFIG --output-on-failure
+    - cmake --build build --config %CONFIG%
+    - ctest --test-dir build -C %CONFIG% --output-on-failure
   parallel:
     matrix:
       - CONFIG: [Debug, RelWithDebInfo]
