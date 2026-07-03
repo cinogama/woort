@@ -35,7 +35,7 @@ static int run_ldidxvec(uint32_t count, woort_Int idx)
         (void)woort_IR_MKVEC(f_main, v_vec, count);
 
         woort_IRValue* v_dst = woort_IRFunction_new_vreg(f_main);
-        (void)woort_IR_LDIDXVEC(f_main, v_dst, v_vec, woort_IRFunction_fetch_const(f_main, c_idx));
+        (void)woort_IR_LDIDVEC(f_main, v_dst, v_vec, woort_IRFunction_fetch_const(f_main, c_idx));
         (void)woort_IR_ret(f_main, v_dst);
     }
 
@@ -122,7 +122,7 @@ static int run_ldidxvecx(uint32_t count, woort_Int idx)
         (void)woort_IR_MKVEC(f_main, v_vec, count);
 
         woort_IRValue* v_boxed = woort_IRFunction_new_vreg(f_main);
-        (void)woort_IR_LDIDXVECX(f_main, v_boxed, v_vec, woort_IRFunction_fetch_const(f_main, c_idx));
+        (void)woort_IR_LDIDVECX(f_main, v_boxed, v_vec, woort_IRFunction_fetch_const(f_main, c_idx));
 
         woort_IRValue* v_dst = woort_IRFunction_new_vreg(f_main);
         (void)woort_IR_UNBOXDYN(f_main, v_dst, WOORT_BOX_VALUE_TYPE_INT, v_boxed);

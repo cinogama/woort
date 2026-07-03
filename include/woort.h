@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 5, 1)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 5, 2)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -1853,84 +1853,84 @@ WOORT_NODISCARD WOORT_API bool woort_IR_LNOT(
 /**@{*/
 
 /** @brief Load vector element by integer index (bounds-checked): dst = container[idx]. */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXVEC(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDVEC(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load vector element by integer index (unchecked): dst = container[idx]. */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXVECX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDVECX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load struct field by constant index: dst = container[idx]. */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXSTRUCT(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTRUCT(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     uint32_t idx);
 
 /** @brief Load string character by integer index: dst = container[idx]. */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXSTRING(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTRING(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by integer key: dst = container[key]. */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTI(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDDICTI(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by real key: dst = container[key]. */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTR(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDDICTR(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by bool key: dst = container[key]. */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTB(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDDICTB(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by boxed (dynamic) key: dst = container[key]. */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDDICTX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by integer key (boxed result): dst = box(container[key]). */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTIX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDDICTIX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by real key (boxed result): dst = box(container[key]). */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTRX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDDICTRX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by bool key (boxed result): dst = box(container[key]). */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTBX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDDICTBX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
 /** @brief Load map element by dynamic key (boxed result): dst = box(container[key]). */
-WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTXX(
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDDICTXX(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,
@@ -1942,28 +1942,28 @@ WOORT_NODISCARD WOORT_API bool woort_IR_LDIDXDICTXX(
 /**@{*/
 
 /** @brief Store integer value into vector at index. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXVECI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDVECI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Store real value into vector at index. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXVECR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDVECR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Store bool value into vector at index. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXVECB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDVECB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Store boxed (dynamic) value into vector at index. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXVECX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDVECX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
@@ -1973,117 +1973,117 @@ WOORT_NODISCARD WOORT_API bool woort_IR_STIDXVECX(
 
 /** @name Index Store — Dict (container[key] = val)
  *
- * Naming convention: STIDXDICT{KeyType}{ValueType} where
+ * Naming convention: STIDDICT{KeyType}{ValueType} where
  * I=int, R=real, B=bool, X=boxed(dynamic).
  * @{*/
 
  /** @brief Dict[int] = int. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTII(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTII(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[int] = real. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTIR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTIR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[int] = bool. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTIB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTIB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[int] = boxed. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTIX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTIX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[real] = int. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTRI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTRI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[real] = real. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTRR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTRR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[real] = bool. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTRB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTRB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[real] = boxed. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTRX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTRX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[bool] = int. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTBI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTBI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[bool] = real. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTBR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTBR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[bool] = bool. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTBB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTBB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[bool] = boxed. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTBX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTBX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[boxed] = int. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTXI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTXI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[boxed] = real. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTXR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTXR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[boxed] = bool. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTXB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTXB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Dict[boxed] = boxed. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTXX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDDICTXX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
@@ -2097,112 +2097,112 @@ WOORT_NODISCARD WOORT_API bool woort_IR_STIDXDICTXX(
  * @{*/
 
  /** @brief Map[int] = int. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPII(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPII(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[int] = real. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPIR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPIR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[int] = bool. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPIB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPIB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[int] = boxed. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPIX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPIX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[real] = int. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPRI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPRI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[real] = real. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPRR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPRR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[real] = bool. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPRB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPRB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[real] = boxed. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPRX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPRX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[bool] = int. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPBI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPBI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[bool] = real. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPBR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPBR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[bool] = bool. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPBB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPBB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[bool] = boxed. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPBX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPBX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[boxed] = int. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPXI(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPXI(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[boxed] = real. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPXR(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPXR(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[boxed] = bool. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPXB(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPXB(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
     const woort_IRValue* val);
 
 /** @brief Map[boxed] = boxed. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPXX(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDMAPXX(
     woort_IRFunction* f,
     const woort_IRValue* c,
     const woort_IRValue* idx,
@@ -2214,7 +2214,7 @@ WOORT_NODISCARD WOORT_API bool woort_IR_STIDXMAPXX(
 /**@{*/
 
 /** @brief Store value into struct field at constant index. */
-WOORT_NODISCARD WOORT_API bool woort_IR_STIDXSTRUCT(
+WOORT_NODISCARD WOORT_API bool woort_IR_STIDSTRUCT(
     woort_IRFunction* f,
     const woort_IRValue* c,
     uint32_t idx,
@@ -2287,25 +2287,25 @@ WOORT_NODISCARD WOORT_API bool woort_IR_UNPACKVECXALL(
 /**@{*/
 
 /** @brief Push struct field at constant index onto the stack. */
-WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDXSTRUCT(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDSTRUCT(
     woort_IRFunction* f,
     const woort_IRValue* src,
     uint32_t idx);
 
 /** @brief Push boxed int struct field at index onto stack. */
-WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDXSTBOXI(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDSTBOXI(
     woort_IRFunction* f,
     const woort_IRValue* src,
     uint32_t idx);
 
 /** @brief Push boxed real struct field at index onto stack. */
-WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDXSTBOXR(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDSTBOXR(
     woort_IRFunction* f,
     const woort_IRValue* src,
     uint32_t idx);
 
 /** @brief Push boxed bool struct field at index onto stack. */
-WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDXSTBOXB(
+WOORT_NODISCARD WOORT_API bool woort_IR_PUSHIDSTBOXB(
     woort_IRFunction* f,
     const woort_IRValue* src,
     uint32_t idx);

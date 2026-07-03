@@ -531,104 +531,104 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_OPCLAON, 3, a8, bc16)
 
 /*
- * LDIDX - 索引加载
- * LDIDXVEC    (mode=0): [SB + a8][[SB + b8]] -> [SB + c8], vec in [SB + a8], idx in [SB + b8]
- * LDIDXVECX   (mode=1): [SB + a8][[SB + b8]] -> [SB + c8] (dynamic), vec in [SB + a8], idx in [SB + b8]
+ * LDID - 索引加载
+ * LDIDVEC    (mode=0): [SB + a8][[SB + b8]] -> [SB + c8], vec in [SB + a8], idx in [SB + b8]
+ * LDIDVECX   (mode=1): [SB + a8][[SB + b8]] -> [SB + c8] (dynamic), vec in [SB + a8], idx in [SB + b8]
  * LDIDSTRUCT  (mode=2): [SB + b8].field_n8 -> [SB + c8], struct in [SB + b8]
  * LDIDSTRING  (mode=3): [SB + a8][[SB + b8]] -> [SB + c8], str in [SB + a8], idx in [SB + b8]
  */
-#define woort_OpCode_LDIDXVEC(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDX, 0, a8, b8, c8)
-#define woort_OpCode_LDIDXVECX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDX, 1, a8, b8, c8)
+#define woort_OpCode_LDIDVEC(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDID, 0, a8, b8, c8)
+#define woort_OpCode_LDIDVECX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDID, 1, a8, b8, c8)
 #define woort_OpCode_LDIDSTRUCT(n8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDX, 2, n8, b8, c8)
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDID, 2, n8, b8, c8)
 #define woort_OpCode_LDIDSTRING(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDX, 3, a8, b8, c8)
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDID, 3, a8, b8, c8)
 
 /*
- * LDIDXDICT - 字典索引加载（按键类型）
- * LDIDXDICTI (mode=0): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], int key in [SB + b8]
- * LDIDXDICTR (mode=1): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], real key in [SB + b8]
- * LDIDXDICTB (mode=2): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], bool key in [SB + b8]
- * LDIDXDICTX (mode=3): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], dynamic key in [SB + b8]
+ * LDIDDICT - 字典索引加载（按键类型）
+ * LDIDDICTI (mode=0): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], int key in [SB + b8]
+ * LDIDDICTR (mode=1): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], real key in [SB + b8]
+ * LDIDDICTB (mode=2): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], bool key in [SB + b8]
+ * LDIDDICTX (mode=3): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], dynamic key in [SB + b8]
  */
-#define woort_OpCode_LDIDXDICTI(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICT, 0, a8, b8, c8)
-#define woort_OpCode_LDIDXDICTR(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICT, 1, a8, b8, c8)
-#define woort_OpCode_LDIDXDICTB(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICT, 2, a8, b8, c8)
-#define woort_OpCode_LDIDXDICTX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICT, 3, a8, b8, c8)
+#define woort_OpCode_LDIDDICTI(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDDICT, 0, a8, b8, c8)
+#define woort_OpCode_LDIDDICTR(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDDICT, 1, a8, b8, c8)
+#define woort_OpCode_LDIDDICTB(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDDICT, 2, a8, b8, c8)
+#define woort_OpCode_LDIDDICTX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDDICT, 3, a8, b8, c8)
 
 /*
- * STIDXVEC - 向量索引存储
- * STIDXVECI (mode=0): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (int)[SB + c8]
- * STIDXVECR (mode=1): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (real)[SB + c8]
- * STIDXVECB (mode=2): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (bool)[SB + c8]
- * STIDXVECX (mode=3): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (dyn)[SB + c8]
+ * STIDVEC - 向量索引存储
+ * STIDVECI (mode=0): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (int)[SB + c8]
+ * STIDVECR (mode=1): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (real)[SB + c8]
+ * STIDVECB (mode=2): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (bool)[SB + c8]
+ * STIDVECX (mode=3): vec in [SB + a8], idx in [SB + b8], val in [SB + c8]; vec[[SB + b8]] = (dyn)[SB + c8]
  */
-#define woort_OpCode_STIDXVEC_I(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXVEC, 0, a8, b8, c8)
-#define woort_OpCode_STIDXVEC_R(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXVEC, 1, a8, b8, c8)
-#define woort_OpCode_STIDXVEC_B(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXVEC, 2, a8, b8, c8)
-#define woort_OpCode_STIDXVEC_X(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXVEC, 3, a8, b8, c8)
+#define woort_OpCode_STIDVEC_I(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDVEC, 0, a8, b8, c8)
+#define woort_OpCode_STIDVEC_R(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDVEC, 1, a8, b8, c8)
+#define woort_OpCode_STIDVEC_B(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDVEC, 2, a8, b8, c8)
+#define woort_OpCode_STIDVEC_X(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDVEC, 3, a8, b8, c8)
 
 /*
- * STIDXDICTI - 字典存储（int键）
- * STIDXDICTII/IR/IB/IX: map in [SB + a8], key in [SB + b8], val in [SB + c8]; map[B8] = C8
+ * STIDDICTI - 字典存储（int键）
+ * STIDDICTII/IR/IB/IX: map in [SB + a8], key in [SB + b8], val in [SB + c8]; map[B8] = C8
  */
-#define woort_OpCode_STIDXDICTII(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTI, 0, a8, b8, c8)
-#define woort_OpCode_STIDXDICTIR(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTI, 1, a8, b8, c8)
-#define woort_OpCode_STIDXDICTIB(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTI, 2, a8, b8, c8)
-#define woort_OpCode_STIDXDICTIX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTI, 3, a8, b8, c8)
+#define woort_OpCode_STIDDICTII(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTI, 0, a8, b8, c8)
+#define woort_OpCode_STIDDICTIR(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTI, 1, a8, b8, c8)
+#define woort_OpCode_STIDDICTIB(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTI, 2, a8, b8, c8)
+#define woort_OpCode_STIDDICTIX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTI, 3, a8, b8, c8)
 
 /*
- * STIDXDICTR - 字典存储（real键）
- * 同 STIDXDICTI，但 key 在 B8 为 real 类型
+ * STIDDICTR - 字典存储（real键）
+ * 同 STIDDICTI，但 key 在 B8 为 real 类型
  */
-#define woort_OpCode_STIDXDICTRI(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTR, 0, a8, b8, c8)
-#define woort_OpCode_STIDXDICTRR(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTR, 1, a8, b8, c8)
-#define woort_OpCode_STIDXDICTRB(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTR, 2, a8, b8, c8)
-#define woort_OpCode_STIDXDICTRX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTR, 3, a8, b8, c8)
+#define woort_OpCode_STIDDICTRI(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTR, 0, a8, b8, c8)
+#define woort_OpCode_STIDDICTRR(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTR, 1, a8, b8, c8)
+#define woort_OpCode_STIDDICTRB(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTR, 2, a8, b8, c8)
+#define woort_OpCode_STIDDICTRX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTR, 3, a8, b8, c8)
 
 /*
- * STIDXDICTB - 字典存储（bool键）
- * 同 STIDXDICTI，但 key 在 B8 为 bool 类型
+ * STIDDICTB - 字典存储（bool键）
+ * 同 STIDDICTI，但 key 在 B8 为 bool 类型
  */
-#define woort_OpCode_STIDXDICTBI(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTB, 0, a8, b8, c8)
-#define woort_OpCode_STIDXDICTBR(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTB, 1, a8, b8, c8)
-#define woort_OpCode_STIDXDICTBB(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTB, 2, a8, b8, c8)
-#define woort_OpCode_STIDXDICTBX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTB, 3, a8, b8, c8)
+#define woort_OpCode_STIDDICTBI(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTB, 0, a8, b8, c8)
+#define woort_OpCode_STIDDICTBR(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTB, 1, a8, b8, c8)
+#define woort_OpCode_STIDDICTBB(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTB, 2, a8, b8, c8)
+#define woort_OpCode_STIDDICTBX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTB, 3, a8, b8, c8)
 
 /*
- * STIDXDICTX - 字典存储（dynamic键）
- * 同 STIDXDICTI，但 key 在 B8 为 dynamic 类型
+ * STIDDICTX - 字典存储（dynamic键）
+ * 同 STIDDICTI，但 key 在 B8 为 dynamic 类型
  */
-#define woort_OpCode_STIDXDICTXI(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTX, 0, a8, b8, c8)
-#define woort_OpCode_STIDXDICTXR(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTX, 1, a8, b8, c8)
-#define woort_OpCode_STIDXDICTXB(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTX, 2, a8, b8, c8)
-#define woort_OpCode_STIDXDICTXX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXDICTX, 3, a8, b8, c8)
+#define woort_OpCode_STIDDICTXI(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTX, 0, a8, b8, c8)
+#define woort_OpCode_STIDDICTXR(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTX, 1, a8, b8, c8)
+#define woort_OpCode_STIDDICTXB(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTX, 2, a8, b8, c8)
+#define woort_OpCode_STIDDICTXX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDDICTX, 3, a8, b8, c8)
 
 /*
  * STIDSTRUCT - 结构体字段存储
@@ -638,126 +638,126 @@
     woort_OpCodeFormal_cons(OP6_MA10_B8_C8, WOORT_OPCODE_STIDSTRUCT, n10, a8, b8)
 
 /*
- * LDIDXDICTX - 字典索引加载（带动态值类型，按键类型）
- * LDIDXDICTIX (mode=0): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], int key in [SB + b8]
- * LDIDXDICTRX (mode=1): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], real key in [SB + b8]
- * LDIDXDICTBX (mode=2): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], bool key in [SB + b8]
- * LDIDXDICTXX (mode=3): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], dynamic key in [SB + b8]
+ * LDIDDICTX - 字典索引加载（带动态值类型，按键类型）
+ * LDIDDICTIX (mode=0): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], int key in [SB + b8]
+ * LDIDDICTRX (mode=1): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], real key in [SB + b8]
+ * LDIDDICTBX (mode=2): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], bool key in [SB + b8]
+ * LDIDDICTXX (mode=3): [SB + a8][[SB + b8]] -> [SB + c8] (dyn), dict in [SB + a8], dynamic key in [SB + b8]
  */
-#define woort_OpCode_LDIDXDICTIX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICTX, 0, a8, b8, c8)
-#define woort_OpCode_LDIDXDICTRX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICTX, 1, a8, b8, c8)
-#define woort_OpCode_LDIDXDICTBX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICTX, 2, a8, b8, c8)
-#define woort_OpCode_LDIDXDICTXX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDXDICTX, 3, a8, b8, c8)
+#define woort_OpCode_LDIDDICTIX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDDICTX, 0, a8, b8, c8)
+#define woort_OpCode_LDIDDICTRX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDDICTX, 1, a8, b8, c8)
+#define woort_OpCode_LDIDDICTBX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDDICTX, 2, a8, b8, c8)
+#define woort_OpCode_LDIDDICTXX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDDICTX, 3, a8, b8, c8)
 
 /*
- * LDIDXEX - 扩展索引加载
- * LDIDXVECEXT  (mode=0): vec[SB + bc16] -> [SB + c16], vec in [SB + a16]
- * LDIDXVECXEXT (mode=1): vec[SB + bc16] -> [SB + c16] (dynamic)
+ * LDIDEX - 扩展索引加载
+ * LDIDVECEXT  (mode=0): vec[SB + bc16] -> [SB + c16], vec in [SB + a16]
+ * LDIDVECXEXT (mode=1): vec[SB + bc16] -> [SB + c16] (dynamic)
  * LDIDSTRUCTEXT(mode=2): struct.n24 -> [SB + c16]
  * LDIDSTRINGEXT(mode=3): str[SB + bc16] -> [SB + c16], str in [SB + a16]
  * 注: 这些指令需要扩展格式，使用 32 位扩展字段
  */
-#define woort_OpCode_LDIDXVECEXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXEX, 0, bc16)
-#define woort_OpCode_LDIDXVECXEXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXEX, 1, bc16)
+#define woort_OpCode_LDIDVECEXT(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDEX, 0, bc16)
+#define woort_OpCode_LDIDVECXEXT(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDEX, 1, bc16)
 #define woort_OpCode_LDIDSTRUCTEXT(n24) \
-    woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_LDIDXEX, 2, n24)
+    woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_LDIDEX, 2, n24)
 #define woort_OpCode_LDIDSTRINGEXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXEX, 3, bc16)
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDEX, 3, bc16)
 
 /*
- * LDIDXDICTEX - 扩展字典索引加载（按键类型）
+ * LDIDDICTEX - 扩展字典索引加载（按键类型）
  */
-#define woort_OpCode_LDIDXDICTIEXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEX, 0, bc16)
-#define woort_OpCode_LDIDXDICTREXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEX, 1, bc16)
-#define woort_OpCode_LDIDXDICTBEXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEX, 2, bc16)
-#define woort_OpCode_LDIDXDICTXEXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEX, 3, bc16)
+#define woort_OpCode_LDIDDICTIEXT(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDDICTEX, 0, bc16)
+#define woort_OpCode_LDIDDICTREXT(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDDICTEX, 1, bc16)
+#define woort_OpCode_LDIDDICTBEXT(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDDICTEX, 2, bc16)
+#define woort_OpCode_LDIDDICTXEXT(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDDICTEX, 3, bc16)
 
 /*
- * LDIDXDICTEXX - 扩展字典索引加载（动态值类型，按键类型）
+ * LDIDDICTEXX - 扩展字典索引加载（动态值类型，按键类型）
  */
-#define woort_OpCode_LDIDXDICTIXEXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEXX, 0, bc16)
-#define woort_OpCode_LDIDXDICTRXEXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEXX, 1, bc16)
-#define woort_OpCode_LDIDXDICTBXEXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEXX, 2, bc16)
-#define woort_OpCode_LDIDXDICTXXEXT(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDXDICTEXX, 3, bc16)
+#define woort_OpCode_LDIDDICTIXEXT(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDDICTEXX, 0, bc16)
+#define woort_OpCode_LDIDDICTRXEXT(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDDICTEXX, 1, bc16)
+#define woort_OpCode_LDIDDICTBXEXT(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDDICTEXX, 2, bc16)
+#define woort_OpCode_LDIDDICTXXEXT(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_LDIDDICTEXX, 3, bc16)
 
 /*
- * STIDXMAPI - Map存储（int键）
- * STIDXMAPII/IR/IB/IX: map in [SB + a8], key in [SB + b8], val in [SB + c8]; map[B8] = C8 (create if missing)
+ * STIDMAPI - Map存储（int键）
+ * STIDMAPII/IR/IB/IX: map in [SB + a8], key in [SB + b8], val in [SB + c8]; map[B8] = C8 (create if missing)
  */
-#define woort_OpCode_STIDXMAPII(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPI, 0, a8, b8, c8)
-#define woort_OpCode_STIDXMAPIR(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPI, 1, a8, b8, c8)
-#define woort_OpCode_STIDXMAPIB(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPI, 2, a8, b8, c8)
-#define woort_OpCode_STIDXMAPIX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPI, 3, a8, b8, c8)
+#define woort_OpCode_STIDMAPII(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPI, 0, a8, b8, c8)
+#define woort_OpCode_STIDMAPIR(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPI, 1, a8, b8, c8)
+#define woort_OpCode_STIDMAPIB(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPI, 2, a8, b8, c8)
+#define woort_OpCode_STIDMAPIX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPI, 3, a8, b8, c8)
 
 /*
- * STIDXMAPR - Map存储（real键）
+ * STIDMAPR - Map存储（real键）
  */
-#define woort_OpCode_STIDXMAPRI(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPR, 0, a8, b8, c8)
-#define woort_OpCode_STIDXMAPRR(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPR, 1, a8, b8, c8)
-#define woort_OpCode_STIDXMAPRB(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPR, 2, a8, b8, c8)
-#define woort_OpCode_STIDXMAPRX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPR, 3, a8, b8, c8)
+#define woort_OpCode_STIDMAPRI(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPR, 0, a8, b8, c8)
+#define woort_OpCode_STIDMAPRR(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPR, 1, a8, b8, c8)
+#define woort_OpCode_STIDMAPRB(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPR, 2, a8, b8, c8)
+#define woort_OpCode_STIDMAPRX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPR, 3, a8, b8, c8)
 
 /*
- * STIDXMAPB - Map存储（bool键）
+ * STIDMAPB - Map存储（bool键）
  */
-#define woort_OpCode_STIDXMAPBI(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPB, 0, a8, b8, c8)
-#define woort_OpCode_STIDXMAPBR(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPB, 1, a8, b8, c8)
-#define woort_OpCode_STIDXMAPBB(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPB, 2, a8, b8, c8)
-#define woort_OpCode_STIDXMAPBX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPB, 3, a8, b8, c8)
+#define woort_OpCode_STIDMAPBI(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPB, 0, a8, b8, c8)
+#define woort_OpCode_STIDMAPBR(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPB, 1, a8, b8, c8)
+#define woort_OpCode_STIDMAPBB(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPB, 2, a8, b8, c8)
+#define woort_OpCode_STIDMAPBX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPB, 3, a8, b8, c8)
 
 /*
- * STIDXMAPX - Map存储（dynamic键）
+ * STIDMAPX - Map存储（dynamic键）
  */
-#define woort_OpCode_STIDXMAPXI(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPX, 0, a8, b8, c8)
-#define woort_OpCode_STIDXMAPXR(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPX, 1, a8, b8, c8)
-#define woort_OpCode_STIDXMAPXB(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPX, 2, a8, b8, c8)
-#define woort_OpCode_STIDXMAPXX(a8, b8, c8) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDXMAPX, 3, a8, b8, c8)
+#define woort_OpCode_STIDMAPXI(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPX, 0, a8, b8, c8)
+#define woort_OpCode_STIDMAPXR(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPX, 1, a8, b8, c8)
+#define woort_OpCode_STIDMAPXB(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPX, 2, a8, b8, c8)
+#define woort_OpCode_STIDMAPXX(a8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_STIDMAPX, 3, a8, b8, c8)
 
 /*
- * STIDXEX - 扩展索引存储
- * STIDXVECEXT   (mode=0): vec[t8][SB + bc16] = [SB + c16]
- * STIDXDICTEXT  (mode=1): dict[kt4][vt4][SB + bc16] = [SB + c16]
- * STIDXMAPEXT   (mode=2): map[kt4][vt4][SB + bc16] = [SB + c16]
+ * STIDEX - 扩展索引存储
+ * STIDVECEXT   (mode=0): vec[t8][SB + bc16] = [SB + c16]
+ * STIDDICTEXT  (mode=1): dict[kt4][vt4][SB + bc16] = [SB + c16]
+ * STIDMAPEXT   (mode=2): map[kt4][vt4][SB + bc16] = [SB + c16]
  * STIDSTRUCTEXT (mode=3): struct.n24 = [SB + c16]
  */
-#define woort_OpCode_STIDXVECEXT(t8, bc16, b16, c16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_STIDXEX, 0, t8, bc16)
-#define woort_OpCode_STIDXDICTEXT(kt4, vt4, bc16, b16, c16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_STIDXEX, 1, ((kt4) << 4) | (vt4), bc16)
-#define woort_OpCode_STIDXMAPEXT(kt4, vt4, bc16, b16, c16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_STIDXEX, 2, ((kt4) << 4) | (vt4), bc16)
+#define woort_OpCode_STIDVECEXT(t8, bc16, b16, c16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_STIDEX, 0, t8, bc16)
+#define woort_OpCode_STIDDICTEXT(kt4, vt4, bc16, b16, c16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_STIDEX, 1, ((kt4) << 4) | (vt4), bc16)
+#define woort_OpCode_STIDMAPEXT(kt4, vt4, bc16, b16, c16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_STIDEX, 2, ((kt4) << 4) | (vt4), bc16)
 #define woort_OpCode_STIDSTRUCTEXT(n24, b16, c16) \
-    woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_STIDXEX, 3, n24)
+    woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_STIDEX, 3, n24)
 
 /*
  * CONSEX - 扩展容器构造
@@ -815,17 +815,17 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_UNPACK, 3, n8, b8, c8)
 
 /*
- * PUSHIDXSTBOX - 压入结构体字段引用
- * PUSHIDXSTBOXI/R/B/X: 压入 struct.n8 的引用到栈，类型 int/real/bool/dynamic
+ * PUSHIDSTBOX - 压入结构体字段引用
+ * PUSHIDSTBOXI/R/B/X: 压入 struct.n8 的引用到栈，类型 int/real/bool/dynamic
  */
-#define woort_OpCode_PUSHIDXSTRUCT(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDXSTBOX, 0, n8, bc16)
-#define woort_OpCode_PUSHIDXSTBOXI(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDXSTBOX, 1, n8, bc16)
-#define woort_OpCode_PUSHIDXSTBOXR(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDXSTBOX, 2, n8, bc16)
-#define woort_OpCode_PUSHIDXSTBOXB(n8, bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDXSTBOX, 3, n8, bc16)
+#define woort_OpCode_PUSHIDSTRUCT(n8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDSTBOX, 0, n8, bc16)
+#define woort_OpCode_PUSHIDSTBOXI(n8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDSTBOX, 1, n8, bc16)
+#define woort_OpCode_PUSHIDSTBOXR(n8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDSTBOX, 2, n8, bc16)
+#define woort_OpCode_PUSHIDSTBOXB(n8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_PUSHIDSTBOX, 3, n8, bc16)
 
 /*
  * PACKARG - 打包参数

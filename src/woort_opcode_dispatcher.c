@@ -711,18 +711,18 @@ _label_retry_entry:
         }
         return c + 1;
 
-    case WOORT_OPCODE_LDIDX:
+    case WOORT_OPCODE_LDID:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack dst = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: /* LDIDXVEC */
-            DISPATCH(m_LDIDXVEC, dst, a, b);
+        case 0: /* LDIDVEC */
+            DISPATCH(m_LDIDVEC, dst, a, b);
             return c + 1;
-        case 1: /* LDIDXVECX */
-            DISPATCH(m_LDIDXVECX, dst, a, b);
+        case 1: /* LDIDVECX */
+            DISPATCH(m_LDIDVECX, dst, a, b);
             return c + 1;
         case 2: /* LDIDSTRUCT */
             DISPATCH(m_LDIDSTRUCT, dst, (woort_Opcode_Count)(uint8_t)WOORT_BYTECODE(A8, bc), b);
@@ -734,48 +734,48 @@ _label_retry_entry:
         return c + 1;
     }
 
-    case WOORT_OPCODE_LDIDXDICT:
+    case WOORT_OPCODE_LDIDDICT:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack dst = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_LDIDXDICTI, dst, a, b); return c + 1;
-        case 1: DISPATCH(m_LDIDXDICTR, dst, a, b); return c + 1;
-        case 2: DISPATCH(m_LDIDXDICTB, dst, a, b); return c + 1;
-        case 3: DISPATCH(m_LDIDXDICTX, dst, a, b); return c + 1;
+        case 0: DISPATCH(m_LDIDDICTI, dst, a, b); return c + 1;
+        case 1: DISPATCH(m_LDIDDICTR, dst, a, b); return c + 1;
+        case 2: DISPATCH(m_LDIDDICTB, dst, a, b); return c + 1;
+        case 3: DISPATCH(m_LDIDDICTX, dst, a, b); return c + 1;
         }
         return c + 1;
     }
 
-    case WOORT_OPCODE_LDIDXDICTX:
+    case WOORT_OPCODE_LDIDDICTX:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack dst = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_LDIDXDICTIX, dst, a, b); return c + 1;
-        case 1: DISPATCH(m_LDIDXDICTRX, dst, a, b); return c + 1;
-        case 2: DISPATCH(m_LDIDXDICTBX, dst, a, b); return c + 1;
-        case 3: DISPATCH(m_LDIDXDICTXX, dst, a, b); return c + 1;
+        case 0: DISPATCH(m_LDIDDICTIX, dst, a, b); return c + 1;
+        case 1: DISPATCH(m_LDIDDICTRX, dst, a, b); return c + 1;
+        case 2: DISPATCH(m_LDIDDICTBX, dst, a, b); return c + 1;
+        case 3: DISPATCH(m_LDIDDICTXX, dst, a, b); return c + 1;
         }
         return c + 1;
     }
 
-    case WOORT_OPCODE_LDIDXEX:
+    case WOORT_OPCODE_LDIDEX:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int16_t)(c[1] >> 16);
         const woort_Opcode_Stack dst = (woort_Opcode_Stack)(int16_t)(c[1] & 0xFFFFu);
         switch (m2)
         {
-        case 0: /* LDIDXVECEXT -> LDIDXVEC */
-            DISPATCH(m_LDIDXVEC, dst, a, b);
+        case 0: /* LDIDVECEXT -> LDIDVEC */
+            DISPATCH(m_LDIDVEC, dst, a, b);
             return c + 2;
-        case 1: /* LDIDXVECXEXT -> LDIDXVECX */
-            DISPATCH(m_LDIDXVECX, dst, a, b);
+        case 1: /* LDIDVECXEXT -> LDIDVECX */
+            DISPATCH(m_LDIDVECX, dst, a, b);
             return c + 2;
         case 2: /* LDIDSTRUCTEXT -> LDIDSTRUCT */
             DISPATCH(m_LDIDSTRUCT, dst, (woort_Opcode_Count)WOORT_BYTECODE(ABC24, bc), b);
@@ -787,167 +787,167 @@ _label_retry_entry:
         return c + 2;
     }
 
-    case WOORT_OPCODE_LDIDXDICTEX:
+    case WOORT_OPCODE_LDIDDICTEX:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int16_t)(c[1] >> 16);
         const woort_Opcode_Stack dst = (woort_Opcode_Stack)(int16_t)(c[1] & 0xFFFFu);
         switch (m2)
         {
-        case 0: DISPATCH(m_LDIDXDICTI, dst, a, b); return c + 2;
-        case 1: DISPATCH(m_LDIDXDICTR, dst, a, b); return c + 2;
-        case 2: DISPATCH(m_LDIDXDICTB, dst, a, b); return c + 2;
-        case 3: DISPATCH(m_LDIDXDICTX, dst, a, b); return c + 2;
+        case 0: DISPATCH(m_LDIDDICTI, dst, a, b); return c + 2;
+        case 1: DISPATCH(m_LDIDDICTR, dst, a, b); return c + 2;
+        case 2: DISPATCH(m_LDIDDICTB, dst, a, b); return c + 2;
+        case 3: DISPATCH(m_LDIDDICTX, dst, a, b); return c + 2;
         }
         return c + 2;
     }
 
-    case WOORT_OPCODE_LDIDXDICTEXX:
+    case WOORT_OPCODE_LDIDDICTEXX:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int16_t)(c[1] >> 16);
         const woort_Opcode_Stack dst = (woort_Opcode_Stack)(int16_t)(c[1] & 0xFFFFu);
         switch (m2)
         {
-        case 0: DISPATCH(m_LDIDXDICTIX, dst, a, b); return c + 2;
-        case 1: DISPATCH(m_LDIDXDICTRX, dst, a, b); return c + 2;
-        case 2: DISPATCH(m_LDIDXDICTBX, dst, a, b); return c + 2;
-        case 3: DISPATCH(m_LDIDXDICTXX, dst, a, b); return c + 2;
+        case 0: DISPATCH(m_LDIDDICTIX, dst, a, b); return c + 2;
+        case 1: DISPATCH(m_LDIDDICTRX, dst, a, b); return c + 2;
+        case 2: DISPATCH(m_LDIDDICTBX, dst, a, b); return c + 2;
+        case 3: DISPATCH(m_LDIDDICTXX, dst, a, b); return c + 2;
         }
         return c + 2;
     }
 
-    case WOORT_OPCODE_STIDXVEC:
+    case WOORT_OPCODE_STIDVEC:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack c8 = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_STIDXVECI, a, b, c8); return c + 1;
-        case 1: DISPATCH(m_STIDXVECR, a, b, c8); return c + 1;
-        case 2: DISPATCH(m_STIDXVECB, a, b, c8); return c + 1;
-        case 3: DISPATCH(m_STIDXVECX, a, b, c8); return c + 1;
+        case 0: DISPATCH(m_STIDVECI, a, b, c8); return c + 1;
+        case 1: DISPATCH(m_STIDVECR, a, b, c8); return c + 1;
+        case 2: DISPATCH(m_STIDVECB, a, b, c8); return c + 1;
+        case 3: DISPATCH(m_STIDVECX, a, b, c8); return c + 1;
         }
         return c + 1;
     }
 
-    case WOORT_OPCODE_STIDXDICTI:
+    case WOORT_OPCODE_STIDDICTI:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack c8 = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_STIDXDICTII, a, b, c8); return c + 1;
-        case 1: DISPATCH(m_STIDXDICTIR, a, b, c8); return c + 1;
-        case 2: DISPATCH(m_STIDXDICTIB, a, b, c8); return c + 1;
-        case 3: DISPATCH(m_STIDXDICTIX, a, b, c8); return c + 1;
+        case 0: DISPATCH(m_STIDDICTII, a, b, c8); return c + 1;
+        case 1: DISPATCH(m_STIDDICTIR, a, b, c8); return c + 1;
+        case 2: DISPATCH(m_STIDDICTIB, a, b, c8); return c + 1;
+        case 3: DISPATCH(m_STIDDICTIX, a, b, c8); return c + 1;
         }
         return c + 1;
     }
 
-    case WOORT_OPCODE_STIDXDICTR:
+    case WOORT_OPCODE_STIDDICTR:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack c8 = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_STIDXDICTRI, a, b, c8); return c + 1;
-        case 1: DISPATCH(m_STIDXDICTRR, a, b, c8); return c + 1;
-        case 2: DISPATCH(m_STIDXDICTRB, a, b, c8); return c + 1;
-        case 3: DISPATCH(m_STIDXDICTRX, a, b, c8); return c + 1;
+        case 0: DISPATCH(m_STIDDICTRI, a, b, c8); return c + 1;
+        case 1: DISPATCH(m_STIDDICTRR, a, b, c8); return c + 1;
+        case 2: DISPATCH(m_STIDDICTRB, a, b, c8); return c + 1;
+        case 3: DISPATCH(m_STIDDICTRX, a, b, c8); return c + 1;
         }
         return c + 1;
     }
 
-    case WOORT_OPCODE_STIDXDICTB:
+    case WOORT_OPCODE_STIDDICTB:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack c8 = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_STIDXDICTBI, a, b, c8); return c + 1;
-        case 1: DISPATCH(m_STIDXDICTBR, a, b, c8); return c + 1;
-        case 2: DISPATCH(m_STIDXDICTBB, a, b, c8); return c + 1;
-        case 3: DISPATCH(m_STIDXDICTBX, a, b, c8); return c + 1;
+        case 0: DISPATCH(m_STIDDICTBI, a, b, c8); return c + 1;
+        case 1: DISPATCH(m_STIDDICTBR, a, b, c8); return c + 1;
+        case 2: DISPATCH(m_STIDDICTBB, a, b, c8); return c + 1;
+        case 3: DISPATCH(m_STIDDICTBX, a, b, c8); return c + 1;
         }
         return c + 1;
     }
 
-    case WOORT_OPCODE_STIDXDICTX:
+    case WOORT_OPCODE_STIDDICTX:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack c8 = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_STIDXDICTXI, a, b, c8); return c + 1;
-        case 1: DISPATCH(m_STIDXDICTXR, a, b, c8); return c + 1;
-        case 2: DISPATCH(m_STIDXDICTXB, a, b, c8); return c + 1;
-        case 3: DISPATCH(m_STIDXDICTXX, a, b, c8); return c + 1;
+        case 0: DISPATCH(m_STIDDICTXI, a, b, c8); return c + 1;
+        case 1: DISPATCH(m_STIDDICTXR, a, b, c8); return c + 1;
+        case 2: DISPATCH(m_STIDDICTXB, a, b, c8); return c + 1;
+        case 3: DISPATCH(m_STIDDICTXX, a, b, c8); return c + 1;
         }
         return c + 1;
     }
 
-    case WOORT_OPCODE_STIDXMAPI:
+    case WOORT_OPCODE_STIDMAPI:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack c8 = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_STIDXMAPII, a, b, c8); return c + 1;
-        case 1: DISPATCH(m_STIDXMAPIR, a, b, c8); return c + 1;
-        case 2: DISPATCH(m_STIDXMAPIB, a, b, c8); return c + 1;
-        case 3: DISPATCH(m_STIDXMAPIX, a, b, c8); return c + 1;
+        case 0: DISPATCH(m_STIDMAPII, a, b, c8); return c + 1;
+        case 1: DISPATCH(m_STIDMAPIR, a, b, c8); return c + 1;
+        case 2: DISPATCH(m_STIDMAPIB, a, b, c8); return c + 1;
+        case 3: DISPATCH(m_STIDMAPIX, a, b, c8); return c + 1;
         }
         return c + 1;
     }
 
-    case WOORT_OPCODE_STIDXMAPR:
+    case WOORT_OPCODE_STIDMAPR:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack c8 = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_STIDXMAPRI, a, b, c8); return c + 1;
-        case 1: DISPATCH(m_STIDXMAPRR, a, b, c8); return c + 1;
-        case 2: DISPATCH(m_STIDXMAPRB, a, b, c8); return c + 1;
-        case 3: DISPATCH(m_STIDXMAPRX, a, b, c8); return c + 1;
+        case 0: DISPATCH(m_STIDMAPRI, a, b, c8); return c + 1;
+        case 1: DISPATCH(m_STIDMAPRR, a, b, c8); return c + 1;
+        case 2: DISPATCH(m_STIDMAPRB, a, b, c8); return c + 1;
+        case 3: DISPATCH(m_STIDMAPRX, a, b, c8); return c + 1;
         }
         return c + 1;
     }
 
-    case WOORT_OPCODE_STIDXMAPB:
+    case WOORT_OPCODE_STIDMAPB:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack c8 = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_STIDXMAPBI, a, b, c8); return c + 1;
-        case 1: DISPATCH(m_STIDXMAPBR, a, b, c8); return c + 1;
-        case 2: DISPATCH(m_STIDXMAPBB, a, b, c8); return c + 1;
-        case 3: DISPATCH(m_STIDXMAPBX, a, b, c8); return c + 1;
+        case 0: DISPATCH(m_STIDMAPBI, a, b, c8); return c + 1;
+        case 1: DISPATCH(m_STIDMAPBR, a, b, c8); return c + 1;
+        case 2: DISPATCH(m_STIDMAPBB, a, b, c8); return c + 1;
+        case 3: DISPATCH(m_STIDMAPBX, a, b, c8); return c + 1;
         }
         return c + 1;
     }
 
-    case WOORT_OPCODE_STIDXMAPX:
+    case WOORT_OPCODE_STIDMAPX:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
         const woort_Opcode_Stack c8 = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_STIDXMAPXI, a, b, c8); return c + 1;
-        case 1: DISPATCH(m_STIDXMAPXR, a, b, c8); return c + 1;
-        case 2: DISPATCH(m_STIDXMAPXB, a, b, c8); return c + 1;
-        case 3: DISPATCH(m_STIDXMAPXX, a, b, c8); return c + 1;
+        case 0: DISPATCH(m_STIDMAPXI, a, b, c8); return c + 1;
+        case 1: DISPATCH(m_STIDMAPXR, a, b, c8); return c + 1;
+        case 2: DISPATCH(m_STIDMAPXB, a, b, c8); return c + 1;
+        case 3: DISPATCH(m_STIDMAPXX, a, b, c8); return c + 1;
         }
         return c + 1;
     }
@@ -959,26 +959,26 @@ _label_retry_entry:
             (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc));
         return c + 1;
 
-    case WOORT_OPCODE_STIDXEX:
+    case WOORT_OPCODE_STIDEX:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc);
         const woort_Opcode_Stack b = (woort_Opcode_Stack)(int16_t)(c[1] >> 16);
         const woort_Opcode_Stack dst = (woort_Opcode_Stack)(int16_t)(c[1] & 0xFFFFu);
         switch (m2)
         {
-        case 0: /* STIDXVECEXT -> STIDXVEC{I,R,B,X} */
+        case 0: /* STIDVECEXT -> STIDVEC{I,R,B,X} */
         {
             const uint8_t vt = (uint8_t)WOORT_BYTECODE(A8, bc);
             switch (vt)
             {
-            case 0: DISPATCH(m_STIDXVECI, a, b, dst); break;
-            case 1: DISPATCH(m_STIDXVECR, a, b, dst); break;
-            case 2: DISPATCH(m_STIDXVECB, a, b, dst); break;
-            case 3: DISPATCH(m_STIDXVECX, a, b, dst); break;
+            case 0: DISPATCH(m_STIDVECI, a, b, dst); break;
+            case 1: DISPATCH(m_STIDVECR, a, b, dst); break;
+            case 2: DISPATCH(m_STIDVECB, a, b, dst); break;
+            case 3: DISPATCH(m_STIDVECX, a, b, dst); break;
             }
             return c + 2;
         }
-        case 1: /* STIDXDICTEXT -> STIDXDICT{K}{V} */
+        case 1: /* STIDDICTEXT -> STIDDICT{K}{V} */
         {
             const uint8_t kt = (uint8_t)((bc >> 20) & 0xFu);
             const uint8_t vt = (uint8_t)((bc >> 16) & 0xFu);
@@ -986,36 +986,36 @@ _label_retry_entry:
             {
             case 0:
                 switch (vt) {
-                case 0: DISPATCH(m_STIDXDICTII, a, b, dst); break;
-                case 1: DISPATCH(m_STIDXDICTIR, a, b, dst); break;
-                case 2: DISPATCH(m_STIDXDICTIB, a, b, dst); break;
-                case 3: DISPATCH(m_STIDXDICTIX, a, b, dst); break;
+                case 0: DISPATCH(m_STIDDICTII, a, b, dst); break;
+                case 1: DISPATCH(m_STIDDICTIR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDDICTIB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDDICTIX, a, b, dst); break;
                 } break;
             case 1:
                 switch (vt) {
-                case 0: DISPATCH(m_STIDXDICTRI, a, b, dst); break;
-                case 1: DISPATCH(m_STIDXDICTRR, a, b, dst); break;
-                case 2: DISPATCH(m_STIDXDICTRB, a, b, dst); break;
-                case 3: DISPATCH(m_STIDXDICTRX, a, b, dst); break;
+                case 0: DISPATCH(m_STIDDICTRI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDDICTRR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDDICTRB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDDICTRX, a, b, dst); break;
                 } break;
             case 2:
                 switch (vt) {
-                case 0: DISPATCH(m_STIDXDICTBI, a, b, dst); break;
-                case 1: DISPATCH(m_STIDXDICTBR, a, b, dst); break;
-                case 2: DISPATCH(m_STIDXDICTBB, a, b, dst); break;
-                case 3: DISPATCH(m_STIDXDICTBX, a, b, dst); break;
+                case 0: DISPATCH(m_STIDDICTBI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDDICTBR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDDICTBB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDDICTBX, a, b, dst); break;
                 } break;
             case 3:
                 switch (vt) {
-                case 0: DISPATCH(m_STIDXDICTXI, a, b, dst); break;
-                case 1: DISPATCH(m_STIDXDICTXR, a, b, dst); break;
-                case 2: DISPATCH(m_STIDXDICTXB, a, b, dst); break;
-                case 3: DISPATCH(m_STIDXDICTXX, a, b, dst); break;
+                case 0: DISPATCH(m_STIDDICTXI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDDICTXR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDDICTXB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDDICTXX, a, b, dst); break;
                 } break;
             }
             return c + 2;
         }
-        case 2: /* STIDXMAPEXT -> STIDXMAP{K}{V} */
+        case 2: /* STIDMAPEXT -> STIDMAP{K}{V} */
         {
             const uint8_t kt = (uint8_t)((bc >> 20) & 0xFu);
             const uint8_t vt = (uint8_t)((bc >> 16) & 0xFu);
@@ -1023,31 +1023,31 @@ _label_retry_entry:
             {
             case 0:
                 switch (vt) {
-                case 0: DISPATCH(m_STIDXMAPII, a, b, dst); break;
-                case 1: DISPATCH(m_STIDXMAPIR, a, b, dst); break;
-                case 2: DISPATCH(m_STIDXMAPIB, a, b, dst); break;
-                case 3: DISPATCH(m_STIDXMAPIX, a, b, dst); break;
+                case 0: DISPATCH(m_STIDMAPII, a, b, dst); break;
+                case 1: DISPATCH(m_STIDMAPIR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDMAPIB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDMAPIX, a, b, dst); break;
                 } break;
             case 1:
                 switch (vt) {
-                case 0: DISPATCH(m_STIDXMAPRI, a, b, dst); break;
-                case 1: DISPATCH(m_STIDXMAPRR, a, b, dst); break;
-                case 2: DISPATCH(m_STIDXMAPRB, a, b, dst); break;
-                case 3: DISPATCH(m_STIDXMAPRX, a, b, dst); break;
+                case 0: DISPATCH(m_STIDMAPRI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDMAPRR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDMAPRB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDMAPRX, a, b, dst); break;
                 } break;
             case 2:
                 switch (vt) {
-                case 0: DISPATCH(m_STIDXMAPBI, a, b, dst); break;
-                case 1: DISPATCH(m_STIDXMAPBR, a, b, dst); break;
-                case 2: DISPATCH(m_STIDXMAPBB, a, b, dst); break;
-                case 3: DISPATCH(m_STIDXMAPBX, a, b, dst); break;
+                case 0: DISPATCH(m_STIDMAPBI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDMAPBR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDMAPBB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDMAPBX, a, b, dst); break;
                 } break;
             case 3:
                 switch (vt) {
-                case 0: DISPATCH(m_STIDXMAPXI, a, b, dst); break;
-                case 1: DISPATCH(m_STIDXMAPXR, a, b, dst); break;
-                case 2: DISPATCH(m_STIDXMAPXB, a, b, dst); break;
-                case 3: DISPATCH(m_STIDXMAPXX, a, b, dst); break;
+                case 0: DISPATCH(m_STIDMAPXI, a, b, dst); break;
+                case 1: DISPATCH(m_STIDMAPXR, a, b, dst); break;
+                case 2: DISPATCH(m_STIDMAPXB, a, b, dst); break;
+                case 3: DISPATCH(m_STIDMAPXX, a, b, dst); break;
                 } break;
             }
             return c + 2;
@@ -1090,16 +1090,16 @@ _label_retry_entry:
         }
         return c + 1;
 
-    case WOORT_OPCODE_PUSHIDXSTBOX:
+    case WOORT_OPCODE_PUSHIDSTBOX:
     {
         const woort_Opcode_Count n = (woort_Opcode_Count)(uint16_t)WOORT_BYTECODE(A8, bc);
         const woort_Opcode_Stack src = (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc);
         switch (m2)
         {
-        case 0: DISPATCH(m_PUSHIDXSTRUCT, n, src); return c + 1;
-        case 1: DISPATCH(m_PUSHIDXSTBOXI, n, src); return c + 1;
-        case 2: DISPATCH(m_PUSHIDXSTBOXR, n, src); return c + 1;
-        case 3: DISPATCH(m_PUSHIDXSTBOXB, n, src); return c + 1;
+        case 0: DISPATCH(m_PUSHIDSTRUCT, n, src); return c + 1;
+        case 1: DISPATCH(m_PUSHIDSTBOXI, n, src); return c + 1;
+        case 2: DISPATCH(m_PUSHIDSTBOXR, n, src); return c + 1;
+        case 3: DISPATCH(m_PUSHIDSTBOXB, n, src); return c + 1;
         }
         return c + 1;
     }

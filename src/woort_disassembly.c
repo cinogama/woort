@@ -345,11 +345,11 @@ static void _woort_dis_CLNOT(void* userdata, woort_Opcode_Stack dst)
 static void _woort_dis_MKPVALUE(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 { CTX->callback("MKPVALUE    *[SB %+d] = [SB %+d]\n", dst, src); CTX->printed = 1; }
 
-static void _woort_dis_LDIDXVEC(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
-{ CTX->callback("LDIDXVEC    [SB %+d].[SB %+d] -> [SB %+d]\n", vec, idx, dst); CTX->printed = 1; }
+static void _woort_dis_LDIDVEC(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
+{ CTX->callback("LDIDVEC    [SB %+d].[SB %+d] -> [SB %+d]\n", vec, idx, dst); CTX->printed = 1; }
 
-static void _woort_dis_LDIDXVECX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
-{ CTX->callback("LDIDXVECX   [SB %+d].[SB %+d] -> [SB %+d]\n", vec, idx, dst); CTX->printed = 1; }
+static void _woort_dis_LDIDVECX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
+{ CTX->callback("LDIDVECX   [SB %+d].[SB %+d] -> [SB %+d]\n", vec, idx, dst); CTX->printed = 1; }
 
 static void _woort_dis_LDIDSTRUCT(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 { CTX->callback("LDIDSTRUCT  [SB %+d].%u -> [SB %+d]\n", obj, idx, dst); CTX->printed = 1; }
@@ -357,137 +357,137 @@ static void _woort_dis_LDIDSTRUCT(void* userdata, woort_Opcode_Stack dst, woort_
 static void _woort_dis_LDIDSTRING(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack str, woort_Opcode_Stack idx)
 { CTX->callback("LDIDSTRING  [[SB %+d].[SB %+d]] -> [SB %+d]\n", str, idx, dst); CTX->printed = 1; }
 
-static void _woort_dis_LDIDXDICTI(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
-{ CTX->callback("LDIDXDICTI  [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
+static void _woort_dis_LDIDDICTI(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{ CTX->callback("LDIDDICTI  [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
 
-static void _woort_dis_LDIDXDICTR(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
-{ CTX->callback("LDIDXDICTR  [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
+static void _woort_dis_LDIDDICTR(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{ CTX->callback("LDIDDICTR  [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
 
-static void _woort_dis_LDIDXDICTB(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
-{ CTX->callback("LDIDXDICTB  [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
+static void _woort_dis_LDIDDICTB(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{ CTX->callback("LDIDDICTB  [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
 
-static void _woort_dis_LDIDXDICTX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
-{ CTX->callback("LDIDXDICTX  [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
+static void _woort_dis_LDIDDICTX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{ CTX->callback("LDIDDICTX  [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
 
-static void _woort_dis_LDIDXDICTIX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
-{ CTX->callback("LDIDXDICTIX [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
+static void _woort_dis_LDIDDICTIX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{ CTX->callback("LDIDDICTIX [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
 
-static void _woort_dis_LDIDXDICTRX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
-{ CTX->callback("LDIDXDICTRX [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
+static void _woort_dis_LDIDDICTRX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{ CTX->callback("LDIDDICTRX [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
 
-static void _woort_dis_LDIDXDICTBX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
-{ CTX->callback("LDIDXDICTBX [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
+static void _woort_dis_LDIDDICTBX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{ CTX->callback("LDIDDICTBX [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
 
-static void _woort_dis_LDIDXDICTXX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
-{ CTX->callback("LDIDXDICTXX [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
+static void _woort_dis_LDIDDICTXX(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+{ CTX->callback("LDIDDICTXX [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
 
-static void _woort_dis_STIDXVECI(void* userdata, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
-{ CTX->callback("STIDXVECI   [SB %+d].[SB %+d] = [SB %+d]\n", vec, idx, src); CTX->printed = 1; }
+static void _woort_dis_STIDVECI(void* userdata, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+{ CTX->callback("STIDVECI   [SB %+d].[SB %+d] = [SB %+d]\n", vec, idx, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXVECR(void* userdata, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
-{ CTX->callback("STIDXVECR   [SB %+d].[SB %+d] = [SB %+d]\n", vec, idx, src); CTX->printed = 1; }
+static void _woort_dis_STIDVECR(void* userdata, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+{ CTX->callback("STIDVECR   [SB %+d].[SB %+d] = [SB %+d]\n", vec, idx, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXVECB(void* userdata, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
-{ CTX->callback("STIDXVECB   [SB %+d].[SB %+d] = [SB %+d]\n", vec, idx, src); CTX->printed = 1; }
+static void _woort_dis_STIDVECB(void* userdata, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+{ CTX->callback("STIDVECB   [SB %+d].[SB %+d] = [SB %+d]\n", vec, idx, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXVECX(void* userdata, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
-{ CTX->callback("STIDXVECX   [SB %+d].[SB %+d] = [SB %+d]\n", vec, idx, src); CTX->printed = 1; }
+static void _woort_dis_STIDVECX(void* userdata, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+{ CTX->callback("STIDVECX   [SB %+d].[SB %+d] = [SB %+d]\n", vec, idx, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTII(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTII [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTII(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTII [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTIR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTIR [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTIR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTIR [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTIB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTIB [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTIB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTIB [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTIX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTIX [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTIX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTIX [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTRI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTRI [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTRI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTRI [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTRR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTRR [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTRR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTRR [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTRB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTRB [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTRB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTRB [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTRX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTRX [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTRX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTRX [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTBI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTBI [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTBI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTBI [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTBR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTBR [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTBR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTBR [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTBB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTBB [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTBB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTBB [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTBX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTBX [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTBX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTBX [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTXI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTXI [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTXI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTXI [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTXR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTXR [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTXR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTXR [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTXB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTXB [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTXB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTXB [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXDICTXX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXDICTXX [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDDICTXX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDDICTXX [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPII(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPII  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPII(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPII  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPIR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPIR  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPIR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPIR  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPIB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPIB  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPIB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPIB  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPIX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPIX  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPIX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPIX  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPRI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPRI  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPRI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPRI  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPRR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPRR  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPRR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPRR  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPRB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPRB  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPRB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPRB  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPRX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPRX  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPRX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPRX  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPBI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPBI  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPBI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPBI  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPBR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPBR  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPBR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPBR  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPBB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPBB  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPBB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPBB  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPBX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPBX  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPBX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPBX  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPXI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPXI  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPXI(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPXI  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPXR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPXR  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPXR(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPXR  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPXB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPXB  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPXB(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPXB  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
-static void _woort_dis_STIDXMAPXX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
-{ CTX->callback("STIDXMAPXX  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
+static void _woort_dis_STIDMAPXX(void* userdata, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+{ CTX->callback("STIDMAPXX  [SB %+d].[SB %+d] = [SB %+d]\n", map, key, src); CTX->printed = 1; }
 
 static void _woort_dis_STIDSTRUCT(void* userdata, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
 { CTX->callback("STIDSTRUCT  [SB %+d].%u = [SB %+d]\n", obj, idx, src); CTX->printed = 1; }
@@ -507,17 +507,17 @@ static void _woort_dis_UNPACKVECALL(void* userdata, woort_Opcode_Stack count_dst
 static void _woort_dis_UNPACKVECXALL(void* userdata, woort_Opcode_Stack count_dst, woort_Opcode_Count n, woort_Opcode_Stack vec)
 { CTX->callback("UNPACKVECXALL %u in [SB %+d] -> [SB %+d]\n", n, vec, count_dst); CTX->printed = 1; }
 
-static void _woort_dis_PUSHIDXSTRUCT(void* userdata, woort_Opcode_Count idx, woort_Opcode_Stack obj)
-{ CTX->callback("PUSHIDXSTRUCT [SB %+d].%u\n", obj, idx); CTX->printed = 1; }
+static void _woort_dis_PUSHIDSTRUCT(void* userdata, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{ CTX->callback("PUSHIDSTRUCT [SB %+d].%u\n", obj, idx); CTX->printed = 1; }
 
-static void _woort_dis_PUSHIDXSTBOXI(void* userdata, woort_Opcode_Count idx, woort_Opcode_Stack obj)
-{ CTX->callback("PUSHIDXSTBOXI [SB %+d].%u\n", obj, idx); CTX->printed = 1; }
+static void _woort_dis_PUSHIDSTBOXI(void* userdata, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{ CTX->callback("PUSHIDSTBOXI [SB %+d].%u\n", obj, idx); CTX->printed = 1; }
 
-static void _woort_dis_PUSHIDXSTBOXR(void* userdata, woort_Opcode_Count idx, woort_Opcode_Stack obj)
-{ CTX->callback("PUSHIDXSTBOXR [SB %+d].%u\n", obj, idx); CTX->printed = 1; }
+static void _woort_dis_PUSHIDSTBOXR(void* userdata, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{ CTX->callback("PUSHIDSTBOXR [SB %+d].%u\n", obj, idx); CTX->printed = 1; }
 
-static void _woort_dis_PUSHIDXSTBOXB(void* userdata, woort_Opcode_Count idx, woort_Opcode_Stack obj)
-{ CTX->callback("PUSHIDXSTBOXB [SB %+d].%u\n", obj, idx); CTX->printed = 1; }
+static void _woort_dis_PUSHIDSTBOXB(void* userdata, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{ CTX->callback("PUSHIDSTBOXB [SB %+d].%u\n", obj, idx); CTX->printed = 1; }
 
 static void _woort_dis_PACKARG(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count skip)
 { CTX->callback("PACKARG     %u -> [SB %+d]\n", skip, dst); CTX->printed = 1; }
@@ -668,64 +668,64 @@ static const woort_OpcodeDispatchers g_disasm_dispatchers = {
     .m_CLOR = _woort_dis_CLOR,
     .m_CLNOT = _woort_dis_CLNOT,
     .m_MKPVALUE = _woort_dis_MKPVALUE,
-    .m_LDIDXVEC = _woort_dis_LDIDXVEC,
-    .m_LDIDXVECX = _woort_dis_LDIDXVECX,
+    .m_LDIDVEC = _woort_dis_LDIDVEC,
+    .m_LDIDVECX = _woort_dis_LDIDVECX,
     .m_LDIDSTRUCT = _woort_dis_LDIDSTRUCT,
     .m_LDIDSTRING = _woort_dis_LDIDSTRING,
-    .m_LDIDXDICTI = _woort_dis_LDIDXDICTI,
-    .m_LDIDXDICTR = _woort_dis_LDIDXDICTR,
-    .m_LDIDXDICTB = _woort_dis_LDIDXDICTB,
-    .m_LDIDXDICTX = _woort_dis_LDIDXDICTX,
-    .m_LDIDXDICTIX = _woort_dis_LDIDXDICTIX,
-    .m_LDIDXDICTRX = _woort_dis_LDIDXDICTRX,
-    .m_LDIDXDICTBX = _woort_dis_LDIDXDICTBX,
-    .m_LDIDXDICTXX = _woort_dis_LDIDXDICTXX,
-    .m_STIDXVECI = _woort_dis_STIDXVECI,
-    .m_STIDXVECR = _woort_dis_STIDXVECR,
-    .m_STIDXVECB = _woort_dis_STIDXVECB,
-    .m_STIDXVECX = _woort_dis_STIDXVECX,
-    .m_STIDXDICTII = _woort_dis_STIDXDICTII,
-    .m_STIDXDICTIR = _woort_dis_STIDXDICTIR,
-    .m_STIDXDICTIB = _woort_dis_STIDXDICTIB,
-    .m_STIDXDICTIX = _woort_dis_STIDXDICTIX,
-    .m_STIDXDICTRI = _woort_dis_STIDXDICTRI,
-    .m_STIDXDICTRR = _woort_dis_STIDXDICTRR,
-    .m_STIDXDICTRB = _woort_dis_STIDXDICTRB,
-    .m_STIDXDICTRX = _woort_dis_STIDXDICTRX,
-    .m_STIDXDICTBI = _woort_dis_STIDXDICTBI,
-    .m_STIDXDICTBR = _woort_dis_STIDXDICTBR,
-    .m_STIDXDICTBB = _woort_dis_STIDXDICTBB,
-    .m_STIDXDICTBX = _woort_dis_STIDXDICTBX,
-    .m_STIDXDICTXI = _woort_dis_STIDXDICTXI,
-    .m_STIDXDICTXR = _woort_dis_STIDXDICTXR,
-    .m_STIDXDICTXB = _woort_dis_STIDXDICTXB,
-    .m_STIDXDICTXX = _woort_dis_STIDXDICTXX,
-    .m_STIDXMAPII = _woort_dis_STIDXMAPII,
-    .m_STIDXMAPIR = _woort_dis_STIDXMAPIR,
-    .m_STIDXMAPIB = _woort_dis_STIDXMAPIB,
-    .m_STIDXMAPIX = _woort_dis_STIDXMAPIX,
-    .m_STIDXMAPRI = _woort_dis_STIDXMAPRI,
-    .m_STIDXMAPRR = _woort_dis_STIDXMAPRR,
-    .m_STIDXMAPRB = _woort_dis_STIDXMAPRB,
-    .m_STIDXMAPRX = _woort_dis_STIDXMAPRX,
-    .m_STIDXMAPBI = _woort_dis_STIDXMAPBI,
-    .m_STIDXMAPBR = _woort_dis_STIDXMAPBR,
-    .m_STIDXMAPBB = _woort_dis_STIDXMAPBB,
-    .m_STIDXMAPBX = _woort_dis_STIDXMAPBX,
-    .m_STIDXMAPXI = _woort_dis_STIDXMAPXI,
-    .m_STIDXMAPXR = _woort_dis_STIDXMAPXR,
-    .m_STIDXMAPXB = _woort_dis_STIDXMAPXB,
-    .m_STIDXMAPXX = _woort_dis_STIDXMAPXX,
+    .m_LDIDDICTI = _woort_dis_LDIDDICTI,
+    .m_LDIDDICTR = _woort_dis_LDIDDICTR,
+    .m_LDIDDICTB = _woort_dis_LDIDDICTB,
+    .m_LDIDDICTX = _woort_dis_LDIDDICTX,
+    .m_LDIDDICTIX = _woort_dis_LDIDDICTIX,
+    .m_LDIDDICTRX = _woort_dis_LDIDDICTRX,
+    .m_LDIDDICTBX = _woort_dis_LDIDDICTBX,
+    .m_LDIDDICTXX = _woort_dis_LDIDDICTXX,
+    .m_STIDVECI = _woort_dis_STIDVECI,
+    .m_STIDVECR = _woort_dis_STIDVECR,
+    .m_STIDVECB = _woort_dis_STIDVECB,
+    .m_STIDVECX = _woort_dis_STIDVECX,
+    .m_STIDDICTII = _woort_dis_STIDDICTII,
+    .m_STIDDICTIR = _woort_dis_STIDDICTIR,
+    .m_STIDDICTIB = _woort_dis_STIDDICTIB,
+    .m_STIDDICTIX = _woort_dis_STIDDICTIX,
+    .m_STIDDICTRI = _woort_dis_STIDDICTRI,
+    .m_STIDDICTRR = _woort_dis_STIDDICTRR,
+    .m_STIDDICTRB = _woort_dis_STIDDICTRB,
+    .m_STIDDICTRX = _woort_dis_STIDDICTRX,
+    .m_STIDDICTBI = _woort_dis_STIDDICTBI,
+    .m_STIDDICTBR = _woort_dis_STIDDICTBR,
+    .m_STIDDICTBB = _woort_dis_STIDDICTBB,
+    .m_STIDDICTBX = _woort_dis_STIDDICTBX,
+    .m_STIDDICTXI = _woort_dis_STIDDICTXI,
+    .m_STIDDICTXR = _woort_dis_STIDDICTXR,
+    .m_STIDDICTXB = _woort_dis_STIDDICTXB,
+    .m_STIDDICTXX = _woort_dis_STIDDICTXX,
+    .m_STIDMAPII = _woort_dis_STIDMAPII,
+    .m_STIDMAPIR = _woort_dis_STIDMAPIR,
+    .m_STIDMAPIB = _woort_dis_STIDMAPIB,
+    .m_STIDMAPIX = _woort_dis_STIDMAPIX,
+    .m_STIDMAPRI = _woort_dis_STIDMAPRI,
+    .m_STIDMAPRR = _woort_dis_STIDMAPRR,
+    .m_STIDMAPRB = _woort_dis_STIDMAPRB,
+    .m_STIDMAPRX = _woort_dis_STIDMAPRX,
+    .m_STIDMAPBI = _woort_dis_STIDMAPBI,
+    .m_STIDMAPBR = _woort_dis_STIDMAPBR,
+    .m_STIDMAPBB = _woort_dis_STIDMAPBB,
+    .m_STIDMAPBX = _woort_dis_STIDMAPBX,
+    .m_STIDMAPXI = _woort_dis_STIDMAPXI,
+    .m_STIDMAPXR = _woort_dis_STIDMAPXR,
+    .m_STIDMAPXB = _woort_dis_STIDMAPXB,
+    .m_STIDMAPXX = _woort_dis_STIDMAPXX,
     .m_STIDSTRUCT = _woort_dis_STIDSTRUCT,
     .m_STIDSTRUCTEXT = _woort_dis_STIDSTRUCTEXT,
     .m_UNPACKVEC = _woort_dis_UNPACKVEC,
     .m_UNPACKVECX = _woort_dis_UNPACKVECX,
     .m_UNPACKVECALL = _woort_dis_UNPACKVECALL,
     .m_UNPACKVECXALL = _woort_dis_UNPACKVECXALL,
-    .m_PUSHIDXSTRUCT = _woort_dis_PUSHIDXSTRUCT,
-    .m_PUSHIDXSTBOXI = _woort_dis_PUSHIDXSTBOXI,
-    .m_PUSHIDXSTBOXR = _woort_dis_PUSHIDXSTBOXR,
-    .m_PUSHIDXSTBOXB = _woort_dis_PUSHIDXSTBOXB,
+    .m_PUSHIDSTRUCT = _woort_dis_PUSHIDSTRUCT,
+    .m_PUSHIDSTBOXI = _woort_dis_PUSHIDSTBOXI,
+    .m_PUSHIDSTBOXR = _woort_dis_PUSHIDSTBOXR,
+    .m_PUSHIDSTBOXB = _woort_dis_PUSHIDSTBOXB,
     .m_PACKARG = _woort_dis_PACKARG,
     .m_ASTORE = _woort_dis_ASTORE,
     .m_ALOAD = _woort_dis_ALOAD,

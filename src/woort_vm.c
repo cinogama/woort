@@ -2104,8 +2104,8 @@ _label_continue_execution:
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_pvalue = vp;
             break;
         }
-        // LDIDXVEC
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDX, 0):
+        // LDIDVEC
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDID, 0):
         {
             woort_GCVec* const gcvec =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_vec;
@@ -2122,8 +2122,8 @@ _label_continue_execution:
 
             break;
         }
-        // LDIDXVECX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDX, 1):
+        // LDIDVECX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDID, 1):
         {
             woort_GCVec* const gcvec =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_vec;
@@ -2141,7 +2141,7 @@ _label_continue_execution:
             WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDSTRUCT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDX, 2):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDID, 2):
         {
             const size_t index =
                 (size_t)WOORT_BYTECODE(A8, c);
@@ -2157,7 +2157,7 @@ _label_continue_execution:
             break;
         }
         // LDIDSTRING
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDX, 3):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDID, 3):
         {
             const woort_GCString* const gcstr =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_string;
@@ -2174,8 +2174,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 0):
+        // LDIDDICTI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICT, 0):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2192,8 +2192,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 1):
+        // LDIDDICTR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICT, 1):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2210,8 +2210,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 2):
+        // LDIDDICTB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICT, 2):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2229,13 +2229,13 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICT, 3):
+        // LDIDDICTX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICT, 3):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
 
-            // NOTE: LDIDXDICTX 用于索引类型为 dynamic 或者 gcunit 的情况
+            // NOTE: LDIDDICTX 用于索引类型为 dynamic 或者 gcunit 的情况
 
             const woort_DynBox index =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic;
@@ -2250,8 +2250,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTIX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 0):
+        // LDIDDICTIX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTX, 0):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2268,8 +2268,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTRX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 1):
+        // LDIDDICTRX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTX, 1):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2285,8 +2285,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTBX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 2):
+        // LDIDDICTBX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTX, 2):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2302,13 +2302,13 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTXX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTX, 3):
+        // LDIDDICTXX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTX, 3):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
 
-            // NOTE: LDIDXDICTXX 用于索引类型为 dynamic 或者 gcunit 的情况
+            // NOTE: LDIDDICTXX 用于索引类型为 dynamic 或者 gcunit 的情况
 
             const woort_DynBox index =
                 rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic;
@@ -2322,8 +2322,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXVECEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 0):
+        // LDIDVECEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDEX, 0):
         {
             const size_t index =
                 (size_t)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -2344,8 +2344,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXVECXEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 1):
+        // LDIDVECXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDEX, 1):
         {
             const size_t index =
                 (size_t)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -2365,7 +2365,7 @@ _label_continue_execution:
             WOORT_VM_THROW(index_out_of_range);
         }
         // LDIDSTRUCTEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 2):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDEX, 2):
         {
             const size_t index = (size_t)WOORT_BYTECODE(ABC24, c);
 
@@ -2382,7 +2382,7 @@ _label_continue_execution:
             continue;
         }
         // LDIDSTRINGEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXEX, 3):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDEX, 3):
         {
             const size_t char_index =
                 (size_t)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -2403,8 +2403,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTIEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 0):
+        // LDIDDICTIEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTEX, 0):
         {
             const woort_Int index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -2425,8 +2425,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTREXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 1):
+        // LDIDDICTREXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTEX, 1):
         {
             const woort_Real index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real;
@@ -2447,8 +2447,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTBEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 2):
+        // LDIDDICTBEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTEX, 2):
         {
             const bool index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -2468,8 +2468,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTXEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEX, 3):
+        // LDIDDICTXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTEX, 3):
         {
             const woort_DynBox index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_dynamic;
@@ -2489,8 +2489,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTIXEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 0):
+        // LDIDDICTIXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTEXX, 0):
         {
             const woort_Int index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -2510,8 +2510,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTRXEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 1):
+        // LDIDDICTRXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTEXX, 1):
         {
             const woort_Real index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_real;
@@ -2531,8 +2531,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTBXEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 2):
+        // LDIDDICTBXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTEXX, 2):
         {
             const bool index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -2553,8 +2553,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // LDIDXDICTXXEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDXDICTEXX, 3):
+        // LDIDDICTXXEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDDICTEXX, 3):
         {
             const woort_DynBox index =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_dynamic;
@@ -2572,8 +2572,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXVECI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 0):
+        // STIDVECI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDVEC, 0):
         {
             woort_GCVec* const gcvec =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_vec;
@@ -2591,8 +2591,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXVECR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 1):
+        // STIDVECR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDVEC, 1):
         {
             woort_GCVec* const gcvec =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_vec;
@@ -2610,8 +2610,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXVECB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 2):
+        // STIDVECB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDVEC, 2):
         {
             woort_GCVec* const gcvec =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_vec;
@@ -2629,8 +2629,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXVECX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXVEC, 3):
+        // STIDVECX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDVEC, 3):
         {
             woort_GCVec* const gcvec =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_vec;
@@ -2641,7 +2641,7 @@ _label_continue_execution:
             if (index >= gcvec->m_length)
                 WOORT_VM_THROW(index_out_of_range);
 
-            // NOTE: STIDXVECX 用于索引类型为 dynamic 或者 gcunit 的情况
+            // NOTE: STIDVECX 用于索引类型为 dynamic 或者 gcunit 的情况
 
             woort_GC_mixed_write_barrier_dynbox(
                 &gcvec->m_datas[index],
@@ -2649,8 +2649,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXDICTII
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTI, 0):
+        // STIDDICTII
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTI, 0):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2671,8 +2671,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTIR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTI, 1):
+        // STIDDICTIR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTI, 1):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2693,8 +2693,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTIB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTI, 2):
+        // STIDDICTIB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTI, 2):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2715,8 +2715,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTIX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTI, 3):
+        // STIDDICTIX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTI, 3):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2729,7 +2729,7 @@ _label_continue_execution:
 
             if (val_ptr != NULL)
             {
-                // NOTE: STIDXDICTIX 用于值类型为 dynamic 或者 gcunit 的情况
+                // NOTE: STIDDICTIX 用于值类型为 dynamic 或者 gcunit 的情况
                 woort_GC_mixed_write_barrier_dynbox(
                     val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
@@ -2738,8 +2738,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTRI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTR, 0):
+        // STIDDICTRI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTR, 0):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2760,8 +2760,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTRR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTR, 1):
+        // STIDDICTRR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTR, 1):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2782,8 +2782,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTRB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTR, 2):
+        // STIDDICTRB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTR, 2):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2804,8 +2804,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTRX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTR, 3):
+        // STIDDICTRX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTR, 3):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2818,7 +2818,7 @@ _label_continue_execution:
 
             if (val_ptr != NULL)
             {
-                // NOTE: STIDXDICTRX 用于值类型为 dynamic 或者 gcunit 的情况
+                // NOTE: STIDDICTRX 用于值类型为 dynamic 或者 gcunit 的情况
                 woort_GC_mixed_write_barrier_dynbox(
                     val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
@@ -2826,8 +2826,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTBI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTB, 0):
+        // STIDDICTBI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTB, 0):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2847,8 +2847,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTBR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTB, 1):
+        // STIDDICTBR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTB, 1):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2868,8 +2868,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTBB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTB, 2):
+        // STIDDICTBB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTB, 2):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2889,8 +2889,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTBX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTB, 3):
+        // STIDDICTBX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTB, 3):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2903,7 +2903,7 @@ _label_continue_execution:
 
             if (val_ptr != NULL)
             {
-                // NOTE: STIDXDICTBX 用于值类型为 dynamic 或者 gcunit 的情况
+                // NOTE: STIDDICTBX 用于值类型为 dynamic 或者 gcunit 的情况
                 woort_GC_mixed_write_barrier_dynbox(
                     val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
@@ -2912,8 +2912,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTXI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTX, 0):
+        // STIDDICTXI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTX, 0):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2931,8 +2931,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTXR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTX, 1):
+        // STIDDICTXR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTX, 1):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2951,8 +2951,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTXB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTX, 2):
+        // STIDDICTXB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTX, 2):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2971,8 +2971,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTXX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXDICTX, 3):
+        // STIDDICTXX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDDICTX, 3):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -2983,7 +2983,7 @@ _label_continue_execution:
 
             if (val_ptr != NULL)
             {
-                // NOTE: STIDXDICTXX 用于键和值类型均为 dynamic 或者 gcunit 的情况
+                // NOTE: STIDDICTXX 用于键和值类型均为 dynamic 或者 gcunit 的情况
                 woort_GC_mixed_write_barrier_dynbox(
                     val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
@@ -2992,8 +2992,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXMAPII
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPI, 0):
+        // STIDMAPII
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPI, 0):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3009,8 +3009,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPIR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPI, 1):
+        // STIDMAPIR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPI, 1):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3026,8 +3026,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPIB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPI, 2):
+        // STIDMAPIB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPI, 2):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3043,8 +3043,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPIX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPI, 3):
+        // STIDMAPIX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPI, 3):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3055,14 +3055,14 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_or_create_bucket_val_by_int(gcmap, key);
 
-            // NOTE: STIDXMAPIX 用于值类型为 dynamic 或者 gcunit 的情况
+            // NOTE: STIDMAPIX 用于值类型为 dynamic 或者 gcunit 的情况
             woort_GC_mixed_write_barrier_dynbox(
                 val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
             break;
         }
-        // STIDXMAPRI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPR, 0):
+        // STIDMAPRI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPR, 0):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3078,8 +3078,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPRR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPR, 1):
+        // STIDMAPRR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPR, 1):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3095,8 +3095,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPRB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPR, 2):
+        // STIDMAPRB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPR, 2):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3112,8 +3112,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPRX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPR, 3):
+        // STIDMAPRX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPR, 3):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3124,14 +3124,14 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_or_create_bucket_val_by_real(gcmap, key);
 
-            // NOTE: STIDXMAPRX 用于值类型为 dynamic 或者 gcunit 的情况
+            // NOTE: STIDMAPRX 用于值类型为 dynamic 或者 gcunit 的情况
             woort_GC_mixed_write_barrier_dynbox(
                 val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
             break;
         }
-        // STIDXMAPBI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPB, 0):
+        // STIDMAPBI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPB, 0):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3147,8 +3147,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPBR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPB, 1):
+        // STIDMAPBR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPB, 1):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3164,8 +3164,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPBB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPB, 2):
+        // STIDMAPBB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPB, 2):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3181,8 +3181,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPBX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPB, 3):
+        // STIDMAPBX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPB, 3):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3193,14 +3193,14 @@ _label_continue_execution:
             woort_DynBox* const val_ptr =
                 woort_GCMap_get_or_create_bucket_val_by_bool(gcmap, key);
 
-            // NOTE: STIDXMAPBX 用于值类型为 dynamic 或者 gcunit 的情况
+            // NOTE: STIDMAPBX 用于值类型为 dynamic 或者 gcunit 的情况
             woort_GC_mixed_write_barrier_dynbox(
                 val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
             break;
         }
-        // STIDXMAPXI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPX, 0):
+        // STIDMAPXI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPX, 0):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3214,8 +3214,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPXR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPX, 1):
+        // STIDMAPXR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPX, 1):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3229,8 +3229,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPXB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPX, 2):
+        // STIDMAPXB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPX, 2):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3244,8 +3244,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXMAPXX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXMAPX, 3):
+        // STIDMAPXX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDMAPX, 3):
         {
             woort_GCMap* const gcmap =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_map;
@@ -3254,7 +3254,7 @@ _label_continue_execution:
                 woort_GCMap_get_or_create_bucket_val_by_dynbox(
                     gcmap, rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_dynamic);
 
-            // NOTE: STIDXMAPXX 用于键和值类型均为 dynamic 或者 gcunit 的情况
+            // NOTE: STIDMAPXX 用于键和值类型均为 dynamic 或者 gcunit 的情况
             woort_GC_mixed_write_barrier_dynbox(
                 val_ptr, rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic);
 
@@ -3276,8 +3276,8 @@ _label_continue_execution:
 
             break;
         }
-        // STIDXVECEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 0):
+        // STIDVECEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDEX, 0):
         {
             const uint8_t value_type = (uint8_t)WOORT_BYTECODE(A8, c);
 
@@ -3309,7 +3309,7 @@ _label_continue_execution:
                         woort_DynBox_box_bool(rt_sb[value_reg].m_integer));
                     break;
                 case 3: // X
-                    // NOTE: STIDXVECX 用于值类型为 dynamic 或者 gcunit 的情况
+                    // NOTE: STIDVECX 用于值类型为 dynamic 或者 gcunit 的情况
                     woort_GC_mixed_write_barrier_dynbox(
                         &gcvec->m_datas[index],
                         rt_sb[value_reg].m_dynamic);
@@ -3324,8 +3324,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXDICTEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 1):
+        // STIDDICTEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDEX, 1):
         {
             const uint8_t key_type = (uint8_t)((c >> 20) & 0xFu);
             const uint8_t value_type = (uint8_t)((c >> 16) & 0xFu);
@@ -3377,7 +3377,7 @@ _label_continue_execution:
                         val_ptr, rt_sb[value_reg].m_integer);
                     break;
                 case 3: // X
-                    // NOTE: STIDXDICT*X 用于值类型为 dynamic 或者 gcunit 的情况
+                    // NOTE: STIDDICT*X 用于值类型为 dynamic 或者 gcunit 的情况
                     woort_GC_mixed_write_barrier_dynbox(
                         val_ptr, rt_sb[value_reg].m_dynamic);
                     break;
@@ -3391,8 +3391,8 @@ _label_continue_execution:
 
             WOORT_VM_THROW(index_out_of_range);
         }
-        // STIDXMAPEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 2):
+        // STIDMAPEXT
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDEX, 2):
         {
             const uint8_t key_type = (uint8_t)((c >> 20) & 0xFu);
             const uint8_t value_type = (uint8_t)((c >> 16) & 0xFu);
@@ -3442,7 +3442,7 @@ _label_continue_execution:
                     val_ptr, rt_sb[value_reg].m_integer);
                 break;
             case 3: // X
-                // NOTE: STIDXMAP*X 用于值类型为 dynamic 或者 gcunit 的情况
+                // NOTE: STIDMAP*X 用于值类型为 dynamic 或者 gcunit 的情况
                 woort_GC_mixed_write_barrier_dynbox(
                     val_ptr, rt_sb[value_reg].m_dynamic);
                 break;
@@ -3454,7 +3454,7 @@ _label_continue_execution:
             continue;
         }
         // STIDSTRUCTEXT
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDXEX, 3):
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_STIDEX, 3):
         {
             const size_t index = (size_t)WOORT_BYTECODE(ABC24, c);
 
@@ -3568,8 +3568,8 @@ _label_continue_execution:
             rt_sb[count_dst].m_integer = (woort_Int)vec_len;
             break;
         }
-        // PUSHIDXSTBOXX
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 0):
+        // PUSHIDSTBOXX
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDSTBOX, 0):
         {
             if (rt_sp > rt_stack)
             {
@@ -3584,8 +3584,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(stack_overflow);
         }
-        // PUSHIDXSTBOXI
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 1):
+        // PUSHIDSTBOXI
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDSTBOX, 1):
         {
             if (rt_sp > rt_stack)
             {
@@ -3601,8 +3601,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(stack_overflow);
         }
-        // PUSHIDXSTBOXR
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 2):
+        // PUSHIDSTBOXR
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDSTBOX, 2):
         {
             if (rt_sp > rt_stack)
             {
@@ -3618,8 +3618,8 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(stack_overflow);
         }
-        // PUSHIDXSTBOXB
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDXSTBOX, 3):
+        // PUSHIDSTBOXB
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSHIDSTBOX, 3):
         {
             if (rt_sp > rt_stack)
             {

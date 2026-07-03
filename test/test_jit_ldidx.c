@@ -26,9 +26,9 @@ static int run_ldidxdict_int(int boxed_result)
 
         woort_IRValue* v_dst = woort_IRFunction_new_vreg(f_main);
         if (boxed_result)
-            (void)woort_IR_LDIDXDICTIX(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
+            (void)woort_IR_LDIDDICTIX(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
         else
-            (void)woort_IR_LDIDXDICTI(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
+            (void)woort_IR_LDIDDICTI(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
 
         if (boxed_result)
         {
@@ -106,9 +106,9 @@ static int run_ldidxdict_real(int boxed_result)
 
         woort_IRValue* v_dst = woort_IRFunction_new_vreg(f_main);
         if (boxed_result)
-            (void)woort_IR_LDIDXDICTRX(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
+            (void)woort_IR_LDIDDICTRX(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
         else
-            (void)woort_IR_LDIDXDICTR(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
+            (void)woort_IR_LDIDDICTR(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
 
         if (boxed_result)
         {
@@ -186,9 +186,9 @@ static int run_ldidxdict_bool(int boxed_result)
 
         woort_IRValue* v_dst = woort_IRFunction_new_vreg(f_main);
         if (boxed_result)
-            (void)woort_IR_LDIDXDICTBX(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
+            (void)woort_IR_LDIDDICTBX(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
         else
-            (void)woort_IR_LDIDXDICTB(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
+            (void)woort_IR_LDIDDICTB(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
 
         if (boxed_result)
         {
@@ -266,9 +266,9 @@ static int run_ldidxdict_dyn(int boxed_result)
 
         woort_IRValue* v_dst = woort_IRFunction_new_vreg(f_main);
         if (boxed_result)
-            (void)woort_IR_LDIDXDICTXX(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
+            (void)woort_IR_LDIDDICTXX(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
         else
-            (void)woort_IR_LDIDXDICTX(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
+            (void)woort_IR_LDIDDICTX(f_main, v_dst, v_map, woort_IRFunction_fetch_const(f_main, c_find));
 
         if (boxed_result)
         {
@@ -346,7 +346,7 @@ static int run_ldidstruct(void)
         (void)woort_IR_MKSTRUCT(f_main, v_struct, 3);
 
         woort_IRValue* v_dst = woort_IRFunction_new_vreg(f_main);
-        (void)woort_IR_LDIDXSTRUCT(f_main, v_dst, v_struct, 1);
+        (void)woort_IR_LDIDSTRUCT(f_main, v_dst, v_struct, 1);
         (void)woort_IR_ret(f_main, v_dst);
     }
 

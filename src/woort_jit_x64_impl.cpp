@@ -4151,7 +4151,7 @@ void woort_JIT_Backend_x64_MKPVALUE(void* emmiter, woort_Opcode_Stack dst, woort
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_x64_LDIDXVEC(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
+void woort_JIT_Backend_x64_LDIDVEC(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
@@ -4192,7 +4192,7 @@ void woort_JIT_Backend_x64_LDIDXVEC(void* emmiter, woort_Opcode_Stack dst, woort
     em->m_stack_gp.erase(dst);
 }
 
-void woort_JIT_Backend_x64_LDIDXVECX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
+void woort_JIT_Backend_x64_LDIDVECX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
@@ -4273,7 +4273,7 @@ void woort_JIT_Backend_x64_LDIDSTRING(void* emmiter, woort_Opcode_Stack dst, woo
     em->m_stack_gp.erase(dst);
 }
 
-void woort_JIT_Backend_x64_LDIDXDICTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_x64_LDIDDICTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
@@ -4319,7 +4319,7 @@ void woort_JIT_Backend_x64_LDIDXDICTI(void* emmiter, woort_Opcode_Stack dst, woo
     em->m_stack_gp.erase(dst);
 }
 
-void woort_JIT_Backend_x64_LDIDXDICTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_x64_LDIDDICTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
@@ -4365,7 +4365,7 @@ void woort_JIT_Backend_x64_LDIDXDICTR(void* emmiter, woort_Opcode_Stack dst, woo
     em->m_stack_gp.erase(dst);
 }
 
-void woort_JIT_Backend_x64_LDIDXDICTB(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_x64_LDIDDICTB(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
@@ -4411,7 +4411,7 @@ void woort_JIT_Backend_x64_LDIDXDICTB(void* emmiter, woort_Opcode_Stack dst, woo
     em->m_stack_gp.erase(dst);
 }
 
-void woort_JIT_Backend_x64_LDIDXDICTX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_x64_LDIDDICTX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
@@ -4457,7 +4457,7 @@ void woort_JIT_Backend_x64_LDIDXDICTX(void* emmiter, woort_Opcode_Stack dst, woo
     em->m_stack_gp.erase(dst);
 }
 
-void woort_JIT_Backend_x64_LDIDXDICTIX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_x64_LDIDDICTIX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
@@ -4491,7 +4491,7 @@ void woort_JIT_Backend_x64_LDIDXDICTIX(void* emmiter, woort_Opcode_Stack dst, wo
     em->set_gp_by_stack(dst, elem);
 }
 
-void woort_JIT_Backend_x64_LDIDXDICTRX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_x64_LDIDDICTRX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
@@ -4525,7 +4525,7 @@ void woort_JIT_Backend_x64_LDIDXDICTRX(void* emmiter, woort_Opcode_Stack dst, wo
     em->set_gp_by_stack(dst, elem);
 }
 
-void woort_JIT_Backend_x64_LDIDXDICTBX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_x64_LDIDDICTBX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
@@ -4559,7 +4559,7 @@ void woort_JIT_Backend_x64_LDIDXDICTBX(void* emmiter, woort_Opcode_Stack dst, wo
     em->set_gp_by_stack(dst, elem);
 }
 
-void woort_JIT_Backend_x64_LDIDXDICTXX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_x64_LDIDDICTXX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
     woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
@@ -4595,7 +4595,7 @@ void woort_JIT_Backend_x64_LDIDXDICTXX(void* emmiter, woort_Opcode_Stack dst, wo
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_x64_STIDXVECI(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDVECI(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)vec;
@@ -4604,7 +4604,7 @@ void woort_JIT_Backend_x64_STIDXVECI(void* emmiter, woort_Opcode_Stack vec, woor
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXVECR(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDVECR(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)vec;
@@ -4613,7 +4613,7 @@ void woort_JIT_Backend_x64_STIDXVECR(void* emmiter, woort_Opcode_Stack vec, woor
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXVECB(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDVECB(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)vec;
@@ -4622,7 +4622,7 @@ void woort_JIT_Backend_x64_STIDXVECB(void* emmiter, woort_Opcode_Stack vec, woor
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXVECX(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDVECX(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)vec;
@@ -4631,7 +4631,7 @@ void woort_JIT_Backend_x64_STIDXVECX(void* emmiter, woort_Opcode_Stack vec, woor
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTII(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTII(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4640,7 +4640,7 @@ void woort_JIT_Backend_x64_STIDXDICTII(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTIR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTIR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4649,7 +4649,7 @@ void woort_JIT_Backend_x64_STIDXDICTIR(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTIB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTIB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4658,7 +4658,7 @@ void woort_JIT_Backend_x64_STIDXDICTIB(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTIX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTIX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4667,7 +4667,7 @@ void woort_JIT_Backend_x64_STIDXDICTIX(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTRI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTRI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4676,7 +4676,7 @@ void woort_JIT_Backend_x64_STIDXDICTRI(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTRR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTRR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4685,7 +4685,7 @@ void woort_JIT_Backend_x64_STIDXDICTRR(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTRB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTRB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4694,7 +4694,7 @@ void woort_JIT_Backend_x64_STIDXDICTRB(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTRX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTRX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4703,7 +4703,7 @@ void woort_JIT_Backend_x64_STIDXDICTRX(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTBI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTBI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4712,7 +4712,7 @@ void woort_JIT_Backend_x64_STIDXDICTBI(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTBR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTBR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4721,7 +4721,7 @@ void woort_JIT_Backend_x64_STIDXDICTBR(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTBB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTBB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4730,7 +4730,7 @@ void woort_JIT_Backend_x64_STIDXDICTBB(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTBX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTBX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4739,7 +4739,7 @@ void woort_JIT_Backend_x64_STIDXDICTBX(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTXI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTXI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4748,7 +4748,7 @@ void woort_JIT_Backend_x64_STIDXDICTXI(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTXR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTXR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4757,7 +4757,7 @@ void woort_JIT_Backend_x64_STIDXDICTXR(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4766,7 +4766,7 @@ void woort_JIT_Backend_x64_STIDXDICTXB(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXDICTXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDDICTXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4775,7 +4775,7 @@ void woort_JIT_Backend_x64_STIDXDICTXX(void* emmiter, woort_Opcode_Stack map, wo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPII(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPII(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4784,7 +4784,7 @@ void woort_JIT_Backend_x64_STIDXMAPII(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPIR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPIR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4793,7 +4793,7 @@ void woort_JIT_Backend_x64_STIDXMAPIR(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPIB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPIB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4802,7 +4802,7 @@ void woort_JIT_Backend_x64_STIDXMAPIB(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPIX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPIX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4811,7 +4811,7 @@ void woort_JIT_Backend_x64_STIDXMAPIX(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPRI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPRI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4820,7 +4820,7 @@ void woort_JIT_Backend_x64_STIDXMAPRI(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPRR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPRR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4829,7 +4829,7 @@ void woort_JIT_Backend_x64_STIDXMAPRR(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPRB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPRB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4838,7 +4838,7 @@ void woort_JIT_Backend_x64_STIDXMAPRB(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPRX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPRX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4847,7 +4847,7 @@ void woort_JIT_Backend_x64_STIDXMAPRX(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPBI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPBI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4856,7 +4856,7 @@ void woort_JIT_Backend_x64_STIDXMAPBI(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPBR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPBR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4865,7 +4865,7 @@ void woort_JIT_Backend_x64_STIDXMAPBR(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPBB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPBB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4874,7 +4874,7 @@ void woort_JIT_Backend_x64_STIDXMAPBB(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPBX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPBX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4883,7 +4883,7 @@ void woort_JIT_Backend_x64_STIDXMAPBX(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPXI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPXI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4892,7 +4892,7 @@ void woort_JIT_Backend_x64_STIDXMAPXI(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPXR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPXR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4901,7 +4901,7 @@ void woort_JIT_Backend_x64_STIDXMAPXR(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4910,7 +4910,7 @@ void woort_JIT_Backend_x64_STIDXMAPXB(void* emmiter, woort_Opcode_Stack map, woo
     abort();
 }
 
-void woort_JIT_Backend_x64_STIDXMAPXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_x64_STIDMAPXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
     (void)emmiter;
     (void)map;
@@ -4973,7 +4973,7 @@ void woort_JIT_Backend_x64_UNPACKVECXALL(void* emmiter, woort_Opcode_Stack count
     abort();
 }
 
-void woort_JIT_Backend_x64_PUSHIDXSTRUCT(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+void woort_JIT_Backend_x64_PUSHIDSTRUCT(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 {
     (void)emmiter;
     (void)idx;
@@ -4981,7 +4981,7 @@ void woort_JIT_Backend_x64_PUSHIDXSTRUCT(void* emmiter, woort_Opcode_Count idx, 
     abort();
 }
 
-void woort_JIT_Backend_x64_PUSHIDXSTBOXI(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+void woort_JIT_Backend_x64_PUSHIDSTBOXI(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 {
     (void)emmiter;
     (void)idx;
@@ -4989,7 +4989,7 @@ void woort_JIT_Backend_x64_PUSHIDXSTBOXI(void* emmiter, woort_Opcode_Count idx, 
     abort();
 }
 
-void woort_JIT_Backend_x64_PUSHIDXSTBOXR(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+void woort_JIT_Backend_x64_PUSHIDSTBOXR(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 {
     (void)emmiter;
     (void)idx;
@@ -4997,7 +4997,7 @@ void woort_JIT_Backend_x64_PUSHIDXSTBOXR(void* emmiter, woort_Opcode_Count idx, 
     abort();
 }
 
-void woort_JIT_Backend_x64_PUSHIDXSTBOXB(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+void woort_JIT_Backend_x64_PUSHIDSTBOXB(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 {
     (void)emmiter;
     (void)idx;

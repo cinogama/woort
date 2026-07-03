@@ -442,7 +442,7 @@ static bool _emit_static_store(
     } while(0)
 
 /* 索引存储专用：VM 约定 A=container B=idx C=val */
-#define _EMIT_STORE_IDX_3SRC_VM(blk, op, c, OP_MACRO) \
+#define _EMIT_STORE_ID_3SRC_VM(blk, op, c, OP_MACRO) \
     do { \
         (void)(c); \
         int8_t r1, r2, r3; \
@@ -1137,13 +1137,13 @@ _handle_call_result:
     }
 
     /* ============ 索引加载 ============ */
-    case WOORT_IROP_KIND_LDIDXVEC:
-        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXVEC);
+    case WOORT_IROP_KIND_LDIDVEC:
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDVEC);
 
-    case WOORT_IROP_KIND_LDIDXVECX:
-        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXVECX);
+    case WOORT_IROP_KIND_LDIDVECX:
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDVECX);
 
-    case WOORT_IROP_KIND_LDIDXSTRUCT:
+    case WOORT_IROP_KIND_LDIDSTRUCT:
     {
         /* LDIDSTRUCT n8, b8, c8: struct=[SB+b8], field=n8 -> [SB+c8] */
         (void)c;
@@ -1157,118 +1157,118 @@ _handle_call_result:
         return _apply_store(blk, op->m_dst, w);
     }
 
-    case WOORT_IROP_KIND_LDIDXSTRING:
+    case WOORT_IROP_KIND_LDIDSTRING:
         _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDSTRING);
 
-    case WOORT_IROP_KIND_LDIDXDICTI:
-        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTI);
-    case WOORT_IROP_KIND_LDIDXDICTR:
-        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTR);
-    case WOORT_IROP_KIND_LDIDXDICTB:
-        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTB);
-    case WOORT_IROP_KIND_LDIDXDICTX:
-        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTX);
-    case WOORT_IROP_KIND_LDIDXDICTIX:
-        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTIX);
-    case WOORT_IROP_KIND_LDIDXDICTRX:
-        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTRX);
-    case WOORT_IROP_KIND_LDIDXDICTBX:
-        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTBX);
-    case WOORT_IROP_KIND_LDIDXDICTXX:
-        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDXDICTXX);
+    case WOORT_IROP_KIND_LDIDDICTI:
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDDICTI);
+    case WOORT_IROP_KIND_LDIDDICTR:
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDDICTR);
+    case WOORT_IROP_KIND_LDIDDICTB:
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDDICTB);
+    case WOORT_IROP_KIND_LDIDDICTX:
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDDICTX);
+    case WOORT_IROP_KIND_LDIDDICTIX:
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDDICTIX);
+    case WOORT_IROP_KIND_LDIDDICTRX:
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDDICTRX);
+    case WOORT_IROP_KIND_LDIDDICTBX:
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDDICTBX);
+    case WOORT_IROP_KIND_LDIDDICTXX:
+        _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDDICTXX);
 
         /* ============ 索引存储 - vec ============ */
-    case WOORT_IROP_KIND_SDIDXVECI:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXVEC_I);
-    case WOORT_IROP_KIND_SDIDXVECR:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXVEC_R);
-    case WOORT_IROP_KIND_SDIDXVECB:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXVEC_B);
-    case WOORT_IROP_KIND_SDIDXVECX:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXVEC_X);
+    case WOORT_IROP_KIND_SDIDVECI:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDVEC_I);
+    case WOORT_IROP_KIND_SDIDVECR:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDVEC_R);
+    case WOORT_IROP_KIND_SDIDVECB:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDVEC_B);
+    case WOORT_IROP_KIND_SDIDVECX:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDVEC_X);
 
         /* ============ 索引存储 - dict (int key) ============ */
-    case WOORT_IROP_KIND_SDIDXDICTII:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTII);
-    case WOORT_IROP_KIND_SDIDXDICTIR:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTIR);
-    case WOORT_IROP_KIND_SDIDXDICTIB:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTIB);
-    case WOORT_IROP_KIND_SDIDXDICTIX:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTIX);
+    case WOORT_IROP_KIND_SDIDDICTII:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTII);
+    case WOORT_IROP_KIND_SDIDDICTIR:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTIR);
+    case WOORT_IROP_KIND_SDIDDICTIB:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTIB);
+    case WOORT_IROP_KIND_SDIDDICTIX:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTIX);
 
         /* ============ 索引存储 - dict (real key) ============ */
-    case WOORT_IROP_KIND_SDIDXDICTRI:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTRI);
-    case WOORT_IROP_KIND_SDIDXDICTRR:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTRR);
-    case WOORT_IROP_KIND_SDIDXDICTRB:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTRB);
-    case WOORT_IROP_KIND_SDIDXDICTRX:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTRX);
+    case WOORT_IROP_KIND_SDIDDICTRI:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTRI);
+    case WOORT_IROP_KIND_SDIDDICTRR:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTRR);
+    case WOORT_IROP_KIND_SDIDDICTRB:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTRB);
+    case WOORT_IROP_KIND_SDIDDICTRX:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTRX);
 
         /* ============ 索引存储 - dict (bool key) ============ */
-    case WOORT_IROP_KIND_SDIDXDICTBI:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTBI);
-    case WOORT_IROP_KIND_SDIDXDICTBR:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTBR);
-    case WOORT_IROP_KIND_SDIDXDICTBB:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTBB);
-    case WOORT_IROP_KIND_SDIDXDICTBX:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTBX);
+    case WOORT_IROP_KIND_SDIDDICTBI:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTBI);
+    case WOORT_IROP_KIND_SDIDDICTBR:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTBR);
+    case WOORT_IROP_KIND_SDIDDICTBB:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTBB);
+    case WOORT_IROP_KIND_SDIDDICTBX:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTBX);
 
         /* ============ 索引存储 - dict (dynamic key) ============ */
-    case WOORT_IROP_KIND_SDIDXDICTXI:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTXI);
-    case WOORT_IROP_KIND_SDIDXDICTXR:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTXR);
-    case WOORT_IROP_KIND_SDIDXDICTXB:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTXB);
-    case WOORT_IROP_KIND_SDIDXDICTXX:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXDICTXX);
+    case WOORT_IROP_KIND_SDIDDICTXI:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTXI);
+    case WOORT_IROP_KIND_SDIDDICTXR:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTXR);
+    case WOORT_IROP_KIND_SDIDDICTXB:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTXB);
+    case WOORT_IROP_KIND_SDIDDICTXX:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDDICTXX);
 
         /* ============ 索引存储 - map (int key) ============ */
-    case WOORT_IROP_KIND_SDIDXMAPII:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPII);
-    case WOORT_IROP_KIND_SDIDXMAPIR:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPIR);
-    case WOORT_IROP_KIND_SDIDXMAPIB:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPIB);
-    case WOORT_IROP_KIND_SDIDXMAPIX:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPIX);
+    case WOORT_IROP_KIND_SDIDMAPII:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPII);
+    case WOORT_IROP_KIND_SDIDMAPIR:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPIR);
+    case WOORT_IROP_KIND_SDIDMAPIB:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPIB);
+    case WOORT_IROP_KIND_SDIDMAPIX:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPIX);
 
         /* ============ 索引存储 - map (real key) ============ */
-    case WOORT_IROP_KIND_SDIDXMAPRI:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPRI);
-    case WOORT_IROP_KIND_SDIDXMAPRR:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPRR);
-    case WOORT_IROP_KIND_SDIDXMAPRB:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPRB);
-    case WOORT_IROP_KIND_SDIDXMAPRX:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPRX);
+    case WOORT_IROP_KIND_SDIDMAPRI:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPRI);
+    case WOORT_IROP_KIND_SDIDMAPRR:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPRR);
+    case WOORT_IROP_KIND_SDIDMAPRB:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPRB);
+    case WOORT_IROP_KIND_SDIDMAPRX:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPRX);
 
         /* ============ 索引存储 - map (bool key) ============ */
-    case WOORT_IROP_KIND_SDIDXMAPBI:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPBI);
-    case WOORT_IROP_KIND_SDIDXMAPBR:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPBR);
-    case WOORT_IROP_KIND_SDIDXMAPBB:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPBB);
-    case WOORT_IROP_KIND_SDIDXMAPBX:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPBX);
+    case WOORT_IROP_KIND_SDIDMAPBI:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPBI);
+    case WOORT_IROP_KIND_SDIDMAPBR:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPBR);
+    case WOORT_IROP_KIND_SDIDMAPBB:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPBB);
+    case WOORT_IROP_KIND_SDIDMAPBX:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPBX);
 
         /* ============ 索引存储 - map (dynamic key) ============ */
-    case WOORT_IROP_KIND_SDIDXMAPXI:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPXI);
-    case WOORT_IROP_KIND_SDIDXMAPXR:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPXR);
-    case WOORT_IROP_KIND_SDIDXMAPXB:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPXB);
-    case WOORT_IROP_KIND_SDIDXMAPXX:
-        _EMIT_STORE_IDX_3SRC_VM(blk, op, c, woort_OpCode_STIDXMAPXX);
+    case WOORT_IROP_KIND_SDIDMAPXI:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPXI);
+    case WOORT_IROP_KIND_SDIDMAPXR:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPXR);
+    case WOORT_IROP_KIND_SDIDMAPXB:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPXB);
+    case WOORT_IROP_KIND_SDIDMAPXX:
+        _EMIT_STORE_ID_3SRC_VM(blk, op, c, woort_OpCode_STIDMAPXX);
 
         /* ============ 索引存储 - struct ============ */
-    case WOORT_IROP_KIND_SDIDXSTRUCT:
+    case WOORT_IROP_KIND_SDIDSTRUCT:
     {
         /* STIDSTRUCT MA10=idx, B8=struct, C8=val: struct.field_M10 = [SB+C8] */
         (void)c;
@@ -1331,42 +1331,42 @@ _handle_call_result:
     }
 
     /* ============ 结构体字段推栈 ============ */
-    case WOORT_IROP_KIND_PUSHIDXSTRUCT:
+    case WOORT_IROP_KIND_PUSHIDSTRUCT:
     {
         (void)c;
         int16_t r;
         if (!_load_to_s16(blk, op->m_src[0], -128, &r))
             return false;
         assert(op->m_index <= WOORT_UINT8_MAX_VAL);
-        return _emit_bc(blk, woort_OpCode_PUSHIDXSTRUCT((uint8_t)op->m_index, r));
+        return _emit_bc(blk, woort_OpCode_PUSHIDSTRUCT((uint8_t)op->m_index, r));
     }
 
-    case WOORT_IROP_KIND_PUSHIDXSTBOXI:
+    case WOORT_IROP_KIND_PUSHIDSTBOXI:
     {
         (void)c;
         int16_t r;
         if (!_load_to_s16(blk, op->m_src[0], -128, &r))
             return false;
         assert(op->m_index <= WOORT_UINT8_MAX_VAL);
-        return _emit_bc(blk, woort_OpCode_PUSHIDXSTBOXI((uint8_t)op->m_index, r));
+        return _emit_bc(blk, woort_OpCode_PUSHIDSTBOXI((uint8_t)op->m_index, r));
     }
-    case WOORT_IROP_KIND_PUSHIDXSTBOXR:
+    case WOORT_IROP_KIND_PUSHIDSTBOXR:
     {
         (void)c;
         int16_t r;
         if (!_load_to_s16(blk, op->m_src[0], -128, &r))
             return false;
         assert(op->m_index <= WOORT_UINT8_MAX_VAL);
-        return _emit_bc(blk, woort_OpCode_PUSHIDXSTBOXR((uint8_t)op->m_index, r));
+        return _emit_bc(blk, woort_OpCode_PUSHIDSTBOXR((uint8_t)op->m_index, r));
     }
-    case WOORT_IROP_KIND_PUSHIDXSTBOXB:
+    case WOORT_IROP_KIND_PUSHIDSTBOXB:
     {
         (void)c;
         int16_t r;
         if (!_load_to_s16(blk, op->m_src[0], -128, &r))
             return false;
         assert(op->m_index <= WOORT_UINT8_MAX_VAL);
-        return _emit_bc(blk, woort_OpCode_PUSHIDXSTBOXB((uint8_t)op->m_index, r));
+        return _emit_bc(blk, woort_OpCode_PUSHIDSTBOXB((uint8_t)op->m_index, r));
     }
 
     /* ============ 返回 ============ */
