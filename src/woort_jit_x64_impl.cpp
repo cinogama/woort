@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <cmath>
 #include <unordered_map>
 #include <optional>
 
@@ -20,6 +21,12 @@ using namespace asmjit;
 using namespace asmjit::x86;
 
 #define WOORT_JIT_CODE(CMD) em->update_last_error(em->c->CMD)
+
+/*
+ * fmod 在 C++ <cmath> 中是重载族（float/double/long double），取其地址时需要消歧。
+ * 此处固定为 double 版本，供 MODR/CMODR 的 invoke 调用使用。
+ */
+static double (*const WOORT_JIT_FMOD)(double, double) = fmod;
 
 struct woort_JIT_Asmjit_x64_Emmiter
 {
@@ -2793,47 +2800,113 @@ void woort_JIT_Backend_x64_NEI(void* emmiter, woort_Opcode_Stack dst, woort_Opco
 
 void woort_JIT_Backend_x64_ADDR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* ADDR 是可交换的：与 ADDI 一致，确保 dst 与 a 别名时复用其缓存寄存器 */
+    if (dst == b) { const woort_Opcode_Stack tmp = a; a = b; b = tmp; }
+
+    const Gp  reg_a  = em->get_gp_from_stack(a);
+    const Gp  reg_b  = em->get_gp_from_stack(b);
+    const Gp  result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a  = em->c->new_xmm_sd();
+    const Vec xmm_b  = em->c->new_xmm_sd();
+
+    /* 栈槽以 64 位原始位模式缓存于 Gp，浮点运算需经 movq 桥接至 XMM（同 ITOR/RTOI） */
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+    WOORT_JIT_CODE(addsd(xmm_a, xmm_b));
+    WOORT_JIT_CODE(movq(result, xmm_a));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_SUBR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
+
+    /* 不可交换：dst == b 时 b 必须先加载，故顺序无关紧要，结果统一经 result 写回 */
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+    WOORT_JIT_CODE(subsd(xmm_a, xmm_b));
+    WOORT_JIT_CODE(movq(result, xmm_a));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_MULR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* MULR 可交换：与 ADDR 一致，确保 dst 与 a 别名时复用其缓存寄存器 */
+    if (dst == b) { const woort_Opcode_Stack tmp = a; a = b; b = tmp; }
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+    WOORT_JIT_CODE(mulsd(xmm_a, xmm_b));
+    WOORT_JIT_CODE(movq(result, xmm_a));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_DIVR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
+
+    /* 不可交换：同 SUBR */
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+    WOORT_JIT_CODE(divsd(xmm_a, xmm_b));
+    WOORT_JIT_CODE(movq(result, xmm_a));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_MODR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)a;
-    (void)b;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp reg_a = em->get_gp_from_stack(a);
+    const Gp reg_b = em->get_gp_from_stack(b);
+    const Gp result = em->get_gp_by_stack_no_read_from_stack(dst);
+    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_a, reg_a));
+    WOORT_JIT_CODE(movq(xmm_b, reg_b));
+
+    /* MODR 语义为 fmod(a, b)，无直接 x64 指令，调用 C 运行时 */
+    const Vec xmm_ret = em->c->new_xmm_sd();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(WOORT_JIT_FMOD)),
+        FuncSignature::build<double, double, double>()));
+
+    invoke_node->set_arg(0, xmm_a);
+    invoke_node->set_arg(1, xmm_b);
+    invoke_node->set_ret(0, xmm_ret);
+
+    WOORT_JIT_CODE(movq(result, xmm_ret));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_NEGR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -3028,34 +3101,75 @@ void woort_JIT_Backend_x64_CDIVI(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 void woort_JIT_Backend_x64_CADDR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* CADDR: [SB + dst] += [SB + src]，dst 为读写槽 */
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Vec xmm_dst = em->c->new_xmm_sd();
+    const Vec xmm_src = em->c->new_xmm_sd();
+
+    /* 栈槽以 64 位原始位模式缓存于 Gp，浮点运算需经 movq 桥接至 XMM（同 ITOR/RTOI/ADDR） */
+    WOORT_JIT_CODE(movq(xmm_dst, reg_dst));
+    WOORT_JIT_CODE(movq(xmm_src, reg_src));
+    WOORT_JIT_CODE(addsd(xmm_dst, xmm_src));
+    WOORT_JIT_CODE(movq(reg_dst, xmm_dst));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CSUBR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* CSUBR: [SB + dst] -= [SB + src]，dst 为读写槽 */
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Vec xmm_dst = em->c->new_xmm_sd();
+    const Vec xmm_src = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_dst, reg_dst));
+    WOORT_JIT_CODE(movq(xmm_src, reg_src));
+    WOORT_JIT_CODE(subsd(xmm_dst, xmm_src));
+    WOORT_JIT_CODE(movq(reg_dst, xmm_dst));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CMULR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* CMULR: [SB + dst] *= [SB + src]，dst 为读写槽 */
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Vec xmm_dst = em->c->new_xmm_sd();
+    const Vec xmm_src = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_dst, reg_dst));
+    WOORT_JIT_CODE(movq(xmm_src, reg_src));
+    WOORT_JIT_CODE(mulsd(xmm_dst, xmm_src));
+    WOORT_JIT_CODE(movq(reg_dst, xmm_dst));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CDIVR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* CDIVR: [SB + dst] /= [SB + src]，dst 为读写槽 */
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Vec xmm_dst = em->c->new_xmm_sd();
+    const Vec xmm_src = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_dst, reg_dst));
+    WOORT_JIT_CODE(movq(xmm_src, reg_src));
+    WOORT_JIT_CODE(divsd(xmm_dst, xmm_src));
+    WOORT_JIT_CODE(movq(reg_dst, xmm_dst));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CADDS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -3084,10 +3198,31 @@ void woort_JIT_Backend_x64_CMODI(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 void woort_JIT_Backend_x64_CMODR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* CMODR: [SB + dst] = fmod([SB + dst], [SB + src])，dst 为读写槽 */
+    const Gp reg_dst = em->get_gp_from_stack(dst);
+    const Gp reg_src = em->get_gp_from_stack(src);
+    const Vec xmm_dst = em->c->new_xmm_sd();
+    const Vec xmm_src = em->c->new_xmm_sd();
+
+    WOORT_JIT_CODE(movq(xmm_dst, reg_dst));
+    WOORT_JIT_CODE(movq(xmm_src, reg_src));
+
+    const Vec xmm_ret = em->c->new_xmm_sd();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(WOORT_JIT_FMOD)),
+        FuncSignature::build<double, double, double>()));
+
+    invoke_node->set_arg(0, xmm_dst);
+    invoke_node->set_arg(1, xmm_src);
+    invoke_node->set_ret(0, xmm_ret);
+
+    WOORT_JIT_CODE(movq(reg_dst, xmm_ret));
+
+    em->apply_gp_to_stack(dst);
 }
 
 void woort_JIT_Backend_x64_CLAND(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
