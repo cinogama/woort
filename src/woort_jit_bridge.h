@@ -49,6 +49,12 @@ extern "C" {
     WOORT_NODISCARD woort_BoxedValue woort_JIT_box_int_ex(woort_Int val);
     WOORT_NODISCARD woort_BoxedValue woort_JIT_box_real_ex(woort_Real val);
 
+    WOORT_NODISCARD bool woort_JIT_unbox_int_ex(woort_BoxedValue val, woort_Int* out);
+    WOORT_NODISCARD bool woort_JIT_unbox_real_ex(woort_BoxedValue val, woort_Real* out);
+
+    WOORT_NODISCARD bool woort_JIT_unbox_gc(
+        woort_BoxedValue val, woort_BoxValueType type, woort_Value* out);
+
     WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv);
     WOORT_NODISCARD size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv);
     WOORT_NODISCARD const woort_Value* woort_JIT_CodeEnv_static_data(const woort_CodeEnv* cenv);
