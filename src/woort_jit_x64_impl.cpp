@@ -3615,10 +3615,23 @@ void woort_JIT_Backend_x64_CLNOT(void* emmiter, woort_Opcode_Stack dst)
 
 void woort_JIT_Backend_x64_MKPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp src_val = em->get_gp_from_stack(src);
+
+    const Gp result = em->c->new_gp_ptr();
+    InvokeNode* invoke_node;
+    WOORT_JIT_CODE(invoke(
+        Out(invoke_node),
+        Imm(reinterpret_cast<intptr_t>(woort_JIT_make_pvalue)),
+        FuncSignature::build<woort_Value*, uint64_t>()));
+
+    invoke_node->set_arg(0, src_val);
+    invoke_node->set_ret(0, result);
+
+    em->set_gp_by_stack(dst, result);
 }
 
 /* -------------------------------------------------------------------------- */

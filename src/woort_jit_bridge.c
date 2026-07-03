@@ -96,6 +96,17 @@ WOORT_NODISCARD woort_GCClosure* woort_JIT_make_closure(
     return gcclosure;
 }
 
+WOORT_NODISCARD woort_Value* woort_JIT_make_pvalue(woort_Value src)
+{
+    woort_Value* const vp =
+        woort_GCUnit_alloc_delay_init(sizeof(woort_Value));
+
+    woort_GC_init_write_barrier_value(vp, src);
+    woort_GCUnit_init_delay_alloc(A, vp);
+
+    return vp;
+}
+
 WOORT_NODISCARD woort_BoxedValue woort_JIT_box_int_ex(woort_Int val)
 {
     woort_BoxedExValue* const ex_box = woort_GCUnit_alloc_delay_init(

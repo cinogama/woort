@@ -46,6 +46,8 @@ extern "C" {
     WOORT_NODISCARD woort_GCClosure* woort_JIT_make_closure(
         const woort_GCClosure* tmpl, woort_Value* sp, size_t count);
 
+    WOORT_NODISCARD woort_Value* woort_JIT_make_pvalue(woort_Value src);
+
     WOORT_NODISCARD woort_BoxedValue woort_JIT_box_int_ex(woort_Int val);
     WOORT_NODISCARD woort_BoxedValue woort_JIT_box_real_ex(woort_Real val);
 
