@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <cstddef>
 #include <cmath>
 #include <unordered_map>
 #include <optional>
@@ -1383,11 +1384,523 @@ void woort_JIT_Backend_x64_CASTSFROM(void* emmiter, woort_Opcode_Stack dst, woor
 
 void woort_JIT_Backend_x64_CASTDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)target;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    /* target 是编译期常量（来自字节码），据此特化；src 类型在运行时由 tag 位分派 */
+    const Gp val = em->get_gp_from_stack(src);
+
+    const Label L_done = em->c->new_label();
+
+    /* 将内联 BoxedFloat63 还原为 double，结果在 xmm 中（与 UNBOXDYN REAL 一致） */
+    auto unbox_real = [&](const Gp& v) -> Vec {
+        const Gp sign = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(sign, v));
+        WOORT_JIT_CODE(and_(sign, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
+
+        const Gp exp_bit = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(exp_bit, v));
+        WOORT_JIT_CODE(shr(exp_bit, 62));
+        WOORT_JIT_CODE(and_(exp_bit, Imm(1)));
+        WOORT_JIT_CODE(xor_(exp_bit, Imm(1)));
+        WOORT_JIT_CODE(shl(exp_bit, 62));
+
+        const Gp bits = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(bits, v));
+        WOORT_JIT_CODE(shr(bits, 1));
+        WOORT_JIT_CODE(and_(bits, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
+        WOORT_JIT_CODE(or_(bits, exp_bit));
+        WOORT_JIT_CODE(or_(bits, sign));
+
+        const Vec xmm = em->c->new_xmm_sd();
+        WOORT_JIT_CODE(movq(xmm, bits));
+        return xmm;
+    };
+
+    /* 将 xmm 中的 double 按 Real 布局写入 dst */
+    auto finish_real = [&](const Vec& xmm) {
+        const Gp r = em->get_gp_by_stack_no_read_from_stack(dst);
+        WOORT_JIT_CODE(movq(r, xmm));
+        em->apply_gp_to_stack(dst);
+    };
+
+    /* 读出 src 的整数（内联 INT：sar 2） */
+    auto unbox_int = [&](const Gp& v) -> Gp {
+        const Gp r = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(r, v));
+        WOORT_JIT_CODE(sar(r, 2));
+        return r;
+    };
+
+    /* 读出 src 的布尔（内联 BOOL：shr 3，结果 0/1） */
+    auto unbox_bool = [&](const Gp& v) -> Gp {
+        const Gp r = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(r, v));
+        WOORT_JIT_CODE(shr(r, 3));
+        return r;
+    };
+
+    /* 取出 val 指向对象的 proxy 指针（GCUnit 首成员） */
+    auto load_proxy = [&]() -> Gp {
+        const Gp proxy = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(proxy, qword_ptr(val)));
+        return proxy;
+    };
+
+    /* 比较 proxy 与全局 proxy 对象地址，相等则跳转 */
+    auto proxy_is = [&](const Gp& proxy, const woort_GCUnitProxy& sym, const Label& L) {
+        const Gp tmp = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(tmp, reinterpret_cast<uintptr_t>(&sym)));
+        WOORT_JIT_CODE(cmp(proxy, tmp));
+        WOORT_JIT_CODE(je(L));
+    };
+
+    /* 扩展盒子（BoxedExValue）：按 m_is_int 读取其中的 int/real 值 */
+    auto read_ex_int = [&]() -> Gp {
+        const Gp iv = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(iv, qword_ptr(val, static_cast<int32_t>(offsetof(woort_BoxedExValue, m_int)))));
+        return iv;
+    };
+    auto read_ex_real = [&]() -> Vec {
+        const Vec rv = em->c->new_xmm_sd();
+        WOORT_JIT_CODE(movq(rv, qword_ptr(val, static_cast<int32_t>(offsetof(woort_BoxedExValue, m_real)))));
+        return rv;
+    };
+    auto ex_is_int = [&]() -> Gp {
+        const Gp r = em->c->new_gp32();
+        WOORT_JIT_CODE(movzx(r, byte_ptr(val, static_cast<int32_t>(offsetof(woort_BoxedExValue, m_is_int)))));
+        return r;
+    };
+
+    switch (target)
+    {
+    case WOORT_BOX_VALUE_TYPE_INT:
+    {
+        /* src 为整数 -> 恒等；src 为浮点 -> cvttsd2si */
+        auto from_int = [&](const Gp& iv) { em->set_gp_by_stack(dst, iv); };
+        auto from_real = [&](const Vec& rv) {
+            const Gp r = em->c->new_gp64();
+            WOORT_JIT_CODE(cvttsd2si(r, rv));
+            em->set_gp_by_stack(dst, r);
+        };
+
+        const Label L_scalar = em->c->new_label();
+        const Label L_heap = em->c->new_label();
+        const Label L_real_i = em->c->new_label();
+        const Label L_int_i = em->c->new_label();
+        const Label L_nil = em->c->new_label();
+        const Label L_ex = em->c->new_label();
+        const Label L_ex_real = em->c->new_label();
+        const Label L_str = em->c->new_label();
+        const Label L_bad = em->c->new_label();
+
+        WOORT_JIT_CODE(test(val, Imm(0b111)));
+        WOORT_JIT_CODE(jnz(L_scalar));
+        WOORT_JIT_CODE(jmp(L_heap));
+
+        WOORT_JIT_CODE(bind(L_scalar));
+        WOORT_JIT_CODE(test(val, Imm(0b001)));
+        WOORT_JIT_CODE(jnz(L_real_i));
+        WOORT_JIT_CODE(test(val, Imm(0b010)));
+        WOORT_JIT_CODE(jnz(L_int_i));
+        { from_int(unbox_bool(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_real_i));
+        { from_real(unbox_real(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_int_i));
+        { from_int(unbox_int(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_heap));
+        {
+            WOORT_JIT_CODE(test(val, val));
+            WOORT_JIT_CODE(jz(L_nil));
+            const Gp proxy = load_proxy();
+            proxy_is(proxy, WOORT_EX_BOX_PROXY, L_ex);
+            proxy_is(proxy, WOORT_GCSTRING_UNIT_PROXY, L_str);
+            WOORT_JIT_CODE(jmp(L_bad));
+        }
+
+        WOORT_JIT_CODE(bind(L_nil));
+        { em->set_gp_by_stack(dst, Imm(0)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_ex));
+        {
+            const Gp is_int = ex_is_int();
+            WOORT_JIT_CODE(test(is_int, is_int));
+            WOORT_JIT_CODE(jz(L_ex_real));
+            { from_int(read_ex_int()); WOORT_JIT_CODE(jmp(L_done)); }
+            WOORT_JIT_CODE(bind(L_ex_real));
+            { from_real(read_ex_real()); WOORT_JIT_CODE(jmp(L_done)); }
+        }
+
+        WOORT_JIT_CODE(bind(L_str));
+        {
+            const Gp r = em->c->new_gp64();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_GCString_to_integer)),
+                FuncSignature::build<woort_Int, const woort_GCString*>()));
+            invoke_node->set_arg(0, val);
+            invoke_node->set_ret(0, r);
+            em->set_gp_by_stack(dst, r);
+            WOORT_JIT_CODE(jmp(L_done));
+        }
+
+        WOORT_JIT_CODE(bind(L_bad));
+        em->emit_failed_fallback(*em->m_ip);
+        break;
+    }
+
+    case WOORT_BOX_VALUE_TYPE_REAL:
+    {
+        /* src 为整数 -> cvtsi2sd；src 为浮点 -> 恒等 */
+        auto from_int = [&](const Gp& iv) {
+            const Vec xmm = em->c->new_xmm_sd();
+            WOORT_JIT_CODE(cvtsi2sd(xmm, iv));
+            finish_real(xmm);
+        };
+        auto from_real = [&](const Vec& rv) { finish_real(rv); };
+
+        const Label L_scalar = em->c->new_label();
+        const Label L_heap = em->c->new_label();
+        const Label L_real_i = em->c->new_label();
+        const Label L_int_i = em->c->new_label();
+        const Label L_nil = em->c->new_label();
+        const Label L_ex = em->c->new_label();
+        const Label L_ex_int = em->c->new_label();
+        const Label L_str = em->c->new_label();
+        const Label L_bad = em->c->new_label();
+
+        WOORT_JIT_CODE(test(val, Imm(0b111)));
+        WOORT_JIT_CODE(jnz(L_scalar));
+        WOORT_JIT_CODE(jmp(L_heap));
+
+        WOORT_JIT_CODE(bind(L_scalar));
+        WOORT_JIT_CODE(test(val, Imm(0b001)));
+        WOORT_JIT_CODE(jnz(L_real_i));
+        WOORT_JIT_CODE(test(val, Imm(0b010)));
+        WOORT_JIT_CODE(jnz(L_int_i));
+        { from_int(unbox_bool(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_real_i));
+        { from_real(unbox_real(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_int_i));
+        { from_int(unbox_int(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_heap));
+        {
+            WOORT_JIT_CODE(test(val, val));
+            WOORT_JIT_CODE(jz(L_nil));
+            const Gp proxy = load_proxy();
+            proxy_is(proxy, WOORT_EX_BOX_PROXY, L_ex);
+            proxy_is(proxy, WOORT_GCSTRING_UNIT_PROXY, L_str);
+            WOORT_JIT_CODE(jmp(L_bad));
+        }
+
+        WOORT_JIT_CODE(bind(L_nil));
+        {
+            const Vec xmm = em->c->new_xmm_sd();
+            WOORT_JIT_CODE(xorps(xmm, xmm));
+            finish_real(xmm);
+            WOORT_JIT_CODE(jmp(L_done));
+        }
+
+        WOORT_JIT_CODE(bind(L_ex));
+        {
+            const Gp is_int = ex_is_int();
+            WOORT_JIT_CODE(test(is_int, is_int));
+            WOORT_JIT_CODE(jnz(L_ex_int));
+            { from_real(read_ex_real()); WOORT_JIT_CODE(jmp(L_done)); }
+            WOORT_JIT_CODE(bind(L_ex_int));
+            { from_int(read_ex_int()); WOORT_JIT_CODE(jmp(L_done)); }
+        }
+
+        WOORT_JIT_CODE(bind(L_str));
+        {
+            const Vec xmm = em->c->new_xmm_sd();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_GCString_to_real)),
+                FuncSignature::build<woort_Real, const woort_GCString*>()));
+            invoke_node->set_arg(0, val);
+            invoke_node->set_ret(0, xmm);
+            finish_real(xmm);
+            WOORT_JIT_CODE(jmp(L_done));
+        }
+
+        WOORT_JIT_CODE(bind(L_bad));
+        em->emit_failed_fallback(*em->m_ip);
+        break;
+    }
+
+    case WOORT_BOX_VALUE_TYPE_BOOL:
+    {
+        /* src != 0 / != 0.0 -> 0/1 */
+        auto from_int = [&](const Gp& iv) {
+            const Gp r = em->c->new_gp32();
+            WOORT_JIT_CODE(xor_(r, r));
+            WOORT_JIT_CODE(test(iv, iv));
+            WOORT_JIT_CODE(setne(r.r8()));
+            em->set_gp_by_stack(dst, r);
+        };
+        auto from_real = [&](const Vec& rv) {
+            const Vec zero = em->c->new_xmm_sd();
+            WOORT_JIT_CODE(xorps(zero, zero));
+            const Gp r = em->c->new_gp32();
+            WOORT_JIT_CODE(xor_(r, r));
+            WOORT_JIT_CODE(ucomisd(rv, zero));
+            WOORT_JIT_CODE(setne(r.r8()));
+            em->set_gp_by_stack(dst, r);
+        };
+
+        const Label L_scalar = em->c->new_label();
+        const Label L_heap = em->c->new_label();
+        const Label L_real_i = em->c->new_label();
+        const Label L_int_i = em->c->new_label();
+        const Label L_nil = em->c->new_label();
+        const Label L_ex = em->c->new_label();
+        const Label L_ex_real = em->c->new_label();
+        const Label L_str = em->c->new_label();
+        const Label L_bad = em->c->new_label();
+
+        WOORT_JIT_CODE(test(val, Imm(0b111)));
+        WOORT_JIT_CODE(jnz(L_scalar));
+        WOORT_JIT_CODE(jmp(L_heap));
+
+        WOORT_JIT_CODE(bind(L_scalar));
+        WOORT_JIT_CODE(test(val, Imm(0b001)));
+        WOORT_JIT_CODE(jnz(L_real_i));
+        WOORT_JIT_CODE(test(val, Imm(0b010)));
+        WOORT_JIT_CODE(jnz(L_int_i));
+        { from_int(unbox_bool(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_real_i));
+        { from_real(unbox_real(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_int_i));
+        { from_int(unbox_int(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_heap));
+        {
+            WOORT_JIT_CODE(test(val, val));
+            WOORT_JIT_CODE(jz(L_nil));
+            const Gp proxy = load_proxy();
+            proxy_is(proxy, WOORT_EX_BOX_PROXY, L_ex);
+            proxy_is(proxy, WOORT_GCSTRING_UNIT_PROXY, L_str);
+            WOORT_JIT_CODE(jmp(L_bad));
+        }
+
+        WOORT_JIT_CODE(bind(L_nil));
+        { em->set_gp_by_stack(dst, Imm(0)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_ex));
+        {
+            const Gp is_int = ex_is_int();
+            WOORT_JIT_CODE(test(is_int, is_int));
+            WOORT_JIT_CODE(jz(L_ex_real));
+            { from_int(read_ex_int()); WOORT_JIT_CODE(jmp(L_done)); }
+            WOORT_JIT_CODE(bind(L_ex_real));
+            { from_real(read_ex_real()); WOORT_JIT_CODE(jmp(L_done)); }
+        }
+
+        WOORT_JIT_CODE(bind(L_str));
+        {
+            const Gp r = em->c->new_gp64();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_JIT_GCString_to_bool)),
+                FuncSignature::build<woort_Int, const woort_GCString*>()));
+            invoke_node->set_arg(0, val);
+            invoke_node->set_ret(0, r);
+            em->set_gp_by_stack(dst, r);
+            WOORT_JIT_CODE(jmp(L_done));
+        }
+
+        WOORT_JIT_CODE(bind(L_bad));
+        em->emit_failed_fallback(*em->m_ip);
+        break;
+    }
+
+    case WOORT_BOX_VALUE_TYPE_STRING:
+    {
+        auto from_int = [&](const Gp& iv) {
+            const Gp r = em->c->new_gp_ptr();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_GCString_from_integer)),
+                FuncSignature::build<const woort_GCString*, woort_Int>()));
+            invoke_node->set_arg(0, iv);
+            invoke_node->set_ret(0, r);
+            em->set_gp_by_stack(dst, r);
+        };
+        auto from_real = [&](const Vec& rv) {
+            const Gp r = em->c->new_gp_ptr();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_GCString_from_real)),
+                FuncSignature::build<const woort_GCString*, woort_Real>()));
+            invoke_node->set_arg(0, rv);
+            invoke_node->set_ret(0, r);
+            em->set_gp_by_stack(dst, r);
+        };
+        auto from_bool = [&](const Gp& bv) {
+            const Gp r = em->c->new_gp_ptr();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_JIT_GCString_from_bool)),
+                FuncSignature::build<const woort_GCString*, woort_Int>()));
+            invoke_node->set_arg(0, bv);
+            invoke_node->set_ret(0, r);
+            em->set_gp_by_stack(dst, r);
+        };
+        auto make_literal = [&](const char* lit, size_t len) {
+            const Gp r = em->c->new_gp_ptr();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_GCString_make_string)),
+                FuncSignature::build<const woort_GCString*, const char*, size_t>()));
+            invoke_node->set_arg(0, Imm(reinterpret_cast<intptr_t>(lit)));
+            invoke_node->set_arg(1, Imm(static_cast<intptr_t>(len)));
+            invoke_node->set_ret(0, r);
+            em->set_gp_by_stack(dst, r);
+        };
+
+        const Label L_scalar = em->c->new_label();
+        const Label L_heap = em->c->new_label();
+        const Label L_real_i = em->c->new_label();
+        const Label L_int_i = em->c->new_label();
+        const Label L_nil = em->c->new_label();
+        const Label L_ex = em->c->new_label();
+        const Label L_ex_int = em->c->new_label();
+        const Label L_str = em->c->new_label();
+        const Label L_vec = em->c->new_label();
+        const Label L_map = em->c->new_label();
+        const Label L_struct = em->c->new_label();
+        const Label L_handle = em->c->new_label();
+        const Label L_closure = em->c->new_label();
+        const Label L_bad = em->c->new_label();
+
+        WOORT_JIT_CODE(test(val, Imm(0b111)));
+        WOORT_JIT_CODE(jnz(L_scalar));
+        WOORT_JIT_CODE(jmp(L_heap));
+
+        WOORT_JIT_CODE(bind(L_scalar));
+        WOORT_JIT_CODE(test(val, Imm(0b001)));
+        WOORT_JIT_CODE(jnz(L_real_i));
+        WOORT_JIT_CODE(test(val, Imm(0b010)));
+        WOORT_JIT_CODE(jnz(L_int_i));
+        { from_bool(unbox_bool(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_real_i));
+        { from_real(unbox_real(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_int_i));
+        { from_int(unbox_int(val)); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_heap));
+        {
+            WOORT_JIT_CODE(test(val, val));
+            WOORT_JIT_CODE(jz(L_nil));
+            const Gp proxy = load_proxy();
+            proxy_is(proxy, WOORT_EX_BOX_PROXY, L_ex);
+            proxy_is(proxy, WOORT_GCSTRING_UNIT_PROXY, L_str);
+            proxy_is(proxy, WOORT_GCVEC_UNIT_PROXY, L_vec);
+            proxy_is(proxy, WOORT_GCMAP_UNIT_PROXY, L_map);
+            proxy_is(proxy, WOORT_GCSTRUCT_UNIT_PROXY, L_struct);
+            proxy_is(proxy, WOORT_GCHANDLE_UNIT_PROXY, L_handle);
+            proxy_is(proxy, WOORT_GCCLOSURE_UNIT_PROXY, L_closure);
+            WOORT_JIT_CODE(jmp(L_bad));
+        }
+
+        WOORT_JIT_CODE(bind(L_nil));
+        { make_literal("nil", 3); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_ex));
+        {
+            const Gp is_int = ex_is_int();
+            WOORT_JIT_CODE(test(is_int, is_int));
+            WOORT_JIT_CODE(jnz(L_ex_int));
+            { from_real(read_ex_real()); WOORT_JIT_CODE(jmp(L_done)); }
+            WOORT_JIT_CODE(bind(L_ex_int));
+            { from_int(read_ex_int()); WOORT_JIT_CODE(jmp(L_done)); }
+        }
+
+        /* STRING -> STRING：恒等（val 即 GCString*） */
+        WOORT_JIT_CODE(bind(L_str));
+        { em->set_gp_by_stack(dst, val); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_vec));
+        {
+            const Gp dst_addr = em->c->new_gp_ptr();
+            WOORT_JIT_CODE(lea(dst_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
+            const Gp ok = em->c->new_gp64();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_JIT_serialize_vec)),
+                FuncSignature::build<woort_Int, woort_Value*, woort_GCVec*>()));
+            invoke_node->set_arg(0, dst_addr);
+            invoke_node->set_arg(1, val);
+            invoke_node->set_ret(0, ok);
+            const Label L_ok = em->c->new_label();
+            WOORT_JIT_CODE(test(ok, ok));
+            WOORT_JIT_CODE(jnz(L_ok));
+            em->emit_failed_fallback(*em->m_ip);
+            WOORT_JIT_CODE(bind(L_ok));
+            em->set_gp_by_stack(dst, qword_ptr(dst_addr));
+            WOORT_JIT_CODE(jmp(L_done));
+        }
+
+        WOORT_JIT_CODE(bind(L_map));
+        {
+            const Gp dst_addr = em->c->new_gp_ptr();
+            WOORT_JIT_CODE(lea(dst_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
+            const Gp ok = em->c->new_gp64();
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_JIT_serialize_map)),
+                FuncSignature::build<woort_Int, woort_Value*, woort_GCMap*>()));
+            invoke_node->set_arg(0, dst_addr);
+            invoke_node->set_arg(1, val);
+            invoke_node->set_ret(0, ok);
+            const Label L_ok = em->c->new_label();
+            WOORT_JIT_CODE(test(ok, ok));
+            WOORT_JIT_CODE(jnz(L_ok));
+            em->emit_failed_fallback(*em->m_ip);
+            WOORT_JIT_CODE(bind(L_ok));
+            em->set_gp_by_stack(dst, qword_ptr(dst_addr));
+            WOORT_JIT_CODE(jmp(L_done));
+        }
+
+        WOORT_JIT_CODE(bind(L_struct));
+        { make_literal("<struct>", 8); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_handle));
+        { make_literal("<gchandle>", 10); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_closure));
+        { make_literal("<function>", 10); WOORT_JIT_CODE(jmp(L_done)); }
+
+        WOORT_JIT_CODE(bind(L_bad));
+        em->emit_failed_fallback(*em->m_ip);
+        break;
+    }
+
+    default:
+        em->emit_failed_fallback(*em->m_ip);
+        break;
+    }
+
+    WOORT_JIT_CODE(bind(L_done));
 }
 
 void woort_JIT_Backend_x64_ASSERTDYN(void* emmiter, woort_BoxValueType target, woort_Opcode_Stack src)

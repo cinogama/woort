@@ -84,6 +84,19 @@ extern "C" {
     WOORT_NODISCARD woort_Int woort_JIT_serialize_vec(woort_Value* dst, woort_GCVec* src);
     WOORT_NODISCARD woort_Int woort_JIT_serialize_map(woort_Value* dst, woort_GCMap* src);
 
+    /*
+     * GC UnitProxy 全局对象（其地址供 JIT 后端内联类型分派时作立即数比较）。
+     * 这些符号定义在各 woort_gc_*.c / woort_value.c 中，此处仅作 extern 声明，
+     * 令 C++ JIT 实现可直接取地址生成内联比较代码。
+     */
+    extern const woort_GCUnitProxy WOORT_EX_BOX_PROXY;
+    extern const woort_GCUnitProxy WOORT_GCSTRING_UNIT_PROXY;
+    extern const woort_GCUnitProxy WOORT_GCVEC_UNIT_PROXY;
+    extern const woort_GCUnitProxy WOORT_GCMAP_UNIT_PROXY;
+    extern const woort_GCUnitProxy WOORT_GCSTRUCT_UNIT_PROXY;
+    extern const woort_GCUnitProxy WOORT_GCHANDLE_UNIT_PROXY;
+    extern const woort_GCUnitProxy WOORT_GCCLOSURE_UNIT_PROXY;
+
     WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMRuntime* vm);
     WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_stack_overflow_handler(woort_VMRuntime* vm);
 
