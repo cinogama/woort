@@ -2,8 +2,6 @@
 #include "woort_jit_bridge.h"
 #include "woort_value_types.h"
 #include "woort_gc_vec_types.h"
-#include "woort_gc_struct_types.h"
-#include "woort_gc_closure_types.h"
 
 extern "C" woort_GCVec* woort_GCVec_new(void);
 extern "C" void _woort_GCVec_extern(woort_GCVec* vec, size_t size);
@@ -2192,13 +2190,13 @@ static void woort_JIT_x64_emit_closure_call(
     static_assert(sizeof(woort_Value) == 8, "");
 
     const int32_t off_script_fn =
-        static_cast<int32_t>(offsetof(woort_GCClosure, m_script_function));
+        WOORT_GCCLOSURE_OFFSETOF_SCRIPT_FUNCTION;
     const int32_t off_fn =
-        static_cast<int32_t>(offsetof(woort_GCClosure, m_jit_function));
+        WOORT_GCCLOSURE_OFFSETOF_JIT_FUNCTION;
     const int32_t off_size =
-        static_cast<int32_t>(offsetof(woort_GCClosure, m_size));
+        WOORT_GCCLOSURE_OFFSETOF_SIZE;
     const int32_t off_datas =
-        off_size + static_cast<int32_t>(sizeof(size_t));
+        WOORT_GCCLOSURE_OFFSETOF_DATAS;
 
     const int32_t way_off =
         1 * static_cast<int32_t>(sizeof(woort_Value)) +
@@ -2820,7 +2818,7 @@ void woort_JIT_Backend_x64_MKSTRUCT(void* emmiter, woort_Opcode_Stack dst, woort
     WOORT_JIT_CODE(invoke(
         Out(invoke_node),
         Imm(reinterpret_cast<intptr_t>(woort_JIT_make_struct)),
-        FuncSignature::build<woort_GCStruct*, woort_Value*, size_t>()));
+        FuncSignature::build<void*, woort_Value*, size_t>()));
 
     invoke_node->set_arg(0, em->m_sp);
     invoke_node->set_arg(1, Imm(static_cast<size_t>(n)));
@@ -2849,7 +2847,7 @@ void woort_JIT_Backend_x64_MKUNION(void* emmiter, woort_Opcode_Stack dst, woort_
     WOORT_JIT_CODE(invoke(
         Out(invoke_node),
         Imm(reinterpret_cast<intptr_t>(woort_JIT_make_union)),
-        FuncSignature::build<woort_GCStruct*, woort_Int, uint64_t>()));
+        FuncSignature::build<void*, woort_Int, uint64_t>()));
 
     invoke_node->set_arg(0, Imm(static_cast<woort_Int>(idx)));
     invoke_node->set_arg(1, src_val);
@@ -2872,7 +2870,7 @@ void woort_JIT_Backend_x64_MKCLOSURE(void* emmiter, woort_Opcode_Stack dst, woor
     WOORT_JIT_CODE(invoke(
         Out(invoke_node),
         Imm(reinterpret_cast<intptr_t>(woort_JIT_make_closure)),
-        FuncSignature::build<woort_GCClosure*, const woort_GCClosure*, woort_Value*, size_t>()));
+        FuncSignature::build<void*, const void*, woort_Value*, size_t>()));
 
     invoke_node->set_arg(0, Imm(reinterpret_cast<intptr_t>(tmpl_closure)));
     invoke_node->set_arg(1, em->m_sp);
@@ -4538,7 +4536,7 @@ void woort_JIT_Backend_x64_LDIDSTRUCT(void* emmiter, woort_Opcode_Stack dst, woo
     const Gp obj_ptr = em->get_gp_from_stack(obj);
 
     const int32_t disp =
-        static_cast<int32_t>(offsetof(woort_GCStruct, m_datas)) +
+        WOORT_GCSTRUCT_OFFSETOF_DATAS +
         static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
 
     const Gp field = em->c->new_gp64();
@@ -5300,7 +5298,7 @@ void woort_JIT_Backend_x64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, woo
     const Gp obj_ptr = em->get_gp_from_stack(obj);
 
     const int32_t disp =
-        static_cast<int32_t>(offsetof(woort_GCStruct, m_datas)) +
+        WOORT_GCSTRUCT_OFFSETOF_DATAS +
         static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
 
     const Gp dst_addr = em->c->new_gp_ptr();
@@ -5600,7 +5598,7 @@ void woort_JIT_Backend_x64_PUSHIDSTRUCT(void* emmiter, woort_Opcode_Count idx, w
     const Gp obj_ptr = em->get_gp_from_stack(obj);
 
     const int32_t disp =
-        static_cast<int32_t>(offsetof(woort_GCStruct, m_datas)) +
+        WOORT_GCSTRUCT_OFFSETOF_DATAS +
         static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
 
     const Gp field = em->c->new_gp64();
@@ -5630,7 +5628,7 @@ void woort_JIT_Backend_x64_PUSHIDSTBOXI(void* emmiter, woort_Opcode_Count idx, w
     const Gp obj_ptr = em->get_gp_from_stack(obj);
 
     const int32_t disp =
-        static_cast<int32_t>(offsetof(woort_GCStruct, m_datas)) +
+        WOORT_GCSTRUCT_OFFSETOF_DATAS +
         static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
 
     const Gp val = em->c->new_gp64();
@@ -5689,7 +5687,7 @@ void woort_JIT_Backend_x64_PUSHIDSTBOXR(void* emmiter, woort_Opcode_Count idx, w
     const Gp obj_ptr = em->get_gp_from_stack(obj);
 
     const int32_t disp =
-        static_cast<int32_t>(offsetof(woort_GCStruct, m_datas)) +
+        WOORT_GCSTRUCT_OFFSETOF_DATAS +
         static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
 
     const Gp val = em->c->new_gp64();
@@ -5775,7 +5773,7 @@ void woort_JIT_Backend_x64_PUSHIDSTBOXB(void* emmiter, woort_Opcode_Count idx, w
     const Gp obj_ptr = em->get_gp_from_stack(obj);
 
     const int32_t disp =
-        static_cast<int32_t>(offsetof(woort_GCStruct, m_datas)) +
+        WOORT_GCSTRUCT_OFFSETOF_DATAS +
         static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
 
     const Gp val = em->c->new_gp64();

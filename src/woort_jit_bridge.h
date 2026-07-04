@@ -28,6 +28,12 @@ extern "C" {
     extern const int32_t WOORT_VM_OFFSETOF_STACK_END;
     extern const int32_t WOORT_VM_OFFSETOF_CHECK_REQUEST_MASK;
 
+    extern const int32_t WOORT_GCSTRUCT_OFFSETOF_DATAS;
+    extern const int32_t WOORT_GCCLOSURE_OFFSETOF_SCRIPT_FUNCTION;
+    extern const int32_t WOORT_GCCLOSURE_OFFSETOF_JIT_FUNCTION;
+    extern const int32_t WOORT_GCCLOSURE_OFFSETOF_SIZE;
+    extern const int32_t WOORT_GCCLOSURE_OFFSETOF_DATAS;
+
     void woort_JIT_GC_mixed_write_barrier_value(
         woort_Value* modified_value, woort_Value src_value);
 

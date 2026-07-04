@@ -23,6 +23,17 @@ const int32_t WOORT_VM_OFFSETOF_STACK = (int32_t)offsetof(woort_VMRuntime, m_sta
 const int32_t WOORT_VM_OFFSETOF_STACK_END = (int32_t)offsetof(woort_VMRuntime, m_stack_end);
 const int32_t WOORT_VM_OFFSETOF_CHECK_REQUEST_MASK = (int32_t)offsetof(woort_VMRuntime, m_check_request_mask);
 
+const int32_t WOORT_GCSTRUCT_OFFSETOF_DATAS =
+    (int32_t)offsetof(woort_GCStruct, m_datas);
+const int32_t WOORT_GCCLOSURE_OFFSETOF_SCRIPT_FUNCTION =
+    (int32_t)offsetof(woort_GCClosure, m_script_function);
+const int32_t WOORT_GCCLOSURE_OFFSETOF_JIT_FUNCTION =
+    (int32_t)offsetof(woort_GCClosure, m_jit_function);
+const int32_t WOORT_GCCLOSURE_OFFSETOF_SIZE =
+    (int32_t)offsetof(woort_GCClosure, m_size);
+const int32_t WOORT_GCCLOSURE_OFFSETOF_DATAS =
+    (int32_t)offsetof(woort_GCClosure, m_datas);
+
 const void* const WOORT_JIT_GC_MARKING_STATE_FLAG_ADDR =
     (const void*)&woomem_gc_marking_state_flag;
 

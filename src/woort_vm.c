@@ -3995,17 +3995,11 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
         if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
         {
             // Already aborted.
-            return WOORT_VM_CALL_STATUS_ABORTED;
+            return WOORT_VM_CALL_STATUS_RESYNC;
         }
         if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE)
         {
-            if (woort_VMRuntime_request_set(vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT))
-            {
-                const char* abort_reason = "Terminated.";
-
-                vm->m_sp->m_string = woort_GCString_make_string(
-                    abort_reason, strlen(abort_reason));
-            }
+            return WOORT_VM_CALL_STATUS_RESYNC;
         }
         else if (request_mask
             & (WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK
@@ -4050,11 +4044,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
         else if (request_mask
             & WOORT_VMRUNTIME_CHECK_REQUEST_YIELD)
         {
-            (void)woort_VMRuntime_request_accept(
-                vm,
-                WOORT_VMRUNTIME_CHECK_REQUEST_YIELD);
-
-            return WOORT_VM_CALL_STATUS_YIELD;
+            return WOORT_VM_CALL_STATUS_RESYNC;
         }
         else
         {
