@@ -5883,9 +5883,10 @@ void woort_JIT_Backend_x64_CAS(void* emmiter, woort_Opcode_Global storage, woort
     const Gp storage_ptr = em->c->new_gp_ptr();
     WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(storage_addr)));
 
-    WOORT_JIT_CODE(mov(rax, expected_val));
-    WOORT_JIT_CODE(lock().cmpxchg(qword_ptr(storage_ptr), desired_val, rax));
-    em->set_gp_by_stack(expected, rax);
+    const Gp acc = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(acc, expected_val));
+    WOORT_JIT_CODE(lock().cmpxchg(qword_ptr(storage_ptr), desired_val, acc));
+    em->set_gp_by_stack(expected, acc);
 }
 
 void woort_JIT_Backend_x64_JIFINITED(void* emmiter, woort_Opcode_Global flag, woort_Opcode_CodeAbs target)
@@ -5909,10 +5910,11 @@ void woort_JIT_Backend_x64_JIFINITED(void* emmiter, woort_Opcode_Global flag, wo
     const Label L_spin = em->c->new_label();
     WOORT_JIT_CODE(jne(L_spin));
 
-    WOORT_JIT_CODE(xor_(rax, rax));
+    const Gp expected = em->c->new_gp64();
+    WOORT_JIT_CODE(xor_(expected, expected));
     const Gp desired = em->c->new_gp64();
     WOORT_JIT_CODE(mov(desired, Imm(1)));
-    WOORT_JIT_CODE(lock().cmpxchg(qword_ptr(storage_ptr), desired, rax));
+    WOORT_JIT_CODE(lock().cmpxchg(qword_ptr(storage_ptr), desired, expected));
 
     const Label L_init = em->c->new_label();
     WOORT_JIT_CODE(je(L_init));
