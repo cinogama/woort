@@ -3063,13 +3063,14 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
     {
         const Gp unboxed = em->c->new_gp64();
         const Label L_ex = em->c->new_label();
+        const Label L_done = em->c->new_label();
         WOORT_JIT_CODE(test(val, Imm(0b111)));
         WOORT_JIT_CODE(jz(L_ex));
 
         WOORT_JIT_CODE(mov(unboxed, val));
         WOORT_JIT_CODE(sar(unboxed, 2));
         em->set_gp_by_stack(dst, unboxed);
-        break;
+        WOORT_JIT_CODE(jmp(L_done));
 
         WOORT_JIT_CODE(bind(L_ex));
         {
@@ -3096,12 +3097,15 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
             WOORT_JIT_CODE(bind(L_ok));
             em->m_stack_gp.erase(dst);
         }
+
+        WOORT_JIT_CODE(bind(L_done));
         break;
     }
     case WOORT_BOX_VALUE_TYPE_REAL:
     {
         const Gp unboxed = em->c->new_gp64();
         const Label L_ex = em->c->new_label();
+        const Label L_done = em->c->new_label();
         WOORT_JIT_CODE(test(val, Imm(0b111)));
         WOORT_JIT_CODE(jz(L_ex));
 
@@ -3127,7 +3131,7 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
         WOORT_JIT_CODE(or_(unboxed, sign));
 
         em->set_gp_by_stack(dst, unboxed);
-        break;
+        WOORT_JIT_CODE(jmp(L_done));
 
         WOORT_JIT_CODE(bind(L_ex));
         {
@@ -3154,6 +3158,8 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
             WOORT_JIT_CODE(bind(L_ok));
             em->m_stack_gp.erase(dst);
         }
+
+        WOORT_JIT_CODE(bind(L_done));
         break;
     }
     case WOORT_BOX_VALUE_TYPE_BOOL:
