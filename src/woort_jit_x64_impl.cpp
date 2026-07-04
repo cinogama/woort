@@ -13,6 +13,7 @@ extern "C" void _woort_GCVec_extern(woort_GCVec* vec, size_t size);
 #include <new>
 #include <memory>
 #include <cassert>
+#include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
@@ -35,6 +36,18 @@ static double (*const WOORT_JIT_FMOD)(double, double) = fmod;
 
 static void* (*const WOORT_JIT_MEMCPY)(void*, const void*, size_t) = memcpy;
 
+struct woort_JIT_Asmjit_LoggingErrorHandler : public ErrorHandler
+{
+    void handle_error(Error err, const char* message, BaseEmitter* origin) override
+    {
+        fprintf(stderr,
+            "[woort_jit_x64] asmjit error 0x%08X (%s): %s\n",
+            static_cast<unsigned>(err),
+            DebugUtils::error_as_string(err),
+            message ? message : "(no message)");
+    }
+};
+
 struct woort_JIT_Asmjit_x64_Emmiter
 {
     Compiler* c;
@@ -45,6 +58,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
     const woort_Value* const m_cenv_static_storage;
 
     CodeHolder  m_code_holder;
+    woort_JIT_Asmjit_LoggingErrorHandler m_error_handler;
     Error       m_last_error;
 
     FuncNode* m_func_node;
@@ -115,6 +129,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
         , m_cenv_constant_count(woort_JIT_CodeEnv_constant_count(cenv_))
         , m_cenv_static_storage(woort_JIT_CodeEnv_static_data(cenv_))
         , m_code_holder{}
+        , m_error_handler{}
         , m_last_error(Error::kOk)
         , m_func_node(nullptr)
         , m_ip(ip)
@@ -134,6 +149,8 @@ struct woort_JIT_Asmjit_x64_Emmiter
         m_last_error = m_code_holder.init(asmjit_runtime->environment());
         if (m_last_error != Error::kOk)
             return;
+
+        m_code_holder.set_error_handler(&m_error_handler);
 
         c = new (nothrow) Compiler(&m_code_holder);
         if (c == nullptr)
@@ -1400,8 +1417,10 @@ void woort_JIT_Backend_x64_CASTDYN(void* emmiter, woort_Opcode_Stack dst, woort_
     /* 将内联 BoxedFloat63 还原为 double，结果在 xmm 中（与 UNBOXDYN REAL 一致） */
     auto unbox_real = [&](const Gp& v) -> Vec {
         const Gp sign = em->c->new_gp64();
+        const Gp sign_mask = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(sign_mask, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
         WOORT_JIT_CODE(mov(sign, v));
-        WOORT_JIT_CODE(and_(sign, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
+        WOORT_JIT_CODE(and_(sign, sign_mask));
 
         const Gp exp_bit = em->c->new_gp64();
         WOORT_JIT_CODE(mov(exp_bit, v));
@@ -1411,9 +1430,11 @@ void woort_JIT_Backend_x64_CASTDYN(void* emmiter, woort_Opcode_Stack dst, woort_
         WOORT_JIT_CODE(shl(exp_bit, 62));
 
         const Gp bits = em->c->new_gp64();
+        const Gp low62_mask = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(low62_mask, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
         WOORT_JIT_CODE(mov(bits, v));
         WOORT_JIT_CODE(shr(bits, 1));
-        WOORT_JIT_CODE(and_(bits, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
+        WOORT_JIT_CODE(and_(bits, low62_mask));
         WOORT_JIT_CODE(or_(bits, exp_bit));
         WOORT_JIT_CODE(or_(bits, sign));
 
@@ -2966,12 +2987,16 @@ void woort_JIT_Backend_x64_BOXDYN(void* emmiter, woort_Opcode_Stack dst, woort_B
         const Gp boxed = em->c->new_gp64();
         {
             const Gp sign = em->c->new_gp64();
+            const Gp sign_mask = em->c->new_gp64();
+            WOORT_JIT_CODE(mov(sign_mask, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
             WOORT_JIT_CODE(mov(sign, bits));
-            WOORT_JIT_CODE(and_(sign, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
+            WOORT_JIT_CODE(and_(sign, sign_mask));
 
             const Gp low62 = em->c->new_gp64();
+            const Gp low62_mask = em->c->new_gp64();
+            WOORT_JIT_CODE(mov(low62_mask, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
             WOORT_JIT_CODE(mov(low62, bits));
-            WOORT_JIT_CODE(and_(low62, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
+            WOORT_JIT_CODE(and_(low62, low62_mask));
             WOORT_JIT_CODE(shl(low62, 1));
 
             WOORT_JIT_CODE(mov(boxed, sign));
@@ -3064,8 +3089,10 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
         WOORT_JIT_CODE(jz(L_ex));
 
         const Gp sign = em->c->new_gp64();
+        const Gp sign_mask = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(sign_mask, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
         WOORT_JIT_CODE(mov(sign, val));
-        WOORT_JIT_CODE(and_(sign, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
+        WOORT_JIT_CODE(and_(sign, sign_mask));
 
         const Gp exp_bit = em->c->new_gp64();
         WOORT_JIT_CODE(mov(exp_bit, val));
@@ -3074,9 +3101,11 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
         WOORT_JIT_CODE(xor_(exp_bit, Imm(1)));
         WOORT_JIT_CODE(shl(exp_bit, 62));
 
+        const Gp low62_mask = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(low62_mask, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
         WOORT_JIT_CODE(mov(unboxed, val));
         WOORT_JIT_CODE(shr(unboxed, 1));
-        WOORT_JIT_CODE(and_(unboxed, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
+        WOORT_JIT_CODE(and_(unboxed, low62_mask));
         WOORT_JIT_CODE(or_(unboxed, exp_bit));
         WOORT_JIT_CODE(or_(unboxed, sign));
 
@@ -3371,12 +3400,16 @@ void woort_JIT_Backend_x64_PUSHBOXDYN(void* emmiter, woort_BoxValueType type, wo
 
         {
             const Gp sign = em->c->new_gp64();
+            const Gp sign_mask = em->c->new_gp64();
+            WOORT_JIT_CODE(mov(sign_mask, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
             WOORT_JIT_CODE(mov(sign, bits));
-            WOORT_JIT_CODE(and_(sign, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
+            WOORT_JIT_CODE(and_(sign, sign_mask));
 
             const Gp low62 = em->c->new_gp64();
+            const Gp low62_mask = em->c->new_gp64();
+            WOORT_JIT_CODE(mov(low62_mask, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
             WOORT_JIT_CODE(mov(low62, bits));
-            WOORT_JIT_CODE(and_(low62, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
+            WOORT_JIT_CODE(and_(low62, low62_mask));
             WOORT_JIT_CODE(shl(low62, 1));
 
             WOORT_JIT_CODE(mov(boxed, sign));
@@ -5716,12 +5749,16 @@ void woort_JIT_Backend_x64_PUSHIDSTBOXR(void* emmiter, woort_Opcode_Count idx, w
 
     {
         const Gp sign = em->c->new_gp64();
+        const Gp sign_mask = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(sign_mask, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
         WOORT_JIT_CODE(mov(sign, bits));
-        WOORT_JIT_CODE(and_(sign, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
+        WOORT_JIT_CODE(and_(sign, sign_mask));
 
         const Gp low62 = em->c->new_gp64();
+        const Gp low62_mask = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(low62_mask, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
         WOORT_JIT_CODE(mov(low62, bits));
-        WOORT_JIT_CODE(and_(low62, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
+        WOORT_JIT_CODE(and_(low62, low62_mask));
         WOORT_JIT_CODE(shl(low62, 1));
 
         WOORT_JIT_CODE(mov(boxed, sign));
