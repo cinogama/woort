@@ -2315,6 +2315,8 @@ static void woort_JIT_x64_emit_closure_call(
 
     {
         const Label L_native = em->c->new_label();
+        const Label L_call_done = em->c->new_label();
+
         WOORT_JIT_CODE(test(script_fn, script_fn));
         WOORT_JIT_CODE(jz(L_native));
 
@@ -2349,7 +2351,7 @@ static void woort_JIT_x64_emit_closure_call(
             em->emit_jit_call_resync(L_continue);
             WOORT_JIT_CODE(bind(L_continue));
         }
-        return;
+        WOORT_JIT_CODE(jmp(L_call_done));
 
         WOORT_JIT_CODE(bind(L_native));
 
@@ -2385,6 +2387,8 @@ static void woort_JIT_x64_emit_closure_call(
             em->emit_checkpoint(woort_JIT_next_bytecode(*em->m_ip));
             WOORT_JIT_CODE(bind(L_done));
         }
+
+        WOORT_JIT_CODE(bind(L_call_done));
     }
 }
 
