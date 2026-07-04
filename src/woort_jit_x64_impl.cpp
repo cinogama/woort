@@ -1375,8 +1375,6 @@ void woort_JIT_Backend_x64_CASTSFROM(void* emmiter, woort_Opcode_Stack dst, woor
         em->emit_failed_fallback(*em->m_ip);
 
         WOORT_JIT_CODE(bind(L_ok));
-
-        em->m_stack_gp.erase(dst);
     }
     break;
 
@@ -1407,8 +1405,6 @@ void woort_JIT_Backend_x64_CASTSFROM(void* emmiter, woort_Opcode_Stack dst, woor
         em->emit_failed_fallback(*em->m_ip);
 
         WOORT_JIT_CODE(bind(L_ok));
-
-        em->m_stack_gp.erase(dst);
     }
     break;
 
@@ -3095,7 +3091,7 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
             em->emit_failed_fallback(*em->m_ip);
 
             WOORT_JIT_CODE(bind(L_ok));
-            em->m_stack_gp.erase(dst);
+            em->set_gp_by_stack(dst, qword_ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value))));
         }
 
         WOORT_JIT_CODE(bind(L_done));
@@ -3156,7 +3152,7 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
             em->emit_failed_fallback(*em->m_ip);
 
             WOORT_JIT_CODE(bind(L_ok));
-            em->m_stack_gp.erase(dst);
+            em->set_gp_by_stack(dst, qword_ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value))));
         }
 
         WOORT_JIT_CODE(bind(L_done));
@@ -3219,7 +3215,6 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
         em->emit_failed_fallback(*em->m_ip);
 
         WOORT_JIT_CODE(bind(L_ok));
-        em->m_stack_gp.erase(dst);
         break;
     }
     }
@@ -4550,8 +4545,6 @@ void woort_JIT_Backend_x64_LDIDVEC(void* emmiter, woort_Opcode_Stack dst, woort_
 
     invoke_node->set_arg(0, elem);
     invoke_node->set_arg(1, out_addr);
-
-    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDVECX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
@@ -4632,7 +4625,6 @@ void woort_JIT_Backend_x64_LDIDSTRING(void* emmiter, woort_Opcode_Stack dst, woo
     em->emit_failed_fallback(*em->m_ip);
 
     WOORT_JIT_CODE(bind(L_ok));
-    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDDICTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
@@ -4677,8 +4669,6 @@ void woort_JIT_Backend_x64_LDIDDICTI(void* emmiter, woort_Opcode_Stack dst, woor
 
     unbox_node->set_arg(0, elem);
     unbox_node->set_arg(1, out_addr);
-
-    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDDICTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
@@ -4723,8 +4713,6 @@ void woort_JIT_Backend_x64_LDIDDICTR(void* emmiter, woort_Opcode_Stack dst, woor
 
     unbox_node->set_arg(0, elem);
     unbox_node->set_arg(1, out_addr);
-
-    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDDICTB(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
@@ -4769,8 +4757,6 @@ void woort_JIT_Backend_x64_LDIDDICTB(void* emmiter, woort_Opcode_Stack dst, woor
 
     unbox_node->set_arg(0, elem);
     unbox_node->set_arg(1, out_addr);
-
-    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDDICTX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
@@ -4815,8 +4801,6 @@ void woort_JIT_Backend_x64_LDIDDICTX(void* emmiter, woort_Opcode_Stack dst, woor
 
     unbox_node->set_arg(0, elem);
     unbox_node->set_arg(1, out_addr);
-
-    em->m_stack_gp.erase(dst);
 }
 
 void woort_JIT_Backend_x64_LDIDDICTIX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
