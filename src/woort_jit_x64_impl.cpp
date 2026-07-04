@@ -167,6 +167,10 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
         m_func_node->set_arg(0, m_vm);
         m_func_node->set_arg(1, m_sb);
+
+        woort_JIT_pre_scan_jump_targets(
+            cenv_, *ip,
+            &woort_JIT_Asmjit_x64_Emmiter::pre_scan_callback, this);
     }
     ~woort_JIT_Asmjit_x64_Emmiter() noexcept
     {
@@ -493,12 +497,21 @@ struct woort_JIT_Asmjit_x64_Emmiter
         em->m_opcode_label.emplace(c, lbl);
         return lbl;
     }
+
+    static void pre_scan_callback(
+        const woort_Bytecode* target, void* user_data)
+    {
+        static_cast<woort_JIT_Asmjit_x64_Emmiter*>(user_data)
+            ->get_label(target);
+    }
+
     void bind_label(const woort_Bytecode* c)
     {
         auto* const em = this;
 
-        const Label lbl = em->get_label(c);
-        WOORT_JIT_CODE(bind(lbl));
+        const auto it = em->m_opcode_label.find(c);
+        if (it != em->m_opcode_label.end())
+            WOORT_JIT_CODE(bind(it->second));
     }
 };
 
