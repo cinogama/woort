@@ -9,8 +9,10 @@
 #include "woort_value.h"
 #include "woort_gc_closure.h"
 #include "woort_jit_bridge.h"
+#include "woort_platform.h"
 
 #include "woort_jit_x64.h"
+#include "woort_jit_arm64.h"
 
 #include <assert.h>
 
@@ -28,6 +30,12 @@ WOORT_NODISCARD bool woort_JIT_bootup(void)
 
     woort_rwspinlock_init(&s_jit_context.m_jit_backend_mx);
     s_jit_context.m_jit_backend = NULL;
+
+#ifdef WOORT_PLATFORM_X64
+    woort_JIT_set_backend(&WOORT_JIT_BACKEND_IMPL_X64);
+#elif defined(WOORT_PLATFORM_ARM64)
+    woort_JIT_set_backend(&WOORT_JIT_BACKEND_IMPL_ARM64);
+#endif
 
     return true;
 }
@@ -261,10 +269,4 @@ _label_jit_failed:
     }
 
     woort_hashmap_deinit(&jit_compiled_functions_record);
-}
-
-void woort_codeenv_jit_compile_(woort_CodeEnv* cenv)
-{
-    woort_JIT_set_backend(&WOORT_JIT_BACKEND_IMPL_X64);
-    woort_JIT_compile_env(cenv);
 }
