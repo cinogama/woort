@@ -5266,55 +5266,109 @@ void woort_JIT_Backend_x64_PACKARG(void* emmiter, woort_Opcode_Stack dst, woort_
 
 void woort_JIT_Backend_x64_ASTORE(void* emmiter, woort_Opcode_Global storage, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)storage;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const woort_Value* const storage_addr = &em->m_cenv_static_storage[storage];
+
+    const Gp val = em->get_gp_from_stack(src);
+
+    const Gp storage_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(storage_addr)));
+    WOORT_JIT_CODE(mov(qword_ptr(storage_ptr), val));
 }
 
 void woort_JIT_Backend_x64_ALOAD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Global storage)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)storage;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const woort_Value* const storage_addr = &em->m_cenv_static_storage[storage];
+
+    const Gp storage_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(storage_addr)));
+
+    em->set_gp_by_stack(dst, qword_ptr(storage_ptr));
 }
 
 void woort_JIT_Backend_x64_CAS(void* emmiter, woort_Opcode_Global storage, woort_Opcode_Stack desired, woort_Opcode_Stack expected)
 {
-    (void)emmiter;
-    (void)storage;
-    (void)desired;
-    (void)expected;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const woort_Value* const storage_addr = &em->m_cenv_static_storage[storage];
+
+    const Gp expected_val = em->get_gp_from_stack(expected);
+    const Gp desired_val = em->get_gp_from_stack(desired);
+
+    const Gp storage_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(storage_addr)));
+
+    WOORT_JIT_CODE(mov(rax, expected_val));
+    WOORT_JIT_CODE(lock().cmpxchg(qword_ptr(storage_ptr), desired_val, rax));
+    em->set_gp_by_stack(expected, rax);
 }
 
 void woort_JIT_Backend_x64_JIFINITED(void* emmiter, woort_Opcode_Global flag, woort_Opcode_CodeAbs target)
 {
-    (void)emmiter;
-    (void)flag;
-    (void)target;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const woort_Value* const flag_addr = &em->m_cenv_static_storage[flag];
+
+    const Label target_lbl = em->get_label(em->m_cenv_codes + target);
+
+    const Gp storage_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(flag_addr)));
+
+    const Gp flag_stat = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(flag_stat, qword_ptr(storage_ptr)));
+
+    WOORT_JIT_CODE(cmp(flag_stat, Imm(2)));
+    WOORT_JIT_CODE(je(target_lbl));
+
+    WOORT_JIT_CODE(test(flag_stat, flag_stat));
+    const Label L_spin = em->c->new_label();
+    WOORT_JIT_CODE(jne(L_spin));
+
+    WOORT_JIT_CODE(xor_(rax, rax));
+    const Gp desired = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(desired, Imm(1)));
+    WOORT_JIT_CODE(lock().cmpxchg(qword_ptr(storage_ptr), desired, rax));
+
+    const Label L_init = em->c->new_label();
+    WOORT_JIT_CODE(je(L_init));
+
+    WOORT_JIT_CODE(bind(L_spin));
+    em->emit_checkpoint(*em->m_ip);
+    WOORT_JIT_CODE(mov(flag_stat, qword_ptr(storage_ptr)));
+    WOORT_JIT_CODE(cmp(flag_stat, Imm(2)));
+    WOORT_JIT_CODE(jne(L_spin));
+
+    WOORT_JIT_CODE(jmp(target_lbl));
+
+    WOORT_JIT_CODE(bind(L_init));
 }
 
 void woort_JIT_Backend_x64_DEBUGTRAP(void* emmiter)
 {
-    (void)emmiter;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    em->emit_failed_fallback(*em->m_ip);
 }
 
 void woort_JIT_Backend_x64_PANICS(void* emmiter, woort_Opcode_Stack src)
 {
-    (void)emmiter;
     (void)src;
-    abort();
+    
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    em->emit_failed_fallback(*em->m_ip);
 }
 
 void woort_JIT_Backend_x64_PANICC(void* emmiter, woort_Opcode_Global src)
 {
-    (void)emmiter;
     (void)src;
-    abort();
+
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    em->emit_failed_fallback(*em->m_ip);
 }
 
 void woort_JIT_Backend_x64_CHKDIVIL(void* emmiter, woort_Opcode_Stack src)
