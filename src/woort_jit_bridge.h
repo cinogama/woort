@@ -120,8 +120,8 @@ extern "C" {
     WOORT_NODISCARD woort_Int woort_JIT_GCString_to_bool(const woort_GCString* str);
     WOORT_NODISCARD const woort_GCString* woort_JIT_GCString_from_bool(woort_Int value);
 
-    WOORT_NODISCARD woort_Int woort_JIT_serialize_vec(woort_Value* dst, woort_GCVec* src);
-    WOORT_NODISCARD woort_Int woort_JIT_serialize_map(woort_Value* dst, woort_GCMap* src);
+    WOORT_NODISCARD const woort_GCString* woort_JIT_serialize_vec(woort_GCVec* src);
+    WOORT_NODISCARD const woort_GCString* woort_JIT_serialize_map(woort_GCMap* src);
 
     /*
      * GC UnitProxy 全局对象（其地址供 JIT 后端内联类型分派时作立即数比较）。

@@ -339,18 +339,24 @@ WOORT_NODISCARD const woort_GCString* woort_JIT_GCString_from_bool(woort_Int val
         : woort_GCString_make_string("false", 5);
 }
 
-WOORT_NODISCARD woort_Int woort_JIT_serialize_vec(woort_Value* dst, woort_GCVec* src)
+WOORT_NODISCARD const woort_GCString* woort_JIT_serialize_vec(woort_GCVec* src)
 {
     woort_Value tmp;
     tmp.m_vec = src;
-    return (woort_Int)_woort_serialize_vec_impl(dst, &tmp, WOORT_SERIALIZE_FLAG_NONE);
+    woort_Value out;
+    if (!_woort_serialize_vec_impl(&out, &tmp, WOORT_SERIALIZE_FLAG_NONE))
+        return NULL;
+    return out.m_string;
 }
 
-WOORT_NODISCARD woort_Int woort_JIT_serialize_map(woort_Value* dst, woort_GCMap* src)
+WOORT_NODISCARD const woort_GCString* woort_JIT_serialize_map(woort_GCMap* src)
 {
     woort_Value tmp;
     tmp.m_map = src;
-    return (woort_Int)_woort_serialize_map_impl(dst, &tmp, WOORT_SERIALIZE_FLAG_NONE);
+    woort_Value out;
+    if (!_woort_serialize_map_impl(&out, &tmp, WOORT_SERIALIZE_FLAG_NONE))
+        return NULL;
+    return out.m_string;
 }
 
 WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv)
