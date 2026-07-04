@@ -1667,7 +1667,7 @@ void woort_JIT_Backend_x64_CASTDYN(void* emmiter, woort_Opcode_Stack dst, woort_
     {
         /* src != 0 / != 0.0 -> 0/1 */
         auto from_int = [&](const Gp& iv) {
-            const Gp r = em->c->new_gp32();
+            const Gp r = em->c->new_gp64();
             WOORT_JIT_CODE(xor_(r, r));
             WOORT_JIT_CODE(test(iv, iv));
             WOORT_JIT_CODE(setne(r.r8()));
@@ -1676,7 +1676,7 @@ void woort_JIT_Backend_x64_CASTDYN(void* emmiter, woort_Opcode_Stack dst, woort_
         auto from_real = [&](const Vec& rv) {
             const Vec zero = em->c->new_xmm_sd();
             WOORT_JIT_CODE(xorps(zero, zero));
-            const Gp r = em->c->new_gp32();
+            const Gp r = em->c->new_gp64();
             WOORT_JIT_CODE(xor_(r, r));
             WOORT_JIT_CODE(ucomisd(rv, zero));
             WOORT_JIT_CODE(setne(r.r8()));
