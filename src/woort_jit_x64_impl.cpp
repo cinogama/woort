@@ -5373,29 +5373,77 @@ void woort_JIT_Backend_x64_PANICC(void* emmiter, woort_Opcode_Global src)
 
 void woort_JIT_Backend_x64_CHKDIVIL(void* emmiter, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp val = em->get_gp_from_stack(src);
+
+    const Gp min_val = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(min_val, Imm(static_cast<int64_t>(INT64_MIN))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(val, min_val));
+    WOORT_JIT_CODE(jne(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
 }
 
 void woort_JIT_Backend_x64_CHKDIVIR(void* emmiter, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp val = em->get_gp_from_stack(src);
+
+    const Label L_fail = em->c->new_label();
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val, val));
+    WOORT_JIT_CODE(jz(L_fail));
+    WOORT_JIT_CODE(cmp(val, Imm(-1)));
+    WOORT_JIT_CODE(jne(L_ok));
+
+    WOORT_JIT_CODE(bind(L_fail));
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
 }
 
 void woort_JIT_Backend_x64_CHKDIVIRZ(void* emmiter, woort_Opcode_Stack src)
 {
-    (void)emmiter;
-    (void)src;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp val = em->get_gp_from_stack(src);
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(val, val));
+    WOORT_JIT_CODE(jnz(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
 }
 
 void woort_JIT_Backend_x64_CHKDIVILR(void* emmiter, woort_Opcode_Stack divisor, woort_Opcode_Stack dividend)
 {
-    (void)emmiter;
-    (void)divisor;
-    (void)dividend;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    const Gp divisor_val = em->get_gp_from_stack(divisor);
+    const Gp dividend_val = em->get_gp_from_stack(dividend);
+
+    const Label L_fail = em->c->new_label();
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(test(dividend_val, dividend_val));
+    WOORT_JIT_CODE(jz(L_fail));
+    WOORT_JIT_CODE(cmp(dividend_val, Imm(-1)));
+    WOORT_JIT_CODE(jne(L_ok));
+
+    const Gp min_val = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(min_val, Imm(static_cast<int64_t>(INT64_MIN))));
+    WOORT_JIT_CODE(cmp(divisor_val, min_val));
+    WOORT_JIT_CODE(jne(L_ok));
+
+    WOORT_JIT_CODE(bind(L_fail));
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
 }
