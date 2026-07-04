@@ -63,7 +63,7 @@ extern "C" {
     WOORT_NODISCARD bool woort_JIT_unbox_gc(
         woort_BoxedValue val, woort_BoxValueType type, woort_Value* out);
 
-    void woort_JIT_unbox_dyn_no_check(woort_DynBox val, woort_Value* out);
+    WOORT_NODISCARD woort_Value woort_JIT_unbox_dyn_no_check(woort_DynBox val);
 
     /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_int(
         woort_GCMap* map, woort_Int key);
