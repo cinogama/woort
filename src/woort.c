@@ -1139,7 +1139,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
         vm->m_ip = target->m_script_function;
         if (target->m_jit_function != NULL)
         {
-            if (target->m_jit_function(vm, vm->m_sb) == WOORT_VM_CALL_STATUS_NORMAL)
+            if (target->m_jit_function(vm, vm->m_sb, vm->m_sp) == WOORT_VM_CALL_STATUS_NORMAL)
             {
                 if (dst != WOORT_IGNORE)
                     _WOORT_API_STACK(dst) = *vm->m_sp;

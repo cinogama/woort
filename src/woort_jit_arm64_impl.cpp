@@ -44,7 +44,7 @@ struct woort_JIT_Asmjit_arm64_Emmiter
             m_last_error = Error::kOutOfMemory;
 
         m_last_error = c->add_func_node(Out(m_func_node),
-            FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
+            FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*, const woort_Value*>());
     }
     ~woort_JIT_Asmjit_arm64_Emmiter() noexcept
     {

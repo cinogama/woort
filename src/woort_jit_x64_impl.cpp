@@ -154,10 +154,11 @@ struct woort_JIT_Asmjit_x64_Emmiter
         m_stack_end = c->new_gp_ptr();
 
         m_last_error = c->add_func_node(Out(m_func_node),
-            FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>());
+            FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*, const woort_Value*>());
 
         m_func_node->set_arg(0, m_vm);
         m_func_node->set_arg(1, m_sb);
+        m_func_node->set_arg(2, m_sp);
 
         woort_JIT_pre_scan_jump_targets(
             cenv_, *ip,
@@ -499,7 +500,6 @@ bool woort_JIT_Backend_x64_prologue(
 
         // 0. Apply state.
         {
-            WOORT_JIT_CODE(mov(em->m_sp, em->m_sb));
             WOORT_JIT_CODE(mov(em->m_stack, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK)));
             WOORT_JIT_CODE(mov(em->m_stack_end, qword_ptr(em->m_vm, WOORT_VM_OFFSETOF_STACK_END)));
         }
@@ -2117,10 +2117,11 @@ void woort_JIT_Backend_x64_CALLNJIT(void* emmiter, woort_Opcode_Global func)
     WOORT_JIT_CODE(invoke(
         Out(invoke_node),
         qword_ptr(reinterpret_cast<intptr_t>(func_addr)),
-        FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>()));
+        FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*, const woort_Value*>()));
 
     invoke_node->set_arg(0, em->m_vm);
     invoke_node->set_arg(1, new_sp);
+    invoke_node->set_arg(2, new_sp);
     invoke_node->set_ret(0, status);
 
     const Label L_normal = em->c->new_label();
@@ -2266,10 +2267,11 @@ static void woort_JIT_x64_emit_closure_call(
             WOORT_JIT_CODE(invoke(
                 Out(invoke_node),
                 fn_ptr,
-                FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*>()));
+                FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*, const woort_Value*>()));
 
             invoke_node->set_arg(0, em->m_vm);
             invoke_node->set_arg(1, new_sb);
+            invoke_node->set_arg(2, new_sp);
             invoke_node->set_ret(0, status);
 
             const Label L_normal = em->c->new_label();

@@ -1067,7 +1067,7 @@ _label_continue_execution:
                     rt_env_data[WOORT_BYTECODE(MABC26, c)].m_jit_function;
 
                 const woort_VmCallStatus status =
-                    jit_function(vm, new_sp);
+                    jit_function(vm, new_sp, new_sp);
 
                 WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE();
 
@@ -1121,7 +1121,7 @@ _label_continue_execution:
                         new_sb[2].m_ret_addr = ++rt_ip;
 
                         const woort_VmCallStatus status =
-                            target->m_jit_function(vm, new_sb);
+                            target->m_jit_function(vm, new_sb, new_sp);
 
                         WOORT_VM_CHECK_STACK_VERSION_AND_RESYNC_STACK_STATE();
 
