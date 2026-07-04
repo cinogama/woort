@@ -4,6 +4,9 @@
 #include "woort_gc_vec_types.h"
 #include "woort_gc_struct_types.h"
 
+extern "C" woort_GCVec* woort_GCVec_new(void);
+extern "C" void _woort_GCVec_extern(woort_GCVec* vec, size_t size);
+
 #include "woomem.h"
 
 #include "asmjit/x86.h"
@@ -30,6 +33,8 @@ using namespace asmjit::x86;
  * 此处固定为 double 版本，供 MODR/CMODR 的 invoke 调用使用。
  */
 static double (*const WOORT_JIT_FMOD)(double, double) = fmod;
+
+static void* (*const WOORT_JIT_MEMCPY)(void*, const void*, size_t) = memcpy;
 
 struct woort_JIT_Asmjit_x64_Emmiter
 {
@@ -1917,9 +1922,11 @@ void woort_JIT_Backend_x64_ASSERTDYN(void* emmiter, woort_BoxValueType target, w
 
 void woort_JIT_Backend_x64_CALLNWO(void* emmiter, woort_Opcode_Global func)
 {
-    (void)emmiter;
     (void)func;
-    abort();
+
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    em->emit_failed_fallback(*em->m_ip);
 }
 
 void woort_JIT_Backend_x64_CALLNFP(void* emmiter, woort_Opcode_Global func)
@@ -5012,36 +5019,264 @@ void woort_JIT_Backend_x64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, woo
 
 void woort_JIT_Backend_x64_UNPACKVEC(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec)
 {
-    (void)emmiter;
-    (void)n;
-    (void)vec;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+    static_assert(sizeof(woort_DynBox) == 8, "");
+
+    const Gp gcvec_ptr = em->get_gp_from_stack(vec);
+
+    const Gp vec_len = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(vec_len, qword_ptr(gcvec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(vec_len, Imm(static_cast<int32_t>(n))));
+    WOORT_JIT_CODE(jae(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    if (n != 0)
+    {
+        const Label L_retry = em->c->new_label();
+        WOORT_JIT_CODE(bind(L_retry));
+
+        const Gp new_sp = em->c->new_gp_ptr();
+        WOORT_JIT_CODE(mov(new_sp, em->m_sp));
+        WOORT_JIT_CODE(sub(new_sp, Imm(static_cast<int32_t>(n * static_cast<int32_t>(sizeof(woort_Value))))));
+
+        const Label L_sok = em->c->new_label();
+        WOORT_JIT_CODE(cmp(new_sp, em->m_stack));
+        WOORT_JIT_CODE(jae(L_sok));
+
+        em->emit_extern_stack(*em->m_ip, L_retry);
+
+        WOORT_JIT_CODE(bind(L_sok));
+        WOORT_JIT_CODE(mov(em->m_sp, new_sp));
+
+        const Gp datas_ptr = em->c->new_gp_ptr();
+        WOORT_JIT_CODE(mov(datas_ptr, qword_ptr(gcvec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_datas)))));
+
+        for (woort_Opcode_Count i = 0; i < n; ++i)
+        {
+            const Gp dynbox_val = em->c->new_gp64();
+            WOORT_JIT_CODE(mov(dynbox_val, qword_ptr(datas_ptr, static_cast<int32_t>(i * static_cast<int32_t>(sizeof(woort_DynBox))))));
+
+            const Gp out_addr = em->c->new_gp_ptr();
+            WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sp, static_cast<int32_t>((i + 1) * static_cast<int32_t>(sizeof(woort_Value))))));
+
+            InvokeNode* invoke_node;
+            WOORT_JIT_CODE(invoke(
+                Out(invoke_node),
+                Imm(reinterpret_cast<intptr_t>(woort_JIT_unbox_dyn_no_check)),
+                FuncSignature::build<void, woort_BoxedValue, woort_Value*>()));
+
+            invoke_node->set_arg(0, dynbox_val);
+            invoke_node->set_arg(1, out_addr);
+        }
+    }
 }
 
 void woort_JIT_Backend_x64_UNPACKVECX(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec)
 {
-    (void)emmiter;
-    (void)n;
-    (void)vec;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+    static_assert(sizeof(woort_DynBox) == 8, "");
+
+    const Gp gcvec_ptr = em->get_gp_from_stack(vec);
+
+    const Gp vec_len = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(vec_len, qword_ptr(gcvec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(vec_len, Imm(static_cast<int32_t>(n))));
+    WOORT_JIT_CODE(jae(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    if (n != 0)
+    {
+        const Label L_retry = em->c->new_label();
+        WOORT_JIT_CODE(bind(L_retry));
+
+        const Gp new_sp = em->c->new_gp_ptr();
+        WOORT_JIT_CODE(mov(new_sp, em->m_sp));
+        WOORT_JIT_CODE(sub(new_sp, Imm(static_cast<int32_t>(n * static_cast<int32_t>(sizeof(woort_Value))))));
+
+        const Label L_sok = em->c->new_label();
+        WOORT_JIT_CODE(cmp(new_sp, em->m_stack));
+        WOORT_JIT_CODE(jae(L_sok));
+
+        em->emit_extern_stack(*em->m_ip, L_retry);
+
+        WOORT_JIT_CODE(bind(L_sok));
+        WOORT_JIT_CODE(mov(em->m_sp, new_sp));
+
+        const Gp datas_ptr = em->c->new_gp_ptr();
+        WOORT_JIT_CODE(mov(datas_ptr, qword_ptr(gcvec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_datas)))));
+
+        for (woort_Opcode_Count i = 0; i < n; ++i)
+        {
+            const Gp val = em->c->new_gp64();
+            WOORT_JIT_CODE(mov(val, qword_ptr(datas_ptr, static_cast<int32_t>(i * static_cast<int32_t>(sizeof(woort_DynBox))))));
+            WOORT_JIT_CODE(mov(qword_ptr(em->m_sp, static_cast<int32_t>((i + 1) * static_cast<int32_t>(sizeof(woort_Value)))), val));
+        }
+    }
 }
 
 void woort_JIT_Backend_x64_UNPACKVECALL(void* emmiter, woort_Opcode_Stack count_dst, woort_Opcode_Count n, woort_Opcode_Stack vec)
 {
-    (void)emmiter;
-    (void)count_dst;
-    (void)n;
-    (void)vec;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+    static_assert(sizeof(woort_DynBox) == 8, "");
+
+    const Gp gcvec_ptr = em->get_gp_from_stack(vec);
+
+    const Gp vec_len = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(vec_len, qword_ptr(gcvec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(vec_len, Imm(static_cast<int32_t>(n))));
+    WOORT_JIT_CODE(jae(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Label L_retry = em->c->new_label();
+    WOORT_JIT_CODE(bind(L_retry));
+
+    const Gp byte_count = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(byte_count, vec_len));
+    WOORT_JIT_CODE(shl(byte_count, 3));
+
+    const Gp new_sp = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(new_sp, em->m_sp));
+    WOORT_JIT_CODE(sub(new_sp, byte_count));
+
+    const Label L_sok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(new_sp, em->m_stack));
+    WOORT_JIT_CODE(jae(L_sok));
+
+    em->emit_extern_stack(*em->m_ip, L_retry);
+
+    WOORT_JIT_CODE(bind(L_sok));
+    WOORT_JIT_CODE(mov(em->m_sp, new_sp));
+
+    const Gp datas_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(datas_ptr, qword_ptr(gcvec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_datas)))));
+
+    for (woort_Opcode_Count i = 0; i < n; ++i)
+    {
+        const Gp dynbox_val = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(dynbox_val, qword_ptr(datas_ptr, static_cast<int32_t>(i * static_cast<int32_t>(sizeof(woort_DynBox))))));
+
+        const Gp out_addr = em->c->new_gp_ptr();
+        WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sp, static_cast<int32_t>((i + 1) * static_cast<int32_t>(sizeof(woort_Value))))));
+
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_JIT_unbox_dyn_no_check)),
+            FuncSignature::build<void, woort_BoxedValue, woort_Value*>()));
+
+        invoke_node->set_arg(0, dynbox_val);
+        invoke_node->set_arg(1, out_addr);
+    }
+
+    const Gp remaining = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(remaining, vec_len));
+    WOORT_JIT_CODE(sub(remaining, Imm(static_cast<int32_t>(n))));
+
+    const Gp rem_bytes = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(rem_bytes, remaining));
+    WOORT_JIT_CODE(shl(rem_bytes, 3));
+
+    const Gp rem_src = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(rem_src, ptr(datas_ptr, static_cast<int32_t>(n * static_cast<int32_t>(sizeof(woort_DynBox))))));
+
+    const Gp rem_dst = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(rem_dst, ptr(em->m_sp, static_cast<int32_t>((n + 1) * static_cast<int32_t>(sizeof(woort_Value))))));
+
+    {
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(WOORT_JIT_MEMCPY)),
+            FuncSignature::build<void, void*, const void*, size_t>()));
+
+        invoke_node->set_arg(0, rem_dst);
+        invoke_node->set_arg(1, rem_src);
+        invoke_node->set_arg(2, rem_bytes);
+    }
+
+    em->set_gp_by_stack(count_dst, vec_len);
 }
 
 void woort_JIT_Backend_x64_UNPACKVECXALL(void* emmiter, woort_Opcode_Stack count_dst, woort_Opcode_Count n, woort_Opcode_Stack vec)
 {
-    (void)emmiter;
-    (void)count_dst;
-    (void)n;
-    (void)vec;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+    static_assert(sizeof(woort_DynBox) == 8, "");
+
+    const Gp gcvec_ptr = em->get_gp_from_stack(vec);
+
+    const Gp vec_len = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(vec_len, qword_ptr(gcvec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
+
+    const Label L_ok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(vec_len, Imm(static_cast<int32_t>(n))));
+    WOORT_JIT_CODE(jae(L_ok));
+
+    em->emit_failed_fallback(*em->m_ip);
+
+    WOORT_JIT_CODE(bind(L_ok));
+
+    const Label L_retry = em->c->new_label();
+    WOORT_JIT_CODE(bind(L_retry));
+
+    const Gp byte_count = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(byte_count, vec_len));
+    WOORT_JIT_CODE(shl(byte_count, 3));
+
+    const Gp new_sp = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(new_sp, em->m_sp));
+    WOORT_JIT_CODE(sub(new_sp, byte_count));
+
+    const Label L_sok = em->c->new_label();
+    WOORT_JIT_CODE(cmp(new_sp, em->m_stack));
+    WOORT_JIT_CODE(jae(L_sok));
+
+    em->emit_extern_stack(*em->m_ip, L_retry);
+
+    WOORT_JIT_CODE(bind(L_sok));
+    WOORT_JIT_CODE(mov(em->m_sp, new_sp));
+
+    const Gp datas_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(datas_ptr, qword_ptr(gcvec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_datas)))));
+
+    const Gp dst_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(dst_ptr, ptr(em->m_sp, static_cast<int32_t>(sizeof(woort_Value)))));
+
+    {
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(WOORT_JIT_MEMCPY)),
+            FuncSignature::build<void, void*, const void*, size_t>()));
+
+        invoke_node->set_arg(0, dst_ptr);
+        invoke_node->set_arg(1, datas_ptr);
+        invoke_node->set_arg(2, byte_count);
+    }
+
+    em->set_gp_by_stack(count_dst, vec_len);
 }
 
 void woort_JIT_Backend_x64_PUSHIDSTRUCT(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
@@ -5256,10 +5491,58 @@ void woort_JIT_Backend_x64_PUSHIDSTBOXB(void* emmiter, woort_Opcode_Count idx, w
 
 void woort_JIT_Backend_x64_PACKARG(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count skip)
 {
-    (void)emmiter;
-    (void)dst;
-    (void)skip;
-    abort();
+    woort_JIT_Asmjit_x64_Emmiter* const em = static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+    static_assert(sizeof(woort_DynBox) == 8, "");
+
+    const Gp sb_3_val = em->get_gp_from_stack(3);
+    const Gp pack_argc = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(pack_argc, sb_3_val));
+    WOORT_JIT_CODE(sub(pack_argc, Imm(static_cast<int32_t>(skip))));
+
+    const Gp gcvec = em->c->new_gp_ptr();
+    {
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_GCVec_new)),
+            FuncSignature::build<woort_GCVec*>()));
+        invoke_node->set_ret(0, gcvec);
+    }
+
+    {
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(_woort_GCVec_extern)),
+            FuncSignature::build<void, woort_GCVec*, size_t>()));
+        invoke_node->set_arg(0, gcvec);
+        invoke_node->set_arg(1, pack_argc);
+    }
+
+    const Gp datas_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(datas_ptr, qword_ptr(gcvec, static_cast<int32_t>(offsetof(woort_GCVec, m_datas)))));
+
+    const Gp src_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(lea(src_ptr, ptr(em->m_sb, static_cast<int32_t>((4 + skip) * static_cast<int32_t>(sizeof(woort_Value))))));
+
+    const Gp byte_count = em->c->new_gp64();
+    WOORT_JIT_CODE(mov(byte_count, pack_argc));
+    WOORT_JIT_CODE(shl(byte_count, 3));
+
+    {
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(WOORT_JIT_MEMCPY)),
+            FuncSignature::build<void, void*, const void*, size_t>()));
+        invoke_node->set_arg(0, datas_ptr);
+        invoke_node->set_arg(1, src_ptr);
+        invoke_node->set_arg(2, byte_count);
+    }
+
+    em->set_gp_by_stack(dst, gcvec);
 }
 
 /* -------------------------------------------------------------------------- */
