@@ -44,6 +44,10 @@ target_link_libraries(woort
 if (BUILD_SHARED_LIBS)
     set_target_properties(
         woomem PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    if (WOORT_BUILD_WITH_ASMJIT)
+        set_target_properties(
+            asmjit PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    endif()
 endif()
 
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)

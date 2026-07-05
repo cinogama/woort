@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
 
     woort_pop(2);
 
-    printf("%lld = %d\n", (long long)woort_int(sv + 1), e0 - b0);
+    printf("%lld = %d\n", (long long)woort_int(sv + 1), (int)(e0 - b0));
 
     (void)woort_VMRuntime_swap(NULL);
 
