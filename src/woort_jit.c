@@ -151,6 +151,21 @@ static bool /* false if break loop. */ _woort_JIT_drop_compiled_function(
     return true;
 }
 
+static bool /* false if break loop. */ _woort_JIT_collect_jit_function(
+    const void* key,
+    void* value,
+    void* user_data)
+{
+    (void)key;
+
+    woort_JIT_CompileFunctionContext* const context =
+        (woort_JIT_CompileFunctionContext*)value;
+
+    woort_Vector* const out = (woort_Vector*)user_data;
+
+    return woort_vector_push_back(out, 1, &context->m_jit_function);
+}
+
 // Main body.
 void woort_JIT_compile_env(woort_CodeEnv* cenv)
 {
@@ -213,6 +228,16 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
         goto _label_jit_failed;
     }
 
+    if (!woort_hashmap_foreach(
+        &jit_compiled_functions_record,
+        _woort_JIT_collect_jit_function,
+        &cenv->m_jit_functions))
+    {
+        woort_vector_clear(&cenv->m_jit_functions);
+        jit_compile_result = false;
+        goto _label_jit_failed;
+    }
+
     // Ok, all function has been compiled, Update the function constant.
     // NOTE: 此处之后不能以失败为结束，因为状态无法简单回滚。
     const woort_ConstRecord* const env_constants =
@@ -247,6 +272,8 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
             break;
         }
     }
+
+    cenv->m_jit_drop_code = backend->m_drop_code;
 
 _label_jit_failed:
     if (!jit_compile_result)

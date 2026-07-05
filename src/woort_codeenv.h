@@ -14,6 +14,7 @@ woort_codeenv.h
 #include "woort_gc_units.h"
 #include "woort_hashmap.h"
 #include "woort_ir_srcloc.h"
+#include "woort_jit.h"
 #include "woort_threads.h"
 
 #include <stdbool.h>
@@ -192,6 +193,9 @@ struct woort_CodeEnv {
      * 当 CodeEnv 被 GC 销毁时，所有关联库会被解除引用。
      */
     woort_Vector /* woort_Dylib* */ m_extern_libs;
+
+    woort_JIT_Backend_DropCode m_jit_drop_code;
+    woort_Vector /* woort_JitFunction */ m_jit_functions;
 
     /*
      * 常量池元数据（与 m_data_begin 并行）。

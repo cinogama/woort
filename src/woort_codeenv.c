@@ -193,6 +193,16 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
         woort_dylib_unload(lib, WOORT_DYLIB_UNREF);
     }
     woort_vector_deinit(&code_env->m_extern_libs);
+
+    if (code_env->m_jit_drop_code != NULL)
+    {
+        for (size_t i = 0; i < code_env->m_jit_functions.m_size; ++i)
+        {
+            code_env->m_jit_drop_code(
+                (woort_JitFunction*)woort_vector_at(&code_env->m_jit_functions, i));
+        }
+    }
+    woort_vector_deinit(&code_env->m_jit_functions);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
@@ -340,6 +350,9 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     }
 
     woort_vector_init(&code_env_instance->m_extern_libs, sizeof(woort_Dylib*));
+
+    code_env_instance->m_jit_drop_code = NULL;
+    woort_vector_init(&code_env_instance->m_jit_functions, sizeof(woort_JitFunction));
 
     /* Fill 0 for static storage: */
     memset(
