@@ -10,6 +10,7 @@
 #include "woort_gc_closure.h"
 #include "woort_jit_bridge.h"
 #include "woort_platform.h"
+#include "woort_gc.h"
 
 #include "woort_jit_x64.h"
 #include "woort_jit_arm64.h"
@@ -309,6 +310,12 @@ _label_jit_failed:
     woort_hashmap_deinit(&jit_compiled_functions_record);
 }
 
+static void _woort_JIT_unjit_all_codeenv_when_vm_suspended(void* useless)
+{
+    (void)useless;
+    woort_CodeEnv_JIT_unjit_all_envs();
+}
+
 void woort_JIT_unjit_all_codeenv(void)
 {
     bool just_unjit = false;
@@ -323,6 +330,7 @@ void woort_JIT_unjit_all_codeenv(void)
 
     if (just_unjit)
     {
-        woort_CodeEnv_JIT_unjit_all_envs();
+        woort_GC_suspend_all_vm_to_do_sth(
+            &_woort_JIT_unjit_all_codeenv_when_vm_suspended, NULL);
     }
 }

@@ -23,6 +23,7 @@ void woort_GC_unregister_root_vm(
     struct woort_VMRuntime* vmruntime);
 
 typedef bool (*woort_GC_ForeachRootVMCallback)(woort_VMRuntime* vm, void* user_data);
+typedef void (*woort_GC_SuspendVMJobCallback)(void* user_data);
 
 #ifndef NDEBUG
 WOORT_NODISCARD bool _woort_GC_Debug_current_thread_in_scope(void);
@@ -30,6 +31,10 @@ WOORT_NODISCARD bool _woort_GC_Debug_current_thread_in_scope(void);
 
 void woort_GC_foreach_root_vm(
     woort_GC_ForeachRootVMCallback callback,
+    void* user_data);
+
+void woort_GC_suspend_all_vm_to_do_sth(
+    woort_GC_SuspendVMJobCallback callback,
     void* user_data);
 
 static inline void woort_GC_mixed_write_barrier_gcaddr(
