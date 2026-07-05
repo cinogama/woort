@@ -4282,11 +4282,8 @@ void woort_JIT_Backend_x64_LDIDVEC(void* emmiter, woort_Opcode_Stack dst, woort_
     const Gp vec_ptr = em->load_stack_gp(vec);
     const Gp idx_val = em->load_stack_gp(idx);
 
-    const Gp length = em->c->new_gp64();
-    WOORT_JIT_CODE(mov(length, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
-
     const Label L_ok = em->c->new_label();
-    WOORT_JIT_CODE(cmp(idx_val, length));
+    WOORT_JIT_CODE(cmp(idx_val, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
     WOORT_JIT_CODE(jb(L_ok));
 
     em->emit_failed_fallback(*em->m_ip);
@@ -4321,11 +4318,8 @@ void woort_JIT_Backend_x64_LDIDVECX(void* emmiter, woort_Opcode_Stack dst, woort
     const Gp vec_ptr = em->load_stack_gp(vec);
     const Gp idx_val = em->load_stack_gp(idx);
 
-    const Gp length = em->c->new_gp64();
-    WOORT_JIT_CODE(mov(length, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
-
     const Label L_ok = em->c->new_label();
-    WOORT_JIT_CODE(cmp(idx_val, length));
+    WOORT_JIT_CODE(cmp(idx_val, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
     WOORT_JIT_CODE(jb(L_ok));
 
     em->emit_failed_fallback(*em->m_ip);
@@ -4715,11 +4709,8 @@ void woort_JIT_Backend_x64_STIDVECI(void* emmiter, woort_Opcode_Stack vec, woort
     const Gp vec_ptr = em->load_stack_gp(vec);
     const Gp idx_val = em->load_stack_gp(idx);
 
-    const Gp length = em->c->new_gp64();
-    WOORT_JIT_CODE(mov(length, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
-
     const Label L_ok = em->c->new_label();
-    WOORT_JIT_CODE(cmp(idx_val, length));
+    WOORT_JIT_CODE(cmp(idx_val, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
     WOORT_JIT_CODE(jb(L_ok));
 
     em->emit_failed_fallback(*em->m_ip);
@@ -4753,11 +4744,8 @@ void woort_JIT_Backend_x64_STIDVECR(void* emmiter, woort_Opcode_Stack vec, woort
     const Gp vec_ptr = em->load_stack_gp(vec);
     const Gp idx_val = em->load_stack_gp(idx);
 
-    const Gp length = em->c->new_gp64();
-    WOORT_JIT_CODE(mov(length, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
-
     const Label L_ok = em->c->new_label();
-    WOORT_JIT_CODE(cmp(idx_val, length));
+    WOORT_JIT_CODE(cmp(idx_val, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
     WOORT_JIT_CODE(jb(L_ok));
 
     em->emit_failed_fallback(*em->m_ip);
@@ -4791,11 +4779,8 @@ void woort_JIT_Backend_x64_STIDVECB(void* emmiter, woort_Opcode_Stack vec, woort
     const Gp vec_ptr = em->load_stack_gp(vec);
     const Gp idx_val = em->load_stack_gp(idx);
 
-    const Gp length = em->c->new_gp64();
-    WOORT_JIT_CODE(mov(length, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
-
     const Label L_ok = em->c->new_label();
-    WOORT_JIT_CODE(cmp(idx_val, length));
+    WOORT_JIT_CODE(cmp(idx_val, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
     WOORT_JIT_CODE(jb(L_ok));
 
     em->emit_failed_fallback(*em->m_ip);
@@ -4829,11 +4814,8 @@ void woort_JIT_Backend_x64_STIDVECX(void* emmiter, woort_Opcode_Stack vec, woort
     const Gp vec_ptr = em->load_stack_gp(vec);
     const Gp idx_val = em->load_stack_gp(idx);
 
-    const Gp length = em->c->new_gp64();
-    WOORT_JIT_CODE(mov(length, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
-
     const Label L_ok = em->c->new_label();
-    WOORT_JIT_CODE(cmp(idx_val, length));
+    WOORT_JIT_CODE(cmp(idx_val, qword_ptr(vec_ptr, static_cast<int32_t>(offsetof(woort_GCVec, m_length)))));
     WOORT_JIT_CODE(jb(L_ok));
 
     em->emit_failed_fallback(*em->m_ip);
@@ -5111,14 +5093,30 @@ void woort_JIT_Backend_x64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, woo
 
     const Gp src_val = em->load_stack_gp(src);
 
-    InvokeNode* invoke_node;
-    WOORT_JIT_CODE(invoke(
-        Out(invoke_node),
-        Imm(reinterpret_cast<intptr_t>(woort_JIT_GC_mixed_write_barrier_value)),
-        FuncSignature::build<void, woort_Value*, uint64_t>()));
+    /* 与 STORE/POPC 一致：先探测 GC 标记状态。未标记时直接写槽，避免每次都发起调用。 */
+    const Label L_fast = em->c->new_label();
+    const Label L_end = em->c->new_label();
 
-    invoke_node->set_arg(0, dst_addr);
-    invoke_node->set_arg(1, src_val);
+    const Gp flag_ptr = em->c->new_gp_ptr();
+    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
+    WOORT_JIT_CODE(cmp(byte_ptr(flag_ptr), 0));
+    WOORT_JIT_CODE(je(L_fast));
+    {
+        InvokeNode* invoke_node;
+        WOORT_JIT_CODE(invoke(
+            Out(invoke_node),
+            Imm(reinterpret_cast<intptr_t>(woort_JIT_GC_mixed_write_barrier_value)),
+            FuncSignature::build<void, woort_Value*, uint64_t>()));
+
+        invoke_node->set_arg(0, dst_addr);
+        invoke_node->set_arg(1, src_val);
+    }
+    WOORT_JIT_CODE(jmp(L_end));
+
+    WOORT_JIT_CODE(bind(L_fast));
+    WOORT_JIT_CODE(mov(qword_ptr(dst_addr), src_val));
+
+    WOORT_JIT_CODE(bind(L_end));
 }
 
 void woort_JIT_Backend_x64_UNPACKVEC(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec)
