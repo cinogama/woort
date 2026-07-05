@@ -69,12 +69,6 @@ uint64_t woort_version_int(void)
 #undef woort_init
 void woort_init(int argc, char** argv)
 {
-    if (!woort_JIT_bootup())
-    {
-        WOORT_DEBUG("Failed to bootup JIT.");
-        abort();
-    }
-
     _woort_env_bootup();
     _woort_path_bootup();
     _woort_vfs_bootup();
@@ -99,6 +93,8 @@ void woort_init(int argc, char** argv)
             const char* setting = current_arg + 2;
             if (strcmp(setting, "woort-enable-ctrlc-debug") == 0)
                 _woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER = (bool)atoi(argv[++command_idx]);
+            else if (strcmp(setting, "woort-enable-jit") == 0)
+                _woort_setting_ENABLE_JIT = (bool)atoi(argv[++command_idx]);
             else if (strcmp(setting, "woort-gc-max-reserved-memory") == 0)
                 _woort_setting_MAX_RESERVED_MEMORY_IN_MB = (size_t)atoi(argv[++command_idx]);
             else if (strcmp(setting, "woort-halt-panic-vm") == 0)
@@ -110,6 +106,12 @@ void woort_init(int argc, char** argv)
 
     if (_woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER)
         woort_ctrlc_setup();
+
+    if (!woort_JIT_bootup(_woort_setting_ENABLE_JIT))
+    {
+        WOORT_DEBUG("Failed to bootup JIT.");
+        abort();
+    }
 
     if (!woort_GCUnit_bootup())
     {

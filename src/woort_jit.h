@@ -64,9 +64,9 @@ typedef struct woort_JIT_Backend
 
 } woort_JIT_Backend;
 
-WOORT_NODISCARD bool woort_JIT_bootup(void);
+WOORT_NODISCARD bool woort_JIT_bootup(bool enable);
 void woort_JIT_shutdown(void);
 
-void woort_JIT_set_backend(const woort_JIT_Backend* backend);
+void woort_JIT_set_backend(/* OPTIONAL */ const woort_JIT_Backend* backend);
 
 void woort_JIT_compile_env(woort_CodeEnv* cenv);

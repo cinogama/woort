@@ -23,7 +23,7 @@ typedef struct woort_JITContext {
 
 static woort_JITContext s_jit_context;
 
-WOORT_NODISCARD bool woort_JIT_bootup(void)
+WOORT_NODISCARD bool woort_JIT_bootup(bool enable)
 {
     if (!woort_JIT_Asmjit_bootup())
         return false;
@@ -31,11 +31,16 @@ WOORT_NODISCARD bool woort_JIT_bootup(void)
     woort_rwspinlock_init(&s_jit_context.m_jit_backend_mx);
     s_jit_context.m_jit_backend = NULL;
 
+    if (enable)
+    {
 #ifdef WOORT_PLATFORM_X64
-    woort_JIT_set_backend(&WOORT_JIT_BACKEND_IMPL_X64);
+        woort_JIT_set_backend(&WOORT_JIT_BACKEND_IMPL_X64);
 #elif defined(WOORT_PLATFORM_ARM64)
-    woort_JIT_set_backend(&WOORT_JIT_BACKEND_IMPL_ARM64);
+        woort_JIT_set_backend(&WOORT_JIT_BACKEND_IMPL_ARM64);
+#else
+        /* woort_JIT_set_backend(NULL); */
 #endif
+    }
 
     return true;
 }
@@ -47,7 +52,7 @@ void woort_JIT_shutdown(void)
     woort_JIT_Asmjit_shutdown();
 }
 
-void woort_JIT_set_backend(const woort_JIT_Backend* backend)
+void woort_JIT_set_backend(/* OPTIONAL */ const woort_JIT_Backend* backend)
 {
     woort_rwspinlock_write_lock(&s_jit_context.m_jit_backend_mx);
     s_jit_context.m_jit_backend = backend;

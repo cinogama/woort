@@ -1,5 +1,6 @@
 #include "woort_setting.h"
 
+extern bool _woort_setting_ENABLE_JIT = true;
 bool _woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER = true;
 _woort_HaltPanicVMMode _woort_setting_HALT_PANIC_VM_MODE = WOORT_HALT_PANIC_VM_MODE_DONOT_HALT;
 size_t _woort_setting_MAX_RESERVED_MEMORY_IN_MB = 1024;
