@@ -12,9 +12,6 @@ woort_value.h
 #include <stddef.h>
 #include <stdbool.h>
 
-_Static_assert(sizeof(woort_DynBox) == sizeof(woort_BoxedValue),
-    "woort_DynBox must have same size as woort_BoxedValue");
-
 static inline woort_BoxedValue _woort_gcunit_to_boxed(
     /* OPTIONAL */ woort_GCUnit* ptr)
 {

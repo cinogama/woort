@@ -696,7 +696,7 @@ bool woort_JIT_Backend_x64_pre_dispatch(
 
     const auto it = em->m_opcode_label.find(*em->m_ip);
     if (it != em->m_opcode_label.end())
-        WOORT_JIT_CODE(em->c->bind(it->second));
+        WOORT_JIT_CODE(bind(it->second));
 
     return true;
 }

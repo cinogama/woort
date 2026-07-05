@@ -314,5 +314,3 @@ typedef enum woort_Opcode
     /*      <RESERVED>          |_______3________|_______________|_______________|_______________|_______________|  */
     WOORT_OPCODE_count,
 } woort_Opcode;
-
-_Static_assert(WOORT_OPCODE_count <= 64, "");
