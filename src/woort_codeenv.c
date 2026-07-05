@@ -22,6 +22,7 @@
 #include "woort_gc_struct.h"
 #include "woort_value.h"
 #include "woort_vfs.h"
+#include "woort_jit.h"
 
 #include "woomem.h"
 
@@ -1065,4 +1066,13 @@ void woort_CodeEnv_dejit(woort_CodeEnv* cenv)
     }
 
     cenv->m_jit_linked = false;
+}
+
+void woort_CodeEnv_jit(woort_CodeEnv* cenv)
+{
+    woort_CodeEnv_lock(cenv);
+    {
+        woort_JIT_compile_env(cenv);
+    }
+    woort_CodeEnv_unlock(cenv);
 }

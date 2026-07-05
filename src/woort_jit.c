@@ -178,7 +178,7 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
     /* OPTIONAL */const woort_JIT_Backend* const backend =
         _woort_JIT_get_backend();
 
-    if (backend == NULL)
+    if (backend == NULL || cenv->m_jit_drop_code != NULL)
         return;
 
     bool jit_compile_result = true;

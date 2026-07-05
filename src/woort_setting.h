@@ -13,9 +13,9 @@ typedef enum _woort_HaltPanicVMMode
 
 }_woort_HaltPanicVMMode;
 
-extern bool _woort_setting_ENABLE_JIT;
 extern bool _woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER;
 extern _woort_HaltPanicVMMode _woort_setting_HALT_PANIC_VM_MODE;
 extern size_t _woort_setting_MAX_RESERVED_MEMORY_IN_MB;
+extern bool _woort_setting_ENABLE_JIT;
 
 void _woort_setting_reset_to_default(void);

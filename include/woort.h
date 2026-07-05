@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 5, 2)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 0)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -1070,6 +1070,27 @@ WOORT_NODISCARD WOORT_API bool woort_CodeEnv_find_extern_constant(
 WOORT_NODISCARD WOORT_API bool woort_CodeEnv_add_extern_lib(
     woort_CodeEnv* env,
     woort_Dylib* lib);
+
+/**
+ * @brief JIT-compile every function in a code environment.
+ *
+ * Compiles all functions in @p cenv to native code through
+ * woort_JIT_compile_env() and rewrites the script call opcodes in place so
+ * the VM executes the compiled bodies on subsequent invocations. The CodeEnv
+ * write lock is held for the whole compilation, serializing it against a
+ * concurrent dejit.
+ *
+ * @param cenv  The code environment to compile. Must not be NULL.
+ *
+ * @note Do not call this on a code environment that is booted through
+ *       woort_bootup(). woort_bootup() JIT-compiles the code environment
+ *       itself when its @p jit argument is true, so a separate call is at
+ *       best redundant and, when the VM is already executing @p cenv's
+ *       bytecode, corrupts execution by rewriting the opcodes underneath
+ *       the running interpreter. To run a booted code environment under
+ *       JIT, pass @c jit = true to woort_bootup() instead.
+ */
+WOORT_API void woort_CodeEnv_jit(woort_CodeEnv* cenv);
 
 /* ========== IR Compiler ========== */
 

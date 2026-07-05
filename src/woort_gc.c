@@ -755,6 +755,8 @@ void woort_GC_suspend_all_vm_to_do_sth(
     woort_GC_SuspendVMJobCallback callback,
     void* user_data)
 {
+    woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
+
     woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
@@ -775,4 +777,6 @@ void woort_GC_suspend_all_vm_to_do_sth(
             NULL);
     }
     woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+
+    (void)woort_VMRuntime_swap(last);
 }
