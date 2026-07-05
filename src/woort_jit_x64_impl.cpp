@@ -2975,15 +2975,15 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
 
         WOORT_JIT_CODE(bind(L_ex));
         {
+            const Gp out_addr = em->c->new_gp_ptr();
+            WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
+
             const Gp ok = em->c->new_gp32();
             InvokeNode* invoke_node;
             WOORT_JIT_CODE(invoke(
                 Out(invoke_node),
                 Imm(reinterpret_cast<intptr_t>(woort_JIT_unbox_int_ex)),
                 FuncSignature::build<bool, woort_BoxedValue, woort_Int*>()));
-
-            const Gp out_addr = em->c->new_gp_ptr();
-            WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
 
             invoke_node->set_arg(0, val);
             invoke_node->set_arg(1, out_addr);
@@ -3036,15 +3036,15 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
 
         WOORT_JIT_CODE(bind(L_ex));
         {
+            const Gp out_addr = em->c->new_gp_ptr();
+            WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
+
             const Gp ok = em->c->new_gp32();
             InvokeNode* invoke_node;
             WOORT_JIT_CODE(invoke(
                 Out(invoke_node),
                 Imm(reinterpret_cast<intptr_t>(woort_JIT_unbox_real_ex)),
                 FuncSignature::build<bool, woort_BoxedValue, woort_Real*>()));
-
-            const Gp out_addr = em->c->new_gp_ptr();
-            WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
 
             invoke_node->set_arg(0, val);
             invoke_node->set_arg(1, out_addr);
@@ -3098,15 +3098,15 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
     }
     default:
     {
+        const Gp out_addr = em->c->new_gp_ptr();
+        WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
+
         const Gp ok = em->c->new_gp32();
         InvokeNode* invoke_node;
         WOORT_JIT_CODE(invoke(
             Out(invoke_node),
             Imm(reinterpret_cast<intptr_t>(woort_JIT_unbox_gc)),
             FuncSignature::build<bool, woort_BoxedValue, woort_BoxValueType, woort_Value*>()));
-
-        const Gp out_addr = em->c->new_gp_ptr();
-        WOORT_JIT_CODE(lea(out_addr, ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value)))));
 
         invoke_node->set_arg(0, val);
         invoke_node->set_arg(1, Imm(static_cast<int32_t>(type)));
