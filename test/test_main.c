@@ -96,8 +96,10 @@ int main(int argc, char** argv) {
     woort_CodeEnv_set_const_script_closure(cenv, c_c_main, main_addr);
     woort_CodeEnv_set_const_int(cenv, c_1, 1);
     woort_CodeEnv_set_const_int(cenv, c_2, 2);
-    woort_CodeEnv_set_const_int(cenv, c_35, 40);
+    woort_CodeEnv_set_const_int(cenv, c_35, 39);
     woort_CodeEnv_unlock(cenv);
+
+    woort_CodeEnv_jit(cenv);
 
     woort_CodeEnv_dumps(cenv);
 
@@ -117,7 +119,7 @@ int main(int argc, char** argv) {
 
     woort_pop(2);
 
-    printf("%lld\n", (long long)woort_int(sv + 1));
+    printf("%lld = %d\n", (long long)woort_int(sv + 1), e0 - b0);
 
     (void)woort_VMRuntime_swap(NULL);
 

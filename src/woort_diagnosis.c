@@ -286,11 +286,6 @@ void woort_raise_panic(
 
     (void)woort_raise_panic_v(reason, funcname, location, line, msgfmt, args);
 
-    /* OPTIONAL */ woort_vm* const this_vm = woort_VMRuntime_current();
-    if (this_vm != NULL)
-        // Update `m_stack_realloc_version` to let fp-call get a checkpoint.
-        ++this_vm->m_stack_realloc_version;
-
     va_end(args);
 }
 

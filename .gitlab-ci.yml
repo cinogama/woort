@@ -1,159 +1,79 @@
 # WooRT GitLab CI/CD Configuration
 # 支持平台：winserver22, mac-arm64, ubuntu22_arm64, ubuntu20
+# 每个平台通过 matrix 拆分为 Debug 与 RelWithDebInfo 两个 case，构建与测试在同一 job 内完成。
 
 stages:
-  - build
   - test
 
-# 通用规则
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
     - if: $CI_COMMIT_BRANCH
 
+.test: &test
+  stage: test
+  before_script:
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
 # ============================================
-# Windows Server 2022 构建与测试
+# Windows Server 2022（多配置生成器）
 # ============================================
-build:winserver22:
-  stage: build
+winserver22:
+  <<: *test
   tags:
     - winserver22
-  before_script:
-    - git submodule sync --recursive
-    - git submodule update --init --recursive
   script:
-    - mkdir build
-    - cd build
-    - cmake .. -G "Visual Studio 17 2022" -A x64
-    - cmake --build . --config Debug
-    - cmake --build . --config Release
-  artifacts:
-    paths:
-      - build/
-    expire_in: 1 week
-  rules:
-    - if: $CI_COMMIT_BRANCH
-
-test:winserver22:
-  stage: test
-  tags:
-    - winserver22
-  needs:
-    - build:winserver22
-  script:
-    - cd build
-    - ctest -C Debug --output-on-failure
-    - ctest -C Release --output-on-failure
-  rules:
-    - if: $CI_COMMIT_BRANCH
+    - cmake -B build -G "Visual Studio 17 2022" -A x64
+    - cmake --build build --config %CONFIG%
+    - ctest --test-dir build -C %CONFIG% --output-on-failure
+  parallel:
+    matrix:
+      - CONFIG: [Debug, RelWithDebInfo]
 
 # ============================================
-# macOS ARM64 构建与测试
+# macOS ARM64（单配置生成器）
 # ============================================
-build:mac-arm64:
-  stage: build
+mac-arm64:
+  <<: *test
   tags:
     - mac-arm64
-  before_script:
-    - git submodule sync --recursive
-    - git submodule update --init --recursive
   script:
-    - mkdir build
-    - cd build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=arm64
-    - cmake --build . -j$(sysctl -n hw.ncpu)
-    - cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
-    - cmake --build . -j$(sysctl -n hw.ncpu)
-  artifacts:
-    paths:
-      - build/
-    expire_in: 1 week
-  rules:
-    - if: $CI_COMMIT_BRANCH
-
-test:mac-arm64:
-  stage: test
-  tags:
-    - mac-arm64
-  needs:
-    - build:mac-arm64
-  script:
-    - cd build
-    - ctest -C Debug --output-on-failure
-    - ctest -C Release --output-on-failure
-  rules:
-    - if: $CI_COMMIT_BRANCH
+    - cmake -B build -DCMAKE_BUILD_TYPE=$CONFIG -DCMAKE_OSX_ARCHITECTURES=arm64
+    - cmake --build build -j$(sysctl -n hw.ncpu)
+    - ctest --test-dir build --output-on-failure
+  parallel:
+    matrix:
+      - CONFIG: [Debug, RelWithDebInfo]
 
 # ============================================
-# Ubuntu 22.04 ARM64 构建与测试
+# Ubuntu 22.04 ARM64（单配置生成器）
 # ============================================
-build:ubuntu22_arm64:
-  stage: build
+ubuntu22_arm64:
+  <<: *test
   tags:
     - ubuntu22_arm64
-  before_script:
-    - git submodule sync --recursive
-    - git submodule update --init --recursive
   script:
-    - mkdir build
-    - cd build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug
-    - cmake --build . -j$(nproc)
-    - cmake .. -DCMAKE_BUILD_TYPE=Release
-    - cmake --build . -j$(nproc)
-  artifacts:
-    paths:
-      - build/
-    expire_in: 1 week
-  rules:
-    - if: $CI_COMMIT_BRANCH
-
-test:ubuntu22_arm64:
-  stage: test
-  tags:
-    - ubuntu22_arm64
-  needs:
-    - build:ubuntu22_arm64
-  script:
-    - cd build
-    - ctest -C Debug --output-on-failure
-    - ctest -C Release --output-on-failure
-  rules:
-    - if: $CI_COMMIT_BRANCH
+    - cmake -B build -DCMAKE_BUILD_TYPE=$CONFIG
+    - cmake --build build -j$(nproc)
+    - ctest --test-dir build --output-on-failure
+  parallel:
+    matrix:
+      - CONFIG: [Debug, RelWithDebInfo]
 
 # ============================================
-# Ubuntu 20.04 构建与测试
+# Ubuntu 20.04（单配置生成器）
 # ============================================
-build:ubuntu20:
-  stage: build
+ubuntu20:
+  <<: *test
   tags:
     - ubuntu20
-  before_script:
-    - git submodule sync --recursive
-    - git submodule update --init --recursive
   script:
-    - mkdir build
-    - cd build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug
-    - cmake --build . -j$(nproc)
-    - cmake .. -DCMAKE_BUILD_TYPE=Release
-    - cmake --build . -j$(nproc)
-  artifacts:
-    paths:
-      - build/
-    expire_in: 1 week
-  rules:
-    - if: $CI_COMMIT_BRANCH
-
-test:ubuntu20:
-  stage: test
-  tags:
-    - ubuntu20
-  needs:
-    - build:ubuntu20
-  script:
-    - cd build
-    - ctest -C Debug --output-on-failure
-    - ctest -C Release --output-on-failure
-  rules:
-    - if: $CI_COMMIT_BRANCH
+    - cmake -B build -DCMAKE_BUILD_TYPE=$CONFIG
+    - cmake --build build -j$(nproc)
+    - ctest --test-dir build --output-on-failure
+  parallel:
+    matrix:
+      - CONFIG: [Debug, RelWithDebInfo]

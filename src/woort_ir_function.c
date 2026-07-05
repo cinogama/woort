@@ -414,7 +414,7 @@ static void _phase0_jump_chaining(woort_IRFunction* f)
 }
 
 /* ===================================================================
- * Phase 0b: 移除无意义跳转
+ * Phase 2b: 移除无意义跳转
  *
  * 如果跳转指令（JIFINITED 除外）的 fall-through 路径和跳转路径
  * 到达同一条实际指令，则该跳转无意义，替换为 EMPTY。
@@ -863,7 +863,7 @@ static bool _phase2_liveness_analysis(woort_IRFunction* f, const uint32_t* const
 }
 
 /* ===================================================================
- * Phase 2b: 常量直接使用标记
+ * Phase 3b: 常量直接使用标记
  *
  * 扫描所有 SOURCE_CONST vreg，如果某个 CONST vreg 仅被一条
  * PUSHCHK 或 RET 使用（use_count == 1），标记为 const_direct。
@@ -1221,7 +1221,7 @@ static bool _phase3_stack_allocation(
         const int32_t slot = intervals[i].m_assigned_slot;
         woort_IRValue* v = vreg_by_id[id];
         assert(v != NULL);
-        /* slot 0 → offset 0, slot 1 → offset -1, slot 2 → offset -2, ... */
+        /* slot 0 → offset -captured_count, slot 1 → offset -captured_count-1, ... */
         v->m_assigned_stack_offset = -slot - f->m_captured_count;
     }
 

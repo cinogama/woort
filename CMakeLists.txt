@@ -2,7 +2,8 @@
 
 project ("woort")
 
-option(WOORT_BUILD_FOR_ASAN_TEST "Build woort for code asan test" OFF)
+option(WOORT_BUILD_FOR_ASAN_TEST "Build woort for code asan test." OFF)
+option(WOORT_BUILD_WITH_ASMJIT "Build woort with asmjit support." ON)
 set(WOORT_SPECIFY_PLATFORM_TYPE "" CACHE STRING 
     "Specify the platform type for unknown platform, can be '', 'WOORT_PLATFORM_32' or 'WOORT_PLATFORM_64'")
 
@@ -10,6 +11,7 @@ set(WOORT_SPECIFY_PLATFORM_TYPE "" CACHE STRING
 
 add_library(woort_options INTERFACE)
 target_compile_features(woort_options INTERFACE c_std_11)
+target_compile_features(woort_options INTERFACE cxx_std_17)
 target_include_directories(woort_options INTERFACE "include")
 
 ####################################################################################################
@@ -44,12 +46,17 @@ endif()
 
 if (WOORT_BUILD_FOR_ASAN_TEST)
     if(MSVC)
-        target_compile_options(woort_options INTERFACE "/fsanitize=address")
-        target_link_options(woort_options INTERFACE "/fsanitize=address")
+        add_compile_options("/fsanitize=address")
+        add_link_options("/fsanitize=address")
     else()
-        target_compile_options(woort_options INTERFACE "-fsanitize=address")
-        target_link_options(woort_options INTERFACE "-fsanitize=address")
+        add_compile_options("-fsanitize=address")
+        add_link_options("-fsanitize=address")
     endif()
+endif()
+
+if (WOORT_BUILD_WITH_ASMJIT)
+    set(ASMJIT_STATIC ON CACHE BOOL "Build static asmjit." FORCE)
+    add_subdirectory("3rd/asmjit")
 endif()
 
 add_subdirectory ("3rd/woomem")

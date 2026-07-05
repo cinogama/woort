@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.10)
 
 file(GLOB_RECURSE woort_src_c *.c)
 file(GLOB_RECURSE woort_src_h *.h)
+file(GLOB_RECURSE woort_src_cpp *.cpp)
 
 if (MSVC)
     list(APPEND woort_src_c resources.rc)
@@ -10,6 +11,7 @@ endif()
 add_library(woort 
     ${woort_src_c}
     ${woort_src_h}
+    ${woort_src_cpp}
     "../include/woort.h")
 
 target_include_directories(woort PRIVATE "../3rd/woomem/include")
@@ -26,10 +28,18 @@ set_target_properties(
 set_target_properties(
     woort PROPERTIES PREFIX "")
 
+set(woort_required_libs "")
+list(APPEND woort_required_libs woomem)
+
+if (WOORT_BUILD_WITH_ASMJIT)
+    list(APPEND woort_required_libs asmjit)
+    target_include_directories(woort PRIVATE "../3rd/asmjit")
+endif()
+
 target_link_libraries(woort 
     PRIVATE woort_options
     PRIVATE ${CMAKE_DL_LIBS}
-    PUBLIC woomem)
+    PUBLIC ${woort_required_libs})
 
 if (BUILD_SHARED_LIBS)
     set_target_properties(

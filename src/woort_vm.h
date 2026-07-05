@@ -130,15 +130,20 @@ typedef enum woort_VMRuntime_CheckRequestMask
 
     WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED = 1 << 9,
 
+    WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND = 1 << 10,
+    WOORT_VMRUNTIME_CHECK_REQUEST_RESUME = 1 << 11,
+
 }woort_VMRuntime_CheckRequestMask;
 
 struct woort_VMRuntime
 {
     // VM Runtime status.
-    uint32_t                m_stack_realloc_version;
     woort_Value*            m_stack;
     // NOTE: m_stack_end 指向栈空间的尾后位置，不可访问其中的内容
-    woort_Value*            m_stack_end; 
+    woort_Value*            m_stack_end;
+
+    uint32_t                m_jit_call_depth;
+
     woort_Value*            m_sb;
     woort_Value*            m_sp;
     const woort_Bytecode*   m_ip;
@@ -174,7 +179,7 @@ struct woort_VMRuntime
 
     /* OPTIONAL */ woort_CodeEnv*    m_env;
 
-    woort_AtomicUInt32      m_check_request_mask;
+    woort_AtomicUInt32          m_check_request_mask;
 
     bool                        m_is_weak;
 
@@ -182,8 +187,8 @@ struct woort_VMRuntime
     woort_Mutex*                m_hangup_mx;
     woort_ConditionVariable*    m_hangup_cv;
 
-    uint8_t                 m_shrink_stack_count;
-    uint8_t                 m_shrink_stack_edge;
+    uint8_t                     m_shrink_stack_count;
+    uint8_t                     m_shrink_stack_edge;
 
 };
 
@@ -215,7 +220,7 @@ WOORT_NODISCARD bool _woort_VMRuntime_extern_stack(woort_VMRuntime* vm);
 
 WOORT_NODISCARD bool woort_VMRuntime_advise_shrink_stack(woort_VMRuntime* vm);
 
-void woort_VMRuntime_reset_shrink_stack_count(woort_VMRuntime* vm);
+void woort_VMRuntime_decay_shrink_stack_count(woort_VMRuntime* vm);
 
 WOORT_NODISCARD woort_VmCallStatus _woort_VMRuntime_dispatch(
     woort_VMRuntime* vm);

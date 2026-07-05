@@ -496,54 +496,54 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 
 ## 16. 索引加载
 
-### 16.1 从向量/结构体/字符串加载（LDIDX）
+### 16.1 从向量/结构体/字符串加载（LDID）
 
 | 变体 | Mode | 操作数 | 说明 |
 |------|------|--------|------|
-| `LDIDXVEC` | 0 | R S8(索引), R S8(向量) → W S8 | 从向量加载值 |
-| `LDIDXVECX` | 1 | R S8(索引), R S8(向量) → W S8 | 从向量加载到 DynBox |
+| `LDIDVEC` | 0 | R S8(索引), R S8(向量) → W S8 | 从向量加载值 |
+| `LDIDVECX` | 1 | R S8(索引), R S8(向量) → W S8 | 从向量加载到 DynBox |
 | `LDIDSTRUCT` | 2 | N8(字段), R S8(结构体) → W S8 | 从结构体加载字段 |
 | `LDIDSTRING` | 3 | R S8(字符索引), R S8(字符串) → W S8 | 从字符串加载字符 |
 
-### 16.2 从映射加载（LDIDXDICT）
+### 16.2 从映射加载（LDIDDICT）
 
 按键类型分类。
 
 | 变体 | Mode | 操作数 | 说明 |
 |------|------|--------|------|
-| `LDIDXDICTI` | 0 | R S8(整数键), R S8(映射) → W S8 | 整数键加载 |
-| `LDIDXDICTR` | 1 | R S8(实数键), R S8(映射) → W S8 | 实数键加载 |
-| `LDIDXDICTB` | 2 | R S8(布尔键), R S8(映射) → W S8 | 布尔键加载 |
-| `LDIDXDICTX` | 3 | R S8(动态键), R S8(映射) → W S8 | 动态类型键加载 |
+| `LDIDDICTI` | 0 | R S8(整数键), R S8(映射) → W S8 | 整数键加载 |
+| `LDIDDICTR` | 1 | R S8(实数键), R S8(映射) → W S8 | 实数键加载 |
+| `LDIDDICTB` | 2 | R S8(布尔键), R S8(映射) → W S8 | 布尔键加载 |
+| `LDIDDICTX` | 3 | R S8(动态键), R S8(映射) → W S8 | 动态类型键加载 |
 
-### 16.3 从映射加载到动态类型（LDIDXDICTX）
+### 16.3 从映射加载到动态类型（LDIDDICTX）
 
 | 变体 | Mode | 操作数 | 说明 |
 |------|------|--------|------|
-| `LDIDXDICTIX` | 0 | R S8, R S8 → W S8 | 整数键加载到 DynBox |
-| `LDIDXDICTRX` | 1 | R S8, R S8 → W S8 | 实数键加载到 DynBox |
-| `LDIDXDICTBX` | 2 | R S8, R S8 → W S8 | 布尔键加载到 DynBox |
-| `LDIDXDICTXX` | 3 | R S8, R S8 → W S8 | 动态键加载到 DynBox |
+| `LDIDDICTIX` | 0 | R S8, R S8 → W S8 | 整数键加载到 DynBox |
+| `LDIDDICTRX` | 1 | R S8, R S8 → W S8 | 实数键加载到 DynBox |
+| `LDIDDICTBX` | 2 | R S8, R S8 → W S8 | 布尔键加载到 DynBox |
+| `LDIDDICTXX` | 3 | R S8, R S8 → W S8 | 动态键加载到 DynBox |
 
-### 16.4 扩展索引加载（LDIDXEX）
+### 16.4 扩展索引加载（LDIDEX）
 
 支持 16 位栈偏移。注意结构体字段为 N24。
 
 | 变体 | Mode | 操作数 | 说明 |
 |------|------|--------|------|
-| `LDIDXVECEXT` | 0 | R S16(索引), R S16(向量) → W S16 | 从向量加载（扩展） |
-| `LDIDXVECXEXT` | 1 | R S16(索引), R S16(向量) → W S16 | 从向量加载到 DynBox（扩展） |
+| `LDIDVECEXT` | 0 | R S16(索引), R S16(向量) → W S16 | 从向量加载（扩展） |
+| `LDIDVECXEXT` | 1 | R S16(索引), R S16(向量) → W S16 | 从向量加载到 DynBox（扩展） |
 | `LDIDSTRUCTEXT` | 2 | N24(字段), R S16(结构体) → W S16 | 从结构体加载（扩展） |
 | `LDIDSTRINGEXT` | 3 | R S16(字符索引), R S16(字符串) → W S16 | 从字符串加载（扩展） |
 
-### 16.5 扩展映射加载（LDIDXDICTEX / LDIDXDICTEXX）
+### 16.5 扩展映射加载（LDIDDICTEX / LDIDDICTEXX）
 
 与 16.2/16.3 同构，操作数均为 `R S16(键), R S16(映射) → W S16`，区别仅在键类型（I/R/B/X）和是否装箱到 DynBox。共 8 个变体：
 
 | 指令组 | 变体 |
 |--------|------|
-| `LDIDXDICTEX` (mode 0–3) | `LDIDXDICTIEXT`、`LDIDXDICTREXT`、`LDIDXDICTBEXT`、`LDIDXDICTXEXT` |
-| `LDIDXDICTEXX` (mode 0–3) | `LDIDXDICTIXEXT`、`LDIDXDICTRXEXT`、`LDIDXDICTBXEXT`、`LDIDXDICTXXEXT` |
+| `LDIDDICTEX` (mode 0–3) | `LDIDDICTIEXT`、`LDIDDICTREXT`、`LDIDDICTBEXT`、`LDIDDICTXEXT` |
+| `LDIDDICTEXX` (mode 0–3) | `LDIDDICTIXEXT`、`LDIDDICTRXEXT`、`LDIDDICTBXEXT`、`LDIDDICTXXEXT` |
 
 ---
 
@@ -551,38 +551,38 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 
 存储类指令的第一个容器操作数为 `R_M`（读且修改）。
 
-### 17.1 存储到向量（STIDXVEC）
+### 17.1 存储到向量（STIDVEC）
 
 | 变体 | Mode | 操作数 | 说明 |
 |------|------|--------|------|
-| `STIDXVECI` | 0 | R_M S8(向量), R S8(索引), R S8(整数值) | 存储整数 |
-| `STIDXVECR` | 1 | R_M S8(向量), R S8(索引), R S8(实数值) | 存储实数 |
-| `STIDXVECB` | 2 | R_M S8(向量), R S8(索引), R S8(布尔值) | 存储布尔 |
-| `STIDXVECX` | 3 | R_M S8(向量), R S8(索引), R S8(动态值) | 存储动态类型 |
+| `STIDVECI` | 0 | R_M S8(向量), R S8(索引), R S8(整数值) | 存储整数 |
+| `STIDVECR` | 1 | R_M S8(向量), R S8(索引), R S8(实数值) | 存储实数 |
+| `STIDVECB` | 2 | R_M S8(向量), R S8(索引), R S8(布尔值) | 存储布尔 |
+| `STIDVECX` | 3 | R_M S8(向量), R S8(索引), R S8(动态值) | 存储动态类型 |
 
-### 17.2 存储到映射（STIDXDICT*）
+### 17.2 存储到映射（STIDDICT*）
 
-按「键类型 + 值类型」组合，共 4 组（键 I/R/B/X）× 4 组（值 I/R/B/X）= 16 个变体。命名规律 `STIDXDICT<键><值>`，如 `STIDXDICTIR` = 整数键、实数值。操作数均为 `R_M S8(映射), R S8(键), R S8(值)`。
+按「键类型 + 值类型」组合，共 4 组（键 I/R/B/X）× 4 组（值 I/R/B/X）= 16 个变体。命名规律 `STIDDICT<键><值>`，如 `STIDDICTIR` = 整数键、实数值。操作数均为 `R_M S8(映射), R S8(键), R S8(值)`。
 
-> **存储 vs 设置**：`STIDXDICT*` 要求键已存在（否则 panic）；`STIDXMAP*`（§17.3）在键不存在时创建新条目。
+> **存储 vs 设置**：`STIDDICT*` 要求键已存在（否则 panic）；`STIDMAP*`（§17.3）在键不存在时创建新条目。
 
 | 指令组 | 变体 |
 |--------|------|
-| `STIDXDICTI` (mode 0–3) | `II`、`IR`、`IB`、`IX` |
-| `STIDXDICTR` (mode 0–3) | `RI`、`RR`、`RB`、`RX` |
-| `STIDXDICTB` (mode 0–3) | `BI`、`BR`、`BB`、`BX` |
-| `STIDXDICTX` (mode 0–3) | `XI`、`XR`、`XB`、`XX` |
+| `STIDDICTI` (mode 0–3) | `II`、`IR`、`IB`、`IX` |
+| `STIDDICTR` (mode 0–3) | `RI`、`RR`、`RB`、`RX` |
+| `STIDDICTB` (mode 0–3) | `BI`、`BR`、`BB`、`BX` |
+| `STIDDICTX` (mode 0–3) | `XI`、`XR`、`XB`、`XX` |
 
-### 17.3 设置映射值（STIDXMAP*）
+### 17.3 设置映射值（STIDMAP*）
 
 语义同 17.2，但键不存在时创建新条目。同样 16 个变体：
 
 | 指令组 | 变体 |
 |--------|------|
-| `STIDXMAPI` (mode 0–3) | `II`、`IR`、`IB`、`IX` |
-| `STIDXMAPR` (mode 0–3) | `RI`、`RR`、`RB`、`RX` |
-| `STIDXMAPB` (mode 0–3) | `BI`、`BR`、`BB`、`BX` |
-| `STIDXMAPX` (mode 0–3) | `XI`、`XR`、`XB`、`XX` |
+| `STIDMAPI` (mode 0–3) | `II`、`IR`、`IB`、`IX` |
+| `STIDMAPR` (mode 0–3) | `RI`、`RR`、`RB`、`RX` |
+| `STIDMAPB` (mode 0–3) | `BI`、`BR`、`BB`、`BX` |
+| `STIDMAPX` (mode 0–3) | `XI`、`XR`、`XB`、`XX` |
 
 ### 17.4 存储到结构体（STIDSTRUCT）
 
@@ -590,18 +590,18 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 |------|------|--------|------|
 | `STIDSTRUCT` | `OP6_MA10_B8_C8` | N10(字段), R_M S8(结构体), R S8(值) | 存储到结构体字段 |
 
-### 17.5 扩展索引存储（STIDXEX）
+### 17.5 扩展索引存储（STIDEX）
 
 支持 16 位栈偏移和类型编码。
 
 | 变体 | Mode | 操作数 | 说明 |
 |------|------|--------|------|
-| `STIDXVECEXT` | 0 | T8(值类型), R_M S16(向量), R S16(索引), R S16(值) | 存储到向量（扩展） |
-| `STIDXDICTEXT` | 1 | T4(键)+T4(值), R_M S16(映射), R S16(键), R S16(值) | 存储到映射（扩展） |
-| `STIDXMAPEXT` | 2 | T4(键)+T4(值), R_M S16(映射), R S16(键), R S16(值) | 设置映射值（扩展） |
+| `STIDVECEXT` | 0 | T8(值类型), R_M S16(向量), R S16(索引), R S16(值) | 存储到向量（扩展） |
+| `STIDDICTEXT` | 1 | T4(键)+T4(值), R_M S16(映射), R S16(键), R S16(值) | 存储到映射（扩展） |
+| `STIDMAPEXT` | 2 | T4(键)+T4(值), R_M S16(映射), R S16(键), R S16(值) | 设置映射值（扩展） |
 | `STIDSTRUCTEXT` | 3 | N24(字段), R_M S16(结构体), R S16(值) | 存储到结构体（扩展） |
 
-类型 T 取值：0=整数，1=实数，2=布尔，3=动态类型（`STIDXEX` 专用编码，与 §10 的 T 略有差异）。
+类型 T 取值：0=整数，1=实数，2=布尔，3=动态类型（`STIDEX` 专用编码，与 §10 的 T 略有差异）。
 
 ---
 
@@ -618,16 +618,16 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 
 ---
 
-## 19. 结构体索引装箱压栈（PUSHIDXSTBOX）
+## 19. 结构体索引装箱压栈（PUSHIDSTBOX）
 
 从结构体读取指定字段，装箱为指定类型后压入栈顶。
 
 | 变体 | Mode | 操作数 | 说明 |
 |------|------|--------|------|
-| `PUSHIDXSTRUCT` | 0 | N8(字段), R_ONLY S16(结构体) | 索引字段并原样压栈（`woort_Value`） |
-| `PUSHIDXSTBOXI` | 1 | N8(字段), R_ONLY S16(结构体) | 索引字段并装箱为整数压栈 |
-| `PUSHIDXSTBOXR` | 2 | N8(字段), R_ONLY S16(结构体) | 索引字段并装箱为实数压栈 |
-| `PUSHIDXSTBOXB` | 3 | N8(字段), R_ONLY S16(结构体) | 索引字段并装箱为布尔压栈 |
+| `PUSHIDSTRUCT` | 0 | N8(字段), R_ONLY S16(结构体) | 索引字段并原样压栈（`woort_Value`） |
+| `PUSHIDSTBOXI` | 1 | N8(字段), R_ONLY S16(结构体) | 索引字段并装箱为整数压栈 |
+| `PUSHIDSTBOXR` | 2 | N8(字段), R_ONLY S16(结构体) | 索引字段并装箱为实数压栈 |
+| `PUSHIDSTBOXB` | 3 | N8(字段), R_ONLY S16(结构体) | 索引字段并装箱为布尔压栈 |
 
 ---
 
@@ -701,10 +701,10 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 字符串操作（OPSALGS/OPSREN） | 2 | 7 |
 | 逻辑运算（OPLAONI） | 1 | 3 |
 | 复合赋值（OPCIASMD/OPCRASMD/OPCSAIOO/OPCLAON） | 4 | 15 |
-| 索引加载（LDIDX 系列） | 6 | 24 |
-| 索引存储（STIDX 系列） | 11 | 45 |
+| 索引加载（LDID 系列） | 6 | 24 |
+| 索引存储（STID 系列） | 11 | 45 |
 | 容器解包（UNPACK） | 1 | 4 |
-| 结构体索引装箱（PUSHIDXSTBOX） | 1 | 4 |
+| 结构体索引装箱（PUSHIDSTBOX） | 1 | 4 |
 | 变长参数收集（PACKARG） | 1 | 1 |
 | 原子操作（ATOMIC） | 1 | 3 |
 | 一次性初始化（JIFINITED） | 1 | 1 |

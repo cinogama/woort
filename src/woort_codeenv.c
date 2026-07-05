@@ -6,6 +6,7 @@
 
 #include "woort_codeenv.h"
 #include "woort_dylib.h"
+#include "woort_gc.h"
 #include "woort_ir_function.h"
 #include "woort_ir_srcloc.h"
 #include "woort_opcode.h"
@@ -21,13 +22,15 @@
 #include "woort_gc_struct.h"
 #include "woort_value.h"
 #include "woort_vfs.h"
+#include "woort_jit.h"
 
 #include "woomem.h"
 
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
-    woort_OrderMap*     m_codeenvs;
+    woort_OrderMap/* const woort_Bytecode*, woort_CodeEnv* */ 
+                        *m_codeenvs;
     woort_GCUnitProxy   m_env_proxy;
     woort_GCUnitProxy   m_code_proxy;
 
@@ -88,6 +91,22 @@ static bool _codeenv_mark_callback(
     return true;
 }
 
+static bool _codeenv_unjit_callback(
+    const void* key, void* value, void* user_data)
+{
+    (void)key;
+    (void)user_data;
+    woort_CodeEnv* const code_env = *(woort_CodeEnv**)value;
+
+    woort_CodeEnv_lock(code_env);
+    {
+        woort_CodeEnv_dejit(code_env);
+    }
+    woort_CodeEnv_unlock(code_env);
+
+    return true;
+}
+
 struct _CodeEnv_Foreach_Ctx {
     woort_CodeEnv_ForeachCallback m_callback;
     void* m_user_data;
@@ -109,9 +128,6 @@ void woort_CodeEnv_PDB_init(woort_CodeEnv_PDB* pdb)
     pdb->m_source_map.m_entry_count = 0;
     woort_StringPool_init(&pdb->m_srcloc_string_pool);
 
-    woort_vector_init(&pdb->m_function_boundaries,
-        sizeof(woort_FunctionBoundary));
-
     woort_vector_init(&pdb->m_local_var_debug_info,
         sizeof(woort_LocalVarDebugInfo));
     woort_vector_init(&pdb->m_static_var_debug_info,
@@ -124,8 +140,6 @@ void woort_CodeEnv_PDB_deinit(woort_CodeEnv_PDB* pdb)
     pdb->m_source_map.m_entries = NULL;
     pdb->m_source_map.m_entry_count = 0;
     woort_StringPool_deinit(&pdb->m_srcloc_string_pool);
-
-    woort_vector_deinit(&pdb->m_function_boundaries);
 
     woort_vector_deinit(&pdb->m_local_var_debug_info);
     woort_vector_deinit(&pdb->m_static_var_debug_info);
@@ -148,9 +162,19 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     woort_rwspinlock_write_lock(
         &_codeenv_global_ctx->m_codeenvs_lock);
 
-    (void)woort_ordermap_remove(
+    woort_CodeEnv** stored_env;
+    if (woort_ordermap_find(
         _codeenv_global_ctx->m_codeenvs,
-        &code_env->m_code_begin);
+        &code_env->m_code_begin,
+        (void**)&stored_env))
+    {
+        if (*stored_env == code_env)
+        {
+            (void)woort_ordermap_remove(
+                _codeenv_global_ctx->m_codeenvs,
+                &code_env->m_code_begin);
+        }
+    }
 
     woort_rwspinlock_write_unlock(
         &_codeenv_global_ctx->m_codeenvs_lock);
@@ -167,6 +191,8 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
         woort_mutex_destroy(code_env->m_mutex);
 
     woort_CodeEnv_PDB_deinit(&code_env->m_pdb);
+
+    woort_vector_deinit(&code_env->m_function_boundaries);
 
     /* 释放常量记录数据 */
     for (size_t i = 0; i < code_env->m_const_records.m_size; ++i)
@@ -185,6 +211,18 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
         woort_dylib_unload(lib, WOORT_DYLIB_UNREF);
     }
     woort_vector_deinit(&code_env->m_extern_libs);
+
+    if (code_env->m_jit_drop_code != NULL)
+    {
+        for (size_t i = 0; i < code_env->m_jit_functions.m_size; ++i)
+        {
+            woort_CodeEnv_JITCompiledRecord* const rec =
+                (woort_CodeEnv_JITCompiledRecord*)woort_vector_at(
+                    &code_env->m_jit_functions, i);
+            code_env->m_jit_drop_code(&rec->m_jit_function);
+        }
+    }
+    woort_vector_deinit(&code_env->m_jit_functions);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
@@ -284,7 +322,9 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
     woort_CodeEnv_PDB_init(&code_env_instance->m_pdb);
 
-    code_env_instance->m_constant_count = constant_storage_count;
+    woort_vector_init(&code_env_instance->m_function_boundaries,
+        sizeof(woort_FunctionBoundary));
+
     code_env_instance->m_data_count = total_data_count;
 
     woort_hashmap_init(
@@ -303,6 +343,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
     woort_vector_init(&code_env_instance->m_const_records, sizeof(woort_ConstRecord));
 
+    bool succ = true;
+
     /* 预填充 m_const_records 为 NIL 类型 */
     {
         void* buffer;
@@ -313,8 +355,13 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
             constant_storage_count,
             &buffer))
         {
-            /* OOM: 不影响正常运行，但序列化将失败 */
+            /*
+             * OOM: 视为内存不足失败。
+             * 后续 woort_CodeEnv_set_const_record() 依赖 m_size 与 cidx 对齐，
+             * 预填充失败会导致其断言中止，故不可继续运行。
+             */
             WOORT_DEBUG("Out of memory filling const_records.");
+            succ = false;
         }
         else
         {
@@ -324,30 +371,37 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
     woort_vector_init(&code_env_instance->m_extern_libs, sizeof(woort_Dylib*));
 
+    code_env_instance->m_jit_drop_code = NULL;
+    code_env_instance->m_jit_linked = false;
+    woort_vector_init(&code_env_instance->m_jit_functions, sizeof(woort_CodeEnv_JITCompiledRecord));
+
     /* Fill 0 for static storage: */
     memset(
         code_env_instance->m_data_begin,
         0,
         total_data_count * sizeof(woort_Value));
 
-    bool succ =
-        woort_mutex_create(&code_env_instance->m_mutex);
+    if (succ)
+        succ = woort_mutex_create(&code_env_instance->m_mutex);
 
     if (succ)
     {
         woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
 
-        const woort_ordermap_Result register_result = woort_ordermap_insert(
-            _codeenv_global_ctx->m_codeenvs,
-            &code_env_instance->m_code_begin,
-            &code_env_instance);
+        woort_CodeEnv** env_storage;
+        const woort_ordermap_Result register_result =
+            woort_ordermap_get_or_emplace(
+                _codeenv_global_ctx->m_codeenvs,
+                &code_env_instance->m_code_begin,
+                (void**)&env_storage);
 
-        assert(register_result != WOORT_ORDERMAP_RESULT_ALREADY_EXIST);
+        if (register_result != WOORT_ORDERMAP_RESULT_OUT_OF_MEMORY)
+            *env_storage = code_env_instance;
+        else
+            succ = false;
+
         woort_rwspinlock_write_unlock(
             &_codeenv_global_ctx->m_codeenvs_lock);
-
-        if (register_result != WOORT_ORDERMAP_RESULT_OK)
-            succ = false;
     }
 
     woort_GCUnit_init_delay_alloc(M, codes);
@@ -450,6 +504,20 @@ void woort_CodeEnv_GC_mark_all_envs(void)
     (void)woort_ordermap_foreach(
         _codeenv_global_ctx->m_codeenvs,
         &_codeenv_mark_callback,
+        NULL);
+
+    woort_rwspinlock_read_unlock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
+}
+
+void woort_CodeEnv_JIT_unjit_all_envs(void)
+{
+    woort_rwspinlock_read_lock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
+
+    (void)woort_ordermap_foreach(
+        _codeenv_global_ctx->m_codeenvs,
+        &_codeenv_unjit_callback,
         NULL);
 
     woort_rwspinlock_read_unlock(
@@ -563,7 +631,7 @@ WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
  * 源码映射 API
  * ======================================================================== */
 
-void woort_CodeEnv_set_source_maps(
+WOORT_NODISCARD bool woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
     const woort_Vector* function_source_map)
 {
@@ -636,7 +704,7 @@ build_function_boundaries:
      * 即使没有源码映射条目，函数边界信息仍然有用。
      */
     if (func_count == 0)
-        return;
+        return true;
 
     for (uint32_t i = 0; i < func_count; ++i)
     {
@@ -661,9 +729,18 @@ build_function_boundaries:
             boundary.m_name = NULL;
         }
 
-        /* 忽略 push_back 失败 —— 边界信息丢失不影响正确性 */
-        (void)woort_vector_push_back(&env->m_pdb.m_function_boundaries, 1, &boundary);
+        /*
+         * push_back 失败视为 OOM。
+         * 边界表缺失会使函数名查找静默失败，行为不可预期，故整体失败。
+         */
+        if (!woort_vector_push_back(&env->m_function_boundaries, 1, &boundary))
+        {
+            WOORT_DEBUG("Out of memory building function_boundaries.");
+            return false;
+        }
     }
+
+    return true;
 }
 
 void woort_CodeEnv_set_debug_info(
@@ -736,7 +813,7 @@ WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_o
     const woort_CodeEnv* env,
     uint32_t bytecode_offset)
 {
-    const woort_Vector* vec = &env->m_pdb.m_function_boundaries;
+    const woort_Vector* vec = &env->m_function_boundaries;
     const uint32_t count = (uint32_t)vec->m_size;
 
     if (count == 0)
@@ -830,7 +907,7 @@ WOORT_NODISCARD bool woort_CodeEnv_register_extern_constant(
         || result == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
     {
         free(name_copy);
-        return result == WOORT_HASHMAP_RESULT_ALREADY_EXIST ? false : false;
+        return false;
     }
 
     return true;
@@ -877,7 +954,6 @@ WOORT_NODISCARD bool woort_CodeEnv_set_const_record(
     /* OPTIONAL */ const char* func_name)
 {
     assert(env != NULL);
-    assert((size_t)cidx < env->m_constant_count);
     assert((size_t)cidx < env->m_const_records.m_size);
 
     woort_ConstRecord* rec = (woort_ConstRecord*)woort_vector_at(
@@ -929,4 +1005,74 @@ void woort_CodeEnv_foreach(
         &ctx);
 
     woort_rwspinlock_read_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
+}
+
+void woort_CodeEnv_dejit(woort_CodeEnv* cenv)
+{
+    if (!cenv->m_jit_linked)
+        return;
+
+    const woort_ConstRecord* const env_constants =
+        (const woort_ConstRecord*)cenv->m_const_records.m_data;
+
+    for (size_t cidx = 0; cidx < cenv->m_const_records.m_size; ++cidx)
+    {
+        switch (env_constants[cidx].m_type)
+        {
+        case WOORT_CONST_TYPE_SCRIPT_FUNC:
+        {
+            const woort_JitFunction target_jit =
+                cenv->m_data_begin[cidx].m_jit_function;
+
+            const woort_Bytecode* restored_script_function = NULL;
+            for (size_t i = 0; i < cenv->m_jit_functions.m_size; ++i)
+            {
+                const woort_CodeEnv_JITCompiledRecord* const rec =
+                    (const woort_CodeEnv_JITCompiledRecord*)woort_vector_at(
+                        &cenv->m_jit_functions, i);
+                if (rec->m_jit_function == target_jit)
+                {
+                    restored_script_function = rec->m_script_function;
+                    break;
+                }
+            }
+            assert(restored_script_function != NULL);
+
+            woort_Value v;
+            v.m_script_function = restored_script_function;
+            woort_GC_mixed_write_barrier_value(&cenv->m_data_begin[cidx], v);
+            break;
+        }
+        case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
+        {
+            ((woort_GCClosure*)cenv->m_data_begin[cidx].m_closure)->m_jit_function = NULL;
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    woort_Bytecode* current_opcode = (woort_Bytecode*)cenv->m_code_begin;
+    const woort_Bytecode* const env_opcode_end = cenv->m_code_end;
+    while (current_opcode < env_opcode_end)
+    {
+        if (WOORT_BYTECODE(OP6, *current_opcode) == WOORT_OPCODE_CALLNJIT)
+            *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
+                WOORT_OPCODE_CALLNWO, WOORT_BYTECODE(MABC26, *current_opcode));
+
+        current_opcode = (woort_Bytecode*)woort_OpcodeDispatcher_decode(
+            current_opcode, NULL, NULL);
+    }
+
+    cenv->m_jit_linked = false;
+}
+
+void woort_CodeEnv_jit(woort_CodeEnv* cenv)
+{
+    woort_CodeEnv_lock(cenv);
+    {
+        woort_JIT_compile_env(cenv);
+    }
+    woort_CodeEnv_unlock(cenv);
 }

@@ -299,9 +299,6 @@ static void _woort_GC_thread_entry(void)
 
 WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
 {
-    if (!woort_mutex_create(&_woort_gc_allocate_failed_log_mx))
-        return false;
-
     if (!woomem_init(
         reserving_memory_size,
         &_woort_GC_start_callback,
@@ -311,7 +308,6 @@ WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
         &_woort_GC_thread_entry,
         &_woort_GC_thread_entry))
     {
-        woort_mutex_destroy(_woort_gc_allocate_failed_log_mx);
         return false;
     }
 
@@ -503,8 +499,6 @@ void woort_GC_shutdown(void)
     woort_spinlock_deinit(&s_gc_context.m_not_been_marked_weak_vm_mx);
     woort_hashmap_deinit(&s_gc_context.m_root_vms_to_mark);
     woort_hashmap_deinit(&s_gc_context.m_not_been_marked_weak_vm);
-
-    woort_mutex_destroy(_woort_gc_allocate_failed_log_mx);
 }
 
 WOORT_NODISCARD bool woort_GC_register_root_vm(struct woort_VMRuntime* vmruntime)
@@ -694,4 +688,95 @@ void woort_GC_sync_marking_unlock(void)
 
     WOORT_t_in_gc_external_marking_sync_guard = false;
     woort_rwspinlock_read_unlock(&s_gc_context.m_gc_stage_switch_lock);
+}
+
+static bool _woort_GC_walk_through_to_send_suspend(
+    const void* key,
+    void* value,
+    void* user_data)
+{
+    (void)user_data;
+    (void)value;
+
+    woort_VMRuntime* const vm =
+        *(woort_VMRuntime* const*)key;
+
+    (void)woort_VMRuntime_request_set(
+        vm, WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND);
+
+    return true;
+}
+
+static bool _woort_GC_walk_through_to_sync_suspend(
+    const void* key,
+    void* value,
+    void* user_data)
+{
+    (void)user_data;
+    (void)value;
+
+    woort_VMRuntime* const vm =
+        *(woort_VMRuntime* const*)key;
+
+    do
+    {
+        if (woort_VMRuntime_request_check(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE))
+        {
+            break;
+        }
+
+        woort_thread_yield();
+
+    } while (woort_VMRuntime_request_check(
+        vm, WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND));
+
+    return true;
+}
+
+static bool _woort_GC_walk_through_to_send_resume(
+    const void* key,
+    void* value,
+    void* user_data)
+{
+    (void)user_data;
+    (void)value;
+
+    woort_VMRuntime* const vm =
+        *(woort_VMRuntime* const*)key;
+
+    (void)woort_VMRuntime_request_set(
+        vm, WOORT_VMRUNTIME_CHECK_REQUEST_RESUME);
+
+    return true;
+}
+
+void woort_GC_suspend_all_vm_to_do_sth(
+    woort_GC_SuspendVMJobCallback callback,
+    void* user_data)
+{
+    woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
+
+    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    {
+        (void)woort_hashmap_foreach(
+            &s_gc_context.m_root_vms_to_mark,
+            &_woort_GC_walk_through_to_send_suspend,
+            NULL);
+
+        (void)woort_hashmap_foreach(
+            &s_gc_context.m_root_vms_to_mark,
+            &_woort_GC_walk_through_to_sync_suspend,
+            NULL);
+
+        callback(user_data);
+
+        (void)woort_hashmap_foreach(
+            &s_gc_context.m_root_vms_to_mark,
+            &_woort_GC_walk_through_to_send_resume,
+            NULL);
+    }
+    woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+
+    (void)woort_VMRuntime_swap(last);
 }

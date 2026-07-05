@@ -19,6 +19,9 @@
 #include "woort_util.h"
 #include "woort_platform.h"
 
+_Static_assert(sizeof(woort_DynBox) == sizeof(woort_BoxedValue),
+    "woort_DynBox must have same size as woort_BoxedValue");
+
 /*
 Boxed value:    | ............................... | 3 type bits |
 Boxed GCUnit:   | ...Address pointer high 61 bits...| 0 | 0 | 0 |

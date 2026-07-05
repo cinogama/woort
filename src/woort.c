@@ -7,6 +7,7 @@
 #include "woort_vm.h"
 #include "woort_ir_compiler.h"
 #include "woort_value.h"
+#include "woort_gc_units.h"
 #include "woort_gc_string.h"
 #include "woort_gc_vec.h"
 #include "woort_gc_map.h"
@@ -25,6 +26,7 @@
 #include "woort_vm_debugger_api.h"
 #include "woort_setting.h"
 #include "woort_platform.h"
+#include "woort_jit.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,6 +93,8 @@ void woort_init(int argc, char** argv)
             const char* setting = current_arg + 2;
             if (strcmp(setting, "woort-enable-ctrlc-debug") == 0)
                 _woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER = (bool)atoi(argv[++command_idx]);
+            else if (strcmp(setting, "woort-enable-jit") == 0)
+                _woort_setting_ENABLE_JIT = (bool)atoi(argv[++command_idx]);
             else if (strcmp(setting, "woort-gc-max-reserved-memory") == 0)
                 _woort_setting_MAX_RESERVED_MEMORY_IN_MB = (size_t)atoi(argv[++command_idx]);
             else if (strcmp(setting, "woort-halt-panic-vm") == 0)
@@ -102,6 +106,18 @@ void woort_init(int argc, char** argv)
 
     if (_woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER)
         woort_ctrlc_setup();
+
+    if (!woort_JIT_bootup(_woort_setting_ENABLE_JIT))
+    {
+        WOORT_DEBUG("Failed to bootup JIT.");
+        abort();
+    }
+
+    if (!woort_GCUnit_bootup())
+    {
+        WOORT_DEBUG("Failed to bootup gcunit.");
+        abort();
+    }
 
     if (!woort_GC_bootup(_woort_setting_MAX_RESERVED_MEMORY_IN_MB * 1024 * 1024))
     {
@@ -150,6 +166,7 @@ void woort_shutdown(woort_ShutdownPostCallback do_after_shutdown, void* custom_d
     woort_VMRuntime_Debugger_shutdown();
 
     woort_GC_shutdown();
+    woort_GCUnit_shutdown();
     woort_GCPin_shutdown();
     _woort_builtin_shutdown();
 
@@ -161,6 +178,7 @@ void woort_shutdown(woort_ShutdownPostCallback do_after_shutdown, void* custom_d
     _woort_path_shutdown();
     _woort_vfs_shutdown();
     _woort_env_shutdown();
+    woort_JIT_shutdown();
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void)
@@ -188,7 +206,7 @@ void woort_CodeEnv_set_const_int(
     woort_Int val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_Value v;
     v.m_integer = val;
@@ -204,7 +222,7 @@ void woort_CodeEnv_set_const_real(
     woort_Real val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_Value v;
     v.m_real = val;
@@ -221,7 +239,7 @@ void woort_CodeEnv_set_const_buffer(
     size_t buflen)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
     assert(buf != NULL);
 
     const woort_GCString* str =
@@ -243,7 +261,7 @@ void woort_CodeEnv_set_const_script_function(
     const woort_Bytecode* val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_Value v;
     v.m_script_function = val;
@@ -259,7 +277,7 @@ void woort_CodeEnv_set_const_extern_function(
     woort_NativeFunction val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_Value v;
     v.m_native_function = val;
@@ -275,7 +293,7 @@ void woort_CodeEnv_set_const_script_closure(
     const woort_Bytecode* val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_GCClosure* const closure =
         woort_GCClosure_new_script_func_for_env_constant(
@@ -297,7 +315,7 @@ void woort_CodeEnv_set_const_extern_closure(
     woort_NativeFunction val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_GCClosure* const closure =
         woort_GCClosure_new_native_func_for_env_constant(
@@ -319,7 +337,7 @@ void woort_CodeEnv_set_const_box_int(
     woort_Int val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_DynBox boxed = woort_DynBox_box_int_for_env_constant(code_env, val);
     woort_GC_init_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
@@ -333,7 +351,7 @@ void woort_CodeEnv_set_const_box_real(
     woort_Real val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_DynBox boxed = woort_DynBox_box_real_for_env_constant(code_env, val);
     woort_GC_init_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
@@ -347,7 +365,7 @@ void woort_CodeEnv_set_const_box_bool(
     bool val)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     woort_DynBox boxed = woort_DynBox_box_bool(val);
     woort_GC_init_write_barrier_dynbox(&code_env->m_data_begin[cidx].m_dynamic, boxed);
@@ -362,7 +380,7 @@ void woort_CodeEnv_set_const_struct(
     size_t member_count)
 {
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
     assert(member_count == 0 || members != NULL);
 
     woort_GCStruct* const s = 
@@ -371,7 +389,7 @@ void woort_CodeEnv_set_const_struct(
     assert(s != NULL);
 
     for (size_t i = 0; i < member_count; ++i) {
-        assert((size_t)members[i] < code_env->m_constant_count);
+        assert((size_t)members[i] < code_env->m_const_records.m_size);
         woort_GC_init_write_barrier_value(
             &s->m_datas[i], code_env->m_data_begin[members[i]]);
     }
@@ -390,10 +408,11 @@ void woort_CodeEnv_set_static_value(
     const woort_Value* val)
 {
     assert(code_env != NULL);
-    assert((size_t)(code_env->m_constant_count + sidx) < code_env->m_data_count);
+    const size_t const_count = code_env->m_const_records.m_size;
+    assert((size_t)(const_count + sidx) < code_env->m_data_count);
 
     woort_GC_mixed_write_barrier_value(
-        &code_env->m_data_begin[code_env->m_constant_count + sidx], *val);
+        &code_env->m_data_begin[const_count + sidx], *val);
 }
 
 void woort_CodeEnv_get_static_value(
@@ -402,16 +421,17 @@ void woort_CodeEnv_get_static_value(
     woort_Value* out_val)
 {
     assert(code_env != NULL);
-    assert((size_t)(code_env->m_constant_count + sidx) < code_env->m_data_count);
+    const size_t const_count = code_env->m_const_records.m_size;
+    assert((size_t)(const_count + sidx) < code_env->m_data_count);
 
-    *out_val = code_env->m_data_begin[code_env->m_constant_count + sidx];
+    *out_val = code_env->m_data_begin[const_count + sidx];
 }
 
 WOORT_NODISCARD size_t woort_CodeEnv_get_static_storage_count(
     const woort_CodeEnv* code_env)
 {
     assert(code_env != NULL);
-    return code_env->m_data_count - code_env->m_constant_count;
+    return code_env->m_data_count - code_env->m_const_records.m_size;
 }
 
 WOORT_NODISCARD static woort_GCStruct* _woort_set_union(
@@ -446,7 +466,7 @@ void woort_load_const(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
     assert(code_env != NULL);
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
 
     _WOORT_API_STACK(dst) = code_env->m_data_begin[cidx];
 }
@@ -463,7 +483,7 @@ WOORT_NODISCARD bool woort_load_extern_const(
     if (!woort_CodeEnv_find_extern_constant(code_env, name, &cidx))
         return false;
 
-    assert((size_t)cidx < code_env->m_constant_count);
+    assert((size_t)cidx < code_env->m_const_records.m_size);
     _WOORT_API_STACK(dst) = code_env->m_data_begin[cidx];
     return true;
 }
@@ -1057,7 +1077,7 @@ WOORT_NODISCARD static bool _woort_pre_invoke(woort_VMRuntime* vm, const woort_G
     // Set call way and bp offset.
     vm->m_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FROM_NATIVE;
     vm->m_sp[1].m_ret_bp.m_bp_offset =
-        (uint32_t)(vm->m_stack_end - vm->m_sb);
+        (uint32_t)(vm->m_sb - vm->m_sp - 2);
 
     // Set ret addr (Only for trace).
     vm->m_sp[2].m_ret_addr = vm->m_ip /* trace from current. */;
@@ -1121,7 +1141,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
         vm->m_ip = target->m_script_function;
         if (target->m_jit_function != NULL)
         {
-            if (target->m_jit_function(vm, vm->m_sb) == WOORT_VM_CALL_STATUS_NORMAL)
+            if (target->m_jit_function(vm, vm->m_sb, vm->m_sp) == WOORT_VM_CALL_STATUS_NORMAL)
             {
                 if (dst != WOORT_IGNORE)
                     _WOORT_API_STACK(dst) = *vm->m_sp;
@@ -1163,7 +1183,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
         vm->m_sp = vm->m_sb + 2;
 
         assert(vm->m_sp[-1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE);
-        vm->m_sb = vm->m_stack_end - vm->m_sp[-1].m_ret_bp.m_bp_offset;
+        vm->m_sb = vm->m_sp + vm->m_sp[-1].m_ret_bp.m_bp_offset;
 
         switch (r)
         {
@@ -1207,6 +1227,33 @@ WOORT_NODISCARD woort_VmCallStatus woort_bootup_codeenv(
 
     const woort_VmCallStatus result = woort_invoke(dst, v);
     
+    if (result == WOORT_VM_CALL_STATUS_NORMAL)
+        woort_pop(1);
+
+    return result;
+}
+
+WOORT_NODISCARD woort_VmCallStatus woort_bootup(
+    woort_StackValue dst, woort_CodeEnv* cenv, bool jit)
+{
+    if (jit)
+        woort_CodeEnv_jit(cenv);
+
+    woort_StackValue v;
+    if (!woort_push_reserve(1, &v))
+    {
+        woort_panic(WOORT_PANIC_STACK_OVERFLOW, "Stack overflow.");
+        return WOORT_VM_CALL_STATUS_ABORTED;
+    }
+
+    if (!woort_load_extern_const(v, cenv, WOORT_DEFAULT_ENTRY))
+    {
+        woort_panic(WOORT_PANIC_STACK_OVERFLOW, "Cannot find entry: `" WOORT_DEFAULT_ENTRY "`.");
+        return WOORT_VM_CALL_STATUS_ABORTED;
+    }
+
+    const woort_VmCallStatus result = woort_invoke(dst, v);
+
     if (result == WOORT_VM_CALL_STATUS_NORMAL)
         woort_pop(1);
 

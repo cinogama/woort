@@ -216,6 +216,17 @@ WOORT_NODISCARD bool woort_hashmap_find(
     return false;
 }
 
+WOORT_NODISCARD void* woort_hashmap_at(
+    woort_HashMap* map,
+    const void* key)
+{
+    void* val_storage;
+    if (!woort_hashmap_find(map, key, &val_storage))
+        abort();
+
+    return val_storage;
+}
+
 WOORT_NODISCARD woort_hashmap_Result woort_hashmap_get_or_emplace(
     woort_HashMap* map,
     const void* key,

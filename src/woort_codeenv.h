@@ -14,6 +14,7 @@ woort_codeenv.h
 #include "woort_gc_units.h"
 #include "woort_hashmap.h"
 #include "woort_ir_srcloc.h"
+#include "woort_jit.h"
 #include "woort_threads.h"
 
 #include <stdbool.h>
@@ -29,7 +30,7 @@ typedef struct woort_FunctionBoundary
 {
     uint32_t m_offset_begin;           /**< @brief Bytecode offset where the function starts. */
     uint32_t m_code_length;            /**< @brief Length of the function's bytecode in words. */
-    /* OPTIONAL */ const char* m_name; /**< @brief Function name (may be NULL for anonymous). */
+    /* OPTIONAL */ const char* m_name; /**< @brief Function name (may be NULL if not specified). */
 
 } woort_FunctionBoundary;
 
@@ -81,15 +82,6 @@ typedef struct woort_CodeEnv_PDB
      * CodeEnv 拥有所有权，GC destroy 时释放。
      */
     woort_StringPool m_srcloc_string_pool;
-
-    /* === 函数边界表 === */
-    /*
-     * 字节码偏移 -> 函数名 的映射表。
-     * 按 m_offset_begin 升序排列，使用二分查找查询。
-     * 由 woort_CodeEnv_set_source_maps() 设置。
-     * CodeEnv 拥有所有权（m_name 指针指向 m_srcloc_string_pool 中的字符串）。
-     */
-    woort_Vector /* woort_FunctionBoundary */ m_function_boundaries;
 
     /*
      * 局部变量调试信息（名称 -> 栈偏移量）。
@@ -152,6 +144,13 @@ typedef struct woort_ConstRecord
 
 } woort_ConstRecord;
 
+typedef struct woort_CodeEnv_JITCompiledRecord
+{
+    woort_JitFunction       m_jit_function;
+    const woort_Bytecode*   m_script_function;
+
+} woort_CodeEnv_JITCompiledRecord;
+
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void);
 void woort_CodeEnv_shutdown(void);
 void woort_CodeEnv_drop_all(void);
@@ -186,6 +185,15 @@ struct woort_CodeEnv {
      */
     woort_CodeEnv_PDB m_pdb;
 
+    /* === 函数边界表 === */
+    /*
+     * 字节码偏移 -> 函数名 的映射表。
+     * 按 m_offset_begin 升序排列，使用二分查找查询。
+     * 由 woort_CodeEnv_set_source_maps() 设置。
+     * CodeEnv 拥有所有权（m_name 指针指向 m_srcloc_string_pool 中的字符串）。
+     */
+    woort_Vector /* woort_FunctionBoundary */ m_function_boundaries;
+
     /* === 外部库句柄跟踪 === */
     /*
      * 与 CodeEnv 关联的外部动态库句柄列表。
@@ -193,15 +201,19 @@ struct woort_CodeEnv {
      */
     woort_Vector /* woort_Dylib* */ m_extern_libs;
 
+    woort_JIT_Backend_DropCode m_jit_drop_code;
+    woort_Vector /* woort_CodeEnv_JITCompiledRecord */ m_jit_functions;
+    bool m_jit_linked;
+
     /*
      * 常量池元数据（与 m_data_begin 并行）。
      * 每个条目记录该常量槽的类型和 extern 解析信息。
-     * 长度与 m_constant_count 一致。
+     * m_const_records.m_size 即常量数：m_data_begin 的前 m_size 个槽位
+     * 为常量区，其余为静态存储区。
      * CodeEnv 拥有所有权，GC destroy 时释放。
      */
     woort_Vector /* woort_ConstRecord */ m_const_records;
 
-    size_t m_constant_count;
     size_t m_data_count;
     woort_Value m_data_begin[];
 };
@@ -219,6 +231,7 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
     const woort_Bytecode* addr, woort_CodeEnv** out_code_env);
 
 void woort_CodeEnv_GC_mark_all_envs(void);
+void woort_CodeEnv_JIT_unjit_all_envs(void);
 
 /*
  * 将编译器收集的源码映射数据转移到 CodeEnv。
@@ -226,8 +239,10 @@ void woort_CodeEnv_GC_mark_all_envs(void);
  *
  * function_source_map: woort_Vector<woort_Function_SourceMap>
  *   每个条目包含 IR 函数指针（含名称、偏移、长度）和源码映射条目。
+ *
+ * @return true on success, false on out-of-memory.
  */
-void woort_CodeEnv_set_source_maps(
+WOORT_NODISCARD bool woort_CodeEnv_set_source_maps(
     woort_CodeEnv* env,
     const woort_Vector* function_source_map);
 
@@ -277,3 +292,5 @@ typedef bool (*woort_CodeEnv_ForeachCallback)(woort_CodeEnv* cenv, void* user_da
 void woort_CodeEnv_foreach(
     woort_CodeEnv_ForeachCallback callback,
     void* user_data);
+
+void woort_CodeEnv_dejit(woort_CodeEnv* cenv);

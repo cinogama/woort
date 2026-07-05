@@ -73,6 +73,10 @@ WOORT_NODISCARD bool woort_hashmap_find(
     const void* key,
     void** out_value_addr);
 
+WOORT_NODISCARD void* woort_hashmap_at(
+    woort_HashMap* map,
+    const void* key);
+
 WOORT_NODISCARD bool woort_hashmap_contains(
     woort_HashMap* map,
     const void* key);
