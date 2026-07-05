@@ -99,12 +99,6 @@ extern "C" {
     typedef void (*woort_JIT_JumpTargetCallback)(
         const woort_Bytecode* target, void* user_data);
 
-    void woort_JIT_pre_scan_jump_targets(
-        const woort_CodeEnv* cenv,
-        const woort_Bytecode* func_start,
-        woort_JIT_JumpTargetCallback callback,
-        void* user_data);
-
     WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int value);
     WOORT_NODISCARD const woort_GCString* woort_GCString_from_real(woort_Real value);
 

@@ -159,10 +159,6 @@ struct woort_JIT_Asmjit_x64_Emmiter
         m_func_node->set_arg(0, m_vm);
         m_func_node->set_arg(1, m_sb);
         m_func_node->set_arg(2, m_sp);
-
-        woort_JIT_pre_scan_jump_targets(
-            cenv_, *ip,
-            &woort_JIT_Asmjit_x64_Emmiter::pre_scan_callback, this);
     }
     ~woort_JIT_Asmjit_x64_Emmiter() noexcept
     {
@@ -466,28 +462,17 @@ struct woort_JIT_Asmjit_x64_Emmiter
         return lbl;
     }
 
-    static void pre_scan_callback(
-        const woort_Bytecode* target, void* user_data)
-    {
-        static_cast<woort_JIT_Asmjit_x64_Emmiter*>(user_data)
-            ->get_label(target);
-    }
-
     void bind_label(const woort_Bytecode* c)
     {
         auto* const em = this;
 
-        const auto it = em->m_opcode_label.find(c);
-        if (it != em->m_opcode_label.end())
-        {
-            WOORT_JIT_CODE(bind(it->second));
+        WOORT_JIT_CODE(bind(get_label(c)));
 
-            for (auto& kv : em->m_stack_gp)
-            {
-                const int32_t slot_offset =
-                    kv.first * static_cast<int32_t>(sizeof(woort_Value));
-                WOORT_JIT_CODE(mov(kv.second.m_gp, qword_ptr(em->m_sb, slot_offset)));
-            }
+        for (auto& kv : em->m_stack_gp)
+        {
+            const int32_t slot_offset =
+                kv.first * static_cast<int32_t>(sizeof(woort_Value));
+            WOORT_JIT_CODE(mov(kv.second.m_gp, qword_ptr(em->m_sb, slot_offset)));
         }
     }
 };
