@@ -3929,6 +3929,7 @@ _label_continue_execution:
                         WOORT_VMRUNTIME_CHECK_REQUEST_RESUME))
                     {
                         // Do nothing until RESUME.
+                        woort_thread_yield();
                     }
                     (void)woort_VMRuntime_swap(last);
                 }

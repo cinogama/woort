@@ -231,7 +231,7 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
     const woort_Bytecode* addr, woort_CodeEnv** out_code_env);
 
 void woort_CodeEnv_GC_mark_all_envs(void);
-void woort_CodeEnv_JIT_unjit_all_envs(void)
+void woort_CodeEnv_JIT_unjit_all_envs(void);
 
 /*
  * 将编译器收集的源码映射数据转移到 CodeEnv。
