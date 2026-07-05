@@ -2996,7 +2996,6 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
             em->emit_failed_fallback(*em->m_ip);
 
             WOORT_JIT_CODE(bind(L_ok));
-            em->store_stack(dst, qword_ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value))));
         }
 
         WOORT_JIT_CODE(bind(L_done));
@@ -3057,7 +3056,6 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
             em->emit_failed_fallback(*em->m_ip);
 
             WOORT_JIT_CODE(bind(L_ok));
-            em->store_stack(dst, qword_ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value))));
         }
 
         WOORT_JIT_CODE(bind(L_done));
@@ -4382,8 +4380,6 @@ void woort_JIT_Backend_x64_LDIDSTRING(void* emmiter, woort_Opcode_Stack dst, woo
     em->emit_failed_fallback(*em->m_ip);
 
     WOORT_JIT_CODE(bind(L_ok));
-
-    em->store_stack(dst, qword_ptr(em->m_sb, static_cast<int32_t>(dst) * static_cast<int32_t>(sizeof(woort_Value))));
 }
 
 void woort_JIT_Backend_x64_LDIDDICTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
