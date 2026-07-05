@@ -3914,6 +3914,25 @@ _label_continue_execution:
 
                 return WOORT_VM_CALL_STATUS_YIELD;
             }
+            else if (request_mask
+                & WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND)
+            {
+                if (woort_VMRuntime_request_accept(
+                    vm,
+                    WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND))
+                {
+                    woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
+                    assert(last != vm);
+
+                    while (!woort_VMRuntime_request_accept(
+                        vm,
+                        WOORT_VMRUNTIME_CHECK_REQUEST_RESUME))
+                    {
+                        // Do nothing until RESUME.
+                    }
+                    (void)woort_VMRuntime_swap(last);
+                }
+            }
             else
             {
                 WOORT_VM_SYNC_STATE_AND_PANIC(
@@ -4045,6 +4064,11 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
         }
         else if (request_mask
             & WOORT_VMRUNTIME_CHECK_REQUEST_YIELD)
+        {
+            return WOORT_VM_CALL_STATUS_RESYNC;
+        }
+        else if (request_mask
+            & WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND)
         {
             return WOORT_VM_CALL_STATUS_RESYNC;
         }

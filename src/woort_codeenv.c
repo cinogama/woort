@@ -493,6 +493,11 @@ void woort_CodeEnv_GC_mark_all_envs(void)
         &_codeenv_global_ctx->m_codeenvs_lock);
 }
 
+void woort_CodeEnv_unjit_all_envs(void)
+{
+    
+}
+
 /*
  * woort_CodeEnv_set_trap
  *

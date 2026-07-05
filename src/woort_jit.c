@@ -308,3 +308,21 @@ _label_jit_failed:
 
     woort_hashmap_deinit(&jit_compiled_functions_record);
 }
+
+void woort_JIT_unjit_all_codeenv(void)
+{
+    bool just_unjit = false;
+
+    woort_rwspinlock_write_lock(&s_jit_context.m_jit_backend_mx);
+    if (s_jit_context.m_jit_backend != NULL)
+    {
+        just_unjit = true;
+        s_jit_context.m_jit_backend = NULL;
+    }
+    woort_rwspinlock_write_unlock(&s_jit_context.m_jit_backend_mx);
+
+    if (just_unjit)
+    {
+
+    }
+}
