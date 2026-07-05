@@ -2841,11 +2841,9 @@ void woort_JIT_Backend_x64_BOXDYN(void* emmiter, woort_Opcode_Stack dst, woort_B
     }
     case WOORT_BOX_VALUE_TYPE_BOOL:
     {
-        const Gp boxed = em->c->new_gp64();
-        WOORT_JIT_CODE(mov(boxed, val));
-        WOORT_JIT_CODE(shl(boxed, 3));
-        WOORT_JIT_CODE(or_(boxed, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_BOOL))));
-        em->store_stack(dst, boxed);
+        WOORT_JIT_CODE(shl(val, 3));
+        WOORT_JIT_CODE(or_(val, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_BOOL))));
+        em->store_stack(dst, val);
         break;
     }
     case WOORT_BOX_VALUE_TYPE_INT:
@@ -2962,16 +2960,25 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
     {
     case WOORT_BOX_VALUE_TYPE_INT:
     {
-        const Gp unboxed = em->c->new_gp64();
         const Label L_ex = em->c->new_label();
         const Label L_done = em->c->new_label();
+        const Label L_bad = em->c->new_label();
         WOORT_JIT_CODE(test(val, Imm(0b111)));
         WOORT_JIT_CODE(jz(L_ex));
 
-        WOORT_JIT_CODE(mov(unboxed, val));
-        WOORT_JIT_CODE(sar(unboxed, 2));
-        em->store_stack(dst, unboxed);
+        /* 内联标量必须是 INT（bit0=0, bit1=1），否则按 bad_type 回退，
+         * 与 VM 的 woort_DynBox_unbox 及下方 BOOL/NIL 分支保持一致。 */
+        WOORT_JIT_CODE(test(val, Imm(0b001)));
+        WOORT_JIT_CODE(jnz(L_bad));
+        WOORT_JIT_CODE(test(val, Imm(0b010)));
+        WOORT_JIT_CODE(jz(L_bad));
+
+        WOORT_JIT_CODE(sar(val, 2));
+        em->store_stack(dst, val);
         WOORT_JIT_CODE(jmp(L_done));
+
+        WOORT_JIT_CODE(bind(L_bad));
+        em->emit_failed_fallback(*em->m_ip);
 
         WOORT_JIT_CODE(bind(L_ex));
         {
@@ -2990,7 +2997,7 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
             invoke_node->set_ret(0, ok);
 
             const Label L_ok = em->c->new_label();
-            WOORT_JIT_CODE(test(ok, ok));
+            WOORT_JIT_CODE(test(ok.r8_lo(), ok.r8_lo()));
             WOORT_JIT_CODE(jnz(L_ok));
 
             em->emit_failed_fallback(*em->m_ip);
@@ -3006,8 +3013,14 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
         const Gp unboxed = em->c->new_gp64();
         const Label L_ex = em->c->new_label();
         const Label L_done = em->c->new_label();
+        const Label L_bad = em->c->new_label();
         WOORT_JIT_CODE(test(val, Imm(0b111)));
         WOORT_JIT_CODE(jz(L_ex));
+
+        /* 内联标量必须是 REAL（bit0=1），否则按 bad_type 回退，
+         * 与 VM 的 woort_DynBox_unbox 及 CHECKDYN REAL 分支保持一致。 */
+        WOORT_JIT_CODE(test(val, Imm(0b001)));
+        WOORT_JIT_CODE(jz(L_bad));
 
         const Gp sign = em->c->new_gp64();
         const Gp sign_mask = em->c->new_gp64();
@@ -3033,6 +3046,9 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
         em->store_stack(dst, unboxed);
         WOORT_JIT_CODE(jmp(L_done));
 
+        WOORT_JIT_CODE(bind(L_bad));
+        em->emit_failed_fallback(*em->m_ip);
+
         WOORT_JIT_CODE(bind(L_ex));
         {
             const Gp out_addr = em->c->new_gp_ptr();
@@ -3050,7 +3066,7 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
             invoke_node->set_ret(0, ok);
 
             const Label L_ok = em->c->new_label();
-            WOORT_JIT_CODE(test(ok, ok));
+            WOORT_JIT_CODE(test(ok.r8_lo(), ok.r8_lo()));
             WOORT_JIT_CODE(jnz(L_ok));
 
             em->emit_failed_fallback(*em->m_ip);
@@ -3112,7 +3128,7 @@ void woort_JIT_Backend_x64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
         invoke_node->set_ret(0, ok);
 
         const Label L_ok = em->c->new_label();
-        WOORT_JIT_CODE(test(ok, ok));
+        WOORT_JIT_CODE(test(ok.r8_lo(), ok.r8_lo()));
         WOORT_JIT_CODE(jnz(L_ok));
 
         em->emit_failed_fallback(*em->m_ip);
@@ -3411,15 +3427,12 @@ void woort_JIT_Backend_x64_DIVI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
 
     const Gp dividend = em->c->new_gp64();
     const Gp high = em->c->new_gp64();
-    const Gp result = em->c->new_gp64();
 
     WOORT_JIT_CODE(mov(dividend, em->sb_slot(a)));
-    WOORT_JIT_CODE(xor_(high, high));
     WOORT_JIT_CODE(cqo(high, dividend));
     WOORT_JIT_CODE(idiv(high, dividend, em->sb_slot(b)));
-    WOORT_JIT_CODE(mov(result, dividend));
 
-    em->store_stack(dst, result);
+    em->store_stack(dst, dividend);
 }
 
 void woort_JIT_Backend_x64_MODI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -3428,15 +3441,12 @@ void woort_JIT_Backend_x64_MODI(void* emmiter, woort_Opcode_Stack dst, woort_Opc
 
     const Gp dividend = em->c->new_gp64();
     const Gp high = em->c->new_gp64();
-    const Gp result = em->c->new_gp64();
 
     WOORT_JIT_CODE(mov(dividend, em->sb_slot(a)));
-    WOORT_JIT_CODE(xor_(high, high));
     WOORT_JIT_CODE(cqo(high, dividend));
     WOORT_JIT_CODE(idiv(high, dividend, em->sb_slot(b)));
-    WOORT_JIT_CODE(mov(result, high));
 
-    em->store_stack(dst, result);
+    em->store_stack(dst, high);
 }
 
 void woort_JIT_Backend_x64_NEGI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -4374,7 +4384,7 @@ void woort_JIT_Backend_x64_LDIDSTRING(void* emmiter, woort_Opcode_Stack dst, woo
     invoke_node->set_ret(0, ok);
 
     const Label L_ok = em->c->new_label();
-    WOORT_JIT_CODE(test(ok, ok));
+    WOORT_JIT_CODE(test(ok.r8_lo(), ok.r8_lo()));
     WOORT_JIT_CODE(jnz(L_ok));
 
     em->emit_failed_fallback(*em->m_ip);
