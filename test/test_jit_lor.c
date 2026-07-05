@@ -1,4 +1,5 @@
 #include "woort.h"
+extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
 
 #include <stdio.h>
 #include <stdint.h>
@@ -42,7 +43,7 @@ static int run_lor(lor_builder build, woort_Int a, woort_Int b, woort_Int expect
     woort_CodeEnv_set_const_int(cenv, c_b, b);
     woort_CodeEnv_unlock(cenv);
 
-    woort_codeenv_jit_compile_(cenv);
+    woort_JIT_compile_env(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);

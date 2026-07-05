@@ -1,4 +1,5 @@
 #include "woort.h"
+extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
 
 #include <stdio.h>
 #include <stdint.h>
@@ -7,7 +8,7 @@
 /*
  * JIT 执行测试：验证整数复合算术指令（CSUBI/CMULI/CDIVI/CMODI）。
  * 通过将同一 vreg 同时作为 dst 与 src[0]，IR 编译器会选出复合形式，
- * 经 woort_codeenv_jit_compile_ 编译后在 JIT 后端执行。
+ * 经 woort_JIT_compile_env 编译后在 JIT 后端执行。
  */
 
 typedef enum { OP_SUB, OP_MUL, OP_DIV, OP_MOD } OpKind;
@@ -68,7 +69,7 @@ static int run_compound(OpKind op, woort_Int x, woort_Int y, woort_Int expect)
     woort_CodeEnv_set_const_int(cenv, c_y, y);
     woort_CodeEnv_unlock(cenv);
 
-    woort_codeenv_jit_compile_(cenv);
+    woort_JIT_compile_env(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);

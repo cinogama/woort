@@ -1,4 +1,5 @@
 #include "woort.h"
+extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
 
 #include <stdio.h>
 #include <stdint.h>
@@ -45,7 +46,7 @@ static int run_mkstruct_case(uint32_t fields)
         woort_CodeEnv_set_const_int(cenv, c_fields[i], (woort_Int)(1000 + i));
     woort_CodeEnv_unlock(cenv);
 
-    woort_codeenv_jit_compile_(cenv);
+    woort_JIT_compile_env(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -117,7 +118,7 @@ static int run_mkunion_case(uint32_t union_id)
     woort_CodeEnv_set_const_int(cenv, c_payload, 7777);
     woort_CodeEnv_unlock(cenv);
 
-    woort_codeenv_jit_compile_(cenv);
+    woort_JIT_compile_env(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -197,7 +198,7 @@ static int run_mkclosure_case(void)
     woort_CodeEnv_set_const_int(cenv, c_upval, 4242);
     woort_CodeEnv_unlock(cenv);
 
-    woort_codeenv_jit_compile_(cenv);
+    woort_JIT_compile_env(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);

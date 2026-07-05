@@ -1,4 +1,5 @@
 #include "woort.h"
+extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
 
 #include <stdio.h>
 #include <stdint.h>
@@ -47,7 +48,7 @@ static int run_real_binop(real_binop_builder build, const char* name, woort_Real
     woort_CodeEnv_set_const_real(cenv, c_b, b);
     woort_CodeEnv_unlock(cenv);
 
-    woort_codeenv_jit_compile_(cenv);
+    woort_JIT_compile_env(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -106,7 +107,7 @@ static int run_real_unop(real_unop_builder build, const char* name, woort_Real s
     woort_CodeEnv_set_const_real(cenv, c_src, src);
     woort_CodeEnv_unlock(cenv);
 
-    woort_codeenv_jit_compile_(cenv);
+    woort_JIT_compile_env(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -168,7 +169,7 @@ static int run_real_cmpop(real_binop_builder build, const char* name, woort_Real
     woort_CodeEnv_set_const_real(cenv, c_b, b);
     woort_CodeEnv_unlock(cenv);
 
-    woort_codeenv_jit_compile_(cenv);
+    woort_JIT_compile_env(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);

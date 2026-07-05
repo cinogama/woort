@@ -1,4 +1,5 @@
 #include "woort.h"
+extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
 
 #include <stdio.h>
 #include <time.h>
@@ -99,7 +100,7 @@ int main(int argc, char** argv) {
     woort_CodeEnv_set_const_int(cenv, c_35, 39);
     woort_CodeEnv_unlock(cenv);
 
-    woort_codeenv_jit_compile_(cenv);
+    woort_JIT_compile_env(cenv);
 
     woort_CodeEnv_dumps(cenv);
 
