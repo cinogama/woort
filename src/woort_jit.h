@@ -70,3 +70,5 @@ void woort_JIT_shutdown(void);
 void woort_JIT_set_backend(/* OPTIONAL */ const woort_JIT_Backend* backend);
 
 void woort_JIT_compile_env(woort_CodeEnv* cenv);
+
+void woort_JIT_unjit_all_codeenv(void);

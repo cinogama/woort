@@ -3922,7 +3922,7 @@ _label_continue_execution:
                     WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND))
                 {
                     woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
-                    assert(last != vm);
+                    assert(last == vm);
 
                     while (!woort_VMRuntime_request_accept(
                         vm,

@@ -2,6 +2,7 @@
 #include "woort_atomic.h"
 #include "woort_spin.h"
 #include "woort_gc.h"
+#include "woort_jit.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -105,6 +106,8 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
 
     }
     woort_rwspinlock_write_unlock(&g_debugger_rwspin);
+
+    woort_JIT_unjit_all_codeenv();
 
     return true;
 }
