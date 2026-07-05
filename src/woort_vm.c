@@ -1558,13 +1558,14 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONS, 3):
         {
             const woort_Int idx = (woort_Int)WOORT_BYTECODE(A8, c);
+            const woort_Value src = rt_sb[(int8_t)WOORT_BYTECODE(B8, c)];
 
             woort_GCStruct* const gcstruct = woort_GCStruct_new(2);
             rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_struct = gcstruct;
 
             gcstruct->m_datas[0].m_integer = idx;
             woort_GC_init_write_barrier_value(
-                &gcstruct->m_datas[1], rt_sb[(int8_t)WOORT_BYTECODE(B8, c)]);
+                &gcstruct->m_datas[1], src);
 
             break;
         }
@@ -1627,13 +1628,14 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSEX, 3):
         {
             const woort_Int idx = (woort_Int)rt_ip[1];
+            const woort_Value src = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)];
 
             woort_GCStruct* const gcstruct = woort_GCStruct_new(2);
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
 
             gcstruct->m_datas[0].m_integer = idx;
             woort_GC_init_write_barrier_value(
-                &gcstruct->m_datas[1], rt_sb[(int8_t)WOORT_BYTECODE(A8, c)]);
+                &gcstruct->m_datas[1], src);
 
             rt_ip += 2;
             continue;
