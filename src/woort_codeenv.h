@@ -144,6 +144,13 @@ typedef struct woort_ConstRecord
 
 } woort_ConstRecord;
 
+typedef struct woort_CodeEnv_JITCompiledRecord
+{
+    woort_JitFunction       m_jit_function;
+    const woort_Bytecode*   m_script_function;
+
+} woort_CodeEnv_JITCompiledRecord;
+
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void);
 void woort_CodeEnv_shutdown(void);
 void woort_CodeEnv_drop_all(void);
@@ -195,7 +202,8 @@ struct woort_CodeEnv {
     woort_Vector /* woort_Dylib* */ m_extern_libs;
 
     woort_JIT_Backend_DropCode m_jit_drop_code;
-    woort_Vector /* woort_JitFunction */ m_jit_functions;
+    woort_Vector /* woort_CodeEnv_JITCompiledRecord */ m_jit_functions;
+    bool m_jit_linked;
 
     /*
      * 常量池元数据（与 m_data_begin 并行）。
@@ -283,3 +291,5 @@ typedef bool (*woort_CodeEnv_ForeachCallback)(woort_CodeEnv* cenv, void* user_da
 void woort_CodeEnv_foreach(
     woort_CodeEnv_ForeachCallback callback,
     void* user_data);
+
+void woort_CodeEnv_dejit(woort_CodeEnv* cenv);

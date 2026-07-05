@@ -156,14 +156,19 @@ static bool /* false if break loop. */ _woort_JIT_collect_jit_function(
     void* value,
     void* user_data)
 {
-    (void)key;
+    const woort_Bytecode* const script_function =
+        *(const woort_Bytecode**)key;
 
     woort_JIT_CompileFunctionContext* const context =
         (woort_JIT_CompileFunctionContext*)value;
 
     woort_Vector* const out = (woort_Vector*)user_data;
 
-    return woort_vector_push_back(out, 1, &context->m_jit_function);
+    woort_CodeEnv_JITCompiledRecord rec;
+    rec.m_jit_function = context->m_jit_function;
+    rec.m_script_function = script_function;
+
+    return woort_vector_push_back(out, 1, &rec);
 }
 
 // Main body.
@@ -274,6 +279,7 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
     }
 
     cenv->m_jit_drop_code = backend->m_drop_code;
+    cenv->m_jit_linked = true;
 
 _label_jit_failed:
     if (!jit_compile_result)

@@ -6,6 +6,7 @@
 
 #include "woort_codeenv.h"
 #include "woort_dylib.h"
+#include "woort_gc.h"
 #include "woort_ir_function.h"
 #include "woort_ir_srcloc.h"
 #include "woort_opcode.h"
@@ -198,8 +199,10 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     {
         for (size_t i = 0; i < code_env->m_jit_functions.m_size; ++i)
         {
-            code_env->m_jit_drop_code(
-                (woort_JitFunction*)woort_vector_at(&code_env->m_jit_functions, i));
+            woort_CodeEnv_JITCompiledRecord* const rec =
+                (woort_CodeEnv_JITCompiledRecord*)woort_vector_at(
+                    &code_env->m_jit_functions, i);
+            code_env->m_jit_drop_code(&rec->m_jit_function);
         }
     }
     woort_vector_deinit(&code_env->m_jit_functions);
@@ -352,7 +355,8 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     woort_vector_init(&code_env_instance->m_extern_libs, sizeof(woort_Dylib*));
 
     code_env_instance->m_jit_drop_code = NULL;
-    woort_vector_init(&code_env_instance->m_jit_functions, sizeof(woort_JitFunction));
+    code_env_instance->m_jit_linked = false;
+    woort_vector_init(&code_env_instance->m_jit_functions, sizeof(woort_CodeEnv_JITCompiledRecord));
 
     /* Fill 0 for static storage: */
     memset(
@@ -970,4 +974,65 @@ void woort_CodeEnv_foreach(
         &ctx);
 
     woort_rwspinlock_read_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
+}
+
+void woort_CodeEnv_dejit(woort_CodeEnv* cenv)
+{
+    if (!cenv->m_jit_linked)
+        return;
+
+    const woort_ConstRecord* const env_constants =
+        (const woort_ConstRecord*)cenv->m_const_records.m_data;
+
+    for (size_t cidx = 0; cidx < cenv->m_const_records.m_size; ++cidx)
+    {
+        switch (env_constants[cidx].m_type)
+        {
+        case WOORT_CONST_TYPE_SCRIPT_FUNC:
+        {
+            const woort_JitFunction target_jit =
+                cenv->m_data_begin[cidx].m_jit_function;
+
+            const woort_Bytecode* restored_script_function = NULL;
+            for (size_t i = 0; i < cenv->m_jit_functions.m_size; ++i)
+            {
+                const woort_CodeEnv_JITCompiledRecord* const rec =
+                    (const woort_CodeEnv_JITCompiledRecord*)woort_vector_at(
+                        &cenv->m_jit_functions, i);
+                if (rec->m_jit_function == target_jit)
+                {
+                    restored_script_function = rec->m_script_function;
+                    break;
+                }
+            }
+            assert(restored_script_function != NULL);
+
+            woort_Value v;
+            v.m_script_function = restored_script_function;
+            woort_GC_mixed_write_barrier_value(&cenv->m_data_begin[cidx], v);
+            break;
+        }
+        case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
+        {
+            ((woort_GCClosure*)cenv->m_data_begin[cidx].m_closure)->m_jit_function = NULL;
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    woort_Bytecode* current_opcode = (woort_Bytecode*)cenv->m_code_begin;
+    const woort_Bytecode* const env_opcode_end = cenv->m_code_end;
+    while (current_opcode < env_opcode_end)
+    {
+        if (WOORT_BYTECODE(OP6, *current_opcode) == WOORT_OPCODE_CALLNJIT)
+            *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
+                WOORT_OPCODE_CALLNWO, WOORT_BYTECODE(MABC26, *current_opcode));
+
+        current_opcode = (woort_Bytecode*)woort_OpcodeDispatcher_decode(
+            current_opcode, NULL, NULL);
+    }
+
+    cenv->m_jit_linked = false;
 }
