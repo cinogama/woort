@@ -479,7 +479,16 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
         const auto it = em->m_opcode_label.find(c);
         if (it != em->m_opcode_label.end())
+        {
             WOORT_JIT_CODE(bind(it->second));
+
+            for (auto& kv : em->m_stack_gp)
+            {
+                const int32_t slot_offset =
+                    kv.first * static_cast<int32_t>(sizeof(woort_Value));
+                WOORT_JIT_CODE(mov(kv.second.m_gp, qword_ptr(em->m_sb, slot_offset)));
+            }
+        }
     }
 };
 
