@@ -1,5 +1,4 @@
 #include "woort.h"
-extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
 
 #include <stdio.h>
 #include <stdint.h>
@@ -46,7 +45,7 @@ static int run_str_binop(str_binop_builder build, const char* name, const char* 
     woort_CodeEnv_set_const_script_closure(cenv, c_main, main_addr);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -108,7 +107,7 @@ static int run_str_cmpop(str_binop_builder build, const char* name, const char* 
     woort_CodeEnv_set_const_script_closure(cenv, c_main, main_addr);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);

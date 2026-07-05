@@ -1,5 +1,4 @@
 #include "woort.h"
-extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
 
 #include <stdio.h>
 #include <string.h>
@@ -54,7 +53,7 @@ static int run_jit_callnfp_witharg(void)
     woort_CodeEnv_set_const_int(cenv, c_arg, 21);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -109,7 +108,7 @@ static int run_jit_callnfp_noarg(void)
     woort_CodeEnv_set_const_extern_function(cenv, c_native, native_noarg_const);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);

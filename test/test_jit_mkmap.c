@@ -1,5 +1,4 @@
 #include "woort.h"
-extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
 
 #include <stdio.h>
 #include <stdint.h>
@@ -53,7 +52,7 @@ static int run_mkmap_case(uint32_t pairs)
     }
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);

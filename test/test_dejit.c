@@ -1,5 +1,4 @@
 #include "woort.h"
-extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
 extern void woort_CodeEnv_dejit(woort_CodeEnv* cenv);
 
 #include <stdio.h>
@@ -102,7 +101,7 @@ int main(int argc, char** argv)
     woort_IRConstantIndex c_entry;
     woort_CodeEnv* cenv = build_fib_env(irc, &c_entry);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);

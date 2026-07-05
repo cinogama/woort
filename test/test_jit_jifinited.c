@@ -3,8 +3,6 @@
 #include <stdio.h>
 #include <stdint.h>
 
-extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
-
 static int run_jifinited_fallthrough(void)
 {
     int failures = 0;
@@ -48,7 +46,7 @@ static int run_jifinited_fallthrough(void)
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -117,7 +115,7 @@ static int run_jifinited_multi_invoke(void)
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -196,7 +194,7 @@ static int run_cas(void)
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);

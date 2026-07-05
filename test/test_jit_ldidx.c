@@ -1,5 +1,4 @@
 #include "woort.h"
-extern void woort_JIT_compile_env(woort_CodeEnv* cenv);
 
 #include <stdio.h>
 #include <stdint.h>
@@ -56,7 +55,7 @@ static int run_ldidxdict_int(int boxed_result)
     woort_CodeEnv_set_const_int(cenv, c_find, 100);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -136,7 +135,7 @@ static int run_ldidxdict_real(int boxed_result)
     woort_CodeEnv_set_const_real(cenv, c_find, 3.5);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -216,7 +215,7 @@ static int run_ldidxdict_bool(int boxed_result)
     woort_CodeEnv_set_const_int(cenv, c_find, 1);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -296,7 +295,7 @@ static int run_ldidxdict_dyn(int boxed_result)
     woort_CodeEnv_set_const_box_int(cenv, c_find, 100);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
@@ -364,7 +363,7 @@ static int run_ldidstruct(void)
     woort_CodeEnv_set_const_int(cenv, c_f2, 30);
     woort_CodeEnv_unlock(cenv);
 
-    woort_JIT_compile_env(cenv);
+    woort_CodeEnv_jit(cenv);
 
     woort_VMRuntime* vm;
     (void)woort_VMRuntime_create(&vm);
