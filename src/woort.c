@@ -1237,7 +1237,13 @@ WOORT_NODISCARD woort_VmCallStatus woort_bootup(
     woort_StackValue dst, woort_CodeEnv* cenv, bool jit)
 {
     if (jit)
-        woort_JIT_compile_env(cenv);
+    {
+        woort_CodeEnv_lock(cenv);
+        {
+            woort_JIT_compile_env(cenv);
+        }
+        woort_CodeEnv_unlock(cenv);
+    }
 
     woort_StackValue v;
     if (!woort_push_reserve(1, &v))

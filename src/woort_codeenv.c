@@ -90,6 +90,22 @@ static bool _codeenv_mark_callback(
     return true;
 }
 
+static bool _codeenv_unjit_callback(
+    const void* key, void* value, void* user_data)
+{
+    (void)key;
+    (void)user_data;
+    woort_CodeEnv* const code_env = *(woort_CodeEnv**)value;
+
+    woort_CodeEnv_lock(code_env);
+    {
+        woort_CodeEnv_dejit(code_env);
+    }
+    woort_CodeEnv_unlock(code_env);
+
+    return true;
+}
+
 struct _CodeEnv_Foreach_Ctx {
     woort_CodeEnv_ForeachCallback m_callback;
     void* m_user_data;
@@ -493,9 +509,18 @@ void woort_CodeEnv_GC_mark_all_envs(void)
         &_codeenv_global_ctx->m_codeenvs_lock);
 }
 
-void woort_CodeEnv_unjit_all_envs(void)
+void woort_CodeEnv_JIT_unjit_all_envs(void)
 {
-    
+    woort_rwspinlock_read_lock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
+
+    (void)woort_ordermap_foreach(
+        _codeenv_global_ctx->m_codeenvs,
+        &_codeenv_unjit_callback,
+        NULL);
+
+    woort_rwspinlock_read_unlock(
+        &_codeenv_global_ctx->m_codeenvs_lock);
 }
 
 /*

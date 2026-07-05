@@ -323,6 +323,6 @@ void woort_JIT_unjit_all_codeenv(void)
 
     if (just_unjit)
     {
-
+        woort_CodeEnv_JIT_unjit_all_envs();
     }
 }
