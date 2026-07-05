@@ -364,6 +364,11 @@ WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEn
     return cenv->m_code_begin;
 }
 
+WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_code_end(const woort_CodeEnv* cenv)
+{
+    return cenv->m_code_end;
+}
+
 WOORT_NODISCARD size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv)
 {
     return cenv->m_const_records.m_size;

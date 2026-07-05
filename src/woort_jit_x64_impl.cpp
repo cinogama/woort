@@ -2,6 +2,8 @@
 #include "woort_jit_bridge.h"
 #include "woort_value_types.h"
 #include "woort_gc_vec_types.h"
+#include "woort_opcode.h"
+#include "woort_opcode_formal.h"
 
 extern "C" woort_GCVec* woort_GCVec_new(void);
 extern "C" void _woort_GCVec_extern(woort_GCVec* vec, size_t size);
@@ -54,6 +56,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
     const woort_CodeEnv* cenv;
 
     const woort_Bytecode* m_cenv_codes;
+    const woort_Bytecode* m_cenv_codes_end;
     const size_t m_cenv_constant_count;
     const woort_Value* const m_cenv_static_storage;
 
@@ -103,6 +106,7 @@ struct woort_JIT_Asmjit_x64_Emmiter
         : c(nullptr)
         , cenv(cenv_)
         , m_cenv_codes(woort_JIT_CodeEnv_codes(cenv_))
+        , m_cenv_codes_end(woort_JIT_CodeEnv_code_end(cenv_))
         , m_cenv_constant_count(woort_JIT_CodeEnv_constant_count(cenv_))
         , m_cenv_static_storage(woort_JIT_CodeEnv_static_data(cenv_))
         , m_code_holder{}
@@ -428,6 +432,48 @@ struct woort_JIT_Asmjit_x64_Emmiter
 
         WOORT_JIT_CODE(bind(get_label(c)));
     }
+
+    void scan_jump_targets()
+    {
+        const woort_Bytecode* cur = m_cenv_codes;
+        while (cur < m_cenv_codes_end)
+        {
+            const uint32_t bc = cur[0];
+            const uint8_t  op6 = (uint8_t)WOORT_BYTECODE(OP6, bc);
+            const uint8_t  m2  = (uint8_t)WOORT_BYTECODE(M2,  bc);
+
+            switch (op6)
+            {
+            case WOORT_OPCODE_JFWD:
+            case WOORT_OPCODE_JBCK:
+            case WOORT_OPCODE_JIFINITED:
+                get_label(m_cenv_codes + WOORT_BYTECODE(MABC26, bc));
+                break;
+            case WOORT_OPCODE_JFWDCND:
+                if (m2 <= 1u)
+                    get_label(cur + (uint16_t)WOORT_BYTECODE(BC16, bc));
+                else
+                    get_label(cur + (uint8_t)WOORT_BYTECODE(C8, bc));
+                break;
+            case WOORT_OPCODE_JBCKCND:
+                if (m2 <= 1u)
+                    get_label(cur - (uint16_t)WOORT_BYTECODE(BC16, bc));
+                else
+                    get_label(cur - (uint8_t)WOORT_BYTECODE(C8, bc));
+                break;
+            case WOORT_OPCODE_JFDCMP:
+                get_label(cur + (uint8_t)WOORT_BYTECODE(C8, bc));
+                break;
+            case WOORT_OPCODE_JBCKCMP:
+                get_label(cur - (uint8_t)WOORT_BYTECODE(C8, bc));
+                break;
+            default:
+                break;
+            }
+
+            cur = woort_JIT_next_bytecode(cur);
+        }
+    }
 };
 
 bool woort_JIT_Backend_x64_prologue(
@@ -471,6 +517,8 @@ bool woort_JIT_Backend_x64_prologue(
             em->return_with_status(WOORT_VM_CALL_STATUS_RESYNC);
             WOORT_JIT_CODE(bind(L_ok));
         }
+
+        em->scan_jump_targets();
     }
 
     if (!em->is_okay())
@@ -646,7 +694,9 @@ bool woort_JIT_Backend_x64_pre_dispatch(
     woort_JIT_Asmjit_x64_Emmiter* const em =
         static_cast<woort_JIT_Asmjit_x64_Emmiter*>(emmiter);
 
-    em->bind_label(*em->m_ip);
+    const auto it = em->m_opcode_label.find(*em->m_ip);
+    if (it != em->m_opcode_label.end())
+        WOORT_JIT_CODE(em->c->bind(it->second));
 
     return true;
 }

@@ -93,6 +93,7 @@ extern "C" {
         woort_BoxedValue val, woort_BoxValueType type);
 
     WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_codes(const woort_CodeEnv* cenv);
+    WOORT_NODISCARD const woort_Bytecode* woort_JIT_CodeEnv_code_end(const woort_CodeEnv* cenv);
     WOORT_NODISCARD size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv);
     WOORT_NODISCARD const woort_Value* woort_JIT_CodeEnv_static_data(const woort_CodeEnv* cenv);
 
