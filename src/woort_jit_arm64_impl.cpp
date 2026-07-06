@@ -394,9 +394,30 @@ struct woort_JIT_Asmjit_arm64_Emmiter
     }
 
     // ===================================================== //
-    Mem sb_slot(woort_Opcode_Stack slot) const
+    Mem sb_slot(woort_Opcode_Stack slot)
     {
-        return ptr(m_sb, slot * static_cast<int32_t>(sizeof(woort_Value)));
+        auto* const em = this;
+
+        const int32_t offset = slot * static_cast<int32_t>(sizeof(woort_Value));
+
+        /*
+         * ARM64 访存立即数偏移的可编码范围：
+         *   - str/ldr（scaled，无符号 12 位）：偏移须为元素大小（64 位时为 8）的倍数且 ∈ [0, 32760]。
+         *   - stur/ldur（unscaled，有符号 9 位）：偏移 ∈ [-256, 255]。
+         * 栈槽偏移恒为 8 的倍数，故两者并集为 [-256, 32760]。当函数栈帧过深
+         * （slot < -32 或 slot > 4095）时单条指令无法编码，需先把 [m_sb + offset]
+         * 物化到临时寄存器再访存。x86-64 后端无此限制（支持完整 32 位位移）。
+         */
+        if (offset >= -256 && offset <= 32760)
+            return ptr(m_sb, offset);
+
+        const Gp off_reg = c->new_gp64();
+        WOORT_JIT_CODE(mov(off_reg, Imm(static_cast<int64_t>(offset))));
+
+        const Gp addr = c->new_gp_ptr();
+        WOORT_JIT_CODE(add(addr, m_sb, off_reg));
+
+        return ptr(addr);
     }
     Gp load_stack_gp(woort_Opcode_Stack src)
     {
