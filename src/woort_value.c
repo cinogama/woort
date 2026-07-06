@@ -105,7 +105,7 @@ WOORT_NODISCARD bool _woort_unbox_bool(uint64_t val)
     return (val >> 3) != 0;
 }
 
-////////////////////////////////////////////////////////////////////////
+/* ====================================================================== */
 
 woort_DynBox woort_DynBox_box_real(woort_Real val)
 {
@@ -246,14 +246,14 @@ woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
         return result;
     }
     default:
-        // Should not been here.
+        /* Should not been here. */
         abort();
     }
 }
 
-////////////////////////////////////////////////////////////////////////
-/* 带混合写屏障的装箱函数 */
-////////////////////////////////////////////////////////////////////////
+/* ======================================================================
+ * 带混合写屏障的装箱函数
+ * ====================================================================== */
 
 void woort_DynBox_box_real_with_barrier(woort_DynBox* dst, woort_Real val)
 {
@@ -330,7 +330,7 @@ void woort_DynBox_box_with_barrier(woort_DynBox* dst, woort_Value val, woort_Box
         break;
     }
     default:
-        // Should not been here.
+        /* Should not been here. */
         abort();
     }
 }
@@ -397,7 +397,7 @@ WOORT_NODISCARD bool woort_DynBox_check(
     case WOORT_BOX_VALUE_TYPE_NIL:
         return val.m_boxed == 0;
     default:
-        // Should not been here.
+        /* Should not been here. */
         abort();
     }
 }
@@ -513,7 +513,7 @@ WOORT_NODISCARD bool woort_DynBox_unbox(
         }
         break;
     default:
-        // Should not been here.
+        /* Should not been here. */
         abort();
     }
     return false;
@@ -612,7 +612,7 @@ woort_DynBox_unbox_no_check_and_get_type(
     if (proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
         return WOORT_BOX_VALUE_TYPE_CLOSURE;
 
-    // Should not been here.
+    /* Should not been here. */
     abort();
 }
 
@@ -802,9 +802,9 @@ WOORT_NODISCARD woort_DynBox _woort_DynBox_make_dup_boxed(woort_DynBox v_m_s_to_
     return result;
 }
 
-////////////////////////////////////////////////////////////////////////
-/* 类型特化的比较函数：避免装箱分配 */
-////////////////////////////////////////////////////////////////////////
+/* ======================================================================
+ * 类型特化的比较函数：避免装箱分配
+ * ====================================================================== */
 
 WOORT_NODISCARD bool woort_DynBox_equal_int(woort_DynBox boxed_key, woort_Int int_key)
 {
@@ -888,7 +888,7 @@ WOORT_NODISCARD bool woort_DynBox_debug_check_is_valid(
 {
     if (0 == (may_not_a_valid_box.m_boxed & 0b0111))
     {
-        // Check pointer is valid?
+        /* Check pointer is valid? */
         woort_GCUnit* const p = _woort_boxed_to_gcunit(may_not_a_valid_box.m_boxed);
         if (p != NULL
             && (woomem_validate_addr(p) != p

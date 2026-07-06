@@ -113,7 +113,7 @@ WOORT_NODISCARD int woort_GCString_compare(const woort_GCString* a, const woort_
     if (cmp_result != 0)
         return cmp_result;
 
-    // If prefix matches, shorter string is smaller
+    /* If prefix matches, shorter string is smaller */
     if (a->m_length < b->m_length)
         return -1;
     if (a->m_length > b->m_length)
@@ -128,7 +128,7 @@ WOORT_NODISCARD size_t woort_GCString_hash(const woort_GCString* str)
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int value)
 {
-    // int64_t 最大是 -9223372036854775808，需要最多 21 字节
+    /* int64_t 最大是 -9223372036854775808，需要最多 21 字节 */
     char buffer[32];
     const int len = snprintf(buffer, sizeof(buffer), "%" PRId64, value);
 
@@ -137,8 +137,8 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_from_integer(woort_Int valu
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_from_real(woort_Real value)
 {
-    // double 最大精度约 17 位，加上符号、小数点、指数部分等，需要足够空间
-    // 使用 %.17g 格式保证精度，最多需要约 24 字节
+    /* double 最大精度约 17 位，加上符号、小数点、指数部分等，需要足够空间
+       使用 %.17g 格式保证精度，最多需要约 24 字节 */
     char buffer[64];
     const int len = snprintf(buffer, sizeof(buffer), "%.17g", value);
 

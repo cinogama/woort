@@ -107,7 +107,7 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
     while (current_opcode < function_end)
     {
         if (WOORT_BYTECODE(OP6, *current_opcode) == WOORT_OPCODE_CALLNWO)
-            // Will be update to CALLNJIT.
+            /* Will be update to CALLNJIT. */
             *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
                 WOORT_OPCODE_CALLNJIT, WOORT_BYTECODE(MABC26, *current_opcode));
 
@@ -172,7 +172,7 @@ static bool /* false if break loop. */ _woort_JIT_collect_jit_function(
     return woort_vector_push_back(out, 1, &rec);
 }
 
-// Main body.
+/* Main body. */
 void woort_JIT_compile_env(woort_CodeEnv* cenv)
 {
     /* OPTIONAL */const woort_JIT_Backend* const backend =
@@ -193,7 +193,7 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
         woort_util_ptr_hash,
         woort_util_ptr_equal);
 
-    // Walk through all bounded function.
+    /* Walk through all bounded function. */
     const woort_FunctionBoundary* const env_function_boundaries =
         (const woort_FunctionBoundary*)cenv->m_function_boundaries.m_data;
 
@@ -220,7 +220,7 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
         }
     }
 
-    // Ok, walk through backend to generate jit codes and update CALLNWO.
+    /* Ok, walk through backend to generate jit codes and update CALLNWO. */
     woort_JIT_CompileWalkContext walk_ctx;
     walk_ctx.m_backend = backend;
     walk_ctx.m_cenv = cenv;
@@ -244,8 +244,8 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
         goto _label_jit_failed;
     }
 
-    // Ok, all function has been compiled, Update the function constant.
-    // NOTE: 此处之后不能以失败为结束，因为状态无法简单回滚。
+    /* Ok, all function has been compiled, Update the function constant.
+       NOTE: 此处之后不能以失败为结束，因为状态无法简单回滚。 */
     const woort_ConstRecord* const env_constants =
         (const woort_ConstRecord*)cenv->m_const_records.m_data;
 
@@ -285,13 +285,13 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
 _label_jit_failed:
     if (!jit_compile_result)
     {
-        // Drop generated codes here.
+        /* Drop generated codes here. */
         (void)woort_hashmap_foreach(
             &jit_compiled_functions_record,
             _woort_JIT_drop_compiled_function,
             (void*)backend);
 
-        // Rollback CALLNJIT to CALLNWO.
+        /* Rollback CALLNJIT to CALLNWO. */
         woort_Bytecode* current_opcode = (woort_Bytecode*)cenv->m_code_begin;
         const woort_Bytecode* const env_opcode_end = cenv->m_code_end;
 

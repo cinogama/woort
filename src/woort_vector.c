@@ -11,7 +11,7 @@ void woort_vector_init(woort_Vector* vector, size_t element_size)
 {
     vector->m_element_size = element_size;
     vector->m_size = 0;
-    vector->m_capacity = 0; // Initial capacity.
+    vector->m_capacity = 0; /* Initial capacity. */
 
     vector->m_data = NULL;
 }
@@ -27,13 +27,13 @@ void woort_vector_deinit(woort_Vector* vector)
 WOORT_NODISCARD bool woort_vector_reserve(woort_Vector* vector, size_t new_capacity)
 {
     if (new_capacity <= vector->m_capacity)
-        return true; // No need to reserve.
+        return true; /* No need to reserve. */
 
-    // Make capacity to the next power of two.
+    /* Make capacity to the next power of two. */
     while (new_capacity > vector->m_capacity)
     {
         if (vector->m_capacity == 0)
-            vector->m_capacity = 8; // Initial capacity.
+            vector->m_capacity = 8; /* Initial capacity. */
         else
             vector->m_capacity *= 2;
     }
@@ -99,9 +99,9 @@ WOORT_NODISCARD void* woort_vector_at(woort_Vector* vector, size_t index)
 WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index)
 {
     if (index >= vector->m_size)
-        return false; // Index out of bounds, do nothing.
+        return false; /* Index out of bounds, do nothing. */
 
-    // 如果不是最后一个元素，需要移动后续元素
+    /* 如果不是最后一个元素，需要移动后续元素 */
     if (index < vector->m_size - 1)
     {
         const size_t elements_to_move = vector->m_size - index - 1;
@@ -110,7 +110,7 @@ WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index)
         memmove(dest, src, elements_to_move * vector->m_element_size);
     }
 
-    // 减少大小
+    /* 减少大小 */
     vector->m_size--;
     return true;
 }

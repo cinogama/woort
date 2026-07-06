@@ -291,7 +291,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             return false;
         return _woort_serialize_append_str(buf, "<function>");
     default:
-        // Should not been here.
+        /* Should not been here. */
         abort();
     }
 

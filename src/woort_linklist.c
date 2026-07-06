@@ -39,7 +39,7 @@ WOORT_NODISCARD bool woort_linklist_emplace_back(woort_LinkList* list, void** ou
 
     if (NULL == list->m_tail)
     {
-        // Is first node.
+        /* Is first node. */
         new_node->m_prev = NULL;
 
         list->m_head = new_node;
@@ -82,7 +82,7 @@ WOORT_NODISCARD bool woort_linklist_emplace_front(woort_LinkList* list, void** o
 
     if (NULL == list->m_head)
     {
-        // Is first node.
+        /* Is first node. */
         new_node->m_next = NULL;
 
         list->m_head = new_node;
@@ -121,7 +121,7 @@ WOORT_NODISCARD bool woort_linklist_index(woort_LinkList* list, size_t index, vo
     while (index--)
     {
         if (current == NULL)
-            // Out of range.
+            /* Out of range. */
             break;
 
         current = current->m_next;
@@ -129,7 +129,7 @@ WOORT_NODISCARD bool woort_linklist_index(woort_LinkList* list, size_t index, vo
 
     if (current == NULL)
     {
-        // Out of range.
+        /* Out of range. */
         return false;
     }
 
@@ -145,7 +145,7 @@ void woort_linklist_erase(woort_LinkList* list, void* storage)
 
     if (erasing_node->m_next == NULL)
     {
-        // Is last node.
+        /* Is last node. */
         assert(list->m_tail == erasing_node);
         list->m_tail = erasing_node->m_prev;
     }
@@ -154,7 +154,7 @@ void woort_linklist_erase(woort_LinkList* list, void* storage)
    
     if (erasing_node->m_prev == NULL)
     {
-        // Is first node.
+        /* Is first node. */
         assert(list->m_head == erasing_node);
         list->m_head = erasing_node->m_next;
     }

@@ -39,7 +39,7 @@ inline static void* woort_GCUnit_realloc(void* ptr, size_t sz)
         if (p != NULL)
             return p;
 
-        // Out of memory.
+        /* Out of memory. */
         _woort_GCUnit_alloc_failed();
 
     } while (1);
@@ -52,7 +52,7 @@ inline static void* woort_GCUnit_alloc_delay_init(size_t sz)
         if (p != NULL)
             return p;
 
-        // Out of memory.
+        /* Out of memory. */
         _woort_GCUnit_alloc_failed();
 
     } while (1);

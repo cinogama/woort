@@ -5,7 +5,7 @@
 
 void woort_vlog(const char* format, va_list va)
 {
-    // Write to stderr.
+    /* Write to stderr. */
     vfprintf(stderr, format, va);
 }
 

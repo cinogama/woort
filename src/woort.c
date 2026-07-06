@@ -712,9 +712,9 @@ void woort_set_union_value(
     woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
     assert(vm != NULL);
 
-    // NOTE: We cannot use `_woort_set_union` here because dst and val may refer 
-    // to the same stack location; we need to handle it manually to ensure the order 
-    // of assignment.
+    /* NOTE: We cannot use `_woort_set_union` here because dst and val may refer
+       to the same stack location; we need to handle it manually to ensure the order
+       of assignment. */
     woort_GCStruct* const s = woort_GCStruct_new(2);
     s->m_datas[0].m_integer = id;
     woort_GC_init_write_barrier_value(&s->m_datas[1], _WOORT_API_STACK(val));
@@ -1077,17 +1077,17 @@ WOORT_NODISCARD static bool _woort_pre_invoke(woort_VMRuntime* vm, const woort_G
     }
 
     vm->m_sp -= 2;
-    // Set call way and bp offset.
+    /* Set call way and bp offset. */
     vm->m_sp[1].m_ret_bp.m_way = WOORT_CALL_WAY_FROM_NATIVE;
     vm->m_sp[1].m_ret_bp.m_bp_offset =
         (uint32_t)(vm->m_sb - vm->m_sp - 2);
 
-    // Set ret addr (Only for trace).
+    /* Set ret addr (Only for trace). */
     vm->m_sp[2].m_ret_addr = vm->m_ip /* trace from current. */;
 
     vm->m_sb = vm->m_sp;
 
-    // Expand arguments from `target`
+    /* Expand arguments from `target` */
     if (target->m_size != 0)
     {
         vm->m_sp -= target->m_size;
@@ -1110,7 +1110,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_resume(
     switch (_woort_VMRuntime_dispatch(vm))
     {
     case WOORT_VM_CALL_STATUS_NORMAL:
-        // Fetch return value.
+        /* Fetch return value. */
         if (dst != WOORT_IGNORE)
             _WOORT_API_STACK(dst) = *vm->m_sp;
         return WOORT_VM_CALL_STATUS_NORMAL;
@@ -1125,7 +1125,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_resume(
     case WOORT_VM_CALL_STATUS_ABORTED:
         return WOORT_VM_CALL_STATUS_ABORTED;
     default:
-        // Unexpected status, should not happend!
+        /* Unexpected status, should not happend! */
         abort();
     }
 }
@@ -1156,7 +1156,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
             || target->m_script_function < vm->m_env->m_code_begin
             || target->m_script_function >= vm->m_env->m_code_end)
         {
-            // Target out of env, refetch env.
+            /* Target out of env, refetch env. */
             woort_CodeEnv* env;
             if (!woort_CodeEnv_find(target->m_script_function, &env))
             {
@@ -1165,7 +1165,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
                     "Cannot find code environment from `%p`.", vm->m_ip);
                 return WOORT_VM_CALL_STATUS_ABORTED;
             }
-            // Ok, apply new env.
+            /* Ok, apply new env. */
             vm->m_env = env;
         }
     }
@@ -1191,7 +1191,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
         switch (r)
         {
         case WOORT_VM_CALL_STATUS_NORMAL:
-            // Fetch return value.
+            /* Fetch return value. */
             if (dst != WOORT_IGNORE)
                 _WOORT_API_STACK(dst) = *vm->m_sp;
             return WOORT_VM_CALL_STATUS_NORMAL;
@@ -1204,7 +1204,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
             */
             break;
         default:
-            // Unexpected status, should not happend!
+            /* Unexpected status, should not happend! */
             abort();
         }
     }
@@ -2594,9 +2594,9 @@ WOORT_NODISCARD woort_VmCallStatus woort_ret_panic(const char* fmt, ...)
 
     va_end(args);
 
-    // NOTE: 考虑到外部函数以 RESYNC 返回虚拟机时，虚拟机实现会将
-    // 栈拉平到调用发生前，为了确保异常信息能被正确记录到拉平之后
-    // 的 m_sp，此处做一次额外的转移.
+    /* NOTE: 考虑到外部函数以 RESYNC 返回虚拟机时，虚拟机实现会将
+       栈拉平到调用发生前，为了确保异常信息能被正确记录到拉平之后
+       的 m_sp，此处做一次额外的转移. */
     if (vm_aborted)
     {
         woort_VMRuntime* const vm = WOORT_t_this_thread_vm;

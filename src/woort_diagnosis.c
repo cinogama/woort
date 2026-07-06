@@ -202,7 +202,7 @@ WOORT_NODISCARD bool woort_raise_panic_v(
                         switch (c)
                         {
                         case EOF:
-                            // Failed to read from stdin.
+                            /* Failed to read from stdin. */
                             woort_log("Failed to receive from STDIN.");
                             abort();
                         case '\n':
@@ -218,7 +218,7 @@ WOORT_NODISCARD bool woort_raise_panic_v(
                             vm_has_been_aborted = false;
                             if (panic_vm != NULL)
                             {
-                                // Cancel WOORT_VMRUNTIME_CHECK_REQUEST_ABORT request to make vm continue.
+                                /* Cancel WOORT_VMRUNTIME_CHECK_REQUEST_ABORT request to make vm continue. */
                                 (void)woort_VMRuntime_request_accept(
                                     panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT);
                             }
@@ -236,7 +236,7 @@ WOORT_NODISCARD bool woort_raise_panic_v(
                                 option_selected = true;
                                 vm_has_been_aborted = false;
 
-                                // Cancel WOORT_VMRUNTIME_CHECK_REQUEST_ABORT request to make vm continue.
+                                /* Cancel WOORT_VMRUNTIME_CHECK_REQUEST_ABORT request to make vm continue. */
                                 (void)woort_VMRuntime_request_accept(
                                     panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT);
                                 (void)woort_VMRuntime_request_set(

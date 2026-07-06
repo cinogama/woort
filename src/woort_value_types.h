@@ -31,13 +31,13 @@ typedef union woort_DynBox
 
 typedef enum woort_CallWay
 {
-    // 一个脚本中的函数调用了另一个（本地的）脚本函数
+    /* 一个脚本中的函数调用了另一个（本地的）脚本函数 */
     WOORT_CALL_WAY_NEAR,
 
-    // 调用了另一个代码环境下的脚本函数，返回时需要额外检查
+    /* 调用了另一个代码环境下的脚本函数，返回时需要额外检查 */
     WOORT_CALL_WAY_FAR,
 
-    // 此调用是由 native 层发起的，返回时需要中断解释器执行
+    /* 此调用是由 native 层发起的，返回时需要中断解释器执行 */
     WOORT_CALL_WAY_FROM_NATIVE,
 
 } woort_CallWay;
@@ -73,7 +73,7 @@ union woort_Value
 
 };
 
-// 扩展装箱类型：用于存储超出内联范围的整数或浮点数
+/* 扩展装箱类型：用于存储超出内联范围的整数或浮点数 */
 typedef struct woort_BoxedExValue
 {
     woort_GCUnit m_unit;

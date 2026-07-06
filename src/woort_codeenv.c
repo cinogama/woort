@@ -158,7 +158,7 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
     woort_CodeEnv* const code_env = (woort_CodeEnv*)unit;
     assert(code_env->m_gc_unit.m_proxy == &_codeenv_global_ctx->m_env_proxy);
 
-    // 先从全局容器中移除该 CodeEnv
+    /* 先从全局容器中移除该 CodeEnv */
     woort_rwspinlock_write_lock(
         &_codeenv_global_ctx->m_codeenvs_lock);
 
@@ -240,7 +240,7 @@ WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
 
     woort_rwspinlock_init(&_codeenv_global_ctx->m_codeenvs_lock);
 
-    // 初始化存储 CodeEnv 指针的 OrderMap
+    /* 初始化存储 CodeEnv 指针的 OrderMap */
     if (!woort_ordermap_create(
         sizeof(const woort_Bytecode*), sizeof(woort_CodeEnv*),
         &_compare_code_begin,
@@ -266,7 +266,7 @@ void woort_CodeEnv_shutdown(void)
 {
     assert(_codeenv_global_ctx != NULL);
 
-    // 清理存储 CodeEnv 指针的 OrderMap
+    /* 清理存储 CodeEnv 指针的 OrderMap */
     woort_ordermap_destroy(_codeenv_global_ctx->m_codeenvs);
 
     woort_rwspinlock_deinit(&_codeenv_global_ctx->m_codeenvs_lock);
@@ -470,7 +470,7 @@ WOORT_NODISCARD bool woort_CodeEnv_query_function(
 WOORT_NODISCARD bool woort_CodeEnv_find(
     const woort_Bytecode* addr, woort_CodeEnv** out_code_env)
 {
-    // 获取读锁，允许多线程并发查找
+    /* 获取读锁，允许多线程并发查找 */
     woort_rwspinlock_read_lock(
         &_codeenv_global_ctx->m_codeenvs_lock);
 

@@ -584,7 +584,7 @@ bool woort_u8stridx(const char* str, size_t size, size_t index, char32_t* out_ch
     if (result_byte_len == 0
         || 0 == woort_u8combineu32(u8idx, result_byte_len, &ch))
     {
-        // Index out of range.
+        /* Index out of range. */
         return false;
     }
     *out_ch = ch;

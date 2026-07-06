@@ -38,7 +38,7 @@ static void _woort_GCVec_assure_vec_space(woort_GCVec* vec, size_t size)
     woort_DynBox* new_datas;
     if (vec->m_datas == NULL)
     {
-        // 此处假定分配必然成功，我们会在之后再处理其他情况
+        /* 此处假定分配必然成功，我们会在之后再处理其他情况 */
         new_datas = woort_GCUnit_alloc_delay_init(
             new_space * sizeof(woort_DynBox));
         woort_GCUnit_init_delay_alloc(A, new_datas);

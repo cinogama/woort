@@ -110,8 +110,7 @@ static void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool
 
                 if (insert_result == WOORT_HASHMAP_RESULT_OK)
                 {
-                    // 我们将在所有标记工作结束之后检查此清单，并为所有未标记的 Weak VM 执
-                    // 行后续处理工作.
+                    /* 我们将在所有标记工作结束之后检查此清单，并为所有未标记的 Weak VM 执行后续处理工作. */
 
                     if (woort_VMRuntime_request_accept(
                         vm_to_request_gc_mark,
@@ -236,7 +235,7 @@ static bool _woort_GC_walk_through_to_sync_finish_mark(
         if (woort_VMRuntime_request_check(
             vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE))
         {
-            // This VM leaved, ignore.
+            /* This VM leaved, ignore. */
             break;
         }
     } while (woort_VMRuntime_request_check(
@@ -511,7 +510,7 @@ WOORT_NODISCARD bool woort_GC_register_root_vm(struct woort_VMRuntime* vmruntime
         case WOORT_HASHMAP_RESULT_OK:
             break;
         case WOORT_HASHMAP_RESULT_OUT_OF_MEMORY:
-            // Failed.
+            /* Failed. */
             result = false;
             break;
         case WOORT_HASHMAP_RESULT_ALREADY_EXIST:

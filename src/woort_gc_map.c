@@ -303,9 +303,9 @@ WOORT_NODISCARD bool woort_GCMap_set(woort_GCMap* gcmap, woort_DynBox key, woort
     return true;
 }
 
-////////////////////////////////////////////////////////////////////////
-// 类型特化的查找函数（返回指针）：用于原地修改
-////////////////////////////////////////////////////////////////////////
+/* ======================================================================
+ * 类型特化的查找函数（返回指针）：用于原地修改
+ * ====================================================================== */
 
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_int(
     woort_GCMap* gcmap, woort_Int key)
@@ -391,9 +391,9 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_dynbo
     return NULL;
 }
 
-////////////////////////////////////////////////////////////////////////
-// 类型特化的查找或创建函数（返回指针）：用于原地修改，不存在则创建
-////////////////////////////////////////////////////////////////////////
+/* ======================================================================
+ * 类型特化的查找或创建函数（返回指针）：用于原地修改，不存在则创建
+ * ====================================================================== */
 
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_int(
     woort_GCMap* gcmap, woort_Int key)
@@ -495,9 +495,9 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
     return &new_bucket->m_val;
 }
 
-////////////////////////////////////////////////////////////////////////
-// 类型特化的查找函数：string
-////////////////////////////////////////////////////////////////////////
+/* ======================================================================
+ * 类型特化的查找函数：string
+ * ====================================================================== */
 
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_string(
     woort_GCMap* gcmap, const char* key, size_t len)

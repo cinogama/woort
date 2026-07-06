@@ -5,7 +5,7 @@
 
 static void _woort_spin_loop_hint()
 {
-    // If in msvc
+    /* If in msvc */
 #if defined(WOORT_COMPILER_MSVC) && _MSC_VER >= 1900
 #   if defined(WOORT_PLATFORM_ARM64)
     __yield();
@@ -23,7 +23,7 @@ static void _woort_spin_loop_hint()
     woort_thread_yield();
 #   endif
 #else
-    // No specific pause instruction available, use a generic hint
+    /* No specific pause instruction available, use a generic hint */
     woort_thread_yield();
 #endif
 }
@@ -38,7 +38,7 @@ void woort_spinlock_init(woort_Spinlock* lock)
 }
 void woort_spinlock_deinit(woort_Spinlock* lock)
 {
-    // Nothing to do for deinitialization.
+    /* Nothing to do for deinitialization. */
     (void)lock;
 }
 
@@ -48,7 +48,7 @@ void woort_spinlock_lock(woort_Spinlock* lock)
         &lock->m_flag,
         WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE))
     {
-        // Spin until the lock is acquired.
+        /* Spin until the lock is acquired. */
         _woort_spin_loop_hint();
     }    
 }
@@ -77,7 +77,7 @@ void woort_rwspinlock_init(woort_RWSpinlock* lock)
 }
 void woort_rwspinlock_deinit(woort_RWSpinlock* lock)
 {
-      // Nothing to do for deinitialization.
+      /* Nothing to do for deinitialization. */
     (void)lock;
 }
 
@@ -86,14 +86,14 @@ void woort_rwspinlock_read_lock(woort_RWSpinlock* lock)
     uint32_t prev;
     do
     {
-        // Load current state
+        /* Load current state */
         prev = woort_atomic_load_explicit(
             &lock->m_state, 
             WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
         
         if (!(prev & 0x80000000u))
         {
-            // No write bit, try to increment reader count
+            /* No write bit, try to increment reader count */
             do
             {
                 if (woort_atomic_compare_exchange_strong_explicit(
@@ -103,13 +103,13 @@ void woort_rwspinlock_read_lock(woort_RWSpinlock* lock)
                     WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE,
                     WOORT_ATOMIC_MEMORY_ORDER_RELAXED))
                 {
-                    // Successfully acquired read lock
+                    /* Successfully acquired read lock */
                     return;
                 }
                 
-                // CAS failed, check if write bit appeared
+                /* CAS failed, check if write bit appeared */
                 if (prev & 0x80000000u)
-                    break; // Writer arrived, retry from outer loop
+                    break; /* Writer arrived, retry from outer loop */
                 
                 _woort_spin_loop_hint();
             } while (true);
@@ -124,13 +124,13 @@ WOORT_NODISCARD bool woort_rwspinlock_try_read_lock(woort_RWSpinlock* lock)
         &lock->m_state,
         WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
-    // If a writer holds the lock (write bit is set), fail immediately.
+    /* If a writer holds the lock (write bit is set), fail immediately. */
     if (expected & 0x80000000u)
     {
         return false;
     }
 
-    // Try to increment the reader count.
+    /* Try to increment the reader count. */
     return woort_atomic_compare_exchange_strong_explicit(
         &lock->m_state,
         &expected,
@@ -148,7 +148,7 @@ void woort_rwspinlock_write_lock(woort_RWSpinlock* lock)
 {
     do
     {
-        // Phase 1: Set write bit atomically (prevents new readers)
+        /* Phase 1: Set write bit atomically (prevents new readers) */
         uint32_t prev_status =
             woort_atomic_fetch_or_explicit(
                 &lock->m_state,
@@ -157,11 +157,11 @@ void woort_rwspinlock_write_lock(woort_RWSpinlock* lock)
 
         if (!(prev_status & 0x80000000u))
         {
-            // Successfully set write bit
-            // Phase 2: Wait for all readers to finish
+            /* Successfully set write bit
+               Phase 2: Wait for all readers to finish */
             if (prev_status != 0)
             {
-                // Still have other readers
+                /* Still have other readers */
                 do
                 {
                     _woort_spin_loop_hint();
@@ -171,10 +171,10 @@ void woort_rwspinlock_write_lock(woort_RWSpinlock* lock)
 
                 } while (prev_status != 0x80000000u);
             }
-            break; // Lock acquired
+            break; /* Lock acquired */
         }
 
-        // Another writer is holding the lock, wait
+        /* Another writer is holding the lock, wait */
         _woort_spin_loop_hint();
     } while (true);
 }
@@ -183,7 +183,7 @@ WOORT_NODISCARD bool woort_rwspinlock_try_write_lock(woort_RWSpinlock* lock)
 {
     uint32_t expected = 0;
 
-    // Try to acquire the write lock (set write bit) only if it's completely free.
+    /* Try to acquire the write lock (set write bit) only if it's completely free. */
     return woort_atomic_compare_exchange_strong_explicit(
         &lock->m_state,
         &expected,

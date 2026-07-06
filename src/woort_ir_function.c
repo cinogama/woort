@@ -948,7 +948,7 @@ static bool _phase3_stack_allocation(
 
     if (vreg_count == 0)
     {
-        // NOTE: No need to reserve for captured, them will be expand in call.
+        /* NOTE: No need to reserve for captured, them will be expand in call. */
         *out_stack_space = 0 /*f->m_captured_count*/;
         return true;
     }
@@ -1228,7 +1228,7 @@ static bool _phase3_stack_allocation(
     free(intervals);
     free(vreg_by_id);
 
-    // NOTE: No need to reserve for captured, them will be expand in call.
+    /* NOTE: No need to reserve for captured, them will be expand in call. */
     *out_stack_space = max_slots /*+ f->m_captured_count*/;
     return true;
 }

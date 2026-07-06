@@ -1088,7 +1088,7 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
     {
         if (m2 == 3)
         {
-            // Is POPRS. not ret.
+            /* Is POPRS. not ret. */
             goto label_fall_to_default;
         }
 
@@ -1821,7 +1821,7 @@ void woort_WAIPO_Debugger_process(
         woort_VMRuntime_trace_begin(vm, &trace_iter);
         if (woort_VMRuntime_trace_next(&trace_iter, &trace))
         {
-            // Reset frame depth.
+            /* Reset frame depth. */
             debugger_instance->m_current_frame_depth = 0;
 
             (void)printf("Breakdown VM(%p) at:\n", (void*)vm);

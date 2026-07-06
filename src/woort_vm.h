@@ -137,9 +137,9 @@ typedef enum woort_VMRuntime_CheckRequestMask
 
 struct woort_VMRuntime
 {
-    // VM Runtime status.
+    /* VM Runtime status. */
     woort_Value*            m_stack;
-    // NOTE: m_stack_end 指向栈空间的尾后位置，不可访问其中的内容
+    /* NOTE: m_stack_end 指向栈空间的尾后位置，不可访问其中的内容 */
     woort_Value*            m_stack_end;
 
     uint32_t                m_jit_call_depth;
@@ -192,7 +192,7 @@ struct woort_VMRuntime
 
 };
 
-/////////////////////////////////////////////////////////
+/* ====================================================== */
 
 void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm);
 void woort_VMRuntime_mark_weak_vm_after_sync(woort_VMRuntime* vm);
@@ -201,7 +201,7 @@ void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm);
 
 void woort_VMRuntime_gc_checkpoint(woort_VMRuntime* vm);
 
-/////////////////////////////////////////////////////////
+/* ====================================================== */
 
 WOORT_NODISCARD bool woort_VMRuntime_request_set(
     woort_VMRuntime* vm, woort_VMRuntime_CheckRequestMask check_mask);
