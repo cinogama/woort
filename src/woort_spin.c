@@ -91,7 +91,7 @@ void woort_rwspinlock_read_lock(woort_RWSpinlock* lock)
             &lock->m_state, 
             WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
         
-        if (!(prev & 0x80000000u))
+        if (!(prev & WOORT_RWSPIN_WRITE_BIT))
         {
             /* No write bit, try to increment reader count */
             do
@@ -108,7 +108,7 @@ void woort_rwspinlock_read_lock(woort_RWSpinlock* lock)
                 }
                 
                 /* CAS failed, check if write bit appeared */
-                if (prev & 0x80000000u)
+                if (prev & WOORT_RWSPIN_WRITE_BIT)
                     break; /* Writer arrived, retry from outer loop */
                 
                 _woort_spin_loop_hint();
@@ -125,7 +125,7 @@ WOORT_NODISCARD bool woort_rwspinlock_try_read_lock(woort_RWSpinlock* lock)
         WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
     /* If a writer holds the lock (write bit is set), fail immediately. */
-    if (expected & 0x80000000u)
+    if (expected & WOORT_RWSPIN_WRITE_BIT)
     {
         return false;
     }
@@ -152,10 +152,10 @@ void woort_rwspinlock_write_lock(woort_RWSpinlock* lock)
         uint32_t prev_status =
             woort_atomic_fetch_or_explicit(
                 &lock->m_state,
-                0x80000000u,
+                WOORT_RWSPIN_WRITE_BIT,
                 WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL);
 
-        if (!(prev_status & 0x80000000u))
+        if (!(prev_status & WOORT_RWSPIN_WRITE_BIT))
         {
             /* Successfully set write bit
                Phase 2: Wait for all readers to finish */
@@ -169,7 +169,7 @@ void woort_rwspinlock_write_lock(woort_RWSpinlock* lock)
                         &lock->m_state,
                         WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
 
-                } while (prev_status != 0x80000000u);
+                } while (prev_status != WOORT_RWSPIN_WRITE_BIT);
             }
             break; /* Lock acquired */
         }
@@ -187,7 +187,7 @@ WOORT_NODISCARD bool woort_rwspinlock_try_write_lock(woort_RWSpinlock* lock)
     return woort_atomic_compare_exchange_strong_explicit(
         &lock->m_state,
         &expected,
-        0x80000000u,
+        WOORT_RWSPIN_WRITE_BIT,
         WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE,
         WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 }

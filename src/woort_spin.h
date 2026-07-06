@@ -29,13 +29,15 @@ WOORT_NODISCARD bool woort_spinlock_trylock(woort_Spinlock* lock);
 /* Release the spinlock. */
 void woort_spinlock_unlock(woort_Spinlock* lock);
 
+/* Bit 31 (0x80000000): Write lock indicator - set when a writer holds or waits for the lock
+   Bits 0-30: Reader count - number of readers currently holding the lock
+   0: lock is free
+   0x80000000u: writer holds the lock
+   Other values: readers holding the lock */
+#define WOORT_RWSPIN_WRITE_BIT 0x80000000u
+
 typedef struct woort_RWSpinlock
 {
-    /* Bit 31 (0x80000000): Write lock indicator - set when a writer holds or waits for the lock
-       Bits 0-30: Reader count - number of readers currently holding the lock
-       0: lock is free
-       0x80000000u: writer holds the lock
-       Other values: readers holding the lock */
     woort_AtomicUInt32 m_state;
 } woort_RWSpinlock;
 

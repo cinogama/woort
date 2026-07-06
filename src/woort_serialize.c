@@ -21,6 +21,8 @@
 #include <math.h>
 #include <errno.h>
 
+#define WOORT_SERIALIZE_MAX_DEBUG_DEPTH 64
+
 /* ========================================================================
  * 内部工具：输出字符到缓冲区
  * ======================================================================== */
@@ -336,7 +338,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
             (long long)vp->m_integer, vp->m_real);
     }
 
-    if (depth > 64)
+    if (depth > WOORT_SERIALIZE_MAX_DEBUG_DEPTH)
         return _woort_serialize_append_str(buf, "<max depth>");
 
     woort_Value val;

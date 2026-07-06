@@ -18,6 +18,11 @@
 #include <stdlib.h>
 #include <time.h>
 
+/* Maximum number of stack frames to log per VM during shutdown trace dump. */
+#define WOORT_GC_SHUTDOWN_TRACE_FRAMES_PER_VM 4
+/* Maximum number of VMs to dump traces for during shutdown. */
+#define WOORT_GC_SHUTDOWN_TRACE_VM_QUOTA 3
+
 typedef struct woort_GCContext
 {
     woort_RWSpinlock m_gc_stage_switch_lock;
@@ -380,7 +385,7 @@ static bool _woort_GC_shutdown_dump_vm_trace_callback(
     size_t logged_count = 0;
 
     woort_VMRuntime_trace_begin(vm, &trace_iter);
-    while (logged_count < 4
+    while (logged_count < WOORT_GC_SHUTDOWN_TRACE_FRAMES_PER_VM
         && woort_VMRuntime_trace_next(&trace_iter, &trace))
     {
         woort_VMRuntime_log_trace(&trace);
@@ -390,7 +395,7 @@ static bool _woort_GC_shutdown_dump_vm_trace_callback(
     if (logged_count == 0)
         woort_log("        (no trace available)\n");
 
-    /* Count remaining frames beyond the 4 logged. */
+    /* Count remaining frames beyond the WOORT_GC_SHUTDOWN_TRACE_FRAMES_PER_VM logged. */
     size_t extra_frames = 0;
     while (woort_VMRuntime_trace_next(&trace_iter, &trace))
         ++extra_frames;
@@ -468,7 +473,7 @@ void woort_GC_shutdown(void)
                         s_gc_context.m_root_vms_to_mark.m_size);
 
                     _woort_GC_shutdown_dump_traces_context dump_ctx;
-                    dump_ctx.m_remaining_quota = 3;
+                    dump_ctx.m_remaining_quota = WOORT_GC_SHUTDOWN_TRACE_VM_QUOTA;
                     dump_ctx.m_total_vm_count = s_gc_context.m_root_vms_to_mark.m_size;
 
                     (void)woort_hashmap_foreach(
