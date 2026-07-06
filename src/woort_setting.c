@@ -1,24 +1,22 @@
 #include "woort_setting.h"
 
 #ifdef NDEBUG
-bool _woort_setting_ENABLE_JIT = true;
-#else   
-bool _woort_setting_ENABLE_JIT = false;
+#   define WOORT_SETTING_DEFAULT_ENABLE_JIT true
+#else
+#   define WOORT_SETTING_DEFAULT_ENABLE_JIT false
 #endif
 
-bool _woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER = true;
-_woort_HaltPanicVMMode _woort_setting_HALT_PANIC_VM_MODE = WOORT_HALT_PANIC_VM_MODE_DONOT_HALT;
-size_t _woort_setting_MAX_RESERVED_MEMORY_IN_MB = 1024;
-
+woort_Settings g_woort_settings = {
+    .m_enable_jit                   = WOORT_SETTING_DEFAULT_ENABLE_JIT,
+    .m_hook_ctrl_c_bring_up_debugger = true,
+    .m_halt_panic_vm_mode           = WOORT_HALT_PANIC_VM_MODE_DONOT_HALT,
+    .m_max_reserved_memory_in_mb    = 1024,
+};
 
 void _woort_setting_reset_to_default(void)
 {
-    _woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER = true;
-    _woort_setting_HALT_PANIC_VM_MODE = WOORT_HALT_PANIC_VM_MODE_DONOT_HALT;
-    _woort_setting_MAX_RESERVED_MEMORY_IN_MB = 1024;
-#ifdef NDEBUG
-    _woort_setting_ENABLE_JIT = true;
-#else
-    _woort_setting_ENABLE_JIT = false;
-#endif
+    g_woort_settings.m_hook_ctrl_c_bring_up_debugger = true;
+    g_woort_settings.m_halt_panic_vm_mode = WOORT_HALT_PANIC_VM_MODE_DONOT_HALT;
+    g_woort_settings.m_max_reserved_memory_in_mb = 1024;
+    g_woort_settings.m_enable_jit = WOORT_SETTING_DEFAULT_ENABLE_JIT;
 }

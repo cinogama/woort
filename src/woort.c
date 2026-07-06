@@ -92,22 +92,22 @@ void woort_init(int argc, char** argv)
         {
             const char* setting = current_arg + 2;
             if (strcmp(setting, "woort-enable-ctrlc-debug") == 0)
-                _woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER = (bool)atoi(argv[++command_idx]);
+                g_woort_settings.m_hook_ctrl_c_bring_up_debugger = (bool)atoi(argv[++command_idx]);
             else if (strcmp(setting, "woort-enable-jit") == 0)
-                _woort_setting_ENABLE_JIT = (bool)atoi(argv[++command_idx]);
+                g_woort_settings.m_enable_jit = (bool)atoi(argv[++command_idx]);
             else if (strcmp(setting, "woort-gc-max-reserved-memory") == 0)
-                _woort_setting_MAX_RESERVED_MEMORY_IN_MB = (size_t)atoi(argv[++command_idx]);
+                g_woort_settings.m_max_reserved_memory_in_mb = (size_t)atoi(argv[++command_idx]);
             else if (strcmp(setting, "woort-halt-panic-vm") == 0)
-                _woort_setting_HALT_PANIC_VM_MODE = (_woort_HaltPanicVMMode)atoi(argv[++command_idx]);
+                g_woort_settings.m_halt_panic_vm_mode = (_woort_HaltPanicVMMode)atoi(argv[++command_idx]);
             else
                 woort_log("WOORT: Unknown command line option named: `%s`.\n", current_arg);
         }
     }
 
-    if (_woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER)
+    if (g_woort_settings.m_hook_ctrl_c_bring_up_debugger)
         woort_ctrlc_setup();
 
-    if (!woort_JIT_bootup(_woort_setting_ENABLE_JIT))
+    if (!woort_JIT_bootup(g_woort_settings.m_enable_jit))
     {
         WOORT_DEBUG("Failed to bootup JIT.");
         abort();
@@ -119,7 +119,7 @@ void woort_init(int argc, char** argv)
         abort();
     }
 
-    if (!woort_GC_bootup(_woort_setting_MAX_RESERVED_MEMORY_IN_MB * 1024 * 1024))
+    if (!woort_GC_bootup(g_woort_settings.m_max_reserved_memory_in_mb * 1024 * 1024))
     {
         WOORT_DEBUG("Failed to bootup gc.");
         abort();
@@ -163,7 +163,7 @@ void woort_print_runtime_help(void)
 }
 void woort_shutdown(woort_ShutdownPostCallback do_after_shutdown, void* custom_data)
 {
-    if (_woort_setting_HOOK_CTRL_C_BRING_UP_DEBUGGER)
+    if (g_woort_settings.m_hook_ctrl_c_bring_up_debugger)
         woort_ctrlc_teardown();
 
     woort_VMRuntime_Debugger_shutdown();

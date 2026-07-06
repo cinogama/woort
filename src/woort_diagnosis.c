@@ -161,7 +161,7 @@ WOORT_NODISCARD bool woort_raise_panic_v(
                 else
                     woort_log("    No vm running on this thread.\n");
 
-                switch (_woort_setting_HALT_PANIC_VM_MODE)
+                switch (g_woort_settings.m_halt_panic_vm_mode)
                 {
                 case WOORT_HALT_PANIC_VM_MODE_VM_ITSELF:
                     if (panic_vm != NULL)
@@ -177,7 +177,7 @@ WOORT_NODISCARD bool woort_raise_panic_v(
                     /* Signal handled? */
                     abort();
                 default:
-                    woort_log("Unknown panic mode: %d.\n", (int)_woort_setting_HALT_PANIC_VM_MODE);
+                    woort_log("Unknown panic mode: %d.\n", (int)g_woort_settings.m_halt_panic_vm_mode);
                     /* fallthrough */
                 case WOORT_HALT_PANIC_VM_MODE_DONOT_HALT:
                     woort_log("1) Abort process.\n");

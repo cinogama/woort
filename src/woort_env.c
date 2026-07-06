@@ -41,7 +41,86 @@
 
 /* Initial buffer size for ReadConsoleW */
 #   define WOORT_CONSOLE_READ_INITIAL_SIZE 256
-#endif
+
+/* Width (in wchar_t) of a single ReadConsoleW chunk for the byte-stream
+ * backends (conin + raw). */
+#   define WOORT_CONSOLE_CHUNK_WCHARS 256
+
+/*
+ * Shared helpers for the two Windows console byte-stream backends
+ * (woort_conin_* and woort_console_* / woort_raw_*).  Both read UTF-16
+ * via ReadConsoleW, convert to UTF-8, and buffer the result; they differ
+ * only in which wchar_t is substituted on Ctrl+C (ERROR_OPERATION_ABORTED).
+ */
+
+static int _woort_console_is_console_handle(void)
+{
+    HANDLE hin = GetStdHandle(STD_INPUT_HANDLE);
+    return (GetFileType(hin) == FILE_TYPE_CHAR) ? 1 : 0;
+}
+
+/* Read one UTF-16 chunk, convert to UTF-8, and append to the pending
+ * buffer (*pbuf / *pcap / *plen / *ppos).  ctrlc_sub is delivered in
+ * place of a real character when Ctrl+C interrupts the read.
+ * Returns 1 if bytes became available, 0 on EOF / unrecoverable error. */
+static int _woort_console_refill(
+    char** pbuf, size_t* pcap, size_t* plen, size_t* ppos,
+    wchar_t ctrlc_sub)
+{
+    wchar_t wbuf[WOORT_CONSOLE_CHUNK_WCHARS];
+    DWORD   read_count = 0;
+    HANDLE  hin = GetStdHandle(STD_INPUT_HANDLE);
+    size_t  u8len = 0;
+    char*   u8;
+
+    if (!ReadConsoleW(hin, wbuf, WOORT_CONSOLE_CHUNK_WCHARS, &read_count, NULL))
+    {
+        if (GetLastError() == ERROR_OPERATION_ABORTED)
+        {
+            wbuf[0] = ctrlc_sub;
+            read_count = 1;
+        }
+        else
+            return 0; /* real error -> treat as EOF */
+    }
+
+    if (read_count == 0)
+        return 0; /* EOF */
+
+    u8 = woort_u16strtou8((const char16_t*)wbuf, (size_t)read_count, &u8len);
+    if (u8 == NULL)
+        return 0; /* out of memory -> EOF-ish */
+
+    /* Drop already-consumed prefix (compact in place). */
+    if (*ppos > 0)
+    {
+        if (*plen > *ppos)
+            memmove(*pbuf, *pbuf + *ppos, *plen - *ppos);
+        *plen -= *ppos;
+        *ppos = 0;
+    }
+
+    /* Ensure capacity for the new bytes plus a NUL. */
+    if (*pcap < *plen + u8len + 1)
+    {
+        size_t newcap = (*plen + u8len + 1) * 2;
+        char*  nb = (char*)realloc(*pbuf, newcap);
+        if (nb == NULL)
+        {
+            free(u8);
+            return 0;
+        }
+        *pbuf = nb;
+        *pcap = newcap;
+    }
+
+    memcpy(*pbuf + *plen, u8, u8len);
+    *plen += u8len;
+    free(u8);
+    return 1;
+}
+
+#endif /* WOORT_PLATFORM_OS_WINDOWS */
 
 const char* woort_env_locale_name(void)
 {
@@ -305,8 +384,6 @@ void woort_free(/* OPTIONAL */ void* buf)
 
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
 
-#   define WOORT_CONIN_CHUNK_WCHARS 256
-
 static char*  g_conin_u8buf  = NULL;   /* pending UTF-8 bytes   */
 static size_t g_conin_u8cap  = 0;      /* allocated bytes       */
 static size_t g_conin_u8len  = 0;      /* valid bytes           */
@@ -314,73 +391,12 @@ static size_t g_conin_u8pos  = 0;      /* next byte to serve    */
 static int    g_conin_ungot  = EOF;    /* 1-deep ungetc slot    */
 static int    g_conin_is_console = -1; /* lazy: -1 unknown, 0/1 */
 
-static int woort_conin_is_console_handle(void)
-{
-    HANDLE hin = GetStdHandle(STD_INPUT_HANDLE);
-    return (GetFileType(hin) == FILE_TYPE_CHAR) ? 1 : 0;
-}
-
-/* Read one UTF-16 chunk from the console, convert to UTF-8 and append it
- * to the pending buffer. Returns 1 if bytes became available, 0 on
- * end-of-file / unrecoverable error. */
+/* Ctrl+C in the conin stream behaves like an empty line. */
 static int woort_conin_refill(void)
 {
-    wchar_t wbuf[WOORT_CONIN_CHUNK_WCHARS];
-    DWORD   read_count = 0;
-    HANDLE  hin = GetStdHandle(STD_INPUT_HANDLE);
-    size_t  u8len = 0;
-    char*   u8;
-
-    if (!ReadConsoleW(hin, wbuf, WOORT_CONIN_CHUNK_WCHARS, &read_count, NULL))
-    {
-        DWORD err = GetLastError();
-        if (err == ERROR_OPERATION_ABORTED)
-        {
-            /* Ctrl+C: behave like an empty line (matches woort_console_readline). */
-            wbuf[0] = L'\n';
-            read_count = 1;
-        }
-        else
-        {
-            return 0; /* real error -> treat as EOF */
-        }
-    }
-
-    if (read_count == 0)
-        return 0; /* EOF */
-
-    u8 = woort_u16strtou8((const char16_t*)wbuf, (size_t)read_count, &u8len);
-    if (u8 == NULL)
-        return 0; /* out of memory -> EOF-ish */
-
-    /* Drop already-consumed prefix (compact in place). */
-    if (g_conin_u8pos > 0)
-    {
-        if (g_conin_u8len > g_conin_u8pos)
-            memmove(g_conin_u8buf, g_conin_u8buf + g_conin_u8pos,
-                    g_conin_u8len - g_conin_u8pos);
-        g_conin_u8len -= g_conin_u8pos;
-        g_conin_u8pos = 0;
-    }
-
-    /* Ensure capacity for the new bytes plus a NUL. */
-    if (g_conin_u8cap < g_conin_u8len + u8len + 1)
-    {
-        size_t newcap = (g_conin_u8len + u8len + 1) * 2;
-        char*  nb = (char*)realloc(g_conin_u8buf, newcap);
-        if (nb == NULL)
-        {
-            free(u8);
-            return 0;
-        }
-        g_conin_u8buf = nb;
-        g_conin_u8cap = newcap;
-    }
-
-    memcpy(g_conin_u8buf + g_conin_u8len, u8, u8len);
-    g_conin_u8len += u8len;
-    free(u8);
-    return 1;
+    return _woort_console_refill(
+        &g_conin_u8buf, &g_conin_u8cap, &g_conin_u8len, &g_conin_u8pos,
+        L'\n');
 }
 
 /* Free and re-initialize the console-input statics so a subsequent
@@ -410,7 +426,7 @@ int woort_conin_getc(void)
     }
 
     if (g_conin_is_console < 0)
-        g_conin_is_console = woort_conin_is_console_handle();
+        g_conin_is_console = _woort_console_is_console_handle();
 
     if (g_conin_is_console)
     {
@@ -433,7 +449,7 @@ int woort_conin_ungetc(int ch)
 
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     if (g_conin_is_console < 0)
-        g_conin_is_console = woort_conin_is_console_handle();
+        g_conin_is_console = _woort_console_is_console_handle();
 
     if (g_conin_is_console)
     {
@@ -550,80 +566,18 @@ bool woort_stdin_isatty(void)
 
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
 
-#   define WOORT_RAW_CHUNK_WCHARS 256
-
 static char*  g_raw_u8buf      = NULL;  /* pending UTF-8 bytes         */
 static size_t g_raw_u8cap      = 0;     /* allocated bytes             */
 static size_t g_raw_u8len      = 0;     /* valid bytes                 */
 static size_t g_raw_u8pos      = 0;     /* next byte to serve          */
 static int    g_raw_is_console = -1;    /* lazy: -1 unknown, 0/1       */
 
-static int woort_raw_is_console_handle(void)
-{
-    HANDLE hin = GetStdHandle(STD_INPUT_HANDLE);
-    return (GetFileType(hin) == FILE_TYPE_CHAR) ? 1 : 0;
-}
-
-/* Read one UTF-16 chunk from the console, convert to UTF-8 and append it
- * to the pending buffer. Returns 1 if bytes became available, 0 on
- * end-of-file / unrecoverable error. */
+/* Ctrl+C in the raw stream delivers ETX (0x03) for key decoders. */
 static int woort_raw_refill(void)
 {
-    wchar_t wbuf[WOORT_RAW_CHUNK_WCHARS];
-    DWORD   read_count = 0;
-    HANDLE  hin = GetStdHandle(STD_INPUT_HANDLE);
-    size_t  u8len = 0;
-    char*   u8;
-
-    if (!ReadConsoleW(hin, wbuf, WOORT_RAW_CHUNK_WCHARS, &read_count, NULL))
-    {
-        if (GetLastError() == ERROR_OPERATION_ABORTED)
-        {
-            /* Ctrl+C: deliver ETX so a key decoder maps it to "cancel". */
-            wbuf[0] = L'\x03';
-            read_count = 1;
-        }
-        else
-        {
-            return 0; /* real error -> treat as EOF */
-        }
-    }
-
-    if (read_count == 0)
-        return 0; /* EOF */
-
-    u8 = woort_u16strtou8((const char16_t*)wbuf, (size_t)read_count, &u8len);
-    if (u8 == NULL)
-        return 0; /* out of memory -> EOF-ish */
-
-    /* Drop already-consumed prefix (compact in place). */
-    if (g_raw_u8pos > 0)
-    {
-        if (g_raw_u8len > g_raw_u8pos)
-            memmove(g_raw_u8buf, g_raw_u8buf + g_raw_u8pos,
-                    g_raw_u8len - g_raw_u8pos);
-        g_raw_u8len -= g_raw_u8pos;
-        g_raw_u8pos = 0;
-    }
-
-    /* Ensure capacity for the new bytes plus a NUL. */
-    if (g_raw_u8cap < g_raw_u8len + u8len + 1)
-    {
-        size_t newcap = (g_raw_u8len + u8len + 1) * 2;
-        char*  nb = (char*)realloc(g_raw_u8buf, newcap);
-        if (nb == NULL)
-        {
-            free(u8);
-            return 0;
-        }
-        g_raw_u8buf = nb;
-        g_raw_u8cap = newcap;
-    }
-
-    memcpy(g_raw_u8buf + g_raw_u8len, u8, u8len);
-    g_raw_u8len += u8len;
-    free(u8);
-    return 1;
+    return _woort_console_refill(
+        &g_raw_u8buf, &g_raw_u8cap, &g_raw_u8len, &g_raw_u8pos,
+        L'\x03');
 }
 
 static void woort_raw_reset(void)
@@ -652,7 +606,7 @@ int woort_console_getc(void)
     }
 
     if (g_raw_is_console < 0)
-        g_raw_is_console = woort_raw_is_console_handle();
+        g_raw_is_console = _woort_console_is_console_handle();
 
     if (g_raw_is_console)
     {
@@ -699,7 +653,7 @@ int woort_console_ungetc(int ch)
 
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     if (g_raw_is_console < 0)
-        g_raw_is_console = woort_raw_is_console_handle();
+        g_raw_is_console = _woort_console_is_console_handle();
 
     if (g_raw_is_console)
     {
