@@ -1065,7 +1065,8 @@ _label_continue_execution:
                 new_sp[2].m_ret_addr = ++rt_ip;
 
                 const woort_JitFunction jit_function =
-                    rt_env_data[WOORT_BYTECODE(MABC26, c)].m_jit_function;
+                    rt_env->m_jit_functions[
+                        WOORT_BYTECODE(MABC26, c)].m_jit_function;
 
                 const woort_VmCallStatus status =
                     jit_function(vm, new_sp, new_sp);

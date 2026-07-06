@@ -379,6 +379,12 @@ WOORT_NODISCARD const woort_Value* woort_JIT_CodeEnv_static_data(const woort_Cod
     return cenv->m_data_begin;
 }
 
+WOORT_NODISCARD const void* woort_JIT_CodeEnv_jit_function_slot(
+    const woort_CodeEnv* cenv, size_t index)
+{
+    return &cenv->m_jit_functions[index].m_jit_function;
+}
+
 WOORT_NODISCARD const woort_Bytecode* woort_JIT_next_bytecode(const woort_Bytecode* bc)
 {
     return woort_OpcodeDispatcher_decode(bc, NULL, NULL);

@@ -75,6 +75,7 @@ typedef struct woort_JIT_CompileFunctionContext
 {
     const woort_FunctionBoundary* m_boundary;
     /* OPTIONAL */ woort_JitFunction m_jit_function;
+    size_t m_index; /* = fidx; used as CALLNJIT operand and m_jit_functions subscript */
 
 }woort_JIT_CompileFunctionContext;
 
@@ -82,6 +83,7 @@ typedef struct woort_JIT_CompileWalkContext
 {
     const woort_JIT_Backend* m_backend;
     const woort_CodeEnv* m_cenv;
+    const woort_HashMap* m_func_map; /* script_function -> CompileFunctionContext */
 } woort_JIT_CompileWalkContext;
 
 static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compile(
@@ -110,9 +112,34 @@ static bool /* false if break loop. */ _woort_JIT_walk_through_function_to_compi
     while (current_opcode < function_end)
     {
         if (WOORT_BYTECODE(OP6, *current_opcode) == WOORT_OPCODE_CALLNWO)
-            /* Will be update to CALLNJIT. */
+        {
+            /*
+             * Translate CALLNWO -> CALLNJIT, rewriting the operand from the
+             * constant slot index (cidx) to the target's subscript in
+             * m_jit_functions.  The script_function -> JIT-slot mapping is
+             * pre-established (in woort_JIT_compile_env) before this walk,
+             * so a miss here is an inconsistency -> fail the whole compile.
+             */
+            const woort_Opcode_Global cidx =
+                WOORT_BYTECODE(MABC26, *current_opcode);
+            const woort_Bytecode* const target_script_function =
+                walk_ctx->m_cenv->m_data_begin[cidx].m_script_function;
+
+            void* found;
+            if (!woort_hashmap_find(
+                (woort_HashMap*)walk_ctx->m_func_map,
+                &target_script_function, &found))
+            {
+                return false;
+            }
+
+            const woort_JIT_CompileFunctionContext* const target_ctx =
+                (const woort_JIT_CompileFunctionContext*)found;
+
             *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
-                WOORT_OPCODE_CALLNJIT, WOORT_BYTECODE(MABC26, *current_opcode));
+                WOORT_OPCODE_CALLNJIT,
+                (woort_Opcode_Global)target_ctx->m_index);
+        }
 
         if (!backend->m_pre_dispatch(func_jit_ctx))
             return false;
@@ -155,13 +182,6 @@ static bool /* false if break loop. */ _woort_JIT_drop_compiled_function(
     return true;
 }
 
-typedef struct _woort_JIT_CollectCtx
-{
-    woort_CodeEnv_JITCompiledRecord* m_out;
-    size_t                           m_idx;
-
-} _woort_JIT_CollectCtx;
-
 static bool /* false if break loop. */ _woort_JIT_collect_jit_function(
     const void* key,
     void* value,
@@ -173,13 +193,41 @@ static bool /* false if break loop. */ _woort_JIT_collect_jit_function(
     woort_JIT_CompileFunctionContext* const context =
         (woort_JIT_CompileFunctionContext*)value;
 
-    _woort_JIT_CollectCtx* const ctx = (_woort_JIT_CollectCtx*)user_data;
+    woort_CodeEnv_JITCompiledRecord* const out =
+        (woort_CodeEnv_JITCompiledRecord*)user_data;
 
-    ctx->m_out[ctx->m_idx].m_jit_function    = context->m_jit_function;
-    ctx->m_out[ctx->m_idx].m_script_function = script_function;
-    ++ctx->m_idx;
+    /* Stored by pre-assigned index (context->m_index), decoupled from
+       hashmap iteration order; matches the CALLNJIT operand rewriting. */
+    out[context->m_index].m_jit_function    = context->m_jit_function;
+    out[context->m_index].m_script_function = script_function;
 
     return true;
+}
+
+/*
+ * Reverse lookup: given a compiled function's script_function (bytecode addr),
+ * find the cidx of a WOORT_CONST_TYPE_SCRIPT_FUNC slot holding it.
+ * Used to roll back a CALLNJIT operand (index) into a CALLNWO operand (cidx).
+ * Rare path (JIT failure / dejit); O(const_count) per call site.
+ */
+static woort_Opcode_Global _woort_JIT_cidx_for_script_function(
+    const woort_CodeEnv* cenv,
+    const woort_Bytecode* script_function)
+{
+    const woort_ConstRecord* const recs =
+        (const woort_ConstRecord*)cenv->m_const_records.m_data;
+
+    for (size_t cidx = 0; cidx < cenv->m_const_records.m_size; ++cidx)
+    {
+        if (recs[cidx].m_type == WOORT_CONST_TYPE_SCRIPT_FUNC
+            && cenv->m_data_begin[cidx].m_script_function == script_function)
+        {
+            return (woort_Opcode_Global)cidx;
+        }
+    }
+
+    /* Unreachable: every compiled function is referenced by a SCRIPT_FUNC slot. */
+    abort();
 }
 
 /* Main body. */
@@ -213,6 +261,7 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
     for (size_t fidx = 0; fidx < cenv->m_function_boundaries.m_size; ++fidx)
     {
         value.m_boundary = &env_function_boundaries[fidx];
+        value.m_index = fidx;
 
         const woort_Bytecode* const script_function =
             cenv->m_code_begin + value.m_boundary->m_offset_begin;
@@ -230,29 +279,17 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
         }
     }
 
-    /* Ok, walk through backend to generate jit codes and update CALLNWO. */
-    woort_JIT_CompileWalkContext walk_ctx;
-    walk_ctx.m_backend = backend;
-    walk_ctx.m_cenv = cenv;
-
-    if (!woort_hashmap_foreach(
-        &jit_compiled_functions_record,
-        _woort_JIT_walk_through_function_to_compile,
-        &walk_ctx))
-    {
-        jit_compile_result = false;
-        goto _label_jit_failed;
-    }
-
     /*
-     * One-shot allocate the JIT compiled records array.
-     * Count is fixed once all functions are compiled; the array is filled
-     * directly by the foreach callback (no per-step realloc/OOM possible).
+     * One-shot allocate the JIT compiled records array BEFORE the compile
+     * walk: JIT emitters embed the absolute address of each record's
+     * m_jit_function slot at compile time, so the array must already exist
+     * and be stable (never moved) for the CodeEnv's lifetime.
      */
     const size_t jit_func_count = jit_compiled_functions_record.m_size;
+    assert(jit_func_count < (size_t)(1u << 26)); /* must fit MABC26 operand */
 
-    cenv->m_jit_functions = (woort_CodeEnv_JITCompiledRecord*)malloc(
-        jit_func_count * sizeof(woort_CodeEnv_JITCompiledRecord));
+    cenv->m_jit_functions = (woort_CodeEnv_JITCompiledRecord*)calloc(
+        jit_func_count, sizeof(woort_CodeEnv_JITCompiledRecord));
 
     if (cenv->m_jit_functions == NULL)
     {
@@ -263,25 +300,49 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
 
     cenv->m_jit_function_count = jit_func_count;
 
-    _woort_JIT_CollectCtx collect_ctx;
-    collect_ctx.m_out = cenv->m_jit_functions;
-    collect_ctx.m_idx = 0;
+    /*
+     * Pre-fill m_script_function so that a compile-failure rollback can still
+     * recover the target function (and thus its cidx) from a CALLNJIT operand.
+     * Index == fidx, in lockstep with function_boundaries.
+     */
+    for (size_t fidx = 0; fidx < jit_func_count; ++fidx)
+    {
+        cenv->m_jit_functions[fidx].m_script_function =
+            cenv->m_code_begin + env_function_boundaries[fidx].m_offset_begin;
+    }
+
+    /* Ok, walk through backend to generate jit codes and rewrite CALLNWO. */
+    woort_JIT_CompileWalkContext walk_ctx;
+    walk_ctx.m_backend = backend;
+    walk_ctx.m_cenv = cenv;
+    walk_ctx.m_func_map = &jit_compiled_functions_record;
 
     if (!woort_hashmap_foreach(
         &jit_compiled_functions_record,
-        _woort_JIT_collect_jit_function,
-        &collect_ctx))
+        _woort_JIT_walk_through_function_to_compile,
+        &walk_ctx))
     {
-        /* Unreachable: callback always returns true after pre-allocation. */
-        free(cenv->m_jit_functions);
-        cenv->m_jit_functions = NULL;
-        cenv->m_jit_function_count = 0;
         jit_compile_result = false;
         goto _label_jit_failed;
     }
 
-    /* Ok, all function has been compiled, Update the function constant.
-       NOTE: 此处之后不能以失败为结束，因为状态无法简单回滚。 */
+    /* Fill each record's m_jit_function (stored by pre-assigned index). */
+    if (!woort_hashmap_foreach(
+        &jit_compiled_functions_record,
+        _woort_JIT_collect_jit_function,
+        cenv->m_jit_functions))
+    {
+        /* Unreachable: callback always returns true after pre-allocation. */
+        jit_compile_result = false;
+        goto _label_jit_failed;
+    }
+
+    /*
+     * Update closures only. SCRIPT_FUNC slots are intentionally NOT touched:
+     * CALLNJIT resolves jit functions through m_jit_functions[index] now.
+     *
+     * NOTE: 此处之后不能以失败为结束，因为状态无法简单回滚。
+     */
     const woort_ConstRecord* const env_constants =
         (const woort_ConstRecord*)cenv->m_const_records.m_data;
 
@@ -289,16 +350,6 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
     {
         switch (env_constants[cidx].m_type)
         {
-        case WOORT_CONST_TYPE_SCRIPT_FUNC:
-        {
-            woort_JIT_CompileFunctionContext* const ctx = woort_hashmap_at(
-                &jit_compiled_functions_record,
-                &cenv->m_data_begin[cidx].m_script_function);
-
-            assert(ctx->m_jit_function != NULL);
-            cenv->m_data_begin[cidx].m_jit_function = ctx->m_jit_function;
-            break;
-        }
         case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
         {
             woort_JIT_CompileFunctionContext* const ctx = woort_hashmap_at(
@@ -327,19 +378,43 @@ _label_jit_failed:
             _woort_JIT_drop_compiled_function,
             (void*)backend);
 
-        /* Rollback CALLNJIT to CALLNWO. */
+        /*
+         * Rollback CALLNJIT -> CALLNWO. The operand must be translated from
+         * the m_jit_functions index back to the constant slot index (cidx).
+         * Only reachable if the compile walk already ran (hence rewrote some
+         * CALLNWO into CALLNJIT); in that case m_jit_functions is allocated
+         * and its m_script_function slots are pre-filled.
+         */
         woort_Bytecode* current_opcode = (woort_Bytecode*)cenv->m_code_begin;
         const woort_Bytecode* const env_opcode_end = cenv->m_code_end;
 
         while (current_opcode < env_opcode_end)
         {
             if (WOORT_BYTECODE(OP6, *current_opcode) == WOORT_OPCODE_CALLNJIT)
+            {
+                assert(cenv->m_jit_functions != NULL);
+                const woort_Opcode_Global jit_index =
+                    WOORT_BYTECODE(MABC26, *current_opcode);
+                const woort_Bytecode* const target_script_function =
+                    cenv->m_jit_functions[jit_index].m_script_function;
+                const woort_Opcode_Global cidx =
+                    _woort_JIT_cidx_for_script_function(cenv, target_script_function);
+
                 *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
-                    WOORT_OPCODE_CALLNWO, WOORT_BYTECODE(MABC26, *current_opcode));
+                    WOORT_OPCODE_CALLNWO, cidx);
+            }
 
             current_opcode =
                 (woort_Bytecode*)woort_OpcodeDispatcher_decode(
                     current_opcode, NULL, NULL);
+        }
+
+        /* Discard the (now useless) records array. */
+        if (cenv->m_jit_functions != NULL)
+        {
+            free(cenv->m_jit_functions);
+            cenv->m_jit_functions = NULL;
+            cenv->m_jit_function_count = 0;
         }
     }
 

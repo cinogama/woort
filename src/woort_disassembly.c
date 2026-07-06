@@ -90,7 +90,7 @@ static void _woort_dis_CALLNFP(void* userdata, woort_Opcode_Global func)
 { CTX->callback("CALLNFP     G[%u]\n", func); CTX->printed = 1; }
 
 static void _woort_dis_CALLNJIT(void* userdata, woort_Opcode_Global func)
-{ CTX->callback("CALLNJIT    G[%u]\n", func); CTX->printed = 1; }
+{ CTX->callback("CALLNJIT    JIT[%u]\n", func); CTX->printed = 1; }
 
 static void _woort_dis_CALLS(void* userdata, woort_Opcode_Stack func)
 { CTX->callback("CALLS       [SB %+d]\n", func); CTX->printed = 1; }

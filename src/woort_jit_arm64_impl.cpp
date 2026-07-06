@@ -2063,7 +2063,10 @@ void woort_JIT_Backend_arm64_CALLNJIT(void* emitter, woort_Opcode_Global func)
 
     static_assert(sizeof(woort_Value) == 8, "");
 
-    const woort_Value* const func_addr = &em->m_cenv_static_storage[func];
+    /* Operand `func` is now an index into m_jit_functions (not a cidx).
+       func_addr is the absolute address of the slot holding the woort_JitFunction. */
+    const void* const func_addr =
+        woort_JIT_CodeEnv_jit_function_slot(em->cenv, func);
 
     const Label L_retry = em->c->new_label();
     WOORT_JIT_CODE(bind(L_retry));

@@ -1016,50 +1016,48 @@ void woort_CodeEnv_dejit(woort_CodeEnv* cenv)
     const woort_ConstRecord* const env_constants =
         (const woort_ConstRecord*)cenv->m_const_records.m_data;
 
+    /*
+     * SCRIPT_FUNC slots are no longer touched during JIT, so nothing to restore
+     * for them. Only clear the JIT pointer cached on closure objects.
+     */
     for (size_t cidx = 0; cidx < cenv->m_const_records.m_size; ++cidx)
     {
-        switch (env_constants[cidx].m_type)
-        {
-        case WOORT_CONST_TYPE_SCRIPT_FUNC:
-        {
-            const woort_JitFunction target_jit =
-                cenv->m_data_begin[cidx].m_jit_function;
-
-            const woort_Bytecode* restored_script_function = NULL;
-            for (size_t i = 0; i < cenv->m_jit_function_count; ++i)
-            {
-                const woort_CodeEnv_JITCompiledRecord* const rec =
-                    &cenv->m_jit_functions[i];
-                if (rec->m_jit_function == target_jit)
-                {
-                    restored_script_function = rec->m_script_function;
-                    break;
-                }
-            }
-            assert(restored_script_function != NULL);
-
-            woort_Value v;
-            v.m_script_function = restored_script_function;
-            woort_GC_mixed_write_barrier_value(&cenv->m_data_begin[cidx], v);
-            break;
-        }
-        case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
+        if (env_constants[cidx].m_type == WOORT_CONST_TYPE_SCRIPT_CLOSURE)
         {
             ((woort_GCClosure*)cenv->m_data_begin[cidx].m_closure)->m_jit_function = NULL;
-            break;
-        }
-        default:
-            break;
         }
     }
 
+    /*
+     * Rollback CALLNJIT -> CALLNWO. The CALLNJIT operand is an index into
+     * m_jit_functions; translate it back to the constant slot index (cidx)
+     * expected by CALLNWO, via the record's m_script_function.
+     */
     woort_Bytecode* current_opcode = (woort_Bytecode*)cenv->m_code_begin;
     const woort_Bytecode* const env_opcode_end = cenv->m_code_end;
     while (current_opcode < env_opcode_end)
     {
         if (WOORT_BYTECODE(OP6, *current_opcode) == WOORT_OPCODE_CALLNJIT)
+        {
+            const woort_Opcode_Global jit_index =
+                WOORT_BYTECODE(MABC26, *current_opcode);
+            const woort_Bytecode* const target_script_function =
+                cenv->m_jit_functions[jit_index].m_script_function;
+
+            woort_Opcode_Global cidx = 0;
+            for (size_t i = 0; i < cenv->m_const_records.m_size; ++i)
+            {
+                if (env_constants[i].m_type == WOORT_CONST_TYPE_SCRIPT_FUNC
+                    && cenv->m_data_begin[i].m_script_function == target_script_function)
+                {
+                    cidx = (woort_Opcode_Global)i;
+                    break;
+                }
+            }
+
             *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
-                WOORT_OPCODE_CALLNWO, WOORT_BYTECODE(MABC26, *current_opcode));
+                WOORT_OPCODE_CALLNWO, cidx);
+        }
 
         current_opcode = (woort_Bytecode*)woort_OpcodeDispatcher_decode(
             current_opcode, NULL, NULL);

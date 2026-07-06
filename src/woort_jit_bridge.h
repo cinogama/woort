@@ -97,6 +97,15 @@ extern "C" {
     WOORT_NODISCARD size_t woort_JIT_CodeEnv_constant_count(const woort_CodeEnv* cenv);
     WOORT_NODISCARD const woort_Value* woort_JIT_CodeEnv_static_data(const woort_CodeEnv* cenv);
 
+    /*
+     * Address of the m_jit_function slot for the given index in
+     * CodeEnv::m_jit_functions. Returned as an opaque absolute address that
+     * JIT backends embed at compile time; the slot holds the woort_JitFunction
+     * to call once the env is JIT-linked.
+     */
+    WOORT_NODISCARD const void* woort_JIT_CodeEnv_jit_function_slot(
+        const woort_CodeEnv* cenv, size_t index);
+
     typedef void (*woort_JIT_JumpTargetCallback)(
         const woort_Bytecode* target, void* user_data);
 
