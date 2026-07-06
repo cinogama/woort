@@ -28,7 +28,15 @@ static void _woort_ctrlc_signal_handler(int sig)
         "CTRL+C: Trying to breakdown all virtual-machine by default debuggee "
         "immediately.\n");
 
-    (void)woort_WAIPO_Debugger_attach();
+    switch (woort_WAIPO_Debugger_attach())
+    {
+    case WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS:
+    case WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED:
+        break;
+    case WOORT_DEBUGGER_ATTACH_RESULT_FAILED:
+        woort_log("CTRL+C: Failed to attach debugger (out of memory).\n");
+        break;
+    }
     woort_VMRuntime_Debugger_breakdown_all_vm();
 
     /*

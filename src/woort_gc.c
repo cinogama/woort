@@ -389,7 +389,7 @@ static bool _woort_GC_shutdown_dump_vm_trace_callback(
     if (logged_count == 0)
         woort_log("        (no trace available)\n");
 
-    /* Count remaining frames beyond the 32 logged. */
+    /* Count remaining frames beyond the 4 logged. */
     size_t extra_frames = 0;
     while (woort_VMRuntime_trace_next(&trace_iter, &trace))
         ++extra_frames;

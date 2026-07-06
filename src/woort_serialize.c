@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <math.h>
+#include <errno.h>
 
 /* ========================================================================
  * 内部工具：输出字符到缓冲区
@@ -685,6 +686,7 @@ WOORT_NODISCARD static bool _woort_deserialize_number(
     const char* const start = *p;
     char* end = NULL;
 
+    errno = 0;
     const int64_t i64_val = strtoll(start, &end, 0);
 
     if (*end == '.' || *end == 'e' || *end == 'E')
@@ -698,7 +700,7 @@ WOORT_NODISCARD static bool _woort_deserialize_number(
     if (end == start)
         return false;
 
-    if (i64_val == INT64_MIN || i64_val == INT64_MAX)
+    if (errno == ERANGE)
     {
         const double d = strtod(start, &end);
         if (end == start)

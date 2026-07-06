@@ -570,13 +570,13 @@ static void _woort_WAIPO_Debugger_close(void* instance)
     free(debugger_instance);
 }
 
-WOORT_NODISCARD bool woort_WAIPO_Debugger_attach(void)
+WOORT_NODISCARD woort_DebuggerAttachResult woort_WAIPO_Debugger_attach(void)
 {
     woort_WAIPO_Debugger* const debugger_instance =
         malloc(sizeof(woort_WAIPO_Debugger));
 
     if (debugger_instance == NULL)
-        return false;
+        return WOORT_DEBUGGER_ATTACH_RESULT_FAILED;
 
     woort_hashmap_init(
         &debugger_instance->m_focusing_vms,

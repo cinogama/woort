@@ -242,7 +242,15 @@ WOORT_NODISCARD bool woort_raise_panic_v(
                                 (void)woort_VMRuntime_request_set(
                                     panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
 
-                                (void)woort_WAIPO_Debugger_attach();
+                                switch (woort_WAIPO_Debugger_attach())
+                                {
+                                case WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS:
+                                case WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED:
+                                    break;
+                                case WOORT_DEBUGGER_ATTACH_RESULT_FAILED:
+                                    woort_log("Failed to attach debugger (out of memory).\n");
+                                    break;
+                                }
                                 break;
                             }
                             /* fallthrough */

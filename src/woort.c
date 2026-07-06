@@ -149,6 +149,9 @@ void woort_print_runtime_help(void)
     printf("Woort Runtime Options (prefix: --woort-):\n");
     printf("    --woort-enable-ctrlc-debug <0|1>\n");
     printf("        Hook Ctrl+C to bring up the interactive debugger. Default: 1.\n");
+    printf("    --woort-enable-jit <0|1>\n");
+    printf("        Enable the JIT compiler. Default: build-dependent.\n");
+    printf("        1 in Release builds (NDEBUG), 0 in Debug builds.\n");
     printf("    --woort-gc-max-reserved-memory <MB>\n");
     printf("        Maximum memory (MB) the GC may reserve. Default: 1024.\n");
     printf("    --woort-halt-panic-vm <0|1|2|3>\n");

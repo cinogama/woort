@@ -16,7 +16,7 @@ typedef void (*woort_VMRuntime_DebuggerContextDestroyCallback)(void*);
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_bootup(void);
 void woort_VMRuntime_Debugger_shutdown(void);
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
+WOORT_NODISCARD woort_DebuggerAttachResult woort_VMRuntime_Debugger_attach(
     woort_VMRuntime_DebuggerCallback callback, 
     void* context,
     /* OPTIONAL */ woort_VMRuntime_DebuggerContextDestroyCallback destroy_callback);

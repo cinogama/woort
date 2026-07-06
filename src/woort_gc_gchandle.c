@@ -8,37 +8,37 @@
 #include "woort_diagnosis.h"
 #include "woort_gc.h"
 
-static void _woort_GCStruct_close_impl(woort_GCHandle* gcstruct)
+static void _woort_GCHandle_close_impl(woort_GCHandle* gchandle)
 {
-    gcstruct->m_user_destruct_callback(gcstruct->m_user_handle);
-    if (gcstruct->m_dylib != NULL)
-        woort_dylib_unload(gcstruct->m_dylib, WOORT_DYLIB_UNREF);
+    gchandle->m_user_destruct_callback(gchandle->m_user_handle);
+    if (gchandle->m_dylib != NULL)
+        woort_dylib_unload(gchandle->m_dylib, WOORT_DYLIB_UNREF);
 }
-static void _woort_GCStruct_marker(woort_GCUnit* unit)
+static void _woort_GCHandle_marker(woort_GCUnit* unit)
 {
-    woort_GCHandle* const gcstruct = (woort_GCHandle*)unit;
+    woort_GCHandle* const gchandle = (woort_GCHandle*)unit;
 
-    if (gcstruct->m_user_handle != NULL)
-        gcstruct->m_user_mark_callback(gcstruct->m_user_handle);
+    if (gchandle->m_user_handle != NULL)
+        gchandle->m_user_mark_callback(gchandle->m_user_handle);
 }
 static void _woort_GCHandle_destructor(woort_GCUnit* unit)
 {
-    woort_GCHandle* const gcstruct = (woort_GCHandle*)unit;
+    woort_GCHandle* const gchandle = (woort_GCHandle*)unit;
 
-    if (gcstruct->m_user_handle != NULL)
+    if (gchandle->m_user_handle != NULL)
     {
-        _woort_GCStruct_close_impl(gcstruct);
+        _woort_GCHandle_close_impl(gchandle);
     }
 }
 
 const woort_GCUnitProxy WOORT_GCHANDLE_UNIT_PROXY = {
     .m_destructor = _woort_GCHandle_destructor,
-    .m_marker = _woort_GCStruct_marker,
+    .m_marker = _woort_GCHandle_marker,
 };
 
 const woort_GCHandle* woort_GCHandle_new(
     void* addr,
-    /* OPTIONAL */woort_Value* holding,
+    /* OPTIONAL */ woort_Value* holding,
     woort_GCHandle_UserDestructFunction destructor,
     /* OPTIONAL */ woort_Dylib* dylib)
 {
@@ -73,21 +73,21 @@ const woort_GCHandle* woort_GCHandle_new_with_marker(
 {
     assert(addr != NULL);
 
-    woort_GCHandle* const gcstruct = woort_GCUnit_alloc_delay_init(
+    woort_GCHandle* const gchandle = woort_GCUnit_alloc_delay_init(
         sizeof(woort_GCHandle));
 
-    gcstruct->m_gc_unit.m_proxy = &WOORT_GCHANDLE_UNIT_PROXY;
+    gchandle->m_gc_unit.m_proxy = &WOORT_GCHANDLE_UNIT_PROXY;
 
-    gcstruct->m_user_mark_callback = marker;
-    gcstruct->m_user_destruct_callback = destructor;
-    gcstruct->m_user_handle = addr;
+    gchandle->m_user_mark_callback = marker;
+    gchandle->m_user_destruct_callback = destructor;
+    gchandle->m_user_handle = addr;
     if (dylib != NULL)
         woort_dylib_keep(dylib);
-    gcstruct->m_dylib = dylib;
+    gchandle->m_dylib = dylib;
 
-    woort_GCUnit_init_delay_alloc(MF, gcstruct);
+    woort_GCUnit_init_delay_alloc(MF, gchandle);
 
-    return gcstruct;
+    return gchandle;
 }
 
 WOORT_NODISCARD bool woort_GCHandle_close(woort_GCHandle* gchandle)
@@ -95,7 +95,7 @@ WOORT_NODISCARD bool woort_GCHandle_close(woort_GCHandle* gchandle)
     if (gchandle->m_user_handle == NULL)
         return false;
 
-    _woort_GCStruct_close_impl(gchandle);
+    _woort_GCHandle_close_impl(gchandle);
     gchandle->m_user_handle = NULL;
 
     return true;

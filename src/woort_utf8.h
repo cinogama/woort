@@ -1,7 +1,7 @@
 #pragma once
 
 /*
-woort_threads.h
+woort_utf8.h
 */
 
 #include "woort_platform.h"
@@ -80,7 +80,3 @@ bool woort_u32isu16(char32_t ch32);
 
 /* 获取字符 */
 bool woort_u8stridx(const char* str, size_t size, size_t index, char32_t* out_ch);
-
-#ifdef __cplusplus
-}
-#endif

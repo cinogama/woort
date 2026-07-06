@@ -211,7 +211,7 @@ WOORT_NODISCARD bool woort_linklist_pop_front(woort_LinkList* list)
         list->m_head = head->m_next;
     }
     else
-        // Only one node in list.
+        /* Only one node in list. */
         list->m_head = list->m_tail = NULL;
 
     free(head);
@@ -223,13 +223,13 @@ WOORT_NODISCARD bool woort_linklist_pop_back(woort_LinkList* list)
     if (tail == NULL)
         return false;
 
-    if (tail->m_next != NULL)
+    if (tail->m_prev != NULL)
     {
         tail->m_prev->m_next = NULL;
         list->m_tail = tail->m_prev;
     }
     else
-        // Only one node in list.
+        /* Only one node in list. */
         list->m_head = list->m_tail = NULL;
 
     free(tail);

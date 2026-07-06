@@ -20,7 +20,7 @@
  *  并修正 struct 成员索引回退 bug——对状态正常的 CodeEnv 产生相同字节）：
  *
  *    header (32 字节)
- *      u32 magic           0x30314345 ("EC10")
+ *      u32 magic           0x54524f57 ("WORT")
  *      u32 version         7
  *      u64 code_size       字节码字数（woort_Bytecode 个数）
  *      u64 data_count      m_data_begin 总槽位

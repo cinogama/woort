@@ -532,7 +532,7 @@ void woort_DynBox_unbox_no_check(
         else if (0 == (0b011 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_INT)))
             /* INT */
             out_val->m_integer = _woort_unbox_int64(val.m_boxed);
-        else /* if (0 == (0b0111 & (val.m_boxed_bool ^ WOORT_BOX_VALUE_TYPE_BOOL))) */
+        else /* if (0 == (0b0111 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_BOOL))) */
             out_val->m_integer = _woort_unbox_bool(val.m_boxed) ? 1 : 0;
     }
     else

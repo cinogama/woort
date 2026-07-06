@@ -4684,15 +4684,31 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_Dylib* woort_get_builtin_lib(void
 /* ========== WAIPO Debugger ========== */
 
 /**
+ * @brief Result of an attempt to attach a debugger.
+ */
+typedef enum woort_DebuggerAttachResult {
+    WOORT_DEBUGGER_ATTACH_RESULT_FAILED,            /* OOM or other failure          */
+    WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED,  /* a debugger was already attached */
+    WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS,           /* the debugger was attached      */
+
+} woort_DebuggerAttachResult;
+
+/**
  * @brief Attach a WAIPO (Watch And Inspect Program Operation) debugger to the VM.
  *
  * Allocates a debugger instance and registers it with the current VM runtime.
  * The debugger will be notified of VM events such as breakpoints and step
  * operations.
  *
- * @return true on success, false on out-of-memory.
+ * If a debugger is already attached, the new instance is released (its
+ * destroy callback, if any, is invoked) and WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED
+ * is returned; the previously-attached debugger remains active.
+ *
+ * @return WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS on a new attachment,
+ *         WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED if one was already attached,
+ *         WOORT_DEBUGGER_ATTACH_RESULT_FAILED on out-of-memory.
  */
-WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_attach(void);
+WOORT_NODISCARD WOORT_API woort_DebuggerAttachResult woort_WAIPO_Debugger_attach(void);
 
 /**
  * @brief Breakdown all VMs by sending a debug callback request.

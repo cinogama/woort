@@ -76,7 +76,7 @@ void woort_VMRuntime_Debugger_detach(void)
     }
 }
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
+WOORT_NODISCARD woort_DebuggerAttachResult woort_VMRuntime_Debugger_attach(
     woort_VMRuntime_DebuggerCallback callback,
     void* context,
     /* OPTIONAL */ woort_VMRuntime_DebuggerContextDestroyCallback destroy_callback)
@@ -89,7 +89,7 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
         if (destroy_callback != NULL)
             destroy_callback(context);
 
-        return false;
+        return WOORT_DEBUGGER_ATTACH_RESULT_FAILED;
     }
 
     new_debugger->m_break_callback = callback;
@@ -97,19 +97,27 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_attach(
     new_debugger->m_context_destroy_callback = destroy_callback;
     woort_atomic_init(&new_debugger->m_ref_count, 1);
 
+    woort_DebuggerAttachResult result;
     woort_rwspinlock_write_lock(&g_debugger_rwspin);
     {
         if (g_debugger != NULL)
+        {
             _woort_VMRuntime_Debugger_release_impl(new_debugger);
+            result = WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED;
+        }
         else
+        {
             g_debugger = new_debugger;
+            result = WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS;
+        }
 
     }
     woort_rwspinlock_write_unlock(&g_debugger_rwspin);
 
-    woort_JIT_unjit_all_codeenv();
+    if (result == WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS)
+        woort_JIT_unjit_all_codeenv();
 
-    return true;
+    return result;
 }
 
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request)
