@@ -38,9 +38,6 @@ const int32_t WOORT_GCCLOSURE_OFFSETOF_SIZE =
 const int32_t WOORT_GCCLOSURE_OFFSETOF_DATAS =
     (int32_t)offsetof(woort_GCClosure, m_datas);
 
-const void* const WOORT_JIT_GC_MARKING_STATE_FLAG_ADDR =
-    (const void*)&woomem_gc_marking_state_flag;
-
 void woort_JIT_GC_mixed_write_barrier_value(
     woort_Value* modified_value, woort_Value src_value)
 {

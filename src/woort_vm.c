@@ -36,13 +36,13 @@ _Static_assert(WOORT_OPCODE_COUNT <= 64, "");
 
 WOORT_THREAD_LOCAL woort_VMRuntime* WOORT_t_this_thread_vm;
 
-const size_t WOORT_VM_DEFAULT_STACK_BEGIN_SIZE = 32;
-const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
+static const size_t WOORT_VM_DEFAULT_STACK_BEGIN_SIZE = 32;
+static const size_t WOORT_VM_MAX_STACK_SIZE = 1024 * 1024 * 1024 / 8;
 
-const uint8_t WOORT_VM_SHRINK_EDGE_FLOOR = 2;
-const uint8_t WOORT_VM_SHRINK_EDGE_CEIL = 8;
-const uint8_t WOORT_VM_SHRINK_EDGE_AFTER_GROW = 16;
-const uint8_t WOORT_VM_SHRINK_GROWTH_FACTOR = 4;
+static const uint8_t WOORT_VM_SHRINK_EDGE_FLOOR = 2;
+static const uint8_t WOORT_VM_SHRINK_EDGE_CEIL = 8;
+static const uint8_t WOORT_VM_SHRINK_EDGE_AFTER_GROW = 16;
+static const uint8_t WOORT_VM_SHRINK_GROWTH_FACTOR = 4;
 
 static uint8_t _woort_shrink_edge_for_capacity(size_t capacity)
 {
