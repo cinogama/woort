@@ -298,4 +298,8 @@ void woort_CodeEnv_foreach(
     woort_CodeEnv_ForeachCallback callback,
     void* user_data);
 
+woort_Opcode_Global woort_CodeEnv_cidx_for_script_function(
+    const woort_CodeEnv* cenv,
+    const woort_Bytecode* script_function);
+
 void woort_CodeEnv_dejit(woort_CodeEnv* cenv);

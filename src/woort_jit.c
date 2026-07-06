@@ -204,32 +204,6 @@ static bool /* false if break loop. */ _woort_JIT_collect_jit_function(
     return true;
 }
 
-/*
- * Reverse lookup: given a compiled function's script_function (bytecode addr),
- * find the cidx of a WOORT_CONST_TYPE_SCRIPT_FUNC slot holding it.
- * Used to roll back a CALLNJIT operand (index) into a CALLNWO operand (cidx).
- * Rare path (JIT failure / dejit); O(const_count) per call site.
- */
-static woort_Opcode_Global _woort_JIT_cidx_for_script_function(
-    const woort_CodeEnv* cenv,
-    const woort_Bytecode* script_function)
-{
-    const woort_ConstRecord* const recs =
-        (const woort_ConstRecord*)cenv->m_const_records.m_data;
-
-    for (size_t cidx = 0; cidx < cenv->m_const_records.m_size; ++cidx)
-    {
-        if (recs[cidx].m_type == WOORT_CONST_TYPE_SCRIPT_FUNC
-            && cenv->m_data_begin[cidx].m_script_function == script_function)
-        {
-            return (woort_Opcode_Global)cidx;
-        }
-    }
-
-    /* Unreachable: every compiled function is referenced by a SCRIPT_FUNC slot. */
-    abort();
-}
-
 /* Main body. */
 void woort_JIT_compile_env(woort_CodeEnv* cenv)
 {
@@ -398,7 +372,7 @@ _label_jit_failed:
                 const woort_Bytecode* const target_script_function =
                     cenv->m_jit_functions[jit_index].m_script_function;
                 const woort_Opcode_Global cidx =
-                    _woort_JIT_cidx_for_script_function(cenv, target_script_function);
+                    woort_CodeEnv_cidx_for_script_function(cenv, target_script_function);
 
                 *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
                     WOORT_OPCODE_CALLNWO, cidx);

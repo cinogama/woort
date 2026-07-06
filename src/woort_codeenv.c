@@ -1008,6 +1008,26 @@ void woort_CodeEnv_foreach(
     woort_rwspinlock_read_unlock(&g_codeenv_global_ctx->m_codeenvs_lock);
 }
 
+woort_Opcode_Global woort_CodeEnv_cidx_for_script_function(
+    const woort_CodeEnv* cenv,
+    const woort_Bytecode* script_function)
+{
+    const woort_ConstRecord* const env_constants =
+        (const woort_ConstRecord*)cenv->m_const_records.m_data;
+
+    for (size_t i = 0; i < cenv->m_const_records.m_size; ++i)
+    {
+        if (env_constants[i].m_type == WOORT_CONST_TYPE_SCRIPT_FUNC
+            && cenv->m_data_begin[i].m_script_function == script_function)
+        {
+            return (woort_Opcode_Global)i;
+        }
+    }
+    
+    /* Unreachable */
+    abort();
+}
+
 void woort_CodeEnv_dejit(woort_CodeEnv* cenv)
 {
     if (!cenv->m_jit_linked)
@@ -1044,16 +1064,8 @@ void woort_CodeEnv_dejit(woort_CodeEnv* cenv)
             const woort_Bytecode* const target_script_function =
                 cenv->m_jit_functions[jit_index].m_script_function;
 
-            woort_Opcode_Global cidx = 0;
-            for (size_t i = 0; i < cenv->m_const_records.m_size; ++i)
-            {
-                if (env_constants[i].m_type == WOORT_CONST_TYPE_SCRIPT_FUNC
-                    && cenv->m_data_begin[i].m_script_function == target_script_function)
-                {
-                    cidx = (woort_Opcode_Global)i;
-                    break;
-                }
-            }
+            const woort_Opcode_Global cidx =
+                woort_CodeEnv_cidx_for_script_function(cenv, target_script_function);
 
             *(woort_Bytecode*)current_opcode = woort_OpcodeFormal_OP6_MABC26_cons(
                 WOORT_OPCODE_CALLNWO, cidx);
