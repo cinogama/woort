@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #define WOORT_BITSET_WORD_BITS 64
 
@@ -22,7 +23,8 @@ WOORT_NODISCARD bool woort_bitset_init(woort_Bitset* bitset, size_t bit_count)
 
 void woort_bitset_deinit(woort_Bitset* bitset)
 {
-    if (bitset->m_data)
+    /* Safe to call even if _init failed (m_data may be NULL). */
+    if (bitset->m_data != NULL)
     {
         free(bitset->m_data);
         bitset->m_data = NULL;
@@ -33,26 +35,21 @@ void woort_bitset_deinit(woort_Bitset* bitset)
 
 WOORT_NODISCARD bool woort_bitset_set(woort_Bitset* bitset, size_t index)
 {
-    if (index >= bitset->m_bit_count)
-        return false;
-
+    assert(index < bitset->m_bit_count);
     bitset->m_data[index / WOORT_BITSET_WORD_BITS] |= (1ULL << (index % WOORT_BITSET_WORD_BITS));
     return true;
 }
 
 WOORT_NODISCARD bool woort_bitset_reset(woort_Bitset* bitset, size_t index)
 {
-    if (index >= bitset->m_bit_count)
-        return false;
-
+    assert(index < bitset->m_bit_count);
     bitset->m_data[index / WOORT_BITSET_WORD_BITS] &= ~(1ULL << (index % WOORT_BITSET_WORD_BITS));
     return true;
 }
 
 WOORT_NODISCARD bool woort_bitset_test(const woort_Bitset* bitset, size_t index)
 {
-    if (index >= bitset->m_bit_count)
-        return false;
+    assert(index < bitset->m_bit_count);
     return (bitset->m_data[index / WOORT_BITSET_WORD_BITS] & (1ULL << (index % WOORT_BITSET_WORD_BITS))) != 0;
 }
 

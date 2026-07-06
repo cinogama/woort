@@ -35,7 +35,7 @@ static struct _woort_CodeEnv_GlobalCtx
     woort_GCUnitProxy   m_env_proxy;
     woort_GCUnitProxy   m_code_proxy;
 
-} *_codeenv_global_ctx = NULL;
+} *g_codeenv_global_ctx = NULL;
 
 typedef struct woort_CodeEnv_Code
 {
@@ -149,7 +149,7 @@ void woort_CodeEnv_PDB_deinit(woort_CodeEnv_PDB* pdb)
 static void _woort_CodeEnv_GC_mark_code(woort_GCUnit* unit)
 {
     woort_CodeEnv_Code* const code = (woort_CodeEnv_Code*)unit;
-    assert(code->m_gc_unit.m_proxy == &_codeenv_global_ctx->m_code_proxy);
+    assert(code->m_gc_unit.m_proxy == &g_codeenv_global_ctx->m_code_proxy);
 
     woomem_mark_unit_head(code->m_code_env);
 }
@@ -157,28 +157,28 @@ static void _woort_CodeEnv_GC_mark_code(woort_GCUnit* unit)
 static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 {
     woort_CodeEnv* const code_env = (woort_CodeEnv*)unit;
-    assert(code_env->m_gc_unit.m_proxy == &_codeenv_global_ctx->m_env_proxy);
+    assert(code_env->m_gc_unit.m_proxy == &g_codeenv_global_ctx->m_env_proxy);
 
     /* 先从全局容器中移除该 CodeEnv */
     woort_rwspinlock_write_lock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
+        &g_codeenv_global_ctx->m_codeenvs_lock);
 
     woort_CodeEnv** stored_env;
     if (woort_ordermap_find(
-        _codeenv_global_ctx->m_codeenvs,
+        g_codeenv_global_ctx->m_codeenvs,
         &code_env->m_code_begin,
         (void**)&stored_env))
     {
         if (*stored_env == code_env)
         {
             (void)woort_ordermap_remove(
-                _codeenv_global_ctx->m_codeenvs,
+                g_codeenv_global_ctx->m_codeenvs,
                 &code_env->m_code_begin);
         }
     }
 
     woort_rwspinlock_write_unlock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
+        &g_codeenv_global_ctx->m_codeenvs_lock);
 
     woort_hashmap_deinit(&code_env->m_trap_records);
 
@@ -228,53 +228,53 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
 {
-    assert(_codeenv_global_ctx == NULL);
+    assert(g_codeenv_global_ctx == NULL);
 
-    _codeenv_global_ctx =
+    g_codeenv_global_ctx =
         malloc(sizeof(struct _woort_CodeEnv_GlobalCtx));
 
-    if (_codeenv_global_ctx == NULL)
+    if (g_codeenv_global_ctx == NULL)
     {
         WOORT_DEBUG("Out of memory");
         return false;
     }
 
-    woort_rwspinlock_init(&_codeenv_global_ctx->m_codeenvs_lock);
+    woort_rwspinlock_init(&g_codeenv_global_ctx->m_codeenvs_lock);
 
     /* 初始化存储 CodeEnv 指针的 OrderMap */
     if (!woort_ordermap_create(
         sizeof(const woort_Bytecode*), sizeof(woort_CodeEnv*),
         &_compare_code_begin,
-        &_codeenv_global_ctx->m_codeenvs))
+        &g_codeenv_global_ctx->m_codeenvs))
     {
-        woort_rwspinlock_deinit(&_codeenv_global_ctx->m_codeenvs_lock);
-        free(_codeenv_global_ctx);
-        _codeenv_global_ctx = NULL;
+        woort_rwspinlock_deinit(&g_codeenv_global_ctx->m_codeenvs_lock);
+        free(g_codeenv_global_ctx);
+        g_codeenv_global_ctx = NULL;
         return false;
     }
 
-    _codeenv_global_ctx->m_env_proxy.m_marker = NULL;
-    _codeenv_global_ctx->m_env_proxy.m_destructor =
+    g_codeenv_global_ctx->m_env_proxy.m_marker = NULL;
+    g_codeenv_global_ctx->m_env_proxy.m_destructor =
         &_woort_CodeEnv_GC_destroy;
 
-    _codeenv_global_ctx->m_code_proxy.m_marker =
+    g_codeenv_global_ctx->m_code_proxy.m_marker =
         &_woort_CodeEnv_GC_mark_code;
-    _codeenv_global_ctx->m_code_proxy.m_destructor = NULL;
+    g_codeenv_global_ctx->m_code_proxy.m_destructor = NULL;
 
     return true;
 }
 void woort_CodeEnv_shutdown(void)
 {
-    assert(_codeenv_global_ctx != NULL);
+    assert(g_codeenv_global_ctx != NULL);
 
     /* 清理存储 CodeEnv 指针的 OrderMap */
-    woort_ordermap_destroy(_codeenv_global_ctx->m_codeenvs);
+    woort_ordermap_destroy(g_codeenv_global_ctx->m_codeenvs);
 
-    woort_rwspinlock_deinit(&_codeenv_global_ctx->m_codeenvs_lock);
+    woort_rwspinlock_deinit(&g_codeenv_global_ctx->m_codeenvs_lock);
 
-    free(_codeenv_global_ctx);
+    free(g_codeenv_global_ctx);
 
-    _codeenv_global_ctx = NULL;
+    g_codeenv_global_ctx = NULL;
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_create(
@@ -303,7 +303,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
     assert(codes != NULL && code_env_instance != NULL);
 
     codes->m_gc_unit.m_proxy =
-        &_codeenv_global_ctx->m_code_proxy;
+        &g_codeenv_global_ctx->m_code_proxy;
     codes->m_code_env = code_env_instance;
 
     memcpy(
@@ -312,7 +312,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
         bytecodes_count * sizeof(woort_Bytecode));
 
     code_env_instance->m_gc_unit.m_proxy =
-        &_codeenv_global_ctx->m_env_proxy;
+        &g_codeenv_global_ctx->m_env_proxy;
 
     code_env_instance->m_hold = true;
     code_env_instance->m_mutex = NULL;
@@ -387,12 +387,12 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
     if (succ)
     {
-        woort_rwspinlock_write_lock(&_codeenv_global_ctx->m_codeenvs_lock);
+        woort_rwspinlock_write_lock(&g_codeenv_global_ctx->m_codeenvs_lock);
 
         woort_CodeEnv** env_storage;
         const woort_ordermap_Result register_result =
             woort_ordermap_get_or_emplace(
-                _codeenv_global_ctx->m_codeenvs,
+                g_codeenv_global_ctx->m_codeenvs,
                 &code_env_instance->m_code_begin,
                 (void**)&env_storage);
 
@@ -402,7 +402,7 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
             succ = false;
 
         woort_rwspinlock_write_unlock(
-            &_codeenv_global_ctx->m_codeenvs_lock);
+            &g_codeenv_global_ctx->m_codeenvs_lock);
     }
 
     woort_GCUnit_init_delay_alloc(M, codes);
@@ -438,15 +438,15 @@ void woort_CodeEnv_drop(
 void woort_CodeEnv_drop_all(void)
 {
     woort_rwspinlock_read_lock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
+        &g_codeenv_global_ctx->m_codeenvs_lock);
 
     (void)woort_ordermap_foreach(
-        _codeenv_global_ctx->m_codeenvs,
+        g_codeenv_global_ctx->m_codeenvs,
         &_codeenv_drop_callback,
         NULL);
 
     woort_rwspinlock_read_unlock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
+        &g_codeenv_global_ctx->m_codeenvs_lock);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_query_function(
@@ -473,13 +473,13 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
 {
     /* 获取读锁，允许多线程并发查找 */
     woort_rwspinlock_read_lock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
+        &g_codeenv_global_ctx->m_codeenvs_lock);
 
     woort_CodeEnv** value_addr;
 
     bool found = false;
     if (woort_ordermap_find_le(
-        _codeenv_global_ctx->m_codeenvs,
+        g_codeenv_global_ctx->m_codeenvs,
         &addr,
         NULL,
         (void**)&value_addr))
@@ -493,36 +493,36 @@ WOORT_NODISCARD bool woort_CodeEnv_find(
     }
 
     woort_rwspinlock_read_unlock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
+        &g_codeenv_global_ctx->m_codeenvs_lock);
     return found;
 }
 
 void woort_CodeEnv_GC_mark_all_envs(void)
 {
     woort_rwspinlock_read_lock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
+        &g_codeenv_global_ctx->m_codeenvs_lock);
 
     (void)woort_ordermap_foreach(
-        _codeenv_global_ctx->m_codeenvs,
+        g_codeenv_global_ctx->m_codeenvs,
         &_codeenv_mark_callback,
         NULL);
 
     woort_rwspinlock_read_unlock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
+        &g_codeenv_global_ctx->m_codeenvs_lock);
 }
 
 void woort_CodeEnv_JIT_unjit_all_envs(void)
 {
     woort_rwspinlock_read_lock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
+        &g_codeenv_global_ctx->m_codeenvs_lock);
 
     (void)woort_ordermap_foreach(
-        _codeenv_global_ctx->m_codeenvs,
+        g_codeenv_global_ctx->m_codeenvs,
         &_codeenv_unjit_callback,
         NULL);
 
     woort_rwspinlock_read_unlock(
-        &_codeenv_global_ctx->m_codeenvs_lock);
+        &g_codeenv_global_ctx->m_codeenvs_lock);
 }
 
 /*
@@ -997,15 +997,15 @@ void woort_CodeEnv_foreach(
     woort_CodeEnv_ForeachCallback callback,
     void* user_data)
 {
-    woort_rwspinlock_read_lock(&_codeenv_global_ctx->m_codeenvs_lock);
+    woort_rwspinlock_read_lock(&g_codeenv_global_ctx->m_codeenvs_lock);
 
     struct _CodeEnv_Foreach_Ctx ctx = { callback, user_data };
     (void)woort_ordermap_foreach(
-        _codeenv_global_ctx->m_codeenvs,
+        g_codeenv_global_ctx->m_codeenvs,
         &_codeenv_foreach_callback,
         &ctx);
 
-    woort_rwspinlock_read_unlock(&_codeenv_global_ctx->m_codeenvs_lock);
+    woort_rwspinlock_read_unlock(&g_codeenv_global_ctx->m_codeenvs_lock);
 }
 
 void woort_CodeEnv_dejit(woort_CodeEnv* cenv)

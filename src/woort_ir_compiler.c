@@ -2131,7 +2131,7 @@ static bool _compile_function(
     woort_Vector* source_map_entries)
 {
     /* 第 0 步：记录当前函数的起始偏移位置 */
-    f->m_code_offset = c->m_commited_codes.m_size;
+    f->m_code_offset = c->m_committed_codes.m_size;
 
     /* 第 1 步：分析 + 栈槽分配 */
     size_t stack_space;
@@ -2191,7 +2191,7 @@ static bool _compile_function(
     woort_vector_deinit(&insertions);
     free(old_block_sizes);
 
-    /* 第 4 步：将 block 字节码拼接到 compiler 的 m_commited_codes */
+    /* 第 4 步：将 block 字节码拼接到 compiler 的 m_committed_codes */
 
     /*
      * PUSHRCHK 预留在函数入口处单独发射，不放在任何 block 内，
@@ -2205,7 +2205,7 @@ static bool _compile_function(
 
         woort_Bytecode bc = woort_OpCode_PUSHRCHK(
             (uint32_t)(stack_space > 125 ? stack_space + 3 : stack_space));
-        if (!woort_vector_push_back(&c->m_commited_codes, 1, &bc))
+        if (!woort_vector_push_back(&c->m_committed_codes, 1, &bc))
             return false;
 
         /*
@@ -2232,14 +2232,14 @@ static bool _compile_function(
         if (blk->m_bytecodes.m_size > 0)
         {
             if (!woort_vector_push_back(
-                &c->m_commited_codes,
+                &c->m_committed_codes,
                 blk->m_bytecodes.m_size,
                 blk->m_bytecodes.m_data))
                 return false;
         }
     }
 
-    f->m_code_length = c->m_commited_codes.m_size - f->m_code_offset;
+    f->m_code_length = c->m_committed_codes.m_size - f->m_code_offset;
     return true;
 }
 
@@ -2252,7 +2252,7 @@ void woort_IRCompiler_init(woort_IRCompiler* c)
     woort_linklist_init(&c->m_ir_functions, sizeof(woort_IRFunction));
     c->m_constant_alloc_count = 0;
     c->m_static_storage_alloc_count = 0;
-    woort_vector_init(&c->m_commited_codes, sizeof(woort_Bytecode));
+    woort_vector_init(&c->m_committed_codes, sizeof(woort_Bytecode));
     woort_StringPool_init(&c->m_string_pool);
     woort_vector_init(&c->m_static_var_records, sizeof(woort_StaticVarRecord));
 }
@@ -2266,7 +2266,7 @@ void woort_IRCompiler_deinit(woort_IRCompiler* c)
         woort_IRFunction_deinit(f);
     }
     woort_linklist_deinit(&c->m_ir_functions);
-    woort_vector_deinit(&c->m_commited_codes);
+    woort_vector_deinit(&c->m_committed_codes);
     woort_StringPool_deinit(&c->m_string_pool);
     woort_vector_deinit(&c->m_static_var_records);
 }
@@ -2411,8 +2411,8 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
 
     /* 创建 CodeEnv */
     bool result = woort_CodeEnv_create(
-        (const woort_Bytecode*)c->m_commited_codes.m_data,
-        c->m_commited_codes.m_size,
+        (const woort_Bytecode*)c->m_committed_codes.m_data,
+        c->m_committed_codes.m_size,
         (size_t)c->m_constant_alloc_count,
         (size_t)c->m_static_storage_alloc_count,
         out_cenv);

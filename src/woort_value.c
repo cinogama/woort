@@ -160,23 +160,8 @@ woort_DynBox woort_DynBox_box_real_for_env_constant(woort_CodeEnv* cenv, woort_R
     woort_DynBox result;
     if (!_woort_try_box_float63(val, &result.m_boxed))
     {
-        woort_BoxedExValue* ex_box;
-
-        do
-        {
-            ex_box = woomem_allocate_begin(
-                sizeof(woort_BoxedExValue));
-
-            if (ex_box != NULL)
-                break;
-
-            woort_CodeEnv_unlock(cenv);
-            {
-                _woort_GCUnit_alloc_failed();
-            }
-            woort_CodeEnv_lock(cenv);
-
-        } while (true);
+        woort_BoxedExValue* const ex_box = _woort_GCUnit_alloc_for_env_constant(
+            cenv, sizeof(woort_BoxedExValue));
 
         ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
 
@@ -195,23 +180,8 @@ woort_DynBox woort_DynBox_box_int_for_env_constant(woort_CodeEnv* cenv, woort_In
     woort_DynBox result;
     if (!_woort_try_box_int62(val, &result.m_boxed))
     {
-        woort_BoxedExValue* ex_box;
-
-        do
-        {
-            ex_box = woomem_allocate_begin(
-                sizeof(woort_BoxedExValue));
-
-            if (ex_box != NULL)
-                break;
-
-            woort_CodeEnv_unlock(cenv);
-            {
-                _woort_GCUnit_alloc_failed();
-            }
-            woort_CodeEnv_lock(cenv);
-
-        } while (true);
+        woort_BoxedExValue* const ex_box = _woort_GCUnit_alloc_for_env_constant(
+            cenv, sizeof(woort_BoxedExValue));
 
         ex_box->m_unit.m_proxy = &WOORT_EX_BOX_PROXY;
 

@@ -19,8 +19,8 @@ void _woort_env_shutdown(void);
  * bytes are already UTF-8 in this runtime's locale. Used by the built-in
  * input functions (read_i / read_r / read_s / readline).
  */
-int woort_conin_getc(void);                 /* next UTF-8 byte (0-255), or EOF */
-int woort_conin_ungetc(int ch);             /* push back one byte (1-deep)     */
+WOORT_NODISCARD int woort_conin_getc(void);                 /* next UTF-8 byte (0-255), or EOF */
+WOORT_NODISCARD int woort_conin_ungetc(int ch);             /* push back one byte (1-deep)     */
 /* Reads one line as a NUL-terminated malloc'd UTF-8 string (use woort_free).
  * Returns NULL on end-of-file with nothing read. *out_len receives the byte
  * length (excluding the NUL terminator) when non-NULL. */

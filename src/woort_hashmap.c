@@ -60,22 +60,20 @@ void woort_hashmap_deinit(woort_HashMap* map)
         free(current_free_entry);
     }
 
-    if (map->m_buckets != NULL)
+    assert(map->m_buckets != NULL || map->m_bucket_count == 0);
+    for (size_t bucket_id = 0; bucket_id < map->m_bucket_count; ++bucket_id)
     {
-        for (size_t bucket_id = 0; bucket_id < map->m_bucket_count; ++bucket_id)
+        /* Free entries in each bucket. */
+        for (woort_HashMapEntry* free_entry = map->m_buckets[bucket_id];
+            free_entry != NULL;)
         {
-            /* Free entries in each bucket. */
-            for (woort_HashMapEntry* free_entry = map->m_buckets[bucket_id];
-                free_entry != NULL;)
-            {
-                woort_HashMapEntry* const current_free_entry = free_entry;
-                free_entry = free_entry->m_next;
+            woort_HashMapEntry* const current_free_entry = free_entry;
+            free_entry = free_entry->m_next;
 
-                free(current_free_entry);
-            }
+            free(current_free_entry);
         }
-        free(map->m_buckets);
     }
+    free(map->m_buckets);
 }
 
 WOORT_NODISCARD static /* OPTIONAL */
@@ -136,32 +134,30 @@ WOORT_NODISCARD static bool _woort_hashmap_rehash_to_externed(woort_HashMap* map
         return false;
     }
 
-    if (map->m_buckets != NULL)
+    assert(map->m_buckets != NULL || map->m_bucket_count == 0);
+    const size_t new_hash_mask = new_bucket_count - 1;
+    for (size_t bucket_id = 0; bucket_id < map->m_bucket_count; ++bucket_id)
     {
-        const size_t new_hash_mask = new_bucket_count - 1;
-        for (size_t bucket_id = 0; bucket_id < map->m_bucket_count; ++bucket_id)
+        /* Rehash entries in each bucket. */
+        for (woort_HashMapEntry* entry = map->m_buckets[bucket_id];
+            entry != NULL;)
         {
-            /* Rehash entries in each bucket. */
-            for (woort_HashMapEntry* entry = map->m_buckets[bucket_id];
-                entry != NULL;)
-            {
-                woort_HashMapEntry* const current_entry = entry;
-                entry = entry->m_next;
+            woort_HashMapEntry* const current_entry = entry;
+            entry = entry->m_next;
 
-                const size_t new_bucket_id =
-                    map->m_hash_fn(current_entry->m_kv_storage) & new_hash_mask;
+            const size_t new_bucket_id =
+                map->m_hash_fn(current_entry->m_kv_storage) & new_hash_mask;
 
-                current_entry->m_prev = NULL;
-                current_entry->m_next = new_bucket_list[new_bucket_id];
+            current_entry->m_prev = NULL;
+            current_entry->m_next = new_bucket_list[new_bucket_id];
 
-                if (current_entry->m_next != NULL)
-                    current_entry->m_next->m_prev = current_entry;
+            if (current_entry->m_next != NULL)
+                current_entry->m_next->m_prev = current_entry;
 
-                new_bucket_list[new_bucket_id] = current_entry;
-            }
+            new_bucket_list[new_bucket_id] = current_entry;
         }
-        free(map->m_buckets);
     }
+    free(map->m_buckets);
 
     map->m_buckets = new_bucket_list;
     map->m_bucket_count = new_bucket_count;

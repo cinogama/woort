@@ -27,23 +27,8 @@ woort_GCStruct* woort_GCStruct_new(size_t struct_size)
 WOORT_NODISCARD woort_GCStruct* woort_GCStruct_new_for_env_constant(
     woort_CodeEnv* cenv, size_t struct_size)
 {
-    woort_GCStruct* gcstruct;
-
-    do
-    {
-        gcstruct = woomem_allocate_begin(
-            sizeof(woort_GCStruct) + struct_size * sizeof(woort_Value));
-
-        if (gcstruct != NULL)
-            break;
-
-        woort_CodeEnv_unlock(cenv);
-        {
-            _woort_GCUnit_alloc_failed();
-        }
-        woort_CodeEnv_lock(cenv);
-
-    } while (true);
+    woort_GCStruct* const gcstruct = _woort_GCUnit_alloc_for_env_constant(
+        cenv, sizeof(woort_GCStruct) + struct_size * sizeof(woort_Value));
 
     gcstruct->m_gc_unit.m_proxy = &WOORT_GCSTRUCT_UNIT_PROXY;
     gcstruct->m_size = struct_size;

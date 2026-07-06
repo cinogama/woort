@@ -28,6 +28,14 @@ woort_gc_units.h
 
 void _woort_GCUnit_alloc_failed(void);
 
+/*
+ * Allocate a GC unit for use as a CodeEnv constant. Retries on OOM by
+ * temporarily unlocking the CodeEnv (to allow GC), calling
+ * _woort_GCUnit_alloc_failed(), then re-locking. Returns a non-NULL pointer.
+ */
+WOORT_NODISCARD void* _woort_GCUnit_alloc_for_env_constant(
+    woort_CodeEnv* cenv, size_t size);
+
 WOORT_NODISCARD bool woort_GCUnit_bootup(void);
 void woort_GCUnit_shutdown(void);
 

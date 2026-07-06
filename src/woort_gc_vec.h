@@ -13,7 +13,7 @@ woort_gc_vec.h
 
 extern const woort_GCUnitProxy WOORT_GCVEC_UNIT_PROXY;
 
-woort_GCVec* woort_GCVec_new(void);
+WOORT_NODISCARD woort_GCVec* woort_GCVec_new(void);
 
 void _woort_GCVec_extern(woort_GCVec* vec, size_t size);
 void woort_GCVec_resize_without_init(woort_GCVec* vec, size_t size);

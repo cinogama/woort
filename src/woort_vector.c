@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <memory.h>
+#include <assert.h>
 
 void woort_vector_init(woort_Vector* vector, size_t element_size)
 {
@@ -19,11 +20,13 @@ void woort_vector_init(woort_Vector* vector, size_t element_size)
 }
 void woort_vector_deinit(woort_Vector* vector)
 {
+    /* Safe to call even if _init failed (m_data may be NULL). */
     if (vector->m_data != NULL)
     {
         free(vector->m_data);
         vector->m_data = NULL;
     }
+    vector->m_capacity = 0;
 }
 
 WOORT_NODISCARD bool woort_vector_reserve(woort_Vector* vector, size_t new_capacity)
@@ -82,11 +85,7 @@ void woort_vector_clear(woort_Vector* vector)
 }
 WOORT_NODISCARD bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element)
 {
-    if (index >= vector->m_size)
-    {
-        WOORT_DEBUG("Index out of bounds.");
-        return false;
-    }
+    assert(index < vector->m_size);
     *out_element = vector->m_data + index * vector->m_element_size;
     return true;
 }
@@ -100,8 +99,7 @@ WOORT_NODISCARD void* woort_vector_at(woort_Vector* vector, size_t index)
 }
 WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index)
 {
-    if (index >= vector->m_size)
-        return false; /* Index out of bounds, do nothing. */
+    assert(index < vector->m_size);
 
     /* 如果不是最后一个元素，需要移动后续元素 */
     if (index < vector->m_size - 1)
@@ -118,8 +116,7 @@ WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index)
 }
 WOORT_NODISCARD bool woort_vector_insert(woort_Vector* vector, size_t place, const void* element)
 {
-    if (place > vector->m_size)
-        return false;
+    assert(place <= vector->m_size);
 
     if (!woort_vector_reserve(vector, vector->m_size + 1))
         return false;

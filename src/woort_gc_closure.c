@@ -31,22 +31,8 @@ WOORT_NODISCARD static woort_GCClosure* _woort_GCClosure_new(size_t captured_cou
 WOORT_NODISCARD static woort_GCClosure* _woort_GCClosure_new_for_env_constant(
     woort_CodeEnv* cenv)
 {
-    woort_GCClosure* gcclosure;
-    do
-    {
-        gcclosure = woomem_allocate_begin(
-            sizeof(woort_GCClosure));
-
-        if (gcclosure != NULL)
-            break;
-
-        woort_CodeEnv_unlock(cenv);
-        {
-            _woort_GCUnit_alloc_failed();
-        }
-        woort_CodeEnv_lock(cenv);
-
-    } while (true);
+    woort_GCClosure* const gcclosure = _woort_GCUnit_alloc_for_env_constant(
+        cenv, sizeof(woort_GCClosure));
 
     gcclosure->m_gc_unit.m_proxy = &WOORT_GCCLOSURE_UNIT_PROXY;
 

@@ -8,7 +8,7 @@
 typedef bool (*woort_JIT_Backend_EmitPrologue)(
     const woort_CodeEnv*,
     const woort_Bytecode**,
-    void** out_emmiter);
+    void** out_emitter);
 
 typedef bool (*woort_JIT_Backend_EmitEpilogue)(
     void*,

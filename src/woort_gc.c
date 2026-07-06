@@ -33,7 +33,7 @@ typedef struct woort_GCContext
     woort_HashMap /* struct woort_VMRuntime* */ m_not_been_marked_weak_vm;
 } woort_GCContext;
 
-static woort_GCContext s_gc_context;
+static woort_GCContext g_gc_context;
 static WOORT_THREAD_LOCAL bool WOORT_t_in_gc_external_marking_sync_guard = false;
 
 #ifndef NDEBUG
@@ -49,7 +49,7 @@ static void _woort_GC_marker_callback(void* unit)
     woort_GCUnit* gcunit = unit;
     gcunit->m_proxy->m_marker(gcunit);
 }
-static void _woort_GC_destroier_callback(void* unit)
+static void _woort_GC_destroyer_callback(void* unit)
 {
     woort_GCUnit* gcunit = unit;
     gcunit->m_proxy->m_destructor(gcunit);
@@ -108,12 +108,12 @@ static void _woort_GC_mark_vm_proxy(woort_VMRuntime* vm_to_request_gc_mark, bool
             if (skip_weak
                 && vm_to_request_gc_mark->m_is_weak)
             {
-                woort_spinlock_lock(&s_gc_context.m_not_been_marked_weak_vm_mx);
+                woort_spinlock_lock(&g_gc_context.m_not_been_marked_weak_vm_mx);
 
                 const woort_hashmap_Result insert_result = woort_hashmap_insert(
-                    &s_gc_context.m_not_been_marked_weak_vm, &vm_to_request_gc_mark, NULL);
+                    &g_gc_context.m_not_been_marked_weak_vm, &vm_to_request_gc_mark, NULL);
 
-                woort_spinlock_unlock(&s_gc_context.m_not_been_marked_weak_vm_mx);
+                woort_spinlock_unlock(&g_gc_context.m_not_been_marked_weak_vm_mx);
 
                 if (insert_result == WOORT_HASHMAP_RESULT_OK)
                 {
@@ -198,27 +198,27 @@ static bool _woort_GC_walk_through_to_sync_vm_mark(
 
 static void _woort_GC_stage_switch_sync()
 {
-    woort_rwspinlock_write_lock(&s_gc_context.m_gc_stage_switch_lock);
-    woort_rwspinlock_write_unlock(&s_gc_context.m_gc_stage_switch_lock);
+    woort_rwspinlock_write_lock(&g_gc_context.m_gc_stage_switch_lock);
+    woort_rwspinlock_write_unlock(&g_gc_context.m_gc_stage_switch_lock);
 }
 
 static void _woort_GC_start_callback(void)
 {
     _woort_GC_stage_switch_sync();
 
-    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_read_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
-            &s_gc_context.m_root_vms_to_mark,
+            &g_gc_context.m_root_vms_to_mark,
             &_woort_GC_walk_through_to_start_gc_vm_mark,
             NULL);
 
         (void)woort_hashmap_foreach(
-            &s_gc_context.m_root_vms_to_mark,
+            &g_gc_context.m_root_vms_to_mark,
             &_woort_GC_walk_through_to_sync_vm_mark,
             NULL);
     }
-    woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_read_unlock(&g_gc_context.m_root_vms_to_mark_mx);
 
     woort_CodeEnv_GC_mark_all_envs();
 }
@@ -274,25 +274,25 @@ static bool _woort_GC_walk_through_to_abort_vm(
 
 static void _woort_GC_stop_mark_callback(void)
 {
-    woort_spinlock_lock(&s_gc_context.m_not_been_marked_weak_vm_mx);
+    woort_spinlock_lock(&g_gc_context.m_not_been_marked_weak_vm_mx);
     {
         (void)woort_hashmap_foreach(
-            &s_gc_context.m_not_been_marked_weak_vm,
+            &g_gc_context.m_not_been_marked_weak_vm,
             &_woort_GC_walk_through_to_abort_vm,
             NULL);
 
-        woort_hashmap_clear(&s_gc_context.m_not_been_marked_weak_vm);
+        woort_hashmap_clear(&g_gc_context.m_not_been_marked_weak_vm);
     }
-    woort_spinlock_unlock(&s_gc_context.m_not_been_marked_weak_vm_mx);
+    woort_spinlock_unlock(&g_gc_context.m_not_been_marked_weak_vm_mx);
 
-    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_read_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
-            &s_gc_context.m_root_vms_to_mark,
+            &g_gc_context.m_root_vms_to_mark,
             &_woort_GC_walk_through_to_sync_finish_mark,
             NULL);
     }
-    woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_read_unlock(&g_gc_context.m_root_vms_to_mark_mx);
 
     _woort_GC_stage_switch_sync();
 }
@@ -310,25 +310,25 @@ WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
         &_woort_GC_start_callback,
         &_woort_GC_stop_mark_callback,
         &_woort_GC_marker_callback,
-        &_woort_GC_destroier_callback,
+        &_woort_GC_destroyer_callback,
         &_woort_GC_thread_entry,
         &_woort_GC_thread_entry))
     {
         return false;
     }
 
-    woort_rwspinlock_init(&s_gc_context.m_gc_stage_switch_lock);
-    woort_rwspinlock_init(&s_gc_context.m_root_vms_to_mark_mx);
-    woort_spinlock_init(&s_gc_context.m_not_been_marked_weak_vm_mx);
+    woort_rwspinlock_init(&g_gc_context.m_gc_stage_switch_lock);
+    woort_rwspinlock_init(&g_gc_context.m_root_vms_to_mark_mx);
+    woort_spinlock_init(&g_gc_context.m_not_been_marked_weak_vm_mx);
     woort_hashmap_init(
-        &s_gc_context.m_root_vms_to_mark,
+        &g_gc_context.m_root_vms_to_mark,
         sizeof(struct woort_VMRuntime*),
         0,
         woort_util_ptr_hash,
         woort_util_ptr_equal);
 
     woort_hashmap_init(
-        &s_gc_context.m_not_been_marked_weak_vm,
+        &g_gc_context.m_not_been_marked_weak_vm,
         sizeof(struct woort_VMRuntime*),
         0,
         woort_util_ptr_hash,
@@ -426,14 +426,14 @@ static bool _woort_GC_debug_callback_vm_walk(
 
 void _woort_GC_debug_callback_all_vm(void)
 {
-    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_read_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
-            &s_gc_context.m_root_vms_to_mark,
+            &g_gc_context.m_root_vms_to_mark,
             &_woort_GC_debug_callback_vm_walk,
             NULL);
     }
-    woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_read_unlock(&g_gc_context.m_root_vms_to_mark_mx);
 }
 
 void woort_GC_shutdown(void)
@@ -449,35 +449,35 @@ void woort_GC_shutdown(void)
 
     for (;;)
     {
-        woort_rwspinlock_write_lock(&s_gc_context.m_root_vms_to_mark_mx);
-        const bool already_no_vm_exists = s_gc_context.m_root_vms_to_mark.m_size == 0;
+        woort_rwspinlock_write_lock(&g_gc_context.m_root_vms_to_mark_mx);
+        const bool already_no_vm_exists = g_gc_context.m_root_vms_to_mark.m_size == 0;
         {
             if (!already_no_vm_exists)
             {
                 /* 向所有存活的 VM 发送 ABORT 请求 */
                 (void)woort_hashmap_foreach(
-                    &s_gc_context.m_root_vms_to_mark,
+                    &g_gc_context.m_root_vms_to_mark,
                     &_woort_GC_shutdown_abort_vm_callback,
                     NULL);
 
                 /* 限速：每秒最多一次警告，且仅在数量变化时输出 */
                 const time_t now = time(NULL);
                 if ((last_warning_time == 0 || now != last_warning_time)
-                    && s_gc_context.m_root_vms_to_mark.m_size != last_warning_vm_count)
+                    && g_gc_context.m_root_vms_to_mark.m_size != last_warning_vm_count)
                 {
                     last_warning_time = now;
-                    last_warning_vm_count = s_gc_context.m_root_vms_to_mark.m_size;
+                    last_warning_vm_count = g_gc_context.m_root_vms_to_mark.m_size;
 
                     woort_log(
                         "WOORT: %zu VM(s) have not been closed during shutdown.\n",
-                        s_gc_context.m_root_vms_to_mark.m_size);
+                        g_gc_context.m_root_vms_to_mark.m_size);
 
                     _woort_GC_shutdown_dump_traces_context dump_ctx;
                     dump_ctx.m_remaining_quota = WOORT_GC_SHUTDOWN_TRACE_VM_QUOTA;
-                    dump_ctx.m_total_vm_count = s_gc_context.m_root_vms_to_mark.m_size;
+                    dump_ctx.m_total_vm_count = g_gc_context.m_root_vms_to_mark.m_size;
 
                     (void)woort_hashmap_foreach(
-                        &s_gc_context.m_root_vms_to_mark,
+                        &g_gc_context.m_root_vms_to_mark,
                         &_woort_GC_shutdown_dump_vm_trace_callback,
                         &dump_ctx);
 
@@ -488,7 +488,7 @@ void woort_GC_shutdown(void)
                 }
             }
         }
-        woort_rwspinlock_write_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+        woort_rwspinlock_write_unlock(&g_gc_context.m_root_vms_to_mark_mx);
 
         /* 触发一次完整的 GC 回收（标记 → 终结 → 清扫） */
         woomem_trigger_gc(false);
@@ -500,19 +500,19 @@ void woort_GC_shutdown(void)
 
     woomem_shutdown();
 
-    woort_rwspinlock_deinit(&s_gc_context.m_gc_stage_switch_lock);
-    woort_rwspinlock_deinit(&s_gc_context.m_root_vms_to_mark_mx);
-    woort_spinlock_deinit(&s_gc_context.m_not_been_marked_weak_vm_mx);
-    woort_hashmap_deinit(&s_gc_context.m_root_vms_to_mark);
-    woort_hashmap_deinit(&s_gc_context.m_not_been_marked_weak_vm);
+    woort_rwspinlock_deinit(&g_gc_context.m_gc_stage_switch_lock);
+    woort_rwspinlock_deinit(&g_gc_context.m_root_vms_to_mark_mx);
+    woort_spinlock_deinit(&g_gc_context.m_not_been_marked_weak_vm_mx);
+    woort_hashmap_deinit(&g_gc_context.m_root_vms_to_mark);
+    woort_hashmap_deinit(&g_gc_context.m_not_been_marked_weak_vm);
 }
 
 WOORT_NODISCARD bool woort_GC_register_root_vm(struct woort_VMRuntime* vmruntime)
 {
     bool result = true;
-    woort_rwspinlock_write_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_write_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
-        switch (woort_hashmap_insert(&s_gc_context.m_root_vms_to_mark, &vmruntime, NULL))
+        switch (woort_hashmap_insert(&g_gc_context.m_root_vms_to_mark, &vmruntime, NULL))
         {
         case WOORT_HASHMAP_RESULT_OK:
             break;
@@ -526,27 +526,27 @@ WOORT_NODISCARD bool woort_GC_register_root_vm(struct woort_VMRuntime* vmruntime
             abort();
         }
     }
-    woort_rwspinlock_write_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_write_unlock(&g_gc_context.m_root_vms_to_mark_mx);
     return result;
 }
 void woort_GC_unregister_root_vm(struct woort_VMRuntime* vmruntime)
 {
-    woort_rwspinlock_write_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_write_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
         if (vmruntime->m_is_weak)
         {
-            woort_spinlock_lock(&s_gc_context.m_not_been_marked_weak_vm_mx);
-            (void)woort_hashmap_remove(&s_gc_context.m_not_been_marked_weak_vm, &vmruntime);
-            woort_spinlock_unlock(&s_gc_context.m_not_been_marked_weak_vm_mx);
+            woort_spinlock_lock(&g_gc_context.m_not_been_marked_weak_vm_mx);
+            (void)woort_hashmap_remove(&g_gc_context.m_not_been_marked_weak_vm, &vmruntime);
+            woort_spinlock_unlock(&g_gc_context.m_not_been_marked_weak_vm_mx);
         }
 
-        if (!woort_hashmap_remove(&s_gc_context.m_root_vms_to_mark, &vmruntime))
+        if (!woort_hashmap_remove(&g_gc_context.m_root_vms_to_mark, &vmruntime))
         {
             WOORT_DEBUG("Unexpected status, vm %p not been registered as root vm.", vmruntime);
             abort();
         }
     }
-    woort_rwspinlock_write_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_write_unlock(&g_gc_context.m_root_vms_to_mark_mx);
 }
 
 typedef struct _woort_GC_ForeachContext
@@ -579,14 +579,14 @@ void woort_GC_foreach_root_vm(
     ctx.m_callback = callback;
     ctx.m_user_data = user_data;
 
-    woort_rwspinlock_write_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_write_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
-            &s_gc_context.m_root_vms_to_mark,
+            &g_gc_context.m_root_vms_to_mark,
             &_woort_GC_foreach_root_vm_callback_adapter,
             &ctx);
     }
-    woort_rwspinlock_write_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_write_unlock(&g_gc_context.m_root_vms_to_mark_mx);
 }
 
 void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
@@ -680,7 +680,7 @@ WOORT_NODISCARD bool woort_GC_sync_marking_lock(void)
 {
     if (WOORT_t_this_thread_vm == NULL && !WOORT_t_in_gc_external_marking_sync_guard)
     {
-        woort_rwspinlock_read_lock(&s_gc_context.m_gc_stage_switch_lock);
+        woort_rwspinlock_read_lock(&g_gc_context.m_gc_stage_switch_lock);
 
         WOORT_t_in_gc_external_marking_sync_guard = true;
         return true;
@@ -693,7 +693,7 @@ void woort_GC_sync_marking_unlock(void)
     assert(WOORT_t_this_thread_vm == NULL && WOORT_t_in_gc_external_marking_sync_guard);
 
     WOORT_t_in_gc_external_marking_sync_guard = false;
-    woort_rwspinlock_read_unlock(&s_gc_context.m_gc_stage_switch_lock);
+    woort_rwspinlock_read_unlock(&g_gc_context.m_gc_stage_switch_lock);
 }
 
 static bool _woort_GC_walk_through_to_send_suspend(
@@ -763,26 +763,26 @@ void woort_GC_suspend_all_vm_to_do_sth(
 {
     woort_VMRuntime* const last = woort_VMRuntime_swap(NULL);
 
-    woort_rwspinlock_read_lock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_read_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
-            &s_gc_context.m_root_vms_to_mark,
+            &g_gc_context.m_root_vms_to_mark,
             &_woort_GC_walk_through_to_send_suspend,
             NULL);
 
         (void)woort_hashmap_foreach(
-            &s_gc_context.m_root_vms_to_mark,
+            &g_gc_context.m_root_vms_to_mark,
             &_woort_GC_walk_through_to_sync_suspend,
             NULL);
 
         callback(user_data);
 
         (void)woort_hashmap_foreach(
-            &s_gc_context.m_root_vms_to_mark,
+            &g_gc_context.m_root_vms_to_mark,
             &_woort_GC_walk_through_to_send_resume,
             NULL);
     }
-    woort_rwspinlock_read_unlock(&s_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_read_unlock(&g_gc_context.m_root_vms_to_mark_mx);
 
     (void)woort_VMRuntime_swap(last);
 }

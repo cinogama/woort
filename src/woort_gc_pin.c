@@ -27,18 +27,18 @@ const woort_GCUnitProxy WOORT_GCPIN_UNIT_PROXY = {
     .m_marker = &_woort_GCPin_mark_callback,
 };
 
-static woort_Spinlock _woort_gcpin_chain_mx;
-static /* OPTIONAL */ woort_GCPin** _woort_gcpin_chain_head;
+static woort_Spinlock g_gcpin_chain_mx;
+static /* OPTIONAL */ woort_GCPin** g_gcpin_chain_head;
 
 void woort_GCPin_bootup(void)
 {
-    _woort_gcpin_chain_head = NULL;
-    woort_spinlock_init(&_woort_gcpin_chain_mx);
+    g_gcpin_chain_head = NULL;
+    woort_spinlock_init(&g_gcpin_chain_mx);
 }
 void woort_GCPin_shutdown(void)
 {
-    assert(_woort_gcpin_chain_head == NULL);
-    woort_spinlock_deinit(&_woort_gcpin_chain_mx);
+    assert(g_gcpin_chain_head == NULL);
+    woort_spinlock_deinit(&g_gcpin_chain_mx);
 }
 
 WOORT_NODISCARD woort_GCPin* woort_GCPin_create(size_t count)
@@ -52,18 +52,18 @@ WOORT_NODISCARD woort_GCPin* woort_GCPin_create(size_t count)
     p->m_size = count;
 
     p->m_prev = NULL;
-    woort_spinlock_lock(&_woort_gcpin_chain_mx);
+    woort_spinlock_lock(&g_gcpin_chain_mx);
     {
-        if (_woort_gcpin_chain_head == NULL)
+        if (g_gcpin_chain_head == NULL)
         {
             /* No chain yet. */
-            _woort_gcpin_chain_head =
+            g_gcpin_chain_head =
                 woort_GCUnit_alloc_delay_init(sizeof(woort_GCPin*));
 
-            *_woort_gcpin_chain_head = NULL;
+            *g_gcpin_chain_head = NULL;
 
             woomem_allocate_end_as_root(
-                _woort_gcpin_chain_head,
+                g_gcpin_chain_head,
                 WOOMEM_ATTRIB_NEED_SWEEP | WOOMEM_ATTRIB_AUTO_MARK);
 
             p->m_next = NULL;
@@ -71,15 +71,15 @@ WOORT_NODISCARD woort_GCPin* woort_GCPin_create(size_t count)
         else
         {
             woort_GC_init_write_barrier_gcunit(
-                (void**)&p->m_next, *_woort_gcpin_chain_head);
+                (void**)&p->m_next, *g_gcpin_chain_head);
 
             woort_GC_init_write_barrier_gcunit(
                 (void**)&p->m_next->m_prev, p);
         }
         woort_GC_mixed_write_barrier_gcunit(
-            (void**)_woort_gcpin_chain_head, p);
+            (void**)g_gcpin_chain_head, p);
     }
-    woort_spinlock_unlock(&_woort_gcpin_chain_mx);
+    woort_spinlock_unlock(&g_gcpin_chain_mx);
 
     woort_GCUnit_init_delay_alloc(AM, p);
 
@@ -91,11 +91,11 @@ void woort_GCPin_destroy(woort_GCPin* pin)
 
     assert(pin != NULL);
     assert(pin->m_gc_unit.m_proxy == &WOORT_GCPIN_UNIT_PROXY);
-    assert(_woort_gcpin_chain_head != NULL);
+    assert(g_gcpin_chain_head != NULL);
 
     woort_GC_delete_barrier_gcunit(pin);
 
-    woort_spinlock_lock(&_woort_gcpin_chain_mx);
+    woort_spinlock_lock(&g_gcpin_chain_mx);
     {
         if (pin->m_prev != NULL)
         {
@@ -104,18 +104,18 @@ void woort_GCPin_destroy(woort_GCPin* pin)
         }
         else
         {
-            assert(*_woort_gcpin_chain_head == pin);
+            assert(*g_gcpin_chain_head == pin);
 
             if (pin->m_next == NULL)
             {
                 /* No pin in chain. */
-                woomem_remove_from_root_set(_woort_gcpin_chain_head);
-                _woort_gcpin_chain_head = NULL;
+                woomem_remove_from_root_set(g_gcpin_chain_head);
+                g_gcpin_chain_head = NULL;
             }
             else
             {
                 woort_GC_mixed_write_barrier_gcunit(
-                    (void**)_woort_gcpin_chain_head, pin->m_next);
+                    (void**)g_gcpin_chain_head, pin->m_next);
             }
         }
 
@@ -125,7 +125,7 @@ void woort_GCPin_destroy(woort_GCPin* pin)
                 (void**)&pin->m_next->m_prev, pin->m_prev);
         }
     }
-    woort_spinlock_unlock(&_woort_gcpin_chain_mx);
+    woort_spinlock_unlock(&g_gcpin_chain_mx);
 }
 void woort_GCPin_set_internal(woort_GCPin* pin, size_t idx, const woort_Value* val)
 {

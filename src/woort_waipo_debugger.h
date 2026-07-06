@@ -1,7 +1,7 @@
 #pragma once
 
 /*
-woort_waipo_debugger_cmd.h
+woort_waipo_debugger.h
 */
 
 #include "woort_hashmap.h"

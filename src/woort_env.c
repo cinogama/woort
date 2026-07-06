@@ -307,12 +307,12 @@ void woort_free(/* OPTIONAL */ void* buf)
 
 #   define WOORT_CONIN_CHUNK_WCHARS 256
 
-static char*  s_conin_u8buf  = NULL;   /* pending UTF-8 bytes   */
-static size_t s_conin_u8cap  = 0;      /* allocated bytes       */
-static size_t s_conin_u8len  = 0;      /* valid bytes           */
-static size_t s_conin_u8pos  = 0;      /* next byte to serve    */
-static int    s_conin_ungot  = EOF;    /* 1-deep ungetc slot    */
-static int    s_conin_is_console = -1; /* lazy: -1 unknown, 0/1 */
+static char*  g_conin_u8buf  = NULL;   /* pending UTF-8 bytes   */
+static size_t g_conin_u8cap  = 0;      /* allocated bytes       */
+static size_t g_conin_u8len  = 0;      /* valid bytes           */
+static size_t g_conin_u8pos  = 0;      /* next byte to serve    */
+static int    g_conin_ungot  = EOF;    /* 1-deep ungetc slot    */
+static int    g_conin_is_console = -1; /* lazy: -1 unknown, 0/1 */
 
 static int woort_conin_is_console_handle(void)
 {
@@ -354,31 +354,31 @@ static int woort_conin_refill(void)
         return 0; /* out of memory -> EOF-ish */
 
     /* Drop already-consumed prefix (compact in place). */
-    if (s_conin_u8pos > 0)
+    if (g_conin_u8pos > 0)
     {
-        if (s_conin_u8len > s_conin_u8pos)
-            memmove(s_conin_u8buf, s_conin_u8buf + s_conin_u8pos,
-                    s_conin_u8len - s_conin_u8pos);
-        s_conin_u8len -= s_conin_u8pos;
-        s_conin_u8pos = 0;
+        if (g_conin_u8len > g_conin_u8pos)
+            memmove(g_conin_u8buf, g_conin_u8buf + g_conin_u8pos,
+                    g_conin_u8len - g_conin_u8pos);
+        g_conin_u8len -= g_conin_u8pos;
+        g_conin_u8pos = 0;
     }
 
     /* Ensure capacity for the new bytes plus a NUL. */
-    if (s_conin_u8cap < s_conin_u8len + u8len + 1)
+    if (g_conin_u8cap < g_conin_u8len + u8len + 1)
     {
-        size_t newcap = (s_conin_u8len + u8len + 1) * 2;
-        char*  nb = (char*)realloc(s_conin_u8buf, newcap);
+        size_t newcap = (g_conin_u8len + u8len + 1) * 2;
+        char*  nb = (char*)realloc(g_conin_u8buf, newcap);
         if (nb == NULL)
         {
             free(u8);
             return 0;
         }
-        s_conin_u8buf = nb;
-        s_conin_u8cap = newcap;
+        g_conin_u8buf = nb;
+        g_conin_u8cap = newcap;
     }
 
-    memcpy(s_conin_u8buf + s_conin_u8len, u8, u8len);
-    s_conin_u8len += u8len;
+    memcpy(g_conin_u8buf + g_conin_u8len, u8, u8len);
+    g_conin_u8len += u8len;
     free(u8);
     return 1;
 }
@@ -388,13 +388,13 @@ static int woort_conin_refill(void)
  * (no leaked buffer, no leftover bytes, console-ness re-detected). */
 static void woort_conin_reset(void)
 {
-    free(s_conin_u8buf);
-    s_conin_u8buf      = NULL;
-    s_conin_u8cap      = 0;
-    s_conin_u8len      = 0;
-    s_conin_u8pos      = 0;
-    s_conin_ungot      = EOF;
-    s_conin_is_console = -1;  /* re-detect on next use */
+    free(g_conin_u8buf);
+    g_conin_u8buf      = NULL;
+    g_conin_u8cap      = 0;
+    g_conin_u8len      = 0;
+    g_conin_u8pos      = 0;
+    g_conin_ungot      = EOF;
+    g_conin_is_console = -1;  /* re-detect on next use */
 }
 
 #endif /* WOORT_PLATFORM_OS_WINDOWS */
@@ -402,24 +402,24 @@ static void woort_conin_reset(void)
 int woort_conin_getc(void)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
-    if (s_conin_ungot != EOF)
+    if (g_conin_ungot != EOF)
     {
-        int c = s_conin_ungot;
-        s_conin_ungot = EOF;
+        int c = g_conin_ungot;
+        g_conin_ungot = EOF;
         return c;
     }
 
-    if (s_conin_is_console < 0)
-        s_conin_is_console = woort_conin_is_console_handle();
+    if (g_conin_is_console < 0)
+        g_conin_is_console = woort_conin_is_console_handle();
 
-    if (s_conin_is_console)
+    if (g_conin_is_console)
     {
-        if (s_conin_u8pos >= s_conin_u8len)
+        if (g_conin_u8pos >= g_conin_u8len)
         {
             if (!woort_conin_refill())
                 return EOF;
         }
-        return (unsigned char)s_conin_u8buf[s_conin_u8pos++];
+        return (unsigned char)g_conin_u8buf[g_conin_u8pos++];
     }
     /* redirected stdin (pipe/file): byte passthrough (already UTF-8) */
 #endif
@@ -432,12 +432,12 @@ int woort_conin_ungetc(int ch)
         return EOF;
 
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
-    if (s_conin_is_console < 0)
-        s_conin_is_console = woort_conin_is_console_handle();
+    if (g_conin_is_console < 0)
+        g_conin_is_console = woort_conin_is_console_handle();
 
-    if (s_conin_is_console)
+    if (g_conin_is_console)
     {
-        s_conin_ungot = ch;
+        g_conin_ungot = ch;
         return ch;
     }
 #endif
@@ -552,11 +552,11 @@ bool woort_stdin_isatty(void)
 
 #   define WOORT_RAW_CHUNK_WCHARS 256
 
-static char*  s_raw_u8buf      = NULL;  /* pending UTF-8 bytes         */
-static size_t s_raw_u8cap      = 0;     /* allocated bytes             */
-static size_t s_raw_u8len      = 0;     /* valid bytes                 */
-static size_t s_raw_u8pos      = 0;     /* next byte to serve          */
-static int    s_raw_is_console = -1;    /* lazy: -1 unknown, 0/1       */
+static char*  g_raw_u8buf      = NULL;  /* pending UTF-8 bytes         */
+static size_t g_raw_u8cap      = 0;     /* allocated bytes             */
+static size_t g_raw_u8len      = 0;     /* valid bytes                 */
+static size_t g_raw_u8pos      = 0;     /* next byte to serve          */
+static int    g_raw_is_console = -1;    /* lazy: -1 unknown, 0/1       */
 
 static int woort_raw_is_console_handle(void)
 {
@@ -597,81 +597,81 @@ static int woort_raw_refill(void)
         return 0; /* out of memory -> EOF-ish */
 
     /* Drop already-consumed prefix (compact in place). */
-    if (s_raw_u8pos > 0)
+    if (g_raw_u8pos > 0)
     {
-        if (s_raw_u8len > s_raw_u8pos)
-            memmove(s_raw_u8buf, s_raw_u8buf + s_raw_u8pos,
-                    s_raw_u8len - s_raw_u8pos);
-        s_raw_u8len -= s_raw_u8pos;
-        s_raw_u8pos = 0;
+        if (g_raw_u8len > g_raw_u8pos)
+            memmove(g_raw_u8buf, g_raw_u8buf + g_raw_u8pos,
+                    g_raw_u8len - g_raw_u8pos);
+        g_raw_u8len -= g_raw_u8pos;
+        g_raw_u8pos = 0;
     }
 
     /* Ensure capacity for the new bytes plus a NUL. */
-    if (s_raw_u8cap < s_raw_u8len + u8len + 1)
+    if (g_raw_u8cap < g_raw_u8len + u8len + 1)
     {
-        size_t newcap = (s_raw_u8len + u8len + 1) * 2;
-        char*  nb = (char*)realloc(s_raw_u8buf, newcap);
+        size_t newcap = (g_raw_u8len + u8len + 1) * 2;
+        char*  nb = (char*)realloc(g_raw_u8buf, newcap);
         if (nb == NULL)
         {
             free(u8);
             return 0;
         }
-        s_raw_u8buf = nb;
-        s_raw_u8cap = newcap;
+        g_raw_u8buf = nb;
+        g_raw_u8cap = newcap;
     }
 
-    memcpy(s_raw_u8buf + s_raw_u8len, u8, u8len);
-    s_raw_u8len += u8len;
+    memcpy(g_raw_u8buf + g_raw_u8len, u8, u8len);
+    g_raw_u8len += u8len;
     free(u8);
     return 1;
 }
 
 static void woort_raw_reset(void)
 {
-    free(s_raw_u8buf);
-    s_raw_u8buf      = NULL;
-    s_raw_u8cap      = 0;
-    s_raw_u8len      = 0;
-    s_raw_u8pos      = 0;
-    s_raw_is_console = -1;  /* re-detect on next use */
+    free(g_raw_u8buf);
+    g_raw_u8buf      = NULL;
+    g_raw_u8cap      = 0;
+    g_raw_u8len      = 0;
+    g_raw_u8pos      = 0;
+    g_raw_is_console = -1;  /* re-detect on next use */
 }
 
 #endif /* WOORT_PLATFORM_OS_WINDOWS */
 
 /* 1-deep pushback slot shared by both backends. */
-static int s_raw_ungot = EOF;
+static int g_raw_ungot = EOF;
 
 int woort_console_getc(void)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
-    if (s_raw_ungot != EOF)
+    if (g_raw_ungot != EOF)
     {
-        int c = s_raw_ungot;
-        s_raw_ungot = EOF;
+        int c = g_raw_ungot;
+        g_raw_ungot = EOF;
         return c;
     }
 
-    if (s_raw_is_console < 0)
-        s_raw_is_console = woort_raw_is_console_handle();
+    if (g_raw_is_console < 0)
+        g_raw_is_console = woort_raw_is_console_handle();
 
-    if (s_raw_is_console)
+    if (g_raw_is_console)
     {
-        if (s_raw_u8pos >= s_raw_u8len)
+        if (g_raw_u8pos >= g_raw_u8len)
         {
             if (!woort_raw_refill())
                 return EOF;
         }
-        return (unsigned char)s_raw_u8buf[s_raw_u8pos++];
+        return (unsigned char)g_raw_u8buf[g_raw_u8pos++];
     }
     /* redirected stdin (pipe/file): byte passthrough (already UTF-8) */
     return getchar();
 #else
     /* POSIX: read(2) directly, NOT stdio, so termios raw mode is safe and
      * we never entangle with the libc stdin buffer. */
-    if (s_raw_ungot != EOF)
+    if (g_raw_ungot != EOF)
     {
-        int c = s_raw_ungot;
-        s_raw_ungot = EOF;
+        int c = g_raw_ungot;
+        g_raw_ungot = EOF;
         return c;
     }
 
@@ -698,18 +698,18 @@ int woort_console_ungetc(int ch)
         return EOF;
 
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
-    if (s_raw_is_console < 0)
-        s_raw_is_console = woort_raw_is_console_handle();
+    if (g_raw_is_console < 0)
+        g_raw_is_console = woort_raw_is_console_handle();
 
-    if (s_raw_is_console)
+    if (g_raw_is_console)
     {
-        s_raw_ungot = ch;
+        g_raw_ungot = ch;
         return ch;
     }
     return ungetc(ch, stdin);
 #else
     /* 1-deep pushback over read(2). */
-    s_raw_ungot = ch;
+    g_raw_ungot = ch;
     return ch;
 #endif
 }

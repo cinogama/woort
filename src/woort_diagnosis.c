@@ -14,7 +14,7 @@
 #include <signal.h>
 
 static woort_AtomicPtr /* OPTIONAL woort_PanicHandlerFunction */
-_woort_panic_handler_callback = NULL;
+g_panic_handler_callback = NULL;
 
 WOORT_NODISCARD static bool _woort_diagnosis_str_equal(
     const char* a, const char* b)
@@ -72,7 +72,7 @@ WOORT_NODISCARD bool woort_raise_panic_v(
 
     /* OPTIONAL */ woort_PanicHandlerFunction handler =
         (woort_PanicHandlerFunction)woort_atomic_load_explicit(
-            &_woort_panic_handler_callback,
+            &g_panic_handler_callback,
             WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
 
     bool vm_has_been_aborted = true;
@@ -302,7 +302,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_PanicHandlerFunction woort_set_panic_callba
 {
     return (woort_PanicHandlerFunction)
         woort_atomic_exchange_explicit(
-            &_woort_panic_handler_callback,
+            &g_panic_handler_callback,
             callback,
             WOORT_ATOMIC_MEMORY_ORDER_ACQ_REL);
 }

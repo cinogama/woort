@@ -22,7 +22,7 @@ struct woort_IRCompiler
     uint32_t m_constant_alloc_count;
     uint32_t m_static_storage_alloc_count;
 
-    woort_Vector /* woort_Bytecode */ m_commited_codes;
+    woort_Vector /* woort_Bytecode */ m_committed_codes;
 
     /* 源码路径字符串池（intern 去重） */
     woort_StringPool m_string_pool;

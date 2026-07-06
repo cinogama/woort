@@ -62,7 +62,7 @@ struct woort_JIT_Asmjit_LoggingErrorHandler : public ErrorHandler
     }
 };
 
-struct woort_JIT_Asmjit_arm64_Emmiter
+struct woort_JIT_Asmjit_arm64_emitter
 {
     Compiler* c;
     const woort_CodeEnv* cenv;
@@ -109,12 +109,12 @@ struct woort_JIT_Asmjit_arm64_Emmiter
 
     unordered_map<const woort_Bytecode*, Label> m_opcode_label;
 
-    woort_JIT_Asmjit_arm64_Emmiter(const woort_JIT_Asmjit_arm64_Emmiter&) = delete;
-    woort_JIT_Asmjit_arm64_Emmiter(woort_JIT_Asmjit_arm64_Emmiter&&) = delete;
-    woort_JIT_Asmjit_arm64_Emmiter& operator =(const woort_JIT_Asmjit_arm64_Emmiter&) = delete;
-    woort_JIT_Asmjit_arm64_Emmiter& operator =(woort_JIT_Asmjit_arm64_Emmiter&&) = delete;
+    woort_JIT_Asmjit_arm64_emitter(const woort_JIT_Asmjit_arm64_emitter&) = delete;
+    woort_JIT_Asmjit_arm64_emitter(woort_JIT_Asmjit_arm64_emitter&&) = delete;
+    woort_JIT_Asmjit_arm64_emitter& operator =(const woort_JIT_Asmjit_arm64_emitter&) = delete;
+    woort_JIT_Asmjit_arm64_emitter& operator =(woort_JIT_Asmjit_arm64_emitter&&) = delete;
 
-    woort_JIT_Asmjit_arm64_Emmiter(const woort_CodeEnv* cenv_, const woort_Bytecode** ip) noexcept
+    woort_JIT_Asmjit_arm64_emitter(const woort_CodeEnv* cenv_, const woort_Bytecode** ip) noexcept
         : c(nullptr)
         , cenv(cenv_)
         , m_cenv_codes(woort_JIT_CodeEnv_codes(cenv_))
@@ -160,7 +160,7 @@ struct woort_JIT_Asmjit_arm64_Emmiter
         m_func_node->set_arg(1, m_sb);
         m_func_node->set_arg(2, m_sp);
     }
-    ~woort_JIT_Asmjit_arm64_Emmiter() noexcept
+    ~woort_JIT_Asmjit_arm64_emitter() noexcept
     {
         if (c != nullptr)
             delete c;
@@ -516,10 +516,10 @@ struct woort_JIT_Asmjit_arm64_Emmiter
 bool woort_JIT_Backend_arm64_prologue(
     const woort_CodeEnv* cenv,
     const woort_Bytecode** ip,
-    void** out_emmiter)
+    void** out_emitter)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em =
-        new (nothrow) woort_JIT_Asmjit_arm64_Emmiter(cenv, ip);
+    woort_JIT_Asmjit_arm64_emitter* const em =
+        new (nothrow) woort_JIT_Asmjit_arm64_emitter(cenv, ip);
 
     if (em == nullptr)
         return false;
@@ -564,16 +564,16 @@ bool woort_JIT_Backend_arm64_prologue(
         return false;
     }
 
-    *out_emmiter = em;
+    *out_emitter = em;
     return true;
 }
 
 bool woort_JIT_Backend_arm64_epilogue(
-    void* emmiter,
+    void* emitter,
     woort_JitFunction* out_code)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em =
-        static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em =
+        static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     assert(em != nullptr);
 
@@ -730,10 +730,10 @@ bool woort_JIT_Backend_arm64_epilogue(
 }
 
 bool woort_JIT_Backend_arm64_pre_dispatch(
-    void* emmiter)
+    void* emitter)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em =
-        static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em =
+        static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const auto it = em->m_opcode_label.find(*em->m_ip);
     if (it != em->m_opcode_label.end())
@@ -743,10 +743,10 @@ bool woort_JIT_Backend_arm64_pre_dispatch(
 }
 
 bool woort_JIT_Backend_arm64_post_dispatch(
-    void* emmiter)
+    void* emitter)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em =
-        static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em =
+        static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     if (!em->is_okay())
     {
@@ -773,14 +773,14 @@ void woort_JIT_Backend_arm64_dropper(
 /* 指令派发接口                                                               */
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_NOP(void* emmiter)
+void woort_JIT_Backend_arm64_NOP(void* emitter)
 {
-    (void)emmiter;
+    (void)emitter;
 }
 
-void woort_JIT_Backend_arm64_LOAD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Global src)
+void woort_JIT_Backend_arm64_LOAD(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Global src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
 
@@ -796,9 +796,9 @@ void woort_JIT_Backend_arm64_LOAD(void* emmiter, woort_Opcode_Stack dst, woort_O
     }
 }
 
-void woort_JIT_Backend_arm64_STORE(void* emmiter, woort_Opcode_Global dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STORE(void* emitter, woort_Opcode_Global dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     woort_Value* const dst_addr =
         const_cast<woort_Value*>(&em->m_cenv_static_storage[dst]);
@@ -831,9 +831,9 @@ void woort_JIT_Backend_arm64_STORE(void* emmiter, woort_Opcode_Global dst, woort
     WOORT_JIT_CODE(bind(L_end));
 }
 
-void woort_JIT_Backend_arm64_LOADPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_LOADPVALUE(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp ptr_reg = em->load_stack_gp(src);
     const Gp val = em->c->new_gp64();
@@ -841,9 +841,9 @@ void woort_JIT_Backend_arm64_LOADPVALUE(void* emmiter, woort_Opcode_Stack dst, w
     em->store_stack(dst, val);
 }
 
-void woort_JIT_Backend_arm64_STOREPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STOREPVALUE(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp dst_ptr = em->load_stack_gp(dst);
     const Gp val = em->load_stack_gp(src);
@@ -871,9 +871,9 @@ void woort_JIT_Backend_arm64_STOREPVALUE(void* emmiter, woort_Opcode_Stack dst, 
     WOORT_JIT_CODE(bind(L_end));
 }
 
-void woort_JIT_Backend_arm64_MOV(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_MOV(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_src = em->load_stack_gp(src);
     em->store_stack(dst, reg_src);
@@ -881,9 +881,9 @@ void woort_JIT_Backend_arm64_MOV(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_PUSHRCHK(void* emmiter, woort_Opcode_Count n)
+void woort_JIT_Backend_arm64_PUSHRCHK(void* emitter, woort_Opcode_Count n)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -907,9 +907,9 @@ void woort_JIT_Backend_arm64_PUSHRCHK(void* emmiter, woort_Opcode_Count n)
     WOORT_JIT_CODE(mov(em->m_sp, new_sp));
 }
 
-void woort_JIT_Backend_arm64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_PUSHSCHK(void* emitter, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp val = em->load_stack_gp(src);
 
@@ -928,9 +928,9 @@ void woort_JIT_Backend_arm64_PUSHSCHK(void* emmiter, woort_Opcode_Stack src)
     WOORT_JIT_CODE(sub(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 }
 
-void woort_JIT_Backend_arm64_PUSHCCHK(void* emmiter, woort_Opcode_Global src)
+void woort_JIT_Backend_arm64_PUSHCCHK(void* emitter, woort_Opcode_Global src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
     const bool is_constant = (src < em->m_cenv_constant_count);
@@ -962,9 +962,9 @@ void woort_JIT_Backend_arm64_PUSHCCHK(void* emmiter, woort_Opcode_Global src)
     WOORT_JIT_CODE(sub(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 }
 
-void woort_JIT_Backend_arm64_ASSURESSZ(void* emmiter, woort_Opcode_Count n)
+void woort_JIT_Backend_arm64_ASSURESSZ(void* emitter, woort_Opcode_Count n)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -987,9 +987,9 @@ void woort_JIT_Backend_arm64_ASSURESSZ(void* emmiter, woort_Opcode_Count n)
     WOORT_JIT_CODE(bind(L_ok));
 }
 
-void woort_JIT_Backend_arm64_PUSHS(void* emmiter, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_PUSHS(void* emitter, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp val = em->load_stack_gp(src);
 
@@ -997,9 +997,9 @@ void woort_JIT_Backend_arm64_PUSHS(void* emmiter, woort_Opcode_Stack src)
     WOORT_JIT_CODE(sub(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 }
 
-void woort_JIT_Backend_arm64_PUSHC(void* emmiter, woort_Opcode_Global src)
+void woort_JIT_Backend_arm64_PUSHC(void* emitter, woort_Opcode_Global src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
     const bool is_constant = (src < em->m_cenv_constant_count);
@@ -1020,9 +1020,9 @@ void woort_JIT_Backend_arm64_PUSHC(void* emmiter, woort_Opcode_Global src)
     WOORT_JIT_CODE(sub(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 }
 
-void woort_JIT_Backend_arm64_POPR(void* emmiter, woort_Opcode_Count n)
+void woort_JIT_Backend_arm64_POPR(void* emitter, woort_Opcode_Count n)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -1034,18 +1034,18 @@ void woort_JIT_Backend_arm64_POPR(void* emmiter, woort_Opcode_Count n)
     }
 }
 
-void woort_JIT_Backend_arm64_POPS(void* emmiter, woort_Opcode_Stack dst)
+void woort_JIT_Backend_arm64_POPS(void* emitter, woort_Opcode_Stack dst)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     WOORT_JIT_CODE(add(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 
     em->store_stack(dst, ptr(em->m_sp));
 }
 
-void woort_JIT_Backend_arm64_POPC(void* emmiter, woort_Opcode_Global dst)
+void woort_JIT_Backend_arm64_POPC(void* emitter, woort_Opcode_Global dst)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     WOORT_JIT_CODE(add(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 
@@ -1083,9 +1083,9 @@ void woort_JIT_Backend_arm64_POPC(void* emmiter, woort_Opcode_Global dst)
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_ITOR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_ITOR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_src = em->load_stack_gp(src);
     const Vec xmm = em->c->new_vec_d();
@@ -1097,9 +1097,9 @@ void woort_JIT_Backend_arm64_ITOR(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_ITOS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_ITOS(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp int_val = em->load_stack_gp(src);
 
@@ -1113,9 +1113,9 @@ void woort_JIT_Backend_arm64_ITOS(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_RTOI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_RTOI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_src = em->load_stack_gp(src);
     const Vec xmm = em->c->new_vec_d();
@@ -1127,9 +1127,9 @@ void woort_JIT_Backend_arm64_RTOI(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_RTOS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_RTOS(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_src = em->load_stack_gp(src);
     const Vec xmm = em->c->new_vec_d();
@@ -1147,9 +1147,9 @@ void woort_JIT_Backend_arm64_RTOS(void* emmiter, woort_Opcode_Stack dst, woort_O
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_CASTSTO(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CASTSTO(void* emitter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     switch (target)
     {
@@ -1217,9 +1217,9 @@ void woort_JIT_Backend_arm64_CASTSTO(void* emmiter, woort_Opcode_Stack dst, woor
     }
 }
 
-void woort_JIT_Backend_arm64_CASTSFROM(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType srctype, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CASTSFROM(void* emitter, woort_Opcode_Stack dst, woort_BoxValueType srctype, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     switch (srctype)
     {
@@ -1364,9 +1364,9 @@ void woort_JIT_Backend_arm64_CASTSFROM(void* emmiter, woort_Opcode_Stack dst, wo
     }
 }
 
-void woort_JIT_Backend_arm64_CASTDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CASTDYN(void* emitter, woort_Opcode_Stack dst, woort_BoxValueType target, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp val = em->load_stack_gp(src);
 
@@ -1857,9 +1857,9 @@ void woort_JIT_Backend_arm64_CASTDYN(void* emmiter, woort_Opcode_Stack dst, woor
     WOORT_JIT_CODE(bind(L_done));
 }
 
-void woort_JIT_Backend_arm64_ASSERTDYN(void* emmiter, woort_BoxValueType target, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_ASSERTDYN(void* emitter, woort_BoxValueType target, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp val = em->load_stack_gp(src);
 
@@ -1965,18 +1965,18 @@ void woort_JIT_Backend_arm64_ASSERTDYN(void* emmiter, woort_BoxValueType target,
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_CALLNWO(void* emmiter, woort_Opcode_Global func)
+void woort_JIT_Backend_arm64_CALLNWO(void* emitter, woort_Opcode_Global func)
 {
     (void)func;
 
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     em->emit_failed_fallback(*em->m_ip);
 }
 
-void woort_JIT_Backend_arm64_CALLNFP(void* emmiter, woort_Opcode_Global func)
+void woort_JIT_Backend_arm64_CALLNFP(void* emitter, woort_Opcode_Global func)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -2057,9 +2057,9 @@ void woort_JIT_Backend_arm64_CALLNFP(void* emmiter, woort_Opcode_Global func)
     }
 }
 
-void woort_JIT_Backend_arm64_CALLNJIT(void* emmiter, woort_Opcode_Global func)
+void woort_JIT_Backend_arm64_CALLNJIT(void* emitter, woort_Opcode_Global func)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -2142,7 +2142,7 @@ void woort_JIT_Backend_arm64_CALLNJIT(void* emmiter, woort_Opcode_Global func)
 }
 
 static void woort_JIT_arm64_emit_closure_call(
-    woort_JIT_Asmjit_arm64_Emmiter* em, const Gp& target_closure)
+    woort_JIT_Asmjit_arm64_emitter* em, const Gp& target_closure)
 {
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -2335,18 +2335,18 @@ static void woort_JIT_arm64_emit_closure_call(
     }
 }
 
-void woort_JIT_Backend_arm64_CALLS(void* emmiter, woort_Opcode_Stack func)
+void woort_JIT_Backend_arm64_CALLS(void* emitter, woort_Opcode_Stack func)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp target_closure = em->load_stack_gp(func);
 
     woort_JIT_arm64_emit_closure_call(em, target_closure);
 }
 
-void woort_JIT_Backend_arm64_CALLC(void* emmiter, woort_Opcode_Global func)
+void woort_JIT_Backend_arm64_CALLC(void* emitter, woort_Opcode_Global func)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const woort_Value* const func_addr = &em->m_cenv_static_storage[func];
 
@@ -2358,16 +2358,16 @@ void woort_JIT_Backend_arm64_CALLC(void* emmiter, woort_Opcode_Global func)
     woort_JIT_arm64_emit_closure_call(em, target_closure);
 }
 
-void woort_JIT_Backend_arm64_RET(void* emmiter)
+void woort_JIT_Backend_arm64_RET(void* emitter)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     em->emit_ret();
 }
 
-void woort_JIT_Backend_arm64_RETVS(void* emmiter, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_RETVS(void* emitter, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp ret_val = em->load_stack_gp(src);
 
@@ -2376,9 +2376,9 @@ void woort_JIT_Backend_arm64_RETVS(void* emmiter, woort_Opcode_Stack src)
     em->emit_ret();
 }
 
-void woort_JIT_Backend_arm64_RETVC(void* emmiter, woort_Opcode_Global src)
+void woort_JIT_Backend_arm64_RETVC(void* emitter, woort_Opcode_Global src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
     const bool is_constant = (src < em->m_cenv_constant_count);
@@ -2410,9 +2410,9 @@ void woort_JIT_Backend_arm64_RETVC(void* emmiter, woort_Opcode_Global src)
     em->emit_ret();
 }
 
-void woort_JIT_Backend_arm64_POPRS(void* emmiter, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_POPRS(void* emitter, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -2422,9 +2422,9 @@ void woort_JIT_Backend_arm64_POPRS(void* emmiter, woort_Opcode_Stack src)
     WOORT_JIT_CODE(add(em->m_sp, em->m_sp, count, lsl(3)));
 }
 
-void woort_JIT_Backend_arm64_RESULT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+void woort_JIT_Backend_arm64_RESULT(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -2439,18 +2439,18 @@ void woort_JIT_Backend_arm64_RESULT(void* emmiter, woort_Opcode_Stack dst, woort
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_JFWD(void* emmiter, woort_Opcode_CodeAbs target)
+void woort_JIT_Backend_arm64_JFWD(void* emitter, woort_Opcode_CodeAbs target)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Label lbl = em->get_label(em->m_cenv_codes + target);
 
     WOORT_JIT_CODE(b(lbl));
 }
 
-void woort_JIT_Backend_arm64_JBCK(void* emmiter, woort_Opcode_CodeAbs target)
+void woort_JIT_Backend_arm64_JBCK(void* emitter, woort_Opcode_CodeAbs target)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Label lbl = em->get_label(em->m_cenv_codes + target);
 
@@ -2459,9 +2459,9 @@ void woort_JIT_Backend_arm64_JBCK(void* emmiter, woort_Opcode_CodeAbs target)
     WOORT_JIT_CODE(b(lbl));
 }
 
-void woort_JIT_Backend_arm64_JFWDNZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JFWDNZ(void* emitter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_cond = em->load_stack_gp(cond);
     const Label lbl = em->get_label(*em->m_ip + off);
@@ -2469,9 +2469,9 @@ void woort_JIT_Backend_arm64_JFWDNZ(void* emmiter, woort_Opcode_Stack cond, woor
     WOORT_JIT_CODE(cbnz(reg_cond, lbl));
 }
 
-void woort_JIT_Backend_arm64_JFWDZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JFWDZ(void* emitter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_cond = em->load_stack_gp(cond);
     const Label lbl = em->get_label(*em->m_ip + off);
@@ -2479,9 +2479,9 @@ void woort_JIT_Backend_arm64_JFWDZ(void* emmiter, woort_Opcode_Stack cond, woort
     WOORT_JIT_CODE(cbz(reg_cond, lbl));
 }
 
-void woort_JIT_Backend_arm64_JFWDEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JFWDEQ(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2491,9 +2491,9 @@ void woort_JIT_Backend_arm64_JFWDEQ(void* emmiter, woort_Opcode_Stack a, woort_O
     WOORT_JIT_CODE(b_eq(lbl));
 }
 
-void woort_JIT_Backend_arm64_JFWDNEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JFWDNEQ(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2503,9 +2503,9 @@ void woort_JIT_Backend_arm64_JFWDNEQ(void* emmiter, woort_Opcode_Stack a, woort_
     WOORT_JIT_CODE(b_ne(lbl));
 }
 
-void woort_JIT_Backend_arm64_JBCKNZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JBCKNZ(void* emitter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_cond = em->load_stack_gp(cond);
     const Label lbl = em->get_label(*em->m_ip - off);
@@ -2520,9 +2520,9 @@ void woort_JIT_Backend_arm64_JBCKNZ(void* emmiter, woort_Opcode_Stack cond, woor
     WOORT_JIT_CODE(bind(L_skip));
 }
 
-void woort_JIT_Backend_arm64_JBCKZ(void* emmiter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JBCKZ(void* emitter, woort_Opcode_Stack cond, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_cond = em->load_stack_gp(cond);
     const Label lbl = em->get_label(*em->m_ip - off);
@@ -2537,9 +2537,9 @@ void woort_JIT_Backend_arm64_JBCKZ(void* emmiter, woort_Opcode_Stack cond, woort
     WOORT_JIT_CODE(bind(L_skip));
 }
 
-void woort_JIT_Backend_arm64_JBCKEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JBCKEQ(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2556,9 +2556,9 @@ void woort_JIT_Backend_arm64_JBCKEQ(void* emmiter, woort_Opcode_Stack a, woort_O
     WOORT_JIT_CODE(bind(L_skip));
 }
 
-void woort_JIT_Backend_arm64_JBCKNEQ(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JBCKNEQ(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2575,9 +2575,9 @@ void woort_JIT_Backend_arm64_JBCKNEQ(void* emmiter, woort_Opcode_Stack a, woort_
     WOORT_JIT_CODE(bind(L_skip));
 }
 
-void woort_JIT_Backend_arm64_JFWDLT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JFWDLT(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2587,9 +2587,9 @@ void woort_JIT_Backend_arm64_JFWDLT(void* emmiter, woort_Opcode_Stack a, woort_O
     WOORT_JIT_CODE(b_lt(lbl));
 }
 
-void woort_JIT_Backend_arm64_JFWDGT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JFWDGT(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2599,9 +2599,9 @@ void woort_JIT_Backend_arm64_JFWDGT(void* emmiter, woort_Opcode_Stack a, woort_O
     WOORT_JIT_CODE(b_gt(lbl));
 }
 
-void woort_JIT_Backend_arm64_JFWDEL(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JFWDEL(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2611,9 +2611,9 @@ void woort_JIT_Backend_arm64_JFWDEL(void* emmiter, woort_Opcode_Stack a, woort_O
     WOORT_JIT_CODE(b_le(target));
 }
 
-void woort_JIT_Backend_arm64_JFWDEG(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JFWDEG(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2623,9 +2623,9 @@ void woort_JIT_Backend_arm64_JFWDEG(void* emmiter, woort_Opcode_Stack a, woort_O
     WOORT_JIT_CODE(b_ge(lbl));
 }
 
-void woort_JIT_Backend_arm64_JBCKLT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JBCKLT(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2642,9 +2642,9 @@ void woort_JIT_Backend_arm64_JBCKLT(void* emmiter, woort_Opcode_Stack a, woort_O
     WOORT_JIT_CODE(bind(L_skip));
 }
 
-void woort_JIT_Backend_arm64_JBCKGT(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JBCKGT(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2661,9 +2661,9 @@ void woort_JIT_Backend_arm64_JBCKGT(void* emmiter, woort_Opcode_Stack a, woort_O
     WOORT_JIT_CODE(bind(L_skip));
 }
 
-void woort_JIT_Backend_arm64_JBCKEL(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JBCKEL(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2680,9 +2680,9 @@ void woort_JIT_Backend_arm64_JBCKEL(void* emmiter, woort_Opcode_Stack a, woort_O
     WOORT_JIT_CODE(bind(L_skip));
 }
 
-void woort_JIT_Backend_arm64_JBCKEG(void* emmiter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
+void woort_JIT_Backend_arm64_JBCKEG(void* emitter, woort_Opcode_Stack a, woort_Opcode_Stack b, woort_Opcode_CodeDiff off)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -2701,9 +2701,9 @@ void woort_JIT_Backend_arm64_JBCKEG(void* emmiter, woort_Opcode_Stack a, woort_O
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_MKVEC(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+void woort_JIT_Backend_arm64_MKVEC(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -2726,9 +2726,9 @@ void woort_JIT_Backend_arm64_MKVEC(void* emmiter, woort_Opcode_Stack dst, woort_
     }
 }
 
-void woort_JIT_Backend_arm64_MKMAP(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+void woort_JIT_Backend_arm64_MKMAP(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -2751,9 +2751,9 @@ void woort_JIT_Backend_arm64_MKMAP(void* emmiter, woort_Opcode_Stack dst, woort_
     }
 }
 
-void woort_JIT_Backend_arm64_MKSTRUCT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+void woort_JIT_Backend_arm64_MKSTRUCT(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -2776,9 +2776,9 @@ void woort_JIT_Backend_arm64_MKSTRUCT(void* emmiter, woort_Opcode_Stack dst, woo
     }
 }
 
-void woort_JIT_Backend_arm64_MKUNION(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_MKUNION(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -2796,9 +2796,9 @@ void woort_JIT_Backend_arm64_MKUNION(void* emmiter, woort_Opcode_Stack dst, woor
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_MKCLOSURE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl)
+void woort_JIT_Backend_arm64_MKCLOSURE(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -2825,9 +2825,9 @@ void woort_JIT_Backend_arm64_MKCLOSURE(void* emmiter, woort_Opcode_Stack dst, wo
     }
 }
 
-void woort_JIT_Backend_arm64_BOXDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_BOXDYN(void* emitter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp val = em->load_stack_gp(src);
 
@@ -2941,9 +2941,9 @@ void woort_JIT_Backend_arm64_BOXDYN(void* emmiter, woort_Opcode_Stack dst, woort
     }
 }
 
-void woort_JIT_Backend_arm64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_UNBOXDYN(void* emitter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp val = em->load_stack_gp(src);
 
@@ -3124,9 +3124,9 @@ void woort_JIT_Backend_arm64_UNBOXDYN(void* emmiter, woort_Opcode_Stack dst, woo
     }
 }
 
-void woort_JIT_Backend_arm64_CHECKDYN(void* emmiter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CHECKDYN(void* emitter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp val = em->load_stack_gp(src);
 
@@ -3224,9 +3224,9 @@ void woort_JIT_Backend_arm64_CHECKDYN(void* emmiter, woort_Opcode_Stack dst, woo
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_PUSHBOXDYN(void* emmiter, woort_BoxValueType type, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_PUSHBOXDYN(void* emitter, woort_BoxValueType type, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -3355,9 +3355,9 @@ void woort_JIT_Backend_arm64_PUSHBOXDYN(void* emmiter, woort_BoxValueType type, 
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_ADDI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_ADDI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp result = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3367,9 +3367,9 @@ void woort_JIT_Backend_arm64_ADDI(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_SUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_SUBI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp result = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3379,9 +3379,9 @@ void woort_JIT_Backend_arm64_SUBI(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_MULI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_MULI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp result = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3391,9 +3391,9 @@ void woort_JIT_Backend_arm64_MULI(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_DIVI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_DIVI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3404,9 +3404,9 @@ void woort_JIT_Backend_arm64_DIVI(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_MODI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_MODI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3421,9 +3421,9 @@ void woort_JIT_Backend_arm64_MODI(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_NEGI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_NEGI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_src = em->load_stack_gp(src);
 
@@ -3433,9 +3433,9 @@ void woort_JIT_Backend_arm64_NEGI(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_LTI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3447,9 +3447,9 @@ void woort_JIT_Backend_arm64_LTI(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_GTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_GTI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3461,9 +3461,9 @@ void woort_JIT_Backend_arm64_GTI(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LEI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_LEI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3475,9 +3475,9 @@ void woort_JIT_Backend_arm64_LEI(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_GEI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_GEI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3489,9 +3489,9 @@ void woort_JIT_Backend_arm64_GEI(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_EQI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_EQI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3503,9 +3503,9 @@ void woort_JIT_Backend_arm64_EQI(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_NEI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_NEI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
@@ -3519,9 +3519,9 @@ void woort_JIT_Backend_arm64_NEI(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_ADDR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_ADDR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Vec vec_a = em->c->new_vec_d();
     const Vec vec_b = em->c->new_vec_d();
@@ -3532,9 +3532,9 @@ void woort_JIT_Backend_arm64_ADDR(void* emmiter, woort_Opcode_Stack dst, woort_O
     WOORT_JIT_CODE(str(vec_a, em->sb_slot(dst)));
 }
 
-void woort_JIT_Backend_arm64_SUBR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_SUBR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Vec vec_a = em->c->new_vec_d();
     const Vec vec_b = em->c->new_vec_d();
@@ -3545,9 +3545,9 @@ void woort_JIT_Backend_arm64_SUBR(void* emmiter, woort_Opcode_Stack dst, woort_O
     WOORT_JIT_CODE(str(vec_a, em->sb_slot(dst)));
 }
 
-void woort_JIT_Backend_arm64_MULR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_MULR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Vec vec_a = em->c->new_vec_d();
     const Vec vec_b = em->c->new_vec_d();
@@ -3558,9 +3558,9 @@ void woort_JIT_Backend_arm64_MULR(void* emmiter, woort_Opcode_Stack dst, woort_O
     WOORT_JIT_CODE(str(vec_a, em->sb_slot(dst)));
 }
 
-void woort_JIT_Backend_arm64_DIVR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_DIVR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Vec vec_a = em->c->new_vec_d();
     const Vec vec_b = em->c->new_vec_d();
@@ -3571,9 +3571,9 @@ void woort_JIT_Backend_arm64_DIVR(void* emmiter, woort_Opcode_Stack dst, woort_O
     WOORT_JIT_CODE(str(vec_a, em->sb_slot(dst)));
 }
 
-void woort_JIT_Backend_arm64_MODR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_MODR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Vec vec_a = em->c->new_vec_d();
     const Vec vec_b = em->c->new_vec_d();
@@ -3591,9 +3591,9 @@ void woort_JIT_Backend_arm64_MODR(void* emmiter, woort_Opcode_Stack dst, woort_O
     WOORT_JIT_CODE(str(vec_ret, em->sb_slot(dst)));
 }
 
-void woort_JIT_Backend_arm64_NEGR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_NEGR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* NEGR: dst.m_real = -src.m_real。栈槽以 64 位原始位模式存放，
      * 取负等价于翻转最高符号位（与 0x8000000000000000 异或），无需经 FP 寄存器。
@@ -3608,9 +3608,9 @@ void woort_JIT_Backend_arm64_NEGR(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_LTR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* LTR: dst.m_integer = (a.m_real < b.m_real)。fcmp 设置 NZCV；有序时 kLT 即 a<b */
     const Vec vec_a = em->c->new_vec_d();
@@ -3625,9 +3625,9 @@ void woort_JIT_Backend_arm64_LTR(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_GTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_GTR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* GTR: dst.m_integer = (a.m_real > b.m_real) */
     const Vec vec_a = em->c->new_vec_d();
@@ -3642,9 +3642,9 @@ void woort_JIT_Backend_arm64_GTR(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LER(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_LER(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* LER: dst.m_integer = (a.m_real <= b.m_real) */
     const Vec vec_a = em->c->new_vec_d();
@@ -3659,9 +3659,9 @@ void woort_JIT_Backend_arm64_LER(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_GER(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_GER(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* GER: dst.m_integer = (a.m_real >= b.m_real)。fcmp 后 kGE 即 a>=b（有序） */
     const Vec vec_a = em->c->new_vec_d();
@@ -3676,9 +3676,9 @@ void woort_JIT_Backend_arm64_GER(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_EQR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_EQR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* EQR: dst.m_integer = (a.m_real == b.m_real) */
     const Vec vec_a = em->c->new_vec_d();
@@ -3693,9 +3693,9 @@ void woort_JIT_Backend_arm64_EQR(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_NER(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_NER(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* NER: dst.m_integer = (a.m_real != b.m_real)。Woolang 静态类型保证不出现 NaN，
      * 故 kNE 与 C 的 != 语义一致。 */
@@ -3713,9 +3713,9 @@ void woort_JIT_Backend_arm64_NER(void* emmiter, woort_Opcode_Stack dst, woort_Op
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_ADDS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_ADDS(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* ADDS: dst.m_string = woort_GCString_add_string(a.m_string, b.m_string) */
     const Gp reg_a = em->load_stack_gp(a);
@@ -3732,9 +3732,9 @@ void woort_JIT_Backend_arm64_ADDS(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LTS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_LTS(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* LTS: dst.m_integer = woort_GCString_compare(a, b) < 0 */
     const Gp reg_a = em->load_stack_gp(a);
@@ -3755,9 +3755,9 @@ void woort_JIT_Backend_arm64_LTS(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_GTS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_GTS(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* GTS: dst.m_integer = woort_GCString_compare(a, b) > 0 */
     const Gp reg_a = em->load_stack_gp(a);
@@ -3778,9 +3778,9 @@ void woort_JIT_Backend_arm64_GTS(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LES(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_LES(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* LES: dst.m_integer = woort_GCString_compare(a, b) <= 0 */
     const Gp reg_a = em->load_stack_gp(a);
@@ -3801,9 +3801,9 @@ void woort_JIT_Backend_arm64_LES(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_GES(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_GES(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* GES: dst.m_integer = woort_GCString_compare(a, b) >= 0 */
     const Gp reg_a = em->load_stack_gp(a);
@@ -3824,9 +3824,9 @@ void woort_JIT_Backend_arm64_GES(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_EQS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_EQS(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* EQS: dst.m_integer = (a == b) || woort_GCString_compare(a, b) == 0
      * 不使用短路跳转，直接线性计算：ptr_eq | (compare == 0)。 */
@@ -3855,9 +3855,9 @@ void woort_JIT_Backend_arm64_EQS(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_NES(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_NES(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* NES: dst.m_integer = (a != b) && woort_GCString_compare(a, b) != 0
      * NES 是 EQS 的逻辑取反，用 && 而非 ||。线性计算：ptr_ne & (compare != 0)。 */
@@ -3886,9 +3886,9 @@ void woort_JIT_Backend_arm64_NES(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LAND(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_LAND(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* LAND: dst.m_integer = (a.m_integer != 0) && (b.m_integer != 0)
      * 线性计算两个条件的非零布尔值后按位与，避免短路跳转。 */
@@ -3909,9 +3909,9 @@ void woort_JIT_Backend_arm64_LAND(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LOR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
+void woort_JIT_Backend_arm64_LOR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* LOR: dst.m_integer = (a.m_integer != 0) || (b.m_integer != 0)
      * 线性计算两个条件的非零布尔值后按位或，避免短路跳转。 */
@@ -3932,9 +3932,9 @@ void woort_JIT_Backend_arm64_LOR(void* emmiter, woort_Opcode_Stack dst, woort_Op
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LNOT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_LNOT(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* LNOT: dst.m_integer = (src.m_integer == 0) ? 1 : 0
      * dst 为只写槽，tst + cset 取逻辑非。 */
@@ -3949,9 +3949,9 @@ void woort_JIT_Backend_arm64_LNOT(void* emmiter, woort_Opcode_Stack dst, woort_O
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_CADDI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CADDI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_dst = em->load_stack_gp(dst);
     const Gp reg_src = em->load_stack_gp(src);
@@ -3960,9 +3960,9 @@ void woort_JIT_Backend_arm64_CADDI(void* emmiter, woort_Opcode_Stack dst, woort_
     em->store_stack(dst, reg_dst);
 }
 
-void woort_JIT_Backend_arm64_CSUBI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CSUBI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_dst = em->load_stack_gp(dst);
     const Gp reg_src = em->load_stack_gp(src);
@@ -3971,9 +3971,9 @@ void woort_JIT_Backend_arm64_CSUBI(void* emmiter, woort_Opcode_Stack dst, woort_
     em->store_stack(dst, reg_dst);
 }
 
-void woort_JIT_Backend_arm64_CMULI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CMULI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp reg_dst = em->load_stack_gp(dst);
     const Gp reg_src = em->load_stack_gp(src);
@@ -3982,9 +3982,9 @@ void woort_JIT_Backend_arm64_CMULI(void* emmiter, woort_Opcode_Stack dst, woort_
     em->store_stack(dst, reg_dst);
 }
 
-void woort_JIT_Backend_arm64_CDIVI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CDIVI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp dividend = em->load_stack_gp(dst);
     const Gp reg_src = em->load_stack_gp(src);
@@ -3994,9 +3994,9 @@ void woort_JIT_Backend_arm64_CDIVI(void* emmiter, woort_Opcode_Stack dst, woort_
     em->store_stack(dst, dividend);
 }
 
-void woort_JIT_Backend_arm64_CADDR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CADDR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* CADDR: [SB + dst] += [SB + src]，dst 为读写槽 */
     const Vec vec = em->c->new_vec_d();
@@ -4008,9 +4008,9 @@ void woort_JIT_Backend_arm64_CADDR(void* emmiter, woort_Opcode_Stack dst, woort_
     WOORT_JIT_CODE(str(vec, em->sb_slot(dst)));
 }
 
-void woort_JIT_Backend_arm64_CSUBR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CSUBR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* CSUBR: [SB + dst] -= [SB + src]，dst 为读写槽 */
     const Vec vec = em->c->new_vec_d();
@@ -4022,9 +4022,9 @@ void woort_JIT_Backend_arm64_CSUBR(void* emmiter, woort_Opcode_Stack dst, woort_
     WOORT_JIT_CODE(str(vec, em->sb_slot(dst)));
 }
 
-void woort_JIT_Backend_arm64_CMULR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CMULR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* CMULR: [SB + dst] *= [SB + src]，dst 为读写槽 */
     const Vec vec = em->c->new_vec_d();
@@ -4036,9 +4036,9 @@ void woort_JIT_Backend_arm64_CMULR(void* emmiter, woort_Opcode_Stack dst, woort_
     WOORT_JIT_CODE(str(vec, em->sb_slot(dst)));
 }
 
-void woort_JIT_Backend_arm64_CDIVR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CDIVR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* CDIVR: [SB + dst] /= [SB + src]，dst 为读写槽 */
     const Vec vec = em->c->new_vec_d();
@@ -4050,9 +4050,9 @@ void woort_JIT_Backend_arm64_CDIVR(void* emmiter, woort_Opcode_Stack dst, woort_
     WOORT_JIT_CODE(str(vec, em->sb_slot(dst)));
 }
 
-void woort_JIT_Backend_arm64_CADDS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CADDS(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* CADDS: [dst].m_string = woort_GCString_add_string([dst].m_string, [src].m_string) */
     const Gp reg_dst = em->load_stack_gp(dst);
@@ -4068,9 +4068,9 @@ void woort_JIT_Backend_arm64_CADDS(void* emmiter, woort_Opcode_Stack dst, woort_
     em->store_stack(dst, reg_dst);
 }
 
-void woort_JIT_Backend_arm64_CVADDS(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CVADDS(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* CVADDS: [dst].m_string = woort_GCString_add_string([src].m_string, [dst].m_string)
      * 注意与 CADDS 的操作数顺序相反（src 在前） */
@@ -4087,9 +4087,9 @@ void woort_JIT_Backend_arm64_CVADDS(void* emmiter, woort_Opcode_Stack dst, woort
     em->store_stack(dst, reg_dst);
 }
 
-void woort_JIT_Backend_arm64_CMODI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CMODI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp dividend = em->load_stack_gp(dst);
     const Gp reg_src = em->load_stack_gp(src);
@@ -4104,9 +4104,9 @@ void woort_JIT_Backend_arm64_CMODI(void* emmiter, woort_Opcode_Stack dst, woort_
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_CMODR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CMODR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* CMODR: [SB + dst] = fmod([SB + dst], [SB + src])，dst 为读写槽 */
     const Vec vec_dst = em->c->new_vec_d();
@@ -4125,9 +4125,9 @@ void woort_JIT_Backend_arm64_CMODR(void* emmiter, woort_Opcode_Stack dst, woort_
     WOORT_JIT_CODE(str(vec_ret, em->sb_slot(dst)));
 }
 
-void woort_JIT_Backend_arm64_CLAND(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CLAND(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* CLAND: dst.m_integer = (dst.m_integer != 0) && (src.m_integer != 0)
      * dst 为读写槽，线性计算两个条件的非零布尔值后按位与，避免短路跳转。 */
@@ -4147,9 +4147,9 @@ void woort_JIT_Backend_arm64_CLAND(void* emmiter, woort_Opcode_Stack dst, woort_
     em->store_stack(dst, reg_dst);
 }
 
-void woort_JIT_Backend_arm64_CLOR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CLOR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* CLOR: dst.m_integer = (dst.m_integer != 0) || (src.m_integer != 0)
      * dst 为读写槽，线性计算两个条件的非零布尔值后按位或，避免短路跳转。 */
@@ -4169,9 +4169,9 @@ void woort_JIT_Backend_arm64_CLOR(void* emmiter, woort_Opcode_Stack dst, woort_O
     em->store_stack(dst, reg_dst);
 }
 
-void woort_JIT_Backend_arm64_CLNOT(void* emmiter, woort_Opcode_Stack dst)
+void woort_JIT_Backend_arm64_CLNOT(void* emitter, woort_Opcode_Stack dst)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     /* CLNOT: dst.m_integer = (dst.m_integer == 0) ? 1 : 0
      * dst 为读写槽，tst + cset 取逻辑非。 */
@@ -4185,9 +4185,9 @@ void woort_JIT_Backend_arm64_CLNOT(void* emmiter, woort_Opcode_Stack dst)
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_MKPVALUE(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_MKPVALUE(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4206,9 +4206,9 @@ void woort_JIT_Backend_arm64_MKPVALUE(void* emmiter, woort_Opcode_Stack dst, woo
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_LDIDVEC(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDVEC(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4243,9 +4243,9 @@ void woort_JIT_Backend_arm64_LDIDVEC(void* emmiter, woort_Opcode_Stack dst, woor
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LDIDVECX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDVECX(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4272,9 +4272,9 @@ void woort_JIT_Backend_arm64_LDIDVECX(void* emmiter, woort_Opcode_Stack dst, woo
     em->store_stack(dst, elem);
 }
 
-void woort_JIT_Backend_arm64_LDIDSTRUCT(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+void woort_JIT_Backend_arm64_LDIDSTRUCT(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4297,9 +4297,9 @@ void woort_JIT_Backend_arm64_LDIDSTRUCT(void* emmiter, woort_Opcode_Stack dst, w
     em->store_stack(dst, field);
 }
 
-void woort_JIT_Backend_arm64_LDIDSTRING(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack str, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDSTRING(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack str, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4332,9 +4332,9 @@ void woort_JIT_Backend_arm64_LDIDSTRING(void* emmiter, woort_Opcode_Stack dst, w
     WOORT_JIT_CODE(bind(L_ok));
 }
 
-void woort_JIT_Backend_arm64_LDIDDICTI(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDDICTI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4372,9 +4372,9 @@ void woort_JIT_Backend_arm64_LDIDDICTI(void* emmiter, woort_Opcode_Stack dst, wo
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LDIDDICTR(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDDICTR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4412,9 +4412,9 @@ void woort_JIT_Backend_arm64_LDIDDICTR(void* emmiter, woort_Opcode_Stack dst, wo
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LDIDDICTB(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDDICTB(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4452,9 +4452,9 @@ void woort_JIT_Backend_arm64_LDIDDICTB(void* emmiter, woort_Opcode_Stack dst, wo
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LDIDDICTX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDDICTX(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4492,9 +4492,9 @@ void woort_JIT_Backend_arm64_LDIDDICTX(void* emmiter, woort_Opcode_Stack dst, wo
     em->store_stack(dst, result);
 }
 
-void woort_JIT_Backend_arm64_LDIDDICTIX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDDICTIX(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4524,9 +4524,9 @@ void woort_JIT_Backend_arm64_LDIDDICTIX(void* emmiter, woort_Opcode_Stack dst, w
     em->store_stack(dst, elem);
 }
 
-void woort_JIT_Backend_arm64_LDIDDICTRX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDDICTRX(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4556,9 +4556,9 @@ void woort_JIT_Backend_arm64_LDIDDICTRX(void* emmiter, woort_Opcode_Stack dst, w
     em->store_stack(dst, elem);
 }
 
-void woort_JIT_Backend_arm64_LDIDDICTBX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDDICTBX(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4588,9 +4588,9 @@ void woort_JIT_Backend_arm64_LDIDDICTBX(void* emmiter, woort_Opcode_Stack dst, w
     em->store_stack(dst, elem);
 }
 
-void woort_JIT_Backend_arm64_LDIDDICTXX(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
+void woort_JIT_Backend_arm64_LDIDDICTXX(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4622,9 +4622,9 @@ void woort_JIT_Backend_arm64_LDIDDICTXX(void* emmiter, woort_Opcode_Stack dst, w
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_STIDVECI(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDVECI(void* emitter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4658,9 +4658,9 @@ void woort_JIT_Backend_arm64_STIDVECI(void* emmiter, woort_Opcode_Stack vec, woo
     invoke_node->set_arg(1, src_val);
 }
 
-void woort_JIT_Backend_arm64_STIDVECR(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDVECR(void* emitter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4694,9 +4694,9 @@ void woort_JIT_Backend_arm64_STIDVECR(void* emmiter, woort_Opcode_Stack vec, woo
     invoke_node->set_arg(1, src_val);
 }
 
-void woort_JIT_Backend_arm64_STIDVECB(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDVECB(void* emitter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4730,9 +4730,9 @@ void woort_JIT_Backend_arm64_STIDVECB(void* emmiter, woort_Opcode_Stack vec, woo
     invoke_node->set_arg(1, src_val);
 }
 
-void woort_JIT_Backend_arm64_STIDVECX(void* emmiter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDVECX(void* emitter, woort_Opcode_Stack vec, woort_Opcode_Stack idx, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4767,9 +4767,9 @@ void woort_JIT_Backend_arm64_STIDVECX(void* emmiter, woort_Opcode_Stack vec, woo
 }
 
 template <auto LookupFn, typename KeyT, auto StoreFn, typename ValT>
-static void woort_JIT_stid_dict_impl(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+static void woort_JIT_stid_dict_impl(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4804,9 +4804,9 @@ static void woort_JIT_stid_dict_impl(void* emmiter, woort_Opcode_Stack map, woor
 }
 
 template <auto LookupFn, typename KeyT, auto StoreFn, typename ValT>
-static void woort_JIT_stid_map_impl(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+static void woort_JIT_stid_map_impl(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -4832,171 +4832,171 @@ static void woort_JIT_stid_map_impl(void* emmiter, woort_Opcode_Stack map, woort
     store_node->set_arg(1, src_val);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTII(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTII(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTIR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTIR(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTIB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTIB(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTIX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTIX(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_int, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTRI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTRI(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTRR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTRR(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTRB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTRB(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTRX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTRX(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_real, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTBI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTBI(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTBR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTBR(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTBB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTBB(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTBX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTBX(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_bool, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTXI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTXI(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTXR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTXR(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTXB(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDDICTXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDDICTXX(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_dict_impl<woort_JIT_map_get_dyn, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPII(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPII(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPIR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPIR(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPIB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPIB(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPIX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPIX(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_int, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPRI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPRI(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPRR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPRR(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPRB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPRB(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPRX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPRX(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_real, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPBI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPBI(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_int, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPBR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPBR(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_real, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPBB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPBB(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_bool, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPBX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPBX(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_bool, woort_Int, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPXI(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPXI(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_int, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPXR(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPXR(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_real, woort_BoxedValue>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPXB(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPXB(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_bool, woort_Int>(emitter, map, key, src);
 }
 
-void woort_JIT_Backend_arm64_STIDMAPXX(void* emmiter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDMAPXX(void* emitter, woort_Opcode_Stack map, woort_Opcode_Stack key, woort_Opcode_Stack src)
 {
-    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emmiter, map, key, src);
+    woort_JIT_stid_map_impl<woort_JIT_map_get_or_create_dyn, woort_BoxedValue, woort_JIT_store_dynbox_dyn, woort_BoxedValue>(emitter, map, key, src);
 }
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_STIDSTRUCT(void* emitter, woort_Opcode_Stack obj, woort_Opcode_Count idx, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -5039,9 +5039,9 @@ void woort_JIT_Backend_arm64_STIDSTRUCT(void* emmiter, woort_Opcode_Stack obj, w
     WOORT_JIT_CODE(bind(L_end));
 }
 
-void woort_JIT_Backend_arm64_UNPACKVEC(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec)
+void woort_JIT_Backend_arm64_UNPACKVEC(void* emitter, woort_Opcode_Count n, woort_Opcode_Stack vec)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
     static_assert(sizeof(woort_DynBox) == 8, "");
@@ -5102,9 +5102,9 @@ void woort_JIT_Backend_arm64_UNPACKVEC(void* emmiter, woort_Opcode_Count n, woor
     }
 }
 
-void woort_JIT_Backend_arm64_UNPACKVECX(void* emmiter, woort_Opcode_Count n, woort_Opcode_Stack vec)
+void woort_JIT_Backend_arm64_UNPACKVECX(void* emitter, woort_Opcode_Count n, woort_Opcode_Stack vec)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
     static_assert(sizeof(woort_DynBox) == 8, "");
@@ -5156,9 +5156,9 @@ void woort_JIT_Backend_arm64_UNPACKVECX(void* emmiter, woort_Opcode_Count n, woo
     }
 }
 
-void woort_JIT_Backend_arm64_UNPACKVECALL(void* emmiter, woort_Opcode_Stack count_dst, woort_Opcode_Count n, woort_Opcode_Stack vec)
+void woort_JIT_Backend_arm64_UNPACKVECALL(void* emitter, woort_Opcode_Stack count_dst, woort_Opcode_Count n, woort_Opcode_Stack vec)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
     static_assert(sizeof(woort_DynBox) == 8, "");
@@ -5254,9 +5254,9 @@ void woort_JIT_Backend_arm64_UNPACKVECALL(void* emmiter, woort_Opcode_Stack coun
     em->store_stack(count_dst, vec_len);
 }
 
-void woort_JIT_Backend_arm64_UNPACKVECXALL(void* emmiter, woort_Opcode_Stack count_dst, woort_Opcode_Count n, woort_Opcode_Stack vec)
+void woort_JIT_Backend_arm64_UNPACKVECXALL(void* emitter, woort_Opcode_Stack count_dst, woort_Opcode_Count n, woort_Opcode_Stack vec)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
     static_assert(sizeof(woort_DynBox) == 8, "");
@@ -5317,9 +5317,9 @@ void woort_JIT_Backend_arm64_UNPACKVECXALL(void* emmiter, woort_Opcode_Stack cou
     em->store_stack(count_dst, vec_len);
 }
 
-void woort_JIT_Backend_arm64_PUSHIDSTRUCT(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+void woort_JIT_Backend_arm64_PUSHIDSTRUCT(void* emitter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -5354,9 +5354,9 @@ void woort_JIT_Backend_arm64_PUSHIDSTRUCT(void* emmiter, woort_Opcode_Count idx,
     WOORT_JIT_CODE(sub(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 }
 
-void woort_JIT_Backend_arm64_PUSHIDSTBOXI(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+void woort_JIT_Backend_arm64_PUSHIDSTBOXI(void* emitter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -5416,9 +5416,9 @@ void woort_JIT_Backend_arm64_PUSHIDSTBOXI(void* emmiter, woort_Opcode_Count idx,
     WOORT_JIT_CODE(sub(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 }
 
-void woort_JIT_Backend_arm64_PUSHIDSTBOXR(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+void woort_JIT_Backend_arm64_PUSHIDSTBOXR(void* emitter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -5509,9 +5509,9 @@ void woort_JIT_Backend_arm64_PUSHIDSTBOXR(void* emmiter, woort_Opcode_Count idx,
     WOORT_JIT_CODE(sub(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 }
 
-void woort_JIT_Backend_arm64_PUSHIDSTBOXB(void* emmiter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+void woort_JIT_Backend_arm64_PUSHIDSTBOXB(void* emitter, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
 
@@ -5550,9 +5550,9 @@ void woort_JIT_Backend_arm64_PUSHIDSTBOXB(void* emmiter, woort_Opcode_Count idx,
     WOORT_JIT_CODE(sub(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 }
 
-void woort_JIT_Backend_arm64_PACKARG(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Count skip)
+void woort_JIT_Backend_arm64_PACKARG(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count skip)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     static_assert(sizeof(woort_Value) == 8, "");
     static_assert(sizeof(woort_DynBox) == 8, "");
@@ -5606,9 +5606,9 @@ void woort_JIT_Backend_arm64_PACKARG(void* emmiter, woort_Opcode_Stack dst, woor
 
 /* -------------------------------------------------------------------------- */
 
-void woort_JIT_Backend_arm64_ASTORE(void* emmiter, woort_Opcode_Global storage, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_ASTORE(void* emitter, woort_Opcode_Global storage, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const woort_Value* const storage_addr =
         &em->m_cenv_static_storage[storage];
@@ -5620,9 +5620,9 @@ void woort_JIT_Backend_arm64_ASTORE(void* emmiter, woort_Opcode_Global storage, 
     WOORT_JIT_CODE(str(val, ptr(storage_ptr)));
 }
 
-void woort_JIT_Backend_arm64_ALOAD(void* emmiter, woort_Opcode_Stack dst, woort_Opcode_Global storage)
+void woort_JIT_Backend_arm64_ALOAD(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Global storage)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const woort_Value* const storage_addr =
         &em->m_cenv_static_storage[storage];
@@ -5633,9 +5633,9 @@ void woort_JIT_Backend_arm64_ALOAD(void* emmiter, woort_Opcode_Stack dst, woort_
     em->store_stack(dst, ptr(storage_ptr));
 }
 
-void woort_JIT_Backend_arm64_CAS(void* emmiter, woort_Opcode_Global storage, woort_Opcode_Stack desired, woort_Opcode_Stack expected)
+void woort_JIT_Backend_arm64_CAS(void* emitter, woort_Opcode_Global storage, woort_Opcode_Stack desired, woort_Opcode_Stack expected)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const woort_Value* const storage_addr =
         &em->m_cenv_static_storage[storage];
@@ -5652,9 +5652,9 @@ void woort_JIT_Backend_arm64_CAS(void* emmiter, woort_Opcode_Global storage, woo
     em->store_stack(expected, acc);
 }
 
-void woort_JIT_Backend_arm64_JIFINITED(void* emmiter, woort_Opcode_Global flag, woort_Opcode_CodeAbs target)
+void woort_JIT_Backend_arm64_JIFINITED(void* emitter, woort_Opcode_Global flag, woort_Opcode_CodeAbs target)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const woort_Value* const flag_addr =
         &em->m_cenv_static_storage[flag];
@@ -5697,34 +5697,34 @@ void woort_JIT_Backend_arm64_JIFINITED(void* emmiter, woort_Opcode_Global flag, 
     }
 }
 
-void woort_JIT_Backend_arm64_DEBUGTRAP(void* emmiter)
+void woort_JIT_Backend_arm64_DEBUGTRAP(void* emitter)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     em->emit_failed_fallback(*em->m_ip);
 }
 
-void woort_JIT_Backend_arm64_PANICS(void* emmiter, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_PANICS(void* emitter, woort_Opcode_Stack src)
 {
     (void)src;
 
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     em->emit_failed_fallback(*em->m_ip);
 }
 
-void woort_JIT_Backend_arm64_PANICC(void* emmiter, woort_Opcode_Global src)
+void woort_JIT_Backend_arm64_PANICC(void* emitter, woort_Opcode_Global src)
 {
     (void)src;
 
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     em->emit_failed_fallback(*em->m_ip);
 }
 
-void woort_JIT_Backend_arm64_CHKDIVIL(void* emmiter, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CHKDIVIL(void* emitter, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp val = em->load_stack_gp(src);
 
@@ -5740,9 +5740,9 @@ void woort_JIT_Backend_arm64_CHKDIVIL(void* emmiter, woort_Opcode_Stack src)
     WOORT_JIT_CODE(bind(L_ok));
 }
 
-void woort_JIT_Backend_arm64_CHKDIVIR(void* emmiter, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CHKDIVIR(void* emitter, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp val = em->load_stack_gp(src);
 
@@ -5764,9 +5764,9 @@ void woort_JIT_Backend_arm64_CHKDIVIR(void* emmiter, woort_Opcode_Stack src)
     WOORT_JIT_CODE(bind(L_ok));
 }
 
-void woort_JIT_Backend_arm64_CHKDIVIRZ(void* emmiter, woort_Opcode_Stack src)
+void woort_JIT_Backend_arm64_CHKDIVIRZ(void* emitter, woort_Opcode_Stack src)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp val = em->load_stack_gp(src);
 
@@ -5779,9 +5779,9 @@ void woort_JIT_Backend_arm64_CHKDIVIRZ(void* emmiter, woort_Opcode_Stack src)
     WOORT_JIT_CODE(bind(L_ok));
 }
 
-void woort_JIT_Backend_arm64_CHKDIVILR(void* emmiter, woort_Opcode_Stack divisor, woort_Opcode_Stack dividend)
+void woort_JIT_Backend_arm64_CHKDIVILR(void* emitter, woort_Opcode_Stack divisor, woort_Opcode_Stack dividend)
 {
-    woort_JIT_Asmjit_arm64_Emmiter* const em = static_cast<woort_JIT_Asmjit_arm64_Emmiter*>(emmiter);
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
     const Gp divisor_val = em->load_stack_gp(divisor);
     const Gp dividend_val = em->load_stack_gp(dividend);

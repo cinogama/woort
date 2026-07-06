@@ -1,7 +1,7 @@
 #pragma once
 
 /*
- * woort_vm_debugger.h
+ * woort_vm_debugger_api.h
  */
 
 #include "woort_vm.h"

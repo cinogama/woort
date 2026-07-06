@@ -23,23 +23,8 @@ const woort_GCUnitProxy WOORT_GCSTRING_UNIT_PROXY = {
 WOORT_NODISCARD const woort_GCString* woort_GCString_make_string_for_env_constant(
     woort_CodeEnv* cenv, const char* str, size_t len)
 {
-    woort_GCString* gcstr;
-
-    do
-    {
-        gcstr = woomem_allocate_begin(
-            sizeof(woort_GCString) + len + 1);
-
-        if (gcstr != NULL)
-            break;
-
-        woort_CodeEnv_unlock(cenv);
-        {
-            _woort_GCUnit_alloc_failed();
-        }
-        woort_CodeEnv_lock(cenv);
-
-    } while (true);
+    woort_GCString* const gcstr = _woort_GCUnit_alloc_for_env_constant(
+        cenv, sizeof(woort_GCString) + len + 1);
 
     gcstr->m_gc_unit.m_proxy = &WOORT_GCSTRING_UNIT_PROXY;
     gcstr->m_length = len;

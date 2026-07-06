@@ -33,7 +33,7 @@ struct woort_Dylib
     woort_RWSpinlock                            m_resolved_lock;
 };
 
-bool _woort_dylib_bootup(void);
+WOORT_NODISCARD bool _woort_dylib_bootup(void);
 void _woort_dylib_shutdown(void);
 
 /*

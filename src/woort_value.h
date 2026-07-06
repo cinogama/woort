@@ -30,13 +30,13 @@ static inline struct woort_BoxedExValue* _woort_boxed_to_exvalue(
     return (struct woort_BoxedExValue*)(uintptr_t)val;
 }
 
-woort_DynBox woort_DynBox_box_real(woort_Real val);
-woort_DynBox woort_DynBox_box_int(woort_Int val);
-woort_DynBox woort_DynBox_box_bool(bool val);
-woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type);
+WOORT_NODISCARD woort_DynBox woort_DynBox_box_real(woort_Real val);
+WOORT_NODISCARD woort_DynBox woort_DynBox_box_int(woort_Int val);
+WOORT_NODISCARD woort_DynBox woort_DynBox_box_bool(bool val);
+WOORT_NODISCARD woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type);
 
-woort_DynBox woort_DynBox_box_real_for_env_constant(woort_CodeEnv* cenv, woort_Real val);
-woort_DynBox woort_DynBox_box_int_for_env_constant(woort_CodeEnv* cenv, woort_Int val);
+WOORT_NODISCARD woort_DynBox woort_DynBox_box_real_for_env_constant(woort_CodeEnv* cenv, woort_Real val);
+WOORT_NODISCARD woort_DynBox woort_DynBox_box_int_for_env_constant(woort_CodeEnv* cenv, woort_Int val);
 
 /* ======================================================================
  * 带混合写屏障的装箱函数：用于向 GC 管理的内存中写入装箱值

@@ -219,7 +219,7 @@ typedef enum woort_IROp_Kind
     /* ============ Label 绑定 (伪指令) ============ */
     WOORT_IROP_KIND_LABEL,          /* label bind point */
 
-    WOORT_IROP_KIND_count,
+    WOORT_IROP_KIND_COUNT,
 
 } woort_IROp_Kind;
 

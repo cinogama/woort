@@ -15,7 +15,7 @@ extern "C" {
     WOORT_NODISCARD bool woort_JIT_Asmjit_bootup(void);
     void woort_JIT_Asmjit_shutdown(void);
 
-    void* woort_JIT_Asmjit_get_runtime(void);
+    WOORT_NODISCARD void* woort_JIT_Asmjit_get_runtime(void);
 
 #define WOORT_VM_MAX_JIT_CALL_DEPTH 128
     
@@ -65,13 +65,13 @@ extern "C" {
 
     WOORT_NODISCARD woort_Value woort_JIT_unbox_dyn_no_check(woort_DynBox val);
 
-    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_int(
+    WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_int(
         woort_GCMap* map, woort_Int key);
-    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_real(
+    WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_real(
         woort_GCMap* map, woort_BoxedValue real_bits);
-    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_bool(
+    WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_bool(
         woort_GCMap* map, woort_Int key);
-    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_dyn(
+    WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_dyn(
         woort_GCMap* map, woort_DynBox key);
 
     WOORT_NODISCARD bool woort_JIT_ldidstring(
@@ -82,10 +82,10 @@ extern "C" {
     void woort_JIT_store_dynbox_bool(woort_DynBox* dst, woort_Int val);
     void woort_JIT_store_dynbox_dyn(woort_DynBox* dst, woort_DynBox val);
 
-    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_int(woort_GCMap* map, woort_Int key);
-    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_real(woort_GCMap* map, woort_BoxedValue real_bits);
-    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_bool(woort_GCMap* map, woort_Int key);
-    /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_dyn(woort_GCMap* map, woort_DynBox key);
+    WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_int(woort_GCMap* map, woort_Int key);
+    WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_real(woort_GCMap* map, woort_BoxedValue real_bits);
+    WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_bool(woort_GCMap* map, woort_Int key);
+    WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_JIT_map_get_or_create_dyn(woort_GCMap* map, woort_DynBox key);
 
     WOORT_NODISCARD bool woort_JIT_check_int_ex(woort_BoxedValue val);
     WOORT_NODISCARD bool woort_JIT_check_real_ex(woort_BoxedValue val);

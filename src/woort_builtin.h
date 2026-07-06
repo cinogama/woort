@@ -10,7 +10,7 @@ extern "C" {
  * Bootup/shutdown called from woort_init / woort_shutdown.
  * Registers the "woolang" fake library with built-in native functions.
  */
-bool _woort_builtin_bootup(int argc, char** argv);
+WOORT_NODISCARD bool _woort_builtin_bootup(int argc, char** argv);
 void _woort_builtin_shutdown(void);
 
 /*

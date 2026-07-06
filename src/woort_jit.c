@@ -24,15 +24,15 @@ typedef struct woort_JITContext {
     const woort_JIT_Backend* m_jit_backend;
 } woort_JITContext;
 
-static woort_JITContext s_jit_context;
+static woort_JITContext g_jit_context;
 
 WOORT_NODISCARD bool woort_JIT_bootup(bool enable)
 {
     if (!woort_JIT_Asmjit_bootup())
         return false;
 
-    woort_rwspinlock_init(&s_jit_context.m_jit_backend_mx);
-    s_jit_context.m_jit_backend = NULL;
+    woort_rwspinlock_init(&g_jit_context.m_jit_backend_mx);
+    g_jit_context.m_jit_backend = NULL;
 
     if (enable)
     {
@@ -49,24 +49,24 @@ WOORT_NODISCARD bool woort_JIT_bootup(bool enable)
 }
 void woort_JIT_shutdown(void)
 {
-    woort_rwspinlock_deinit(&s_jit_context.m_jit_backend_mx);
-    s_jit_context.m_jit_backend = NULL;
+    woort_rwspinlock_deinit(&g_jit_context.m_jit_backend_mx);
+    g_jit_context.m_jit_backend = NULL;
 
     woort_JIT_Asmjit_shutdown();
 }
 
 void woort_JIT_set_backend(/* OPTIONAL */ const woort_JIT_Backend* backend)
 {
-    woort_rwspinlock_write_lock(&s_jit_context.m_jit_backend_mx);
-    s_jit_context.m_jit_backend = backend;
-    woort_rwspinlock_write_unlock(&s_jit_context.m_jit_backend_mx);
+    woort_rwspinlock_write_lock(&g_jit_context.m_jit_backend_mx);
+    g_jit_context.m_jit_backend = backend;
+    woort_rwspinlock_write_unlock(&g_jit_context.m_jit_backend_mx);
 }
 
 static /* OPTIONAL */ const woort_JIT_Backend* _woort_JIT_get_backend(void)
 {
-    woort_rwspinlock_read_lock(&s_jit_context.m_jit_backend_mx);
-    const woort_JIT_Backend* backend = s_jit_context.m_jit_backend;
-    woort_rwspinlock_read_unlock(&s_jit_context.m_jit_backend_mx);
+    woort_rwspinlock_read_lock(&g_jit_context.m_jit_backend_mx);
+    const woort_JIT_Backend* backend = g_jit_context.m_jit_backend;
+    woort_rwspinlock_read_unlock(&g_jit_context.m_jit_backend_mx);
     return backend;
 }
 
@@ -322,13 +322,13 @@ void woort_JIT_unjit_all_codeenv(void)
 {
     bool just_unjit = false;
 
-    woort_rwspinlock_write_lock(&s_jit_context.m_jit_backend_mx);
-    if (s_jit_context.m_jit_backend != NULL)
+    woort_rwspinlock_write_lock(&g_jit_context.m_jit_backend_mx);
+    if (g_jit_context.m_jit_backend != NULL)
     {
         just_unjit = true;
-        s_jit_context.m_jit_backend = NULL;
+        g_jit_context.m_jit_backend = NULL;
     }
-    woort_rwspinlock_write_unlock(&s_jit_context.m_jit_backend_mx);
+    woort_rwspinlock_write_unlock(&g_jit_context.m_jit_backend_mx);
 
     if (just_unjit)
     {

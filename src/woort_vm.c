@@ -32,7 +32,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-_Static_assert(WOORT_OPCODE_count <= 64, "");
+_Static_assert(WOORT_OPCODE_COUNT <= 64, "");
 
 WOORT_THREAD_LOCAL woort_VMRuntime* WOORT_t_this_thread_vm;
 
