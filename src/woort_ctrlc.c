@@ -9,14 +9,11 @@
 
 #include "woort.h"
 #include "woort_log.h"
+#include "woort_vm.h"
 
 #include <signal.h>
 #include <stdlib.h>
 #include <time.h>
-
-/* --------------------------------------------------------------- */
-
-static void _woort_ctrlc_signal_handler(int sig);
 
 /* --------------------------------------------------------------- */
 
@@ -34,7 +31,7 @@ static void _woort_ctrlc_signal_handler(int sig)
     case WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED:
         break;
     case WOORT_DEBUGGER_ATTACH_RESULT_FAILED:
-        woort_log("CTRL+C: Failed to attach debugger (out of memory).\n");
+        woort_log("CTRL+C: Failed to attach new debugger (out of memory).\n");
         break;
     }
     woort_VMRuntime_Debugger_breakdown_all_vm();

@@ -18,6 +18,7 @@
 #include "woort_jit_arm64.h"
 
 #include <assert.h>
+#include <stdlib.h>
 
 typedef struct woort_JITContext {
     woort_RWSpinlock m_jit_backend_mx;
@@ -154,6 +155,13 @@ static bool /* false if break loop. */ _woort_JIT_drop_compiled_function(
     return true;
 }
 
+typedef struct _woort_JIT_CollectCtx
+{
+    woort_CodeEnv_JITCompiledRecord* m_out;
+    size_t                           m_idx;
+
+} _woort_JIT_CollectCtx;
+
 static bool /* false if break loop. */ _woort_JIT_collect_jit_function(
     const void* key,
     void* value,
@@ -165,13 +173,13 @@ static bool /* false if break loop. */ _woort_JIT_collect_jit_function(
     woort_JIT_CompileFunctionContext* const context =
         (woort_JIT_CompileFunctionContext*)value;
 
-    woort_Vector* const out = (woort_Vector*)user_data;
+    _woort_JIT_CollectCtx* const ctx = (_woort_JIT_CollectCtx*)user_data;
 
-    woort_CodeEnv_JITCompiledRecord rec;
-    rec.m_jit_function = context->m_jit_function;
-    rec.m_script_function = script_function;
+    ctx->m_out[ctx->m_idx].m_jit_function    = context->m_jit_function;
+    ctx->m_out[ctx->m_idx].m_script_function = script_function;
+    ++ctx->m_idx;
 
-    return woort_vector_push_back(out, 1, &rec);
+    return true;
 }
 
 /* Main body. */
@@ -236,12 +244,38 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
         goto _label_jit_failed;
     }
 
+    /*
+     * One-shot allocate the JIT compiled records array.
+     * Count is fixed once all functions are compiled; the array is filled
+     * directly by the foreach callback (no per-step realloc/OOM possible).
+     */
+    const size_t jit_func_count = jit_compiled_functions_record.m_size;
+
+    cenv->m_jit_functions = (woort_CodeEnv_JITCompiledRecord*)malloc(
+        jit_func_count * sizeof(woort_CodeEnv_JITCompiledRecord));
+
+    if (cenv->m_jit_functions == NULL)
+    {
+        WOORT_DEBUG("Out of memory allocating JIT records.");
+        jit_compile_result = false;
+        goto _label_jit_failed;
+    }
+
+    cenv->m_jit_function_count = jit_func_count;
+
+    _woort_JIT_CollectCtx collect_ctx;
+    collect_ctx.m_out = cenv->m_jit_functions;
+    collect_ctx.m_idx = 0;
+
     if (!woort_hashmap_foreach(
         &jit_compiled_functions_record,
         _woort_JIT_collect_jit_function,
-        &cenv->m_jit_functions))
+        &collect_ctx))
     {
-        woort_vector_clear(&cenv->m_jit_functions);
+        /* Unreachable: callback always returns true after pre-allocation. */
+        free(cenv->m_jit_functions);
+        cenv->m_jit_functions = NULL;
+        cenv->m_jit_function_count = 0;
         jit_compile_result = false;
         goto _label_jit_failed;
     }

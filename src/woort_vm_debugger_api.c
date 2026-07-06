@@ -114,8 +114,8 @@ WOORT_NODISCARD woort_DebuggerAttachResult woort_VMRuntime_Debugger_attach(
     }
     woort_rwspinlock_write_unlock(&g_debugger_rwspin);
 
-    if (result == WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS)
-        woort_JIT_unjit_all_codeenv();
+    //if (result == WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS)
+    //    woort_JIT_unjit_all_codeenv();
 
     return result;
 }

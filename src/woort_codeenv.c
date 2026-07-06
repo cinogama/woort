@@ -215,15 +215,14 @@ static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)
 
     if (code_env->m_jit_drop_code != NULL)
     {
-        for (size_t i = 0; i < code_env->m_jit_functions.m_size; ++i)
+        for (size_t i = 0; i < code_env->m_jit_function_count; ++i)
         {
             woort_CodeEnv_JITCompiledRecord* const rec =
-                (woort_CodeEnv_JITCompiledRecord*)woort_vector_at(
-                    &code_env->m_jit_functions, i);
+                &code_env->m_jit_functions[i];
             code_env->m_jit_drop_code(&rec->m_jit_function);
         }
     }
-    woort_vector_deinit(&code_env->m_jit_functions);
+    free(code_env->m_jit_functions);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_bootup(void)
@@ -372,9 +371,10 @@ WOORT_NODISCARD bool woort_CodeEnv_create(
 
     woort_vector_init(&code_env_instance->m_extern_libs, sizeof(woort_Dylib*));
 
-    code_env_instance->m_jit_drop_code = NULL;
     code_env_instance->m_jit_linked = false;
-    woort_vector_init(&code_env_instance->m_jit_functions, sizeof(woort_CodeEnv_JITCompiledRecord));
+    code_env_instance->m_jit_drop_code = NULL;
+    code_env_instance->m_jit_functions = NULL;
+    code_env_instance->m_jit_function_count = 0;
 
     /* Fill 0 for static storage: */
     memset(
@@ -1026,11 +1026,10 @@ void woort_CodeEnv_dejit(woort_CodeEnv* cenv)
                 cenv->m_data_begin[cidx].m_jit_function;
 
             const woort_Bytecode* restored_script_function = NULL;
-            for (size_t i = 0; i < cenv->m_jit_functions.m_size; ++i)
+            for (size_t i = 0; i < cenv->m_jit_function_count; ++i)
             {
                 const woort_CodeEnv_JITCompiledRecord* const rec =
-                    (const woort_CodeEnv_JITCompiledRecord*)woort_vector_at(
-                        &cenv->m_jit_functions, i);
+                    &cenv->m_jit_functions[i];
                 if (rec->m_jit_function == target_jit)
                 {
                     restored_script_function = rec->m_script_function;

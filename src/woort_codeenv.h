@@ -201,9 +201,14 @@ struct woort_CodeEnv {
      */
     woort_Vector /* woort_Dylib* */ m_extern_libs;
 
-    woort_JIT_Backend_DropCode m_jit_drop_code;
-    woort_Vector /* woort_CodeEnv_JITCompiledRecord */ m_jit_functions;
-    bool m_jit_linked;
+    bool                            m_jit_linked;
+    /* OPTIONAL */ woort_JIT_Backend_DropCode
+                                    m_jit_drop_code;
+    /* OPTIONAL, NULL if not JIT-compiled yet. One-shot malloc'd during
+       woort_JIT_compile_env, freed in _woort_CodeEnv_GC_destroy. */
+    /* OPTIONAL */ woort_CodeEnv_JITCompiledRecord* 
+                                    m_jit_functions;
+    size_t                          m_jit_function_count;
 
     /*
      * 常量池元数据（与 m_data_begin 并行）。
