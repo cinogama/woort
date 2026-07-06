@@ -1,3 +1,5 @@
+#include "woort.h"
+
 #include "woort_jit.h"
 #include "woort_codeenv.h"
 #include "woort_hashmap.h"

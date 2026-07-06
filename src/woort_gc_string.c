@@ -1,3 +1,11 @@
+#include "woort.h"
+
+#include "woort_gc_string.h"
+#include "woort_util.h"
+#include "woort_log.h"
+
+#include "woomem.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -6,11 +14,6 @@
 #include <inttypes.h>
 #include <stdarg.h>
 #include <assert.h>
-
-#include "woomem.h"
-#include "woort_gc_string.h"
-#include "woort_util.h"
-#include "woort_log.h"
 
 const woort_GCUnitProxy WOORT_GCSTRING_UNIT_PROXY = {
     .m_destructor = NULL,

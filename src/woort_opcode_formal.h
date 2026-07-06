@@ -103,12 +103,6 @@ woort_opcode_formal.h
     | WOORT_MAKE_BYTECODE(M2, m2)                           \
     | WOORT_MAKE_BYTECODE(BC16, bc16))
 
-#define woort_OpcodeFormal_OP6_M2_B8_C8_cons(op6, m2, b8, c8)\
-    (WOORT_MAKE_BYTECODE(OP6, op6)                          \
-    | WOORT_MAKE_BYTECODE(M2, m2)                           \
-    | WOORT_MAKE_BYTECODE(B8, b8)                           \
-    | WOORT_MAKE_BYTECODE(C8, c8))           
-
 #define woort_OpcodeFormal_OP6_M2_A8_B8_C8_cons(op6, m2, a8, b8, c8)\
     (WOORT_MAKE_BYTECODE(OP6, op6)                          \
     | WOORT_MAKE_BYTECODE(M2, m2)                           \

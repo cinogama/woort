@@ -1,10 +1,13 @@
+#include "woort.h"
+
+#include "woort_gc_closure.h"
+#include "woort_diagnosis.h"
+
+#include "woomem.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-#include "woomem.h"
-#include "woort_gc_closure.h"
-#include "woort_diagnosis.h"
 
 const woort_GCUnitProxy WOORT_GCCLOSURE_UNIT_PROXY = {
     .m_destructor = NULL,

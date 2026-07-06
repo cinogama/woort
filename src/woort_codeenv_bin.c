@@ -1,7 +1,4 @@
-#include <stdbool.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
+#include "woort.h"
 
 #include "woort_codeenv.h"
 #include "woort_dylib.h"
@@ -11,6 +8,11 @@
 #include "woort_log.h"
 #include "woort_util.h"
 #include "woort_vfs.h"
+
+#include <stdbool.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* ========================================================================
  * 二进制序列化 / 反序列化

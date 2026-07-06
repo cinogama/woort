@@ -1,6 +1,9 @@
-#include "woomem.h"
+#include "woort.h"
+
 #include "woort_gc_struct.h"
 #include "woort_codeenv.h"
+
+#include "woomem.h"
 
 const woort_GCUnitProxy WOORT_GCSTRUCT_UNIT_PROXY = {
     .m_destructor = NULL,

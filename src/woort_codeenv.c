@@ -1,8 +1,4 @@
-#include <stdbool.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include <memory.h>
+#include "woort.h"
 
 #include "woort_codeenv.h"
 #include "woort_dylib.h"
@@ -25,6 +21,11 @@
 #include "woort_jit.h"
 
 #include "woomem.h"
+
+#include <stdbool.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 static struct _woort_CodeEnv_GlobalCtx
 {

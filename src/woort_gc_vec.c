@@ -1,12 +1,15 @@
+#include "woort.h"
+
+#include "woort_gc.h"
+#include "woort_gc_vec.h"
+#include "woort_diagnosis.h"
+
+#include "woomem.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
-
-#include "woomem.h"
-#include "woort_gc.h"
-#include "woort_gc_vec.h"
-#include "woort_diagnosis.h"
 
 const woort_GCUnitProxy WOORT_GCVEC_UNIT_PROXY = {
     .m_destructor = NULL,

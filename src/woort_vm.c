@@ -1,7 +1,5 @@
 #include "woort.h"
 
-#include "woomem.h"
-
 #include "woort_vm.h"
 #include "woort_threads.h"
 #include "woort_value.h"
@@ -22,11 +20,12 @@
 #include "woort_serialize.h"
 #include "woort_dylib.h"
 
+#include "woomem.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <memory.h>
 #include <math.h>
 #include <stdio.h>
 #include <inttypes.h>
@@ -453,7 +452,7 @@ _label_continue_execution:
     case WOORT_VM_CASE_OP6_M2(CODE, 2):     \
     case WOORT_VM_CASE_OP6_M2(CODE, 3)
 
-        register woort_Bytecode c = *rt_ip;
+        woort_Bytecode c = *rt_ip;
 
     _label_vm_dispatch_reentry_for_debug_trap:
         switch ((uint8_t)(c >> 24))

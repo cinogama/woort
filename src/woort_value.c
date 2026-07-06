@@ -1,11 +1,5 @@
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include <assert.h>
-#include <string.h>
-#include <stdlib.h>
+#include "woort.h"
 
-#include "woomem.h"
 #include "woort_value.h"
 #include "woort_gc_units.h"
 #include "woort_gc_string.h"
@@ -18,6 +12,15 @@
 #include "woort_gc.h"
 #include "woort_util.h"
 #include "woort_platform.h"
+
+#include "woomem.h"
+
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+#include <assert.h>
+#include <string.h>
+#include <stdlib.h>
 
 _Static_assert(sizeof(woort_DynBox) == sizeof(woort_BoxedValue),
     "woort_DynBox must have same size as woort_BoxedValue");
@@ -363,7 +366,6 @@ WOORT_NODISCARD bool woort_DynBox_check(
             && _woort_boxed_to_exvalue(val.m_boxed)->m_is_int;
     case WOORT_BOX_VALUE_TYPE_BOOL:
         return 0 == (0b0111 & (val.m_boxed ^ WOORT_BOX_VALUE_TYPE_BOOL));
-        break;
     case WOORT_BOX_VALUE_TYPE_STRING:
         if (val.m_boxed & 0b0111)
             return false;
@@ -719,9 +721,6 @@ WOORT_NODISCARD bool woort_DynBox_equal(woort_DynBox a, woort_DynBox b)
     /* Both are GC-allocated values */
     woort_GCUnit* const gc_unit_a = _woort_boxed_to_gcunit(a.m_boxed);
     woort_GCUnit* const gc_unit_b = _woort_boxed_to_gcunit(b.m_boxed);
-
-    if (gc_unit_a == gc_unit_b)
-        return true;
 
     if (gc_unit_a == NULL || gc_unit_b == NULL)
         return false;

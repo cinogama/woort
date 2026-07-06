@@ -535,8 +535,6 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, boo
 {
     woort_WAIPO_Debugger* const debugger_instance = instance;
 
-    bool trap_down = false;
-
     if (woort_hashmap_is_empty(&debugger_instance->m_focusing_vms)
         || _woort_WAIPO_Debugger_meet_breakpoint(debugger_instance, vm, trap_by_request))
     {

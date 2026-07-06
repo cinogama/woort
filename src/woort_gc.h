@@ -4,11 +4,12 @@
 woort_gc.h
 */
 
-#include "woomem.h"
 #include "woort_diagnosis.h"
 #include "woort_vm.h"
 #include "woort_threads.h"
 #include "woort_value.h"
+
+#include "woomem.h"
 
 #include <stdbool.h>
 

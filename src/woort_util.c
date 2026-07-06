@@ -1,13 +1,15 @@
+#include "woort.h"
+
+#include "woort_util.h"
+#include "woort_platform.h"
+#include "woort_log.h"
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#include "woort_util.h"
-#include "woort_platform.h"
-#include "woort_log.h"
 
 WOORT_NODISCARD size_t woort_util_abs_diff(
     size_t a,

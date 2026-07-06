@@ -1,10 +1,12 @@
+#include "woort.h"
+
+#include "woort_linklist.h"
+#include "woort_log.h"
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <memory.h>
 #include <assert.h>
-
-#include "woort_linklist.h"
-#include "woort_log.h"
 
 void woort_linklist_init(woort_LinkList* list, size_t storage_size)
 {

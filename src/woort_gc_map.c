@@ -1,10 +1,13 @@
-#include <string.h>
+#include "woort.h"
 
-#include "woomem.h"
 #include "woort_gc.h"
 #include "woort_gc_map.h"
 #include "woort_gc_string.h"
 #include "woort_util.h"
+
+#include "woomem.h"
+
+#include <string.h>
 
 const woort_GCUnitProxy WOORT_GCMAP_UNIT_PROXY = {
     .m_destructor = NULL,

@@ -1,12 +1,15 @@
+#include "woort.h"
+
+#include "woort_gc_gchandle.h"
+#include "woort_diagnosis.h"
+#include "woort_gc.h"
+
+#include "woomem.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
-
-#include "woomem.h"
-#include "woort_gc_gchandle.h"
-#include "woort_diagnosis.h"
-#include "woort_gc.h"
 
 static void _woort_GCHandle_close_impl(woort_GCHandle* gchandle)
 {

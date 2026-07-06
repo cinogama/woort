@@ -1,11 +1,10 @@
-#include "woort_disassembly.h"
+#include "woort.h"
 
+#include "woort_disassembly.h"
 #include "woort_opcode.h"
 #include "woort_opcode_dispatcher.h"
 
-#include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 struct woort_DisassemblyCtx
 {

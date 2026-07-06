@@ -1,4 +1,4 @@
-#include "woomem.h"
+#include "woort.h"
 
 #include "woort_gc.h"
 #include "woort_vm.h"
@@ -10,6 +10,8 @@
 #include "woort_gc_units.h"
 #include "woort_codeenv.h"
 #include "woort_threads.h"
+
+#include "woomem.h"
 
 #include <stdbool.h>
 #include <assert.h>

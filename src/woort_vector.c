@@ -1,11 +1,13 @@
+#include "woort.h"
+
+#include "woort_vector.h"
+#include "woort_log.h"
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <memory.h>
-
-#include "woort_vector.h"
-#include "woort_log.h"
 
 void woort_vector_init(woort_Vector* vector, size_t element_size)
 {

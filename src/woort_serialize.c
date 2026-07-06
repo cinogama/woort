@@ -1,5 +1,6 @@
-#include "woort_serialize.h"
+#include "woort.h"
 
+#include "woort_serialize.h"
 #include "woort_vector.h"
 #include "woort_gc.h"
 #include "woort_gc_struct.h"
@@ -8,6 +9,7 @@
 #include "woort_codeenv.h"
 #include "woort_utf8.h"
 #include "woort_util.h"
+
 #include "woomem.h"
 
 #include <stdlib.h>

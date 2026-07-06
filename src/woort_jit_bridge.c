@@ -1,5 +1,6 @@
-#include "woort_jit_bridge.h"
+#include "woort.h"
 
+#include "woort_jit_bridge.h"
 #include "woort_vm.h"
 #include "woort_gc.h"
 #include "woort_gc_string.h"
@@ -12,6 +13,8 @@
 #include "woort_utf8.h"
 #include "woort_opcode_dispatcher.h"
 #include "woort_codeenv.h"
+
+#include "woomem.h"
 
 #include <string.h>
 
