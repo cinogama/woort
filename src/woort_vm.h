@@ -20,117 +20,186 @@ typedef enum woort_VMRuntime_CheckRequestMask
 {
     /*
     ABORT
-    虚拟机状态发生错误而无法继续，此请求在 Panic 发出后决定。
-    设置此请求时，**必须** 在当前虚拟机的 m_sp 处立即写入一个
-    GCString 用以描述 panic 信息。
-        * JIT 运行时：
-            JIT 运行时无法处理此请求，执行正同步之后以 WOORT_VM_CALL_STATUS_RESYNC 
-            向上抛出到解释执行
-        * 解释执行运行时：
-            以 WOORT_VM_CALL_STATUS_ABORTED 结束调用
+    The VM state has errored and cannot continue; this request is
+    decided after a panic is raised. When setting this request, a
+    GCString describing the panic message **must** be written at the
+    current m_sp.
+        * JIT runtime:
+            Cannot be handled in JIT; after a forward-sync it is thrown
+            up to the interpreter via WOORT_VM_CALL_STATUS_RESYNC.
+        * Interpreter runtime:
+            Ends the call with WOORT_VM_CALL_STATUS_ABORTED.
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_ABORT = 1 << 0,
 
     /*
     STACK_OCCUPYING
-    虚拟机栈正在被内部重新分配或外部读取，在正式地执行操作期间，此请求
-    必须被设置，如果设置失败，应当自旋地重试，直到设置成功
-        * JIT 运行时：
-        * 解释执行运行时：
-            接收，然后挂起，直到 STACK_OCCUPYING 结束，外部占用方负责拉
-            起虚拟机。
+    The VM stack is being internally reallocated or externally read.
+    This request must be set for the duration of such an operation; if
+    setting fails it must be retried spin-style until it succeeds.
+        * JIT runtime:
+            (no special handling)
+        * Interpreter runtime:
+            Accepts the request, then hangs up until STACK_OCCUPYING is
+            cleared; the external owner is responsible for waking the
+            VM back up.
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING = 1 << 1,
 
     /*
     GC_CHECK
-    GC 工作线程将向所有正在运行中的 RootVM 发起此请求
-        * JIT 运行时：
-        * 解释执行运行时：
-            接受此请求，如果成功接受，执行自我标记（标记栈起始地址和全局
-            区）。
+    The GC worker thread issues this request to every running root VM.
+        * JIT runtime:
+            (no special handling)
+        * Interpreter runtime:
+            Accepts the request and, on success, performs self-marking
+            (marks the stack starting address and the global area).
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_GC_CHECK = 1 << 2,
 
     /*
     GC_PROCESSING
-    当前 VM 正在被执行标记；如果是 VM 自己发起的标记，GC 线程应当在稍后跳
-    过此 VM，否则应当代理标记。如果 VM 在被代理标记期间发起运行，应当暂停
-    执行。
-        * JIT 运行时：
-        * 解释执行运行时：
-            接收，然后挂起，直到 GC_PROCESSING 结束，外部占用方负责拉
-            起虚拟机。
-        * 如果是 GC 工作线程设置此标记失败，此时说明 VM 已经接收 GC_CHECK
-        请求，等待 VM 完成标记。
+    The VM is currently being marked. If the VM initiated the mark
+    itself, the GC thread should skip this VM later; otherwise the GC
+    thread should mark on its behalf. If the VM starts running while
+    being marked by proxy, it should suspend execution.
+        * JIT runtime:
+            (no special handling)
+        * Interpreter runtime:
+            Accepts the request, then hangs up until GC_PROCESSING is
+            cleared; the external owner is responsible for waking the
+            VM back up.
+        * If the GC worker thread fails to set this flag, the VM has
+          already accepted GC_CHECK and the GC thread waits for the VM
+          to finish marking.
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_GC_PROCESSING = 1 << 3,
 
     /*
     GC_LEAVE
-    如果虚拟机暂时脱离 GC 作用域，该标记将被设置，如果 GC 工作线程尝试标
-    记不在作用域内的的 VM，将通过 STACK_OCCUPYING 请求，然后执行代理的标
-    记操作。
+    Set when the VM temporarily leaves the GC's scope. If the GC worker
+    thread tries to mark a VM that is out of scope, it issues a
+    STACK_OCCUPYING request and then performs the mark by proxy.
 
-    任一线程同时只能有一个 VM 处于运行状态，切换此标记只能通过旋转操作执
-    行。
-        * JIT 运行时：
-        * 解释执行运行时：
-            不应当出现此情况，PANIC 终止
+    Only one VM per thread may be running at a time; switching this
+    flag must be done via a spin operation.
+        * JIT runtime:
+        * Interpreter runtime:
+            Should never occur; terminated with a PANIC.
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE = 1 << 4,
 
     /*
     DEBUG_CALLBACK
-    请求虚拟机执行调试回调，调试回调函数和上下文应当在之前被设定并尚未被清除
+    Requests the VM to invoke the debug callback; the debug callback
+    function and its context must have been set previously and not yet
+    cleared.
 
-    如果收到此请求时调试上下文未设定，无视此请求。
+    If the debug context is unset when this request is received, it is
+    ignored.
 
-        * JIT 运行时：
-            JIT 运行时无法处理此请求，执行正同步之后以 WOORT_VM_CALL_STATUS_RESYNC 
-            向上抛出到解释执行
-        * 解释执行运行时：
-            执行调试回调机制
-    
+        * JIT runtime:
+            Cannot be handled in JIT; after a forward-sync it is thrown
+            up to the interpreter via WOORT_VM_CALL_STATUS_RESYNC.
+        * Interpreter runtime:
+            Runs the debug-callback mechanism.
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK = 1 << 5,
 
     /*
     YIELD
-    请求虚拟以 WOORT_VM_CALL_STATUS_YIELD 状态结束执行，执行完整的正向同步以将 RT 状态
-    保存到 VM 状态，后续可以继续 dispatch 执行。
+    Requests the VM to end execution with WOORT_VM_CALL_STATUS_YIELD,
+    performing a full forward-sync to save RT state into VM state so
+    that dispatch can resume later.
 
-        * JIT 运行时：
-            JIT 运行时无法处理此请求，执行正同步之后以 WOORT_VM_CALL_STATUS_RESYNC 
-            向上抛出到解释执行
-        * 解释执行运行时：
-            考虑到：
-                1）如果是 Native-call 返回 RESYNC 导致检查点请求：
-                2) 如果是 JIT-call 返回 RESYNV 导致检查点请求；
-                2）如果是外部直接发起的请求中断；
-            以上两种情况，都保证产生正确的正同步代码；接受请求之后暂离虚拟机，不执行
-            其他同步
+        * JIT runtime:
+            Cannot be handled in JIT; after a forward-sync it is thrown
+            up to the interpreter via WOORT_VM_CALL_STATUS_RESYNC.
+        * Interpreter runtime:
+            Considering:
+                1) checkpoint triggered by a native-call returning RESYNC;
+                2) checkpoint triggered by a JIT-call returning RESYNC;
+                3) checkpoint triggered by an external interrupt;
+            all of the above guarantee correct forward-sync code. After
+            accepting the request the VM is temporarily detached; no
+            further sync is performed.
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_YIELD = 1 << 6,
 
     /*
     TERMINATE
-    虚拟机被外部请求立即终止
-    接受此请求时，当前 VM 会设置 ABORT, 然后按照约定向 m_sp 写入
-    GCString。
-        * JIT 运行时：
-            JIT 运行时无法处理此请求，执行正同步之后以 WOORT_VM_CALL_STATUS_RESYNC 
-            向上抛出到解释执行
-        * 解释执行运行时：
-            按照约定描述终止原因，然后设置 ABORT
+    The VM is requested to terminate immediately by an external source.
+    On accepting this request the VM sets ABORT and, by convention,
+    writes a GCString at m_sp.
+        * JIT runtime:
+            Cannot be handled in JIT; after a forward-sync it is thrown
+            up to the interpreter via WOORT_VM_CALL_STATUS_RESYNC.
+        * Interpreter runtime:
+            Writes a GCString describing the termination reason by
+            convention, then sets ABORT.
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE = 1 << 7,
 
+    /*
+    SHRINK_STACK
+    Set by the VM itself at the tail of mark_vm_after_sync /
+    mark_weak_vm_after_sync when actual stack usage drops below 1/4 of
+    the current capacity and the current capacity is at least
+    2 * WOORT_VM_DEFAULT_STACK_BEGIN_SIZE, advising the stack be
+    shrunk to a tighter capacity.
+        * JIT runtime:
+            Shares the same handler as the interpreter.
+        * Interpreter runtime:
+            After accepting the request, calls
+            _woort_VMRuntime_shrink_stack, which locks the stack via
+            STACK_OCCUPYING, mallocs a new buffer, copies the used
+            portion tail-aligned, and frees the old stack; on success
+            m_shrink_stack_edge is recomputed from the new capacity.
+    */
     WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK = 1 << 8,
 
+    /*
+    GC_MARK_FINISHED
+    Set by the GC worker thread during the stop-mark phase for every
+    root VM to signal that marking for this round has finished; the GC
+    thread then spin-waits for the bit to be cleared by the VM.
+        * JIT runtime:
+            Shares the same handler as the interpreter.
+        * Interpreter runtime:
+            request_accept clears this bit either at the end of
+            handle_gc_check_request_and_mark or in the standalone
+            checkpoint branch, waking the waiting GC worker thread.
+    */
     WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED = 1 << 9,
 
+    /*
+    SUSPEND
+    Issued by the GC worker thread via
+    woort_GC_suspend_all_vm_to_do_sth to stop-the-world for a global
+    operation (e.g. JIT un-jit of every codeenv). After setting it the
+    GC thread spin-waits for the bit to be consumed, confirming the VM
+    has truly parked.
+        * JIT runtime:
+            Cannot block in place; after a forward-sync it is thrown up
+            to the interpreter via WOORT_VM_CALL_STATUS_RESYNC.
+        * Interpreter runtime:
+            After accepting the request, detaches from the current
+            thread via woort_VMRuntime_swap(NULL), then spin-yields
+            (woort_thread_yield) until RESUME can be successfully
+            accepted, after which it swaps the VM back in.
+    */
     WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND = 1 << 10,
+
+    /*
+    RESUME
+    Issued by the GC worker thread after the callback in
+    woort_GC_suspend_all_vm_to_do_sth finishes, releasing VMs parked
+    by SUSPEND.
+        * Not handled by the request dispatch chain:
+            Consumed only by the wait loop inside the SUSPEND handler
+            (request_accept(RESUME)) to break the spin and resume
+            execution.
+    */
     WOORT_VMRUNTIME_CHECK_REQUEST_RESUME = 1 << 11,
 
 }woort_VMRuntime_CheckRequestMask;
