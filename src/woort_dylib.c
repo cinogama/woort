@@ -762,7 +762,7 @@ WOORT_NODISCARD bool woort_Dylib_get_function_name(
     void* addr,
     const char** out_name)
 {
-    assert(dylib != NULL && addr != NULL && out_name != NULL);
+    assert(dylib != NULL && out_name != NULL);
 
     bool found = false;
     woort_rwspinlock_read_lock(&dylib->m_resolved_lock);
@@ -781,7 +781,7 @@ WOORT_NODISCARD bool woort_Dylib_get_function_name(
 
 WOORT_NODISCARD bool woort_Dylib_find_by_resolved_func(void* addr, woort_Dylib** out_dylib)
 {
-    assert(addr != NULL && out_dylib != NULL);
+    assert(out_dylib != NULL);
 
     void* args[2] = { addr, NULL };
 

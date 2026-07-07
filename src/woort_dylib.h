@@ -44,6 +44,6 @@ tracing, the GC should guarantee that the codeenv corresponding to the library r
 so no special handling is required. However, other parts do not necessarily have this guarantee.
 */
 WOORT_NODISCARD bool woort_Dylib_find_by_resolved_func(
-    void* addr, woort_Dylib** out_dylib);
+    /* OPTIONAL */ void* addr, woort_Dylib** out_dylib);
 WOORT_NODISCARD bool woort_Dylib_get_function_name(
-    woort_Dylib* dylib, void* addr, const char** out_name);
+    woort_Dylib* dylib, /* OPTIONAL */ void* addr, const char** out_name);

@@ -4287,10 +4287,8 @@ void woort_VMRuntime_trace_begin(
 }
 
 WOORT_NODISCARD static bool _woort_VMRuntime_trace_addr(
-    const woort_Bytecode* code, ptrdiff_t code_shift, woort_VMRuntime_TraceCallstack* out_result)
+    /* OPTIONAL */ const woort_Bytecode* code, ptrdiff_t code_shift, woort_VMRuntime_TraceCallstack* out_result)
 {
-    assert(code != NULL);
-
     /* Try find the code_env from code. */
     woort_CodeEnv* cenv;
     if (woort_CodeEnv_find(code, &cenv))
