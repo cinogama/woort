@@ -354,7 +354,7 @@ woort_CodeEnv_unlock(cenv);
 woort_VMRuntime* vm;
 woort_VMRuntime_create(&vm);
 woort_VMRuntime_swap(vm);
-/* ... 通过 woort_bootup_codeenv / woort_invoke 调用 main ... */
+/* ... 通过 woort_bootup / woort_invoke 调用 main ... */
 woort_VMRuntime_swap(NULL);
 woort_VMRuntime_destroy(vm);
 ```

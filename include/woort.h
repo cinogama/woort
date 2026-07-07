@@ -304,7 +304,7 @@ typedef int32_t woort_StackValue;
  *
  * Can be passed in the following contexts:
  *
- * - As `dst` to woort_bootup_codeenv / woort_invoke / woort_spawn /
+ * - As `dst` to woort_bootup / woort_invoke / woort_spawn /
  *   woort_resume to discard the return value.
  * - As `hold` to woort_set_gchandle / woort_set_union_gchandle (and
  *   their option/result macro aliases) to not hold any GC unit.
@@ -2858,9 +2858,15 @@ WOORT_API void woort_import_value(
  *        JIT-compile it, and invoke it.
  *
  * When @p jit is true, the code environment is JIT-compiled via
- * woort_JIT_compile_env() before invocation. Afterwards behaves exactly
- * like woort_bootup_codeenv(): reserves a stack slot, loads the extern
- * constant named WOORT_DEFAULT_ENTRY ("@entry"), and invokes it.
+ * woort_JIT_compile_env() before invocation. Reserves a stack slot,
+ * loads the extern constant named WOORT_DEFAULT_ENTRY ("@entry"), and
+ * invokes it.
+ *
+ * @note Passing @p jit = true is a request, not a guarantee: JIT code is
+ *       only generated when JIT is actually enabled (e.g. not disabled at
+ *       startup) and the running platform supports it. Otherwise the VM
+ *       silently falls back to interpreting the bytecode, and the call
+ *       proceeds normally.
  *
  * This is the preferred entry point and supersedes the deprecated
  * woort_bootup_codeenv().

@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
     woort_VMRuntime_swap(vm);
 
     /* 4. 调用入口函数 */
-    woort_VmCallStatus st = woort_bootup_codeenv(WOORT_IGNORE, cenv);
+    woort_VmCallStatus st = woort_bootup(WOORT_IGNORE, cenv, false);
 
     /* 5. 释放 CodeEnv（GC 会回收其字节码/常量内存） */
     woort_CodeEnv_drop(cenv);
@@ -149,7 +149,7 @@ woort_CodeEnv_unlock(cenv);
 
 ### 执行入口约定
 
-默认入口是常量池中名为 `WOORT_DEFAULT_ENTRY`（`"@entry"`）的具名外部常量。`woort_bootup_codeenv` 会加载该常量并调用。也可以用 `woort_load_const` / `woort_load_extern_const` 自行加载任意函数值后用 `woort_invoke` 调用。
+默认入口是常量池中名为 `WOORT_DEFAULT_ENTRY`（`"@entry"`）的具名外部常量。`woort_bootup` 会加载该常量并调用（`jit` 参数为 `true` 时先做 JIT 编译）。也可以用 `woort_load_const` / `woort_load_extern_const` 自行加载任意函数值后用 `woort_invoke` 调用。
 
 ---
 
@@ -172,8 +172,8 @@ woort_CodeEnv_unlock(cenv);
 ### 调用入口
 
 ```c
-/* 加载默认入口 @entry 并调用 */
-woort_VmCallStatus woort_bootup_codeenv(woort_StackValue dst, woort_CodeEnv* cenv);
+/* 加载默认入口 @entry 并调用（jit=false 不做 JIT 编译） */
+woort_VmCallStatus woort_bootup(woort_StackValue dst, woort_CodeEnv* cenv, bool jit);
 
 /* 调用栈上已就位的函数值 */
 woort_VmCallStatus woort_invoke(woort_StackValue dst, woort_StackValue f);

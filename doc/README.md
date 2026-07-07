@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     woort_VMRuntime* vm;
     woort_VMRuntime_create(&vm);
     woort_VMRuntime_swap(vm);
-    woort_bootup_codeenv(WOORT_IGNORE, cenv);
+    woort_bootup(WOORT_IGNORE, cenv, false);
     woort_CodeEnv_drop(cenv);
     woort_VMRuntime_swap(NULL);
     woort_VMRuntime_destroy(vm);
