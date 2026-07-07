@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef WOORT_BUILD_WITH_ASMJIT
+
 #include "woort.h"
 #include "woort_opcode_dispatcher_types.h"
 
@@ -202,4 +204,6 @@ extern "C" {
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

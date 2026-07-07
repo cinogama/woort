@@ -34,6 +34,7 @@ list(APPEND woort_required_libs woomem)
 if (WOORT_BUILD_WITH_ASMJIT)
     list(APPEND woort_required_libs asmjit)
     target_include_directories(woort PRIVATE "../3rd/asmjit")
+    target_compile_definitions(woort PRIVATE -DWOORT_BUILD_WITH_ASMJIT)
 endif()
 
 target_link_libraries(woort 

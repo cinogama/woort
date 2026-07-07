@@ -1,3 +1,5 @@
+#ifdef WOORT_BUILD_WITH_ASMJIT
+
 #include "woort_jit_x64.h"
 #include "woort_jit_x64_bridge.h"
 
@@ -193,3 +195,5 @@ const woort_JIT_Backend WOORT_JIT_BACKEND_IMPL_X64 = {
     .m_dispatchers = &_WOORT_JIT_BACKEND_CODE_DISPATCHERS_IMPL_X64,
     .m_drop_code = woort_JIT_Backend_x64_droper,
 };
+
+#endif

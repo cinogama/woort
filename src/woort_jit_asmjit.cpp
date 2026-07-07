@@ -1,3 +1,5 @@
+#ifdef WOORT_BUILD_WITH_ASMJIT
+
 #include "woort_jit_bridge.h"
 #include "asmjit/x86.h"
 
@@ -30,3 +32,5 @@ void* woort_JIT_Asmjit_get_runtime(void)
     assert(_woort_asmjit_runtime != nullptr);
     return _woort_asmjit_runtime;
 }
+
+#endif

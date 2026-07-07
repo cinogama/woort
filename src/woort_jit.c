@@ -29,17 +29,19 @@ static woort_JITContext g_jit_context;
 
 WOORT_NODISCARD bool woort_JIT_bootup(bool enable)
 {
+#ifdef WOORT_BUILD_WITH_ASMJIT
     if (!woort_JIT_Asmjit_bootup())
         return false;
+#endif
 
     woort_rwspinlock_init(&g_jit_context.m_jit_backend_mx);
     g_jit_context.m_jit_backend = NULL;
 
     if (enable)
     {
-#ifdef WOORT_PLATFORM_X64
+#if defined(WOORT_PLATFORM_X64) && defined(WOORT_JIT_SUPPORT_X64)
         woort_JIT_set_backend(&WOORT_JIT_BACKEND_IMPL_X64);
-#elif defined(WOORT_PLATFORM_ARM64)
+#elif defined(WOORT_PLATFORM_ARM64)  && defined(WOORT_JIT_SUPPORT_ARM64)
         woort_JIT_set_backend(&WOORT_JIT_BACKEND_IMPL_ARM64);
 #else
         /* woort_JIT_set_backend(NULL); */
@@ -53,7 +55,9 @@ void woort_JIT_shutdown(void)
     woort_rwspinlock_deinit(&g_jit_context.m_jit_backend_mx);
     g_jit_context.m_jit_backend = NULL;
 
+#ifdef WOORT_BUILD_WITH_ASMJIT
     woort_JIT_Asmjit_shutdown();
+#endif
 }
 
 void woort_JIT_set_backend(/* OPTIONAL */ const woort_JIT_Backend* backend)

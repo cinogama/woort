@@ -1,3 +1,5 @@
+#ifdef WOORT_BUILD_WITH_ASMJIT
+
 #include "woort_jit_x64_bridge.h"
 #include "woort_jit_bridge.h"
 #include "woort_value_types.h"
@@ -5841,3 +5843,5 @@ void woort_JIT_Backend_x64_CHKDIVILR(void* emitter, woort_Opcode_Stack divisor, 
 
     WOORT_JIT_CODE(bind(L_ok));
 }
+
+#endif
