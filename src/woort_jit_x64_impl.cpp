@@ -402,9 +402,15 @@ struct woort_JIT_Asmjit_x64_emitter
     {
         auto* const em = this;
 
-        const Gp reg = c->new_gp64();
-        WOORT_JIT_CODE(mov(reg, v));
-        WOORT_JIT_CODE(mov(sb_slot(dst), reg));
+        const int64_t iv = static_cast<int64_t>(v.value());
+        if (iv >= INT32_MIN && iv <= INT32_MAX)
+            WOORT_JIT_CODE(mov(sb_slot(dst), Imm(static_cast<int32_t>(iv))));
+        else
+        {
+            const Gp reg = c->new_gp64();
+            WOORT_JIT_CODE(mov(reg, v));
+            WOORT_JIT_CODE(mov(sb_slot(dst), reg));
+        }
     }
     void store_stack(woort_Opcode_Stack dst, const Mem& v)
     {
@@ -3473,9 +3479,9 @@ void woort_JIT_Backend_x64_LTI(void* emitter, woort_Opcode_Stack dst, woort_Opco
     const Gp reg_a = em->load_stack_gp(a);
     const Gp result = em->c->new_gp64();
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(reg_a, em->sb_slot(b)));
     WOORT_JIT_CODE(setl(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3487,9 +3493,9 @@ void woort_JIT_Backend_x64_GTI(void* emitter, woort_Opcode_Stack dst, woort_Opco
     const Gp reg_a = em->load_stack_gp(a);
     const Gp result = em->c->new_gp64();
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(reg_a, em->sb_slot(b)));
     WOORT_JIT_CODE(setg(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3501,9 +3507,9 @@ void woort_JIT_Backend_x64_LEI(void* emitter, woort_Opcode_Stack dst, woort_Opco
     const Gp reg_a = em->load_stack_gp(a);
     const Gp result = em->c->new_gp64();
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(reg_a, em->sb_slot(b)));
     WOORT_JIT_CODE(setle(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3515,9 +3521,9 @@ void woort_JIT_Backend_x64_GEI(void* emitter, woort_Opcode_Stack dst, woort_Opco
     const Gp reg_a = em->load_stack_gp(a);
     const Gp result = em->c->new_gp64();
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(reg_a, em->sb_slot(b)));
     WOORT_JIT_CODE(setge(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3529,9 +3535,9 @@ void woort_JIT_Backend_x64_EQI(void* emitter, woort_Opcode_Stack dst, woort_Opco
     const Gp reg_a = em->load_stack_gp(a);
     const Gp result = em->c->new_gp64();
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(reg_a, em->sb_slot(b)));
     WOORT_JIT_CODE(sete(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3543,9 +3549,9 @@ void woort_JIT_Backend_x64_NEI(void* emitter, woort_Opcode_Stack dst, woort_Opco
     const Gp reg_a = em->load_stack_gp(a);
     const Gp result = em->c->new_gp64();
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(reg_a, em->sb_slot(b)));
     WOORT_JIT_CODE(setne(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3640,16 +3646,13 @@ void woort_JIT_Backend_x64_LTR(void* emitter, woort_Opcode_Stack dst, woort_Opco
 {
     woort_JIT_Asmjit_x64_emitter* const em = static_cast<woort_JIT_Asmjit_x64_emitter*>(emitter);
 
-    /* LTR: dst.m_integer = (a.m_real < b.m_real)。实数读入 XMM 比较后写整数结果 */
-    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
     const Gp result = em->c->new_gp64();
 
-    WOORT_JIT_CODE(movq(xmm_a, em->sb_slot(a)));
-    /* ucomisd xmm_a, b 设置标志位为 xmm_a - b；setb = CF=1 即 a<b，
-     * 与 C 语义一致（NaN 比较所有有序关系均返回 false）。 */
-    WOORT_JIT_CODE(ucomisd(xmm_a, em->sb_slot(b)));
-    WOORT_JIT_CODE(setb(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+    WOORT_JIT_CODE(movq(xmm_b, em->sb_slot(b)));
+    WOORT_JIT_CODE(xor_(result, result));
+    WOORT_JIT_CODE(ucomisd(xmm_b, em->sb_slot(a)));
+    WOORT_JIT_CODE(seta(result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3658,15 +3661,13 @@ void woort_JIT_Backend_x64_GTR(void* emitter, woort_Opcode_Stack dst, woort_Opco
 {
     woort_JIT_Asmjit_x64_emitter* const em = static_cast<woort_JIT_Asmjit_x64_emitter*>(emitter);
 
-    /* GTR: dst.m_integer = (a.m_real > b.m_real) */
     const Vec xmm_a = em->c->new_xmm_sd();
     const Gp result = em->c->new_gp64();
 
     WOORT_JIT_CODE(movq(xmm_a, em->sb_slot(a)));
-    /* seta = CF=0 且 ZF=0 即 a>b */
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(ucomisd(xmm_a, em->sb_slot(b)));
     WOORT_JIT_CODE(seta(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3675,15 +3676,13 @@ void woort_JIT_Backend_x64_LER(void* emitter, woort_Opcode_Stack dst, woort_Opco
 {
     woort_JIT_Asmjit_x64_emitter* const em = static_cast<woort_JIT_Asmjit_x64_emitter*>(emitter);
 
-    /* LER: dst.m_integer = (a.m_real <= b.m_real) */
-    const Vec xmm_a = em->c->new_xmm_sd();
+    const Vec xmm_b = em->c->new_xmm_sd();
     const Gp result = em->c->new_gp64();
 
-    WOORT_JIT_CODE(movq(xmm_a, em->sb_slot(a)));
-    /* setbe = CF=1 或 ZF=1 即 a<=b */
-    WOORT_JIT_CODE(ucomisd(xmm_a, em->sb_slot(b)));
-    WOORT_JIT_CODE(setbe(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+    WOORT_JIT_CODE(movq(xmm_b, em->sb_slot(b)));
+    WOORT_JIT_CODE(xor_(result, result));
+    WOORT_JIT_CODE(ucomisd(xmm_b, em->sb_slot(a)));
+    WOORT_JIT_CODE(setae(result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3692,15 +3691,13 @@ void woort_JIT_Backend_x64_GER(void* emitter, woort_Opcode_Stack dst, woort_Opco
 {
     woort_JIT_Asmjit_x64_emitter* const em = static_cast<woort_JIT_Asmjit_x64_emitter*>(emitter);
 
-    /* GER: dst.m_integer = (a.m_real >= b.m_real) */
     const Vec xmm_a = em->c->new_xmm_sd();
     const Gp result = em->c->new_gp64();
 
     WOORT_JIT_CODE(movq(xmm_a, em->sb_slot(a)));
-    /* setae = CF=0 即 a>=b */
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(ucomisd(xmm_a, em->sb_slot(b)));
     WOORT_JIT_CODE(setae(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3709,15 +3706,17 @@ void woort_JIT_Backend_x64_EQR(void* emitter, woort_Opcode_Stack dst, woort_Opco
 {
     woort_JIT_Asmjit_x64_emitter* const em = static_cast<woort_JIT_Asmjit_x64_emitter*>(emitter);
 
-    /* EQR: dst.m_integer = (a.m_real == b.m_real) */
     const Vec xmm_a = em->c->new_xmm_sd();
     const Gp result = em->c->new_gp64();
+    const Gp ordered = em->c->new_gp64();
 
     WOORT_JIT_CODE(movq(xmm_a, em->sb_slot(a)));
-    /* sete = ZF=1 即 a==b（NaN 时 ZF=0，与 C 一致） */
+    WOORT_JIT_CODE(xor_(result, result));
+    WOORT_JIT_CODE(xor_(ordered, ordered));
     WOORT_JIT_CODE(ucomisd(xmm_a, em->sb_slot(b)));
     WOORT_JIT_CODE(sete(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+    WOORT_JIT_CODE(setnp(ordered.r8_lo()));
+    WOORT_JIT_CODE(and_(result, ordered));
 
     em->store_stack(dst, result);
 }
@@ -3726,18 +3725,17 @@ void woort_JIT_Backend_x64_NER(void* emitter, woort_Opcode_Stack dst, woort_Opco
 {
     woort_JIT_Asmjit_x64_emitter* const em = static_cast<woort_JIT_Asmjit_x64_emitter*>(emitter);
 
-    /* NER: dst.m_integer = (a.m_real != b.m_real) */
     const Vec xmm_a = em->c->new_xmm_sd();
     const Gp result = em->c->new_gp64();
+    const Gp neq = em->c->new_gp64();
 
     WOORT_JIT_CODE(movq(xmm_a, em->sb_slot(a)));
-    /* setne = ZF=0；ucomisd 在 unordered（NaN）时置 PF=1、ZF=1，故 NaN!=x 得到 1，与 C 一致。
-     * 但对 EQ 的 unordered 情形 sete 会得到 0（正确），这里 setne 在 unordered 时 ZF=1 会给出 0，
-     * 这与 C 的 a != b（NaN 时为 true）不一致。改用 setp/setnp 组合修正：a!=b 等价于 unordered 或 ZF=0。
-     * 为简洁起见，鉴于 Woolang 静态类型保证不出现 NaN，此处直接用 setne。 */
+    WOORT_JIT_CODE(xor_(result, result));
+    WOORT_JIT_CODE(xor_(neq, neq));
     WOORT_JIT_CODE(ucomisd(xmm_a, em->sb_slot(b)));
-    WOORT_JIT_CODE(setne(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
+    WOORT_JIT_CODE(setp(result.r8_lo()));
+    WOORT_JIT_CODE(setne(neq.r8_lo()));
+    WOORT_JIT_CODE(or_(result, neq));
 
     em->store_stack(dst, result);
 }
@@ -3786,9 +3784,9 @@ void woort_JIT_Backend_x64_LTS(void* emitter, woort_Opcode_Stack dst, woort_Opco
     invoke_node->set_arg(1, reg_b);
     invoke_node->set_ret(0, cmp_result);
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
     WOORT_JIT_CODE(setl(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3813,9 +3811,9 @@ void woort_JIT_Backend_x64_GTS(void* emitter, woort_Opcode_Stack dst, woort_Opco
     invoke_node->set_arg(1, reg_b);
     invoke_node->set_ret(0, cmp_result);
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
     WOORT_JIT_CODE(setg(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3840,9 +3838,9 @@ void woort_JIT_Backend_x64_LES(void* emitter, woort_Opcode_Stack dst, woort_Opco
     invoke_node->set_arg(1, reg_b);
     invoke_node->set_ret(0, cmp_result);
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
     WOORT_JIT_CODE(setle(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3867,9 +3865,9 @@ void woort_JIT_Backend_x64_GES(void* emitter, woort_Opcode_Stack dst, woort_Opco
     invoke_node->set_arg(1, reg_b);
     invoke_node->set_ret(0, cmp_result);
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
     WOORT_JIT_CODE(setge(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -3895,16 +3893,14 @@ void woort_JIT_Backend_x64_EQS(void* emitter, woort_Opcode_Stack dst, woort_Opco
     invoke_node->set_arg(1, reg_b);
     invoke_node->set_ret(0, cmp_result);
 
-    /* result = (reg_a == reg_b) */
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(reg_a, reg_b));
     WOORT_JIT_CODE(sete(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
-    /* result |= (cmp_result == 0) */
-    WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
     const Gp eq_zero = em->c->new_gp64();
+    WOORT_JIT_CODE(xor_(eq_zero, eq_zero));
+    WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
     WOORT_JIT_CODE(sete(eq_zero.r8_lo()));
-    WOORT_JIT_CODE(movzx(eq_zero, eq_zero.r8_lo()));
     WOORT_JIT_CODE(or_(result, eq_zero));
 
     em->store_stack(dst, result);
@@ -3932,16 +3928,14 @@ void woort_JIT_Backend_x64_NES(void* emitter, woort_Opcode_Stack dst, woort_Opco
     invoke_node->set_arg(1, reg_b);
     invoke_node->set_ret(0, cmp_result);
 
-    /* result = (reg_a != reg_b) */
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(cmp(reg_a, reg_b));
     WOORT_JIT_CODE(setne(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
-    /* result &= (cmp_result != 0) */
-    WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
     const Gp ne_zero = em->c->new_gp64();
+    WOORT_JIT_CODE(xor_(ne_zero, ne_zero));
+    WOORT_JIT_CODE(cmp(cmp_result, Imm(0)));
     WOORT_JIT_CODE(setne(ne_zero.r8_lo()));
-    WOORT_JIT_CODE(movzx(ne_zero, ne_zero.r8_lo()));
     WOORT_JIT_CODE(and_(result, ne_zero));
 
     em->store_stack(dst, result);
@@ -3957,16 +3951,14 @@ void woort_JIT_Backend_x64_LAND(void* emitter, woort_Opcode_Stack dst, woort_Opc
     const Gp reg_b = em->load_stack_gp(b);
     const Gp result = em->c->new_gp64();
 
-    /* result = (reg_a != 0) ? 1 : 0 */
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(test(reg_a, reg_a));
     WOORT_JIT_CODE(setne(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
-    /* result &= (reg_b != 0) ? 1 : 0 */
-    WOORT_JIT_CODE(test(reg_b, reg_b));
     const Gp b_nz = em->c->new_gp64();
+    WOORT_JIT_CODE(xor_(b_nz, b_nz));
+    WOORT_JIT_CODE(test(reg_b, reg_b));
     WOORT_JIT_CODE(setne(b_nz.r8_lo()));
-    WOORT_JIT_CODE(movzx(b_nz, b_nz.r8_lo()));
     WOORT_JIT_CODE(and_(result, b_nz));
 
     em->store_stack(dst, result);
@@ -3982,16 +3974,14 @@ void woort_JIT_Backend_x64_LOR(void* emitter, woort_Opcode_Stack dst, woort_Opco
     const Gp reg_b = em->load_stack_gp(b);
     const Gp result = em->c->new_gp64();
 
-    /* result = (reg_a != 0) ? 1 : 0 */
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(test(reg_a, reg_a));
     WOORT_JIT_CODE(setne(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
-    /* result |= (reg_b != 0) ? 1 : 0 */
-    WOORT_JIT_CODE(test(reg_b, reg_b));
     const Gp b_nz = em->c->new_gp64();
+    WOORT_JIT_CODE(xor_(b_nz, b_nz));
+    WOORT_JIT_CODE(test(reg_b, reg_b));
     WOORT_JIT_CODE(setne(b_nz.r8_lo()));
-    WOORT_JIT_CODE(movzx(b_nz, b_nz.r8_lo()));
     WOORT_JIT_CODE(or_(result, b_nz));
 
     em->store_stack(dst, result);
@@ -4006,9 +3996,9 @@ void woort_JIT_Backend_x64_LNOT(void* emitter, woort_Opcode_Stack dst, woort_Opc
     const Gp reg_src = em->load_stack_gp(src);
     const Gp result = em->c->new_gp64();
 
+    WOORT_JIT_CODE(xor_(result, result));
     WOORT_JIT_CODE(test(reg_src, reg_src));
     WOORT_JIT_CODE(sete(result.r8_lo()));
-    WOORT_JIT_CODE(movzx(result, result.r8_lo()));
 
     em->store_stack(dst, result);
 }
@@ -4053,7 +4043,6 @@ void woort_JIT_Backend_x64_CDIVI(void* emitter, woort_Opcode_Stack dst, woort_Op
     const Gp high = em->c->new_gp64();
 
     WOORT_JIT_CODE(mov(dividend, em->sb_slot(dst)));
-    WOORT_JIT_CODE(xor_(high, high));
     WOORT_JIT_CODE(cqo(high, dividend));
     WOORT_JIT_CODE(idiv(high, dividend, em->sb_slot(src)));
 
@@ -4159,7 +4148,6 @@ void woort_JIT_Backend_x64_CMODI(void* emitter, woort_Opcode_Stack dst, woort_Op
     const Gp high = em->c->new_gp64();
 
     WOORT_JIT_CODE(mov(dividend, em->sb_slot(dst)));
-    WOORT_JIT_CODE(xor_(high, high));
     WOORT_JIT_CODE(cqo(high, dividend));
     WOORT_JIT_CODE(idiv(high, dividend, em->sb_slot(src)));
 
@@ -4199,19 +4187,19 @@ void woort_JIT_Backend_x64_CLAND(void* emitter, woort_Opcode_Stack dst, woort_Op
     const Gp reg_dst = em->load_stack_gp(dst);
     const Gp reg_src = em->load_stack_gp(src);
 
-    /* reg_dst = (reg_dst != 0) ? 1 : 0 */
-    WOORT_JIT_CODE(test(reg_dst, reg_dst));
-    WOORT_JIT_CODE(setne(reg_dst.r8_lo()));
-    WOORT_JIT_CODE(movzx(reg_dst, reg_dst.r8_lo()));
-
-    /* reg_dst &= (reg_src != 0) ? 1 : 0 */
-    WOORT_JIT_CODE(test(reg_src, reg_src));
+    const Gp result = em->c->new_gp64();
     const Gp src_nz = em->c->new_gp64();
-    WOORT_JIT_CODE(setne(src_nz.r8_lo()));
-    WOORT_JIT_CODE(movzx(src_nz, src_nz.r8_lo()));
-    WOORT_JIT_CODE(and_(reg_dst, src_nz));
 
-    em->store_stack(dst, reg_dst);
+    WOORT_JIT_CODE(xor_(result, result));
+    WOORT_JIT_CODE(test(reg_dst, reg_dst));
+    WOORT_JIT_CODE(setne(result.r8_lo()));
+
+    WOORT_JIT_CODE(xor_(src_nz, src_nz));
+    WOORT_JIT_CODE(test(reg_src, reg_src));
+    WOORT_JIT_CODE(setne(src_nz.r8_lo()));
+    WOORT_JIT_CODE(and_(result, src_nz));
+
+    em->store_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_CLOR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -4223,19 +4211,19 @@ void woort_JIT_Backend_x64_CLOR(void* emitter, woort_Opcode_Stack dst, woort_Opc
     const Gp reg_dst = em->load_stack_gp(dst);
     const Gp reg_src = em->load_stack_gp(src);
 
-    /* reg_dst = (reg_dst != 0) ? 1 : 0 */
-    WOORT_JIT_CODE(test(reg_dst, reg_dst));
-    WOORT_JIT_CODE(setne(reg_dst.r8_lo()));
-    WOORT_JIT_CODE(movzx(reg_dst, reg_dst.r8_lo()));
-
-    /* reg_dst |= (reg_src != 0) ? 1 : 0 */
-    WOORT_JIT_CODE(test(reg_src, reg_src));
+    const Gp result = em->c->new_gp64();
     const Gp src_nz = em->c->new_gp64();
-    WOORT_JIT_CODE(setne(src_nz.r8_lo()));
-    WOORT_JIT_CODE(movzx(src_nz, src_nz.r8_lo()));
-    WOORT_JIT_CODE(or_(reg_dst, src_nz));
 
-    em->store_stack(dst, reg_dst);
+    WOORT_JIT_CODE(xor_(result, result));
+    WOORT_JIT_CODE(test(reg_dst, reg_dst));
+    WOORT_JIT_CODE(setne(result.r8_lo()));
+
+    WOORT_JIT_CODE(xor_(src_nz, src_nz));
+    WOORT_JIT_CODE(test(reg_src, reg_src));
+    WOORT_JIT_CODE(setne(src_nz.r8_lo()));
+    WOORT_JIT_CODE(or_(result, src_nz));
+
+    em->store_stack(dst, result);
 }
 
 void woort_JIT_Backend_x64_CLNOT(void* emitter, woort_Opcode_Stack dst)
@@ -4246,11 +4234,13 @@ void woort_JIT_Backend_x64_CLNOT(void* emitter, woort_Opcode_Stack dst)
      * dst 为读写槽，test + sete 取逻辑非。 */
     const Gp reg_dst = em->load_stack_gp(dst);
 
-    WOORT_JIT_CODE(test(reg_dst, reg_dst));
-    WOORT_JIT_CODE(sete(reg_dst.r8_lo()));
-    WOORT_JIT_CODE(movzx(reg_dst, reg_dst.r8_lo()));
+    const Gp result = em->c->new_gp64();
 
-    em->store_stack(dst, reg_dst);
+    WOORT_JIT_CODE(xor_(result, result));
+    WOORT_JIT_CODE(test(reg_dst, reg_dst));
+    WOORT_JIT_CODE(sete(result.r8_lo()));
+
+    em->store_stack(dst, result);
 }
 
 /* -------------------------------------------------------------------------- */
