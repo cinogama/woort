@@ -3625,7 +3625,7 @@ void woort_JIT_Backend_arm64_LTR(void* emitter, woort_Opcode_Stack dst, woort_Op
     WOORT_JIT_CODE(ldr(vec_a, em->sb_slot(a)));
     WOORT_JIT_CODE(ldr(vec_b, em->sb_slot(b)));
     WOORT_JIT_CODE(fcmp(vec_a, vec_b));
-    WOORT_JIT_CODE(cset(result, CondCode::kLT));
+    WOORT_JIT_CODE(cset(result, CondCode::kMI));
 
     em->store_stack(dst, result);
 }
@@ -3659,7 +3659,7 @@ void woort_JIT_Backend_arm64_LER(void* emitter, woort_Opcode_Stack dst, woort_Op
     WOORT_JIT_CODE(ldr(vec_a, em->sb_slot(a)));
     WOORT_JIT_CODE(ldr(vec_b, em->sb_slot(b)));
     WOORT_JIT_CODE(fcmp(vec_a, vec_b));
-    WOORT_JIT_CODE(cset(result, CondCode::kLE));
+    WOORT_JIT_CODE(cset(result, CondCode::kLS));
 
     em->store_stack(dst, result);
 }
@@ -5622,7 +5622,7 @@ void woort_JIT_Backend_arm64_ASTORE(void* emitter, woort_Opcode_Global storage, 
 
     const Gp storage_ptr = em->c->new_gp_ptr();
     WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(storage_addr)));
-    WOORT_JIT_CODE(str(val, ptr(storage_ptr)));
+    WOORT_JIT_CODE(stlr(val, ptr(storage_ptr)));
 }
 
 void woort_JIT_Backend_arm64_ALOAD(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Global storage)
@@ -5635,7 +5635,9 @@ void woort_JIT_Backend_arm64_ALOAD(void* emitter, woort_Opcode_Stack dst, woort_
     const Gp storage_ptr = em->c->new_gp_ptr();
     WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(storage_addr)));
 
-    em->store_stack(dst, ptr(storage_ptr));
+    const Gp val = em->c->new_gp64();
+    WOORT_JIT_CODE(ldar(val, ptr(storage_ptr)));
+    em->store_stack(dst, val);
 }
 
 void woort_JIT_Backend_arm64_CAS(void* emitter, woort_Opcode_Global storage, woort_Opcode_Stack desired, woort_Opcode_Stack expected)
@@ -5670,7 +5672,7 @@ void woort_JIT_Backend_arm64_JIFINITED(void* emitter, woort_Opcode_Global flag, 
     WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(flag_addr)));
 
     const Gp flag_stat = em->c->new_gp64();
-    WOORT_JIT_CODE(ldr(flag_stat, ptr(storage_ptr)));
+    WOORT_JIT_CODE(ldar(flag_stat, ptr(storage_ptr)));
 
     WOORT_JIT_CODE(cmp(flag_stat, Imm(2)));
     WOORT_JIT_CODE(b_eq(target_lbl));
@@ -5692,7 +5694,7 @@ void woort_JIT_Backend_arm64_JIFINITED(void* emitter, woort_Opcode_Global flag, 
 
         WOORT_JIT_CODE(bind(L_spin));
         em->emit_checkpoint(*em->m_ip);
-        WOORT_JIT_CODE(ldr(flag_stat, ptr(storage_ptr)));
+        WOORT_JIT_CODE(ldar(flag_stat, ptr(storage_ptr)));
         WOORT_JIT_CODE(cmp(flag_stat, Imm(2)));
         WOORT_JIT_CODE(b_ne(L_spin));
 
