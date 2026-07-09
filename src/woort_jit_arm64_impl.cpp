@@ -89,6 +89,31 @@ struct woort_JIT_Asmjit_arm64_emitter
     Gp          m_stack;
     Gp          m_stack_end;
 
+    /* A1: single-slot TOS register cache — caches the most recent store_stack
+     * destination in a virtual register so a consecutive load_stack_gp of the
+     * same slot reuses it instead of reloading from [sb+slot]. Single-use:
+     * a cache hit consumes the entry. Memory is always written (store_stack
+     * never skips the str), so a missed flush only ever forgoes optimization;
+     * the cache MUST be flushed wherever m_sb/m_sp are reloaded or control
+     * rejoins (see flush_tos call sites). */
+    bool               m_tos_valid;
+    woort_Opcode_Stack m_tos_slot;
+    Gp                 m_tos_vreg;
+
+    /* A4/A6/A11: lazily-materialized, function-wide constant virtual registers.
+     * Created on first use and reused for every subsequent site in the same JIT
+     * function, hoisting the (multi-instruction on AArch64) address/constant
+     * materialization out of hot loops. */
+    optional<Gp> m_gc_flag_ptr;   /* A4: &woomem_gc_marking_state_flag          */
+    optional<Gp> m_static_base;   /* A11: m_cenv_static_storage base address    */
+    optional<Gp> m_neg_sign_mask; /* A6:  INT64_MIN sign mask for NEGR          */
+
+    /* A8: number of stack slots known to be reserved below m_sp by a preceding
+     * PUSHRCHK/ASSURESSZ; subsequent PUSHSCHK/PUSHCCHK within this budget skip
+     * their per-push overflow check. Must be flushed wherever m_sp is reloaded
+     * or control rejoins. */
+    int32_t m_push_budget;
+
     optional<JumpAnnotation*> m_checkpoint_resume_annotation;
     Label           m_checkpoint_slow;
     Gp              m_checkpoint_resume;
@@ -110,6 +135,14 @@ struct woort_JIT_Asmjit_arm64_emitter
     size_t          m_sync_runtime_status_site_count;
 
     unordered_map<const woort_Bytecode*, Label> m_opcode_label;
+
+    /* A8: for each run of consecutive checked dynamic pushes (PUSHSCHK/PUSHCCHK)
+     * of length >= 2 (not crossing a jump-target label), maps the run's FIRST
+     * opcode pointer to the run length k. The run-start emits a single combined
+     * overflow check covering k slots and sets m_push_budget = k-1; the
+     * following k-1 pushes skip their per-push check. Built once by
+     * scan_push_runs(). */
+    unordered_map<const woort_Bytecode*, uint32_t> m_push_run_start;
 
     woort_JIT_Asmjit_arm64_emitter(const woort_JIT_Asmjit_arm64_emitter&) = delete;
     woort_JIT_Asmjit_arm64_emitter(woort_JIT_Asmjit_arm64_emitter&&) = delete;
@@ -155,6 +188,10 @@ struct woort_JIT_Asmjit_arm64_emitter
         m_stack = c->new_gp_ptr();
         m_stack_end = c->new_gp_ptr();
 
+        m_tos_valid = false;
+        m_tos_slot = 0;
+        m_push_budget = 0;
+
         m_last_error = c->add_func_node(Out(m_func_node),
             FuncSignature::build<woort_VmCallStatus, woort_VMRuntime*, const woort_Value*, const woort_Value*>());
 
@@ -179,9 +216,185 @@ struct woort_JIT_Asmjit_arm64_emitter
     }
 
     // ===================================================== //
+    /* A1: drop the TOS register cache. Call wherever m_sb/m_sp are reloaded
+     * or where control flow rejoins (labels, VM calls, deopt, returns). */
+    void flush_tos() { m_tos_valid = false; }
+    /* A8: drop the push reservation budget. Same flush discipline as TOS. */
+    void flush_push_budget() { m_push_budget = 0; }
+
+    /* A4: lazily create a vreg holding &woomem_gc_marking_state_flag. */
+    Gp get_gc_flag_ptr()
+    {
+        auto* const em = this;
+        if (!m_gc_flag_ptr.has_value())
+        {
+            Gp r = c->new_gp_ptr();
+            WOORT_JIT_CODE(mov(r, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
+            m_gc_flag_ptr = r;
+        }
+        return *m_gc_flag_ptr;
+    }
+    /* A11: lazily create a vreg holding the m_cenv_static_storage base. */
+    Gp get_static_base()
+    {
+        auto* const em = this;
+        if (!m_static_base.has_value())
+        {
+            Gp r = c->new_gp_ptr();
+            WOORT_JIT_CODE(mov(r, reinterpret_cast<uintptr_t>(m_cenv_static_storage)));
+            m_static_base = r;
+        }
+        return *m_static_base;
+    }
+    /* A6: lazily create a vreg holding INT64_MIN (sign mask for NEGR). */
+    Gp get_neg_sign_mask()
+    {
+        auto* const em = this;
+        if (!m_neg_sign_mask.has_value())
+        {
+            Gp r = c->new_gp64();
+            WOORT_JIT_CODE(mov(r, Imm(static_cast<int64_t>(INT64_MIN))));
+            m_neg_sign_mask = r;
+        }
+        return *m_neg_sign_mask;
+    }
+
+    /* A11: address m_cenv_static_storage[idx] as [static_base + idx*8], reusing
+     * the lazily-cached base register instead of materializing a fresh address
+     * (multi-instruction on AArch64) on every access.
+     *
+     * Note: like sb_slot, when the scaled displacement falls outside the
+     * unsigned-12-bit (ldur/str scaled) range the returned Mem is emitted by
+     * asmjit via a temporary; the base register itself stays cached. */
+    Mem static_slot(woort_Opcode_Global idx)
+    {
+        return ptr(get_static_base(),
+            idx * static_cast<int32_t>(sizeof(woort_Value)));
+    }
+    /* A11: materialize a Gp pointing at m_cenv_static_storage[idx] from the
+     * cached base. Needed where a base register is mandatory (arm64 exclusive
+     * ops stlr/ldar/casal) or where the address is passed to an invoke. */
+    Gp static_slot_ptr(woort_Opcode_Global idx)
+    {
+        auto* const em = this;
+        const Gp r = c->new_gp_ptr();
+        const Gp off = c->new_gp64();
+        WOORT_JIT_CODE(mov(off, Imm(
+            static_cast<int64_t>(idx) * static_cast<int64_t>(sizeof(woort_Value)))));
+        WOORT_JIT_CODE(add(r, get_static_base(), off));
+        return r;
+    }
+
+    /* A3: inline woort_DynBox_unbox_no_check — turn a DynBox (in val_in) into a
+     * raw 8-byte woort_Value (in out) via tag decode + bit manipulation, avoiding
+     * the per-element function call (caller-save spill/reload) in LDIDVEC /
+     * UNPACKVEC. Mirrors the tag-decode of the CASTDYN/CASTR opcodes.
+     * val_in is not clobbered (a copy is used internally). */
+    void emit_unbox_dyn_no_check(const Gp& out, const Gp& val_in)
+    {
+        auto* const em = this;
+
+        const Label L_imm   = c->new_label();
+        const Label L_plain = c->new_label();
+        const Label L_exint = c->new_label();
+        const Label L_done  = c->new_label();
+
+        const Gp val = c->new_gp64();
+        WOORT_JIT_CODE(mov(val, val_in));
+
+        /* immediate (tagged) if any of the low 3 bits is set */
+        WOORT_JIT_CODE(tst(val, Imm(0b111)));
+        WOORT_JIT_CODE(b_ne(L_imm));
+
+        /* --- pointer path (low 3 bits == 0) --- */
+        WOORT_JIT_CODE(tst(val, val));                   /* nil (== 0)? */
+        WOORT_JIT_CODE(b_eq(L_plain));
+        {
+            const Gp proxy = c->new_gp64();
+            WOORT_JIT_CODE(ldr(proxy, ptr(val)));        /* m_proxy at offset 0 */
+            const Gp ex_sym = c->new_gp64();
+            WOORT_JIT_CODE(mov(ex_sym, reinterpret_cast<uintptr_t>(&WOORT_EX_BOX_PROXY)));
+            WOORT_JIT_CODE(cmp(proxy, ex_sym));
+            WOORT_JIT_CODE(b_ne(L_plain));
+
+            /* EX_BOX: dispatch on m_is_int */
+            const Gp is_int = c->new_gp32();
+            WOORT_JIT_CODE(ldrb(is_int.w(), ptr(val,
+                static_cast<int32_t>(offsetof(woort_BoxedExValue, m_is_int)))));
+            WOORT_JIT_CODE(tst(is_int, is_int));
+            WOORT_JIT_CODE(b_ne(L_exint));
+
+            WOORT_JIT_CODE(ldr(out, ptr(val,
+                static_cast<int32_t>(offsetof(woort_BoxedExValue, m_real)))));
+            WOORT_JIT_CODE(b(L_done));
+        }
+        WOORT_JIT_CODE(bind(L_exint));
+        WOORT_JIT_CODE(ldr(out, ptr(val,
+            static_cast<int32_t>(offsetof(woort_BoxedExValue, m_int)))));
+        WOORT_JIT_CODE(b(L_done));
+
+        WOORT_JIT_CODE(bind(L_plain));
+        WOORT_JIT_CODE(mov(out, val));                   /* gcinstance == val */
+        WOORT_JIT_CODE(b(L_done));
+
+        /* --- immediate path --- */
+        WOORT_JIT_CODE(bind(L_imm));
+        {
+            const Label L_real = c->new_label();
+            const Label L_int  = c->new_label();
+
+            WOORT_JIT_CODE(tst(val, Imm(0b001)));
+            WOORT_JIT_CODE(b_ne(L_real));
+
+            WOORT_JIT_CODE(tst(val, Imm(0b010)));        /* INT tag = 0b010 */
+            WOORT_JIT_CODE(b_ne(L_int));
+
+            /* BOOL: out = val >> 3 (yields 0/1) */
+            WOORT_JIT_CODE(mov(out, val));
+            WOORT_JIT_CODE(lsr(out, out, 3));
+            WOORT_JIT_CODE(b(L_done));
+
+            WOORT_JIT_CODE(bind(L_int));
+            WOORT_JIT_CODE(mov(out, val));
+            WOORT_JIT_CODE(asr(out, out, 2));
+            WOORT_JIT_CODE(b(L_done));
+
+            /* REAL (Float63): decompress back to IEEE-754 double bits. */
+            WOORT_JIT_CODE(bind(L_real));
+            {
+                const Gp sign = c->new_gp64();
+                const Gp sign_mask = c->new_gp64();
+                WOORT_JIT_CODE(mov(sign_mask, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
+                WOORT_JIT_CODE(mov(sign, val));
+                WOORT_JIT_CODE(and_(sign, sign, sign_mask));
+
+                const Gp exp_bit = c->new_gp64();
+                WOORT_JIT_CODE(mov(exp_bit, val));
+                WOORT_JIT_CODE(lsr(exp_bit, exp_bit, 62));
+                WOORT_JIT_CODE(and_(exp_bit, exp_bit, Imm(1)));
+                WOORT_JIT_CODE(eor(exp_bit, exp_bit, Imm(1)));
+                WOORT_JIT_CODE(lsl(exp_bit, exp_bit, 62));
+
+                const Gp low62_mask = c->new_gp64();
+                WOORT_JIT_CODE(mov(low62_mask, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
+                WOORT_JIT_CODE(mov(out, val));
+                WOORT_JIT_CODE(lsr(out, out, 1));
+                WOORT_JIT_CODE(and_(out, out, low62_mask));
+                WOORT_JIT_CODE(orr(out, out, exp_bit));
+                WOORT_JIT_CODE(orr(out, out, sign));
+            }
+        }
+
+        WOORT_JIT_CODE(bind(L_done));
+    }
+
+    // ===================================================== //
     void resync_vm_stack_state_fully()
     {
         auto* const em = this;
+
+        em->flush_tos();
+        em->flush_push_budget();
 
         WOORT_JIT_CODE(ldr(em->m_sp, ptr(em->m_vm, WOORT_VM_OFFSETOF_SP)));
         WOORT_JIT_CODE(ldr(em->m_sb, ptr(em->m_vm, WOORT_VM_OFFSETOF_SB)));
@@ -270,6 +483,9 @@ struct woort_JIT_Asmjit_arm64_emitter
     {
         auto* const em = this;
 
+        em->flush_tos();
+        em->flush_push_budget();
+
         if (!em->m_checkpoint_resume_annotation.has_value())
         {
             em->m_checkpoint_slow = c->new_label();
@@ -302,6 +518,9 @@ struct woort_JIT_Asmjit_arm64_emitter
     {
         auto* const em = this;
 
+        em->flush_tos();
+        em->flush_push_budget();
+
         if (!em->m_stack_overflow_resume_annotation.has_value())
         {
             em->m_stack_overflow_slow = c->new_label();
@@ -324,6 +543,9 @@ struct woort_JIT_Asmjit_arm64_emitter
     void emit_jit_call_resync(Label L_resume)
     {
         auto* const em = this;
+
+        em->flush_tos();
+        em->flush_push_budget();
 
         if (!em->m_jit_call_resync_resume_annotation.has_value())
         {
@@ -365,6 +587,9 @@ struct woort_JIT_Asmjit_arm64_emitter
         */
         auto* const em = this;
 
+        em->flush_tos();
+        em->flush_push_budget();
+
         if (!em->m_sync_runtime_status_resume_annotation.has_value())
         {
             em->m_sync_runtime_status_slow = c->new_label();
@@ -385,6 +610,9 @@ struct woort_JIT_Asmjit_arm64_emitter
     void emit_failed_fallback(const woort_Bytecode* ip)
     {
         auto* const em = this;
+
+        em->flush_tos();
+        em->flush_push_budget();
 
         emit_sync_rt_ip_status(ip);
 
@@ -425,6 +653,18 @@ struct woort_JIT_Asmjit_arm64_emitter
     {
         auto* const em = this;
 
+        /* A1: if this slot is currently cached in a register (the destination of
+         * the immediately preceding register-producing instruction), reuse that
+         * register instead of reloading from [sb+src]. Single-use: the hit
+         * consumes the entry. Memory is always kept up to date by store_stack,
+         * so this is a pure load-elimination; the cache is flushed wherever
+         * m_sb/m_sp are reloaded or control rejoins (see flush_tos sites). */
+        if (em->m_tos_valid && src == em->m_tos_slot)
+        {
+            em->m_tos_valid = false;
+            return em->m_tos_vreg;
+        }
+
         const Gp reg = c->new_gp64();
         WOORT_JIT_CODE(ldr(reg, sb_slot(src)));
         return reg;
@@ -434,10 +674,19 @@ struct woort_JIT_Asmjit_arm64_emitter
         auto* const em = this;
 
         WOORT_JIT_CODE(str(v, sb_slot(dst)));
+
+        /* A1: record the just-written slot+register so a consecutive
+         * load_stack_gp(dst) reuses v, avoiding a redundant reload. */
+        em->m_tos_slot = dst;
+        em->m_tos_vreg = v;
+        em->m_tos_valid = true;
     }
     void store_stack(woort_Opcode_Stack dst, const Imm& v)
     {
         auto* const em = this;
+
+        /* A1: no live Gp result to cache for the imm path. */
+        em->m_tos_valid = false;
 
         const Gp reg = c->new_gp64();
         WOORT_JIT_CODE(mov(reg, v));
@@ -447,9 +696,21 @@ struct woort_JIT_Asmjit_arm64_emitter
     {
         auto* const em = this;
 
+        em->m_tos_valid = false;
+
         const Gp reg = c->new_gp64();
         WOORT_JIT_CODE(ldr(reg, v));
         WOORT_JIT_CODE(str(reg, sb_slot(dst)));
+    }
+    /* A1: FP (Vec) results bypass the Gp cache; invalidate so a later
+     * load_stack_gp(dst) does not reuse a stale Gp holding the old bits. */
+    void store_stack(woort_Opcode_Stack dst, const Vec& v)
+    {
+        auto* const em = this;
+
+        em->m_tos_valid = false;
+
+        WOORT_JIT_CODE(str(v, sb_slot(dst)));
     }
 
     Label get_label(const woort_Bytecode* c)
@@ -513,6 +774,102 @@ struct woort_JIT_Asmjit_arm64_emitter
             cur = woort_JIT_next_bytecode(cur);
         }
     }
+
+    /* A8: detect maximal runs of consecutive checked dynamic pushes
+     * (PUSHSCHK/PUSHCCHK) that do not span a jump-target label, recording each
+     * run of length >= 2 so its start can emit one combined overflow check. */
+    void scan_push_runs()
+    {
+        const woort_Bytecode* run_start = nullptr;
+        uint32_t run_len = 0;
+
+        const woort_Bytecode* cur = m_cenv_codes;
+        while (cur < m_cenv_codes_end)
+        {
+            const uint32_t bc = cur[0];
+            const uint8_t  op6 = (uint8_t)WOORT_BYTECODE(OP6, bc);
+            const uint8_t  m2  = (uint8_t)WOORT_BYTECODE(M2,  bc);
+
+            const bool is_push =
+                (op6 == WOORT_OPCODE_PUSHCHK) && (m2 == 1u || m2 == 2u);
+            const bool is_target = (m_opcode_label.count(cur) != 0);
+
+            if (is_push && run_len > 0 && !is_target)
+            {
+                ++run_len;                                 /* extend current run */
+            }
+            else if (is_push)
+            {
+                if (run_len >= 2)
+                    m_push_run_start[run_start] = run_len; /* close previous run */
+                run_start = cur;                           /* start new run here  */
+                run_len = 1;
+            }
+            else
+            {
+                if (run_len >= 2)
+                    m_push_run_start[run_start] = run_len;
+                run_len = 0;
+                run_start = nullptr;
+            }
+
+            cur = woort_JIT_next_bytecode(cur);
+        }
+        if (run_len >= 2)
+            m_push_run_start[run_start] = run_len;
+    }
+
+    /* A8: emit the overflow guard for k consecutive single-slot pushes.
+     * Equivalent to k individual `cmp m_sp, m_stack; b_hi` checks (the binding
+     * one being on the last slot at m_sp-(k-1)*8). On overflow, retry via the
+     * shared slow path. */
+    void emit_push_overflow_check(uint32_t k)
+    {
+        auto* const em = this;
+
+        const Label L_retry = c->new_label();
+        WOORT_JIT_CODE(bind(L_retry));
+
+        const Label L_ok = c->new_label();
+        if (k <= 1)
+        {
+            WOORT_JIT_CODE(cmp(m_sp, m_stack));
+        }
+        else
+        {
+            const Gp t = c->new_gp_ptr();
+            WOORT_JIT_CODE(sub(t, m_sp,
+                static_cast<int32_t>((k - 1u) * static_cast<uint32_t>(sizeof(woort_Value)))));
+            WOORT_JIT_CODE(cmp(t, m_stack));
+        }
+        WOORT_JIT_CODE(b_hi(L_ok));
+
+        emit_extern_stack(*m_ip, L_retry);
+
+        WOORT_JIT_CODE(bind(L_ok));
+    }
+
+    /* A8: classify the current checked push (*m_ip) and emit/omit its overflow
+     * guard accordingly. Run-starts emit a combined check for the whole run and
+     * seed m_push_budget; continuations consume the budget and skip; isolated
+     * pushes emit a single check. */
+    void emit_pushchk_guard()
+    {
+        const auto it = m_push_run_start.find(*m_ip);
+        if (it != m_push_run_start.end())
+        {
+            emit_push_overflow_check(it->second);
+            m_push_budget = it->second - 1u;   /* following pushes skip */
+        }
+        else if (m_push_budget > 0)
+        {
+            --m_push_budget;                   /* continuation: skip check */
+        }
+        else
+        {
+            emit_push_overflow_check(1);       /* isolated push */
+        }
+    }
 };
 
 bool woort_JIT_Backend_arm64_prologue(
@@ -558,6 +915,7 @@ bool woort_JIT_Backend_arm64_prologue(
         }
 
         em->scan_jump_targets();
+        em->scan_push_runs();
     }
 
     if (!em->is_okay())
@@ -739,7 +1097,11 @@ bool woort_JIT_Backend_arm64_pre_dispatch(
 
     const auto it = em->m_opcode_label.find(*em->m_ip);
     if (it != em->m_opcode_label.end())
+    {
+        em->flush_tos();
+        em->flush_push_budget();
         WOORT_JIT_CODE(bind(it->second));
+    }
 
     return true;
 }
@@ -790,11 +1152,7 @@ void woort_JIT_Backend_arm64_LOAD(void* emitter, woort_Opcode_Stack dst, woort_O
         em->store_stack(dst, Imm(src_addr->m_integer));
     else
     {
-        const Gp addr = em->c->new_gp_ptr();
-        WOORT_JIT_CODE(mov(addr, reinterpret_cast<uintptr_t>(src_addr)));
-        const Gp val = em->c->new_gp64();
-        WOORT_JIT_CODE(ldr(val, ptr(addr)));
-        em->store_stack(dst, val);
+        em->store_stack(dst, em->static_slot(src));
     }
 }
 
@@ -802,20 +1160,15 @@ void woort_JIT_Backend_arm64_STORE(void* emitter, woort_Opcode_Global dst, woort
 {
     woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
-    woort_Value* const dst_addr =
-        const_cast<woort_Value*>(&em->m_cenv_static_storage[dst]);
-
     const Gp val = em->load_stack_gp(src);
 
-    const Gp dst_ptr = em->c->new_gp_ptr();
-    WOORT_JIT_CODE(mov(dst_ptr, reinterpret_cast<uintptr_t>(dst_addr)));
+    const Gp dst_ptr = em->static_slot_ptr(dst);
 
     const Label L_fast = em->c->new_label();
     const Label L_end = em->c->new_label();
 
-    const Gp flag_ptr = em->c->new_gp_ptr();
+    const Gp flag_ptr = em->get_gc_flag_ptr();
     const Gp flag_val = em->c->new_gp32();
-    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
     WOORT_JIT_CODE(ldrb(flag_val, ptr(flag_ptr)));
     WOORT_JIT_CODE(cbz(flag_val, L_fast));
     {
@@ -853,9 +1206,8 @@ void woort_JIT_Backend_arm64_STOREPVALUE(void* emitter, woort_Opcode_Stack dst, 
     const Label L_fast = em->c->new_label();
     const Label L_end = em->c->new_label();
 
-    const Gp flag_ptr = em->c->new_gp_ptr();
+    const Gp flag_ptr = em->get_gc_flag_ptr();
     const Gp flag_val = em->c->new_gp32();
-    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
     WOORT_JIT_CODE(ldrb(flag_val, ptr(flag_ptr)));
     WOORT_JIT_CODE(cbz(flag_val, L_fast));
     {
@@ -915,16 +1267,8 @@ void woort_JIT_Backend_arm64_PUSHSCHK(void* emitter, woort_Opcode_Stack src)
 
     const Gp val = em->load_stack_gp(src);
 
-    const Label L_retry = em->c->new_label();
-    WOORT_JIT_CODE(bind(L_retry));
-
-    const Label L_ok = em->c->new_label();
-    WOORT_JIT_CODE(cmp(em->m_sp, em->m_stack));
-    WOORT_JIT_CODE(b_hi(L_ok));
-
-    em->emit_extern_stack(*em->m_ip, L_retry);
-
-    WOORT_JIT_CODE(bind(L_ok));
+    /* A8: coalesce overflow checks across consecutive checked pushes. */
+    em->emit_pushchk_guard();
 
     WOORT_JIT_CODE(str(val, ptr(em->m_sp)));
     WOORT_JIT_CODE(sub(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
@@ -937,16 +1281,8 @@ void woort_JIT_Backend_arm64_PUSHCCHK(void* emitter, woort_Opcode_Global src)
     const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
     const bool is_constant = (src < em->m_cenv_constant_count);
 
-    const Label L_retry = em->c->new_label();
-    WOORT_JIT_CODE(bind(L_retry));
-
-    const Label L_ok = em->c->new_label();
-    WOORT_JIT_CODE(cmp(em->m_sp, em->m_stack));
-    WOORT_JIT_CODE(b_hi(L_ok));
-
-    em->emit_extern_stack(*em->m_ip, L_retry);
-
-    WOORT_JIT_CODE(bind(L_ok));
+    /* A8: coalesce overflow checks across consecutive checked pushes. */
+    em->emit_pushchk_guard();
 
     {
         const Gp val = em->c->new_gp64();
@@ -954,9 +1290,7 @@ void woort_JIT_Backend_arm64_PUSHCCHK(void* emitter, woort_Opcode_Global src)
             WOORT_JIT_CODE(mov(val, Imm(src_addr->m_integer)));
         else
         {
-            const Gp addr = em->c->new_gp_ptr();
-            WOORT_JIT_CODE(mov(addr, reinterpret_cast<uintptr_t>(src_addr)));
-            WOORT_JIT_CODE(ldr(val, ptr(addr)));
+            WOORT_JIT_CODE(ldr(val, em->static_slot(src)));
         }
         WOORT_JIT_CODE(str(val, ptr(em->m_sp)));
     }
@@ -1012,9 +1346,7 @@ void woort_JIT_Backend_arm64_PUSHC(void* emitter, woort_Opcode_Global src)
             WOORT_JIT_CODE(mov(val, Imm(src_addr->m_integer)));
         else
         {
-            const Gp addr = em->c->new_gp_ptr();
-            WOORT_JIT_CODE(mov(addr, reinterpret_cast<uintptr_t>(src_addr)));
-            WOORT_JIT_CODE(ldr(val, ptr(addr)));
+            WOORT_JIT_CODE(ldr(val, em->static_slot(src)));
         }
         WOORT_JIT_CODE(str(val, ptr(em->m_sp)));
     }
@@ -1051,21 +1383,16 @@ void woort_JIT_Backend_arm64_POPC(void* emitter, woort_Opcode_Global dst)
 
     WOORT_JIT_CODE(add(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 
-    woort_Value* const dst_addr =
-        const_cast<woort_Value*>(&em->m_cenv_static_storage[dst]);
-
     const Gp val = em->c->new_gp64();
     WOORT_JIT_CODE(ldr(val, ptr(em->m_sp)));
 
-    const Gp dst_ptr = em->c->new_gp_ptr();
-    WOORT_JIT_CODE(mov(dst_ptr, reinterpret_cast<uintptr_t>(dst_addr)));
+    const Gp dst_ptr = em->static_slot_ptr(dst);
 
     const Label L_fast = em->c->new_label();
     const Label L_end = em->c->new_label();
 
-    const Gp flag_ptr = em->c->new_gp_ptr();
+    const Gp flag_ptr = em->get_gc_flag_ptr();
     const Gp flag_val = em->c->new_gp32();
-    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
     WOORT_JIT_CODE(ldrb(flag_val, ptr(flag_ptr)));
     WOORT_JIT_CODE(cbz(flag_val, L_fast));
     {
@@ -2405,9 +2732,7 @@ void woort_JIT_Backend_arm64_RETVC(void* emitter, woort_Opcode_Global src)
             WOORT_JIT_CODE(mov(ret_val, Imm(src_addr->m_integer)));
         else
         {
-            const Gp addr = em->c->new_gp_ptr();
-            WOORT_JIT_CODE(mov(addr, reinterpret_cast<uintptr_t>(src_addr)));
-            WOORT_JIT_CODE(ldr(ret_val, ptr(addr)));
+            WOORT_JIT_CODE(ldr(ret_val, em->static_slot(src)));
         }
         WOORT_JIT_CODE(str(ret_val, ptr(em->m_sb, slot_off)));
     }
@@ -3534,7 +3859,7 @@ void woort_JIT_Backend_arm64_ADDR(void* emitter, woort_Opcode_Stack dst, woort_O
     WOORT_JIT_CODE(ldr(vec_a, em->sb_slot(a)));
     WOORT_JIT_CODE(ldr(vec_b, em->sb_slot(b)));
     WOORT_JIT_CODE(fadd(vec_a, vec_a, vec_b));
-    WOORT_JIT_CODE(str(vec_a, em->sb_slot(dst)));
+    em->store_stack(dst, vec_a);
 }
 
 void woort_JIT_Backend_arm64_SUBR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -3547,7 +3872,7 @@ void woort_JIT_Backend_arm64_SUBR(void* emitter, woort_Opcode_Stack dst, woort_O
     WOORT_JIT_CODE(ldr(vec_a, em->sb_slot(a)));
     WOORT_JIT_CODE(ldr(vec_b, em->sb_slot(b)));
     WOORT_JIT_CODE(fsub(vec_a, vec_a, vec_b));
-    WOORT_JIT_CODE(str(vec_a, em->sb_slot(dst)));
+    em->store_stack(dst, vec_a);
 }
 
 void woort_JIT_Backend_arm64_MULR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -3560,7 +3885,7 @@ void woort_JIT_Backend_arm64_MULR(void* emitter, woort_Opcode_Stack dst, woort_O
     WOORT_JIT_CODE(ldr(vec_a, em->sb_slot(a)));
     WOORT_JIT_CODE(ldr(vec_b, em->sb_slot(b)));
     WOORT_JIT_CODE(fmul(vec_a, vec_a, vec_b));
-    WOORT_JIT_CODE(str(vec_a, em->sb_slot(dst)));
+    em->store_stack(dst, vec_a);
 }
 
 void woort_JIT_Backend_arm64_DIVR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -3573,7 +3898,7 @@ void woort_JIT_Backend_arm64_DIVR(void* emitter, woort_Opcode_Stack dst, woort_O
     WOORT_JIT_CODE(ldr(vec_a, em->sb_slot(a)));
     WOORT_JIT_CODE(ldr(vec_b, em->sb_slot(b)));
     WOORT_JIT_CODE(fdiv(vec_a, vec_a, vec_b));
-    WOORT_JIT_CODE(str(vec_a, em->sb_slot(dst)));
+    em->store_stack(dst, vec_a);
 }
 
 void woort_JIT_Backend_arm64_MODR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack a, woort_Opcode_Stack b)
@@ -3593,7 +3918,7 @@ void woort_JIT_Backend_arm64_MODR(void* emitter, woort_Opcode_Stack dst, woort_O
     invoke_node->set_arg(1, vec_b);
     invoke_node->set_ret(0, vec_ret);
 
-    WOORT_JIT_CODE(str(vec_ret, em->sb_slot(dst)));
+    em->store_stack(dst, vec_ret);
 }
 
 void woort_JIT_Backend_arm64_NEGR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -3604,9 +3929,8 @@ void woort_JIT_Backend_arm64_NEGR(void* emitter, woort_Opcode_Stack dst, woort_O
      * 取负等价于翻转最高符号位（与 0x8000000000000000 异或），无需经 FP 寄存器。
      * 这也正确处理 -0.0（翻转后得 +0.0，与 C 的 - 运算一致）。 */
     const Gp result = em->c->new_gp64();
-    const Gp sign_mask = em->c->new_gp64();
+    const Gp sign_mask = em->get_neg_sign_mask();
 
-    WOORT_JIT_CODE(mov(sign_mask, Imm(static_cast<int64_t>(INT64_MIN))));
     WOORT_JIT_CODE(ldr(result, em->sb_slot(src)));
     WOORT_JIT_CODE(eor(result, result, sign_mask));
 
@@ -3833,30 +4157,35 @@ void woort_JIT_Backend_arm64_EQS(void* emitter, woort_Opcode_Stack dst, woort_Op
 {
     woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
-    /* EQS: dst.m_integer = (a == b) || woort_GCString_compare(a, b) == 0
-     * 不使用短路跳转，直接线性计算：ptr_eq | (compare == 0)。 */
+    /* EQS: dst.m_integer = (a == b) || woort_GCString_compare(a, b) == 0.
+     * Pointer-equal strings are certainly equal — short-circuit before the
+     * (expensive, full-content) compare call. Common for interned strings. */
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
-    const Gp cmp_result = em->c->new_gp32();
     const Gp result = em->c->new_gp64();
 
-    InvokeNode* invoke_node;
-    WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_GCString_compare, FuncSignature::build<int, const woort_GCString*, const woort_GCString*>());
+    const Label L_ptr_eq = em->c->new_label();
+    const Label L_done = em->c->new_label();
 
-    invoke_node->set_arg(0, reg_a);
-    invoke_node->set_arg(1, reg_b);
-    invoke_node->set_ret(0, cmp_result);
-
-    /* result = (reg_a == reg_b) */
     WOORT_JIT_CODE(cmp(reg_a, reg_b));
-    WOORT_JIT_CODE(cset(result, CondCode::kEQ));
+    WOORT_JIT_CODE(b_eq(L_ptr_eq));
+    {
+        const Gp cmp_result = em->c->new_gp32();
+        InvokeNode* invoke_node;
+        WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_GCString_compare, FuncSignature::build<int, const woort_GCString*, const woort_GCString*>());
+        invoke_node->set_arg(0, reg_a);
+        invoke_node->set_arg(1, reg_b);
+        invoke_node->set_ret(0, cmp_result);
 
-    /* result |= (cmp_result == 0) */
-    WOORT_JIT_CODE(cmp(cmp_result, 0));
-    const Gp eq_zero = em->c->new_gp64();
-    WOORT_JIT_CODE(cset(eq_zero, CondCode::kEQ));
-    WOORT_JIT_CODE(orr(result, result, eq_zero));
+        WOORT_JIT_CODE(cmp(cmp_result, 0));
+        WOORT_JIT_CODE(cset(result, CondCode::kEQ));
+    }
+    WOORT_JIT_CODE(b(L_done));
 
+    WOORT_JIT_CODE(bind(L_ptr_eq));
+    WOORT_JIT_CODE(mov(result, 1));
+
+    WOORT_JIT_CODE(bind(L_done));
     em->store_stack(dst, result);
 }
 
@@ -3864,30 +4193,30 @@ void woort_JIT_Backend_arm64_NES(void* emitter, woort_Opcode_Stack dst, woort_Op
 {
     woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
-    /* NES: dst.m_integer = (a != b) && woort_GCString_compare(a, b) != 0
-     * NES 是 EQS 的逻辑取反，用 && 而非 ||。线性计算：ptr_ne & (compare != 0)。 */
+    /* NES: dst.m_integer = (a != b) && woort_GCString_compare(a, b) != 0.
+     * Pointer-equal strings are certainly NOT unequal — short-circuit to 0
+     * before the compare call. */
     const Gp reg_a = em->load_stack_gp(a);
     const Gp reg_b = em->load_stack_gp(b);
-    const Gp cmp_result = em->c->new_gp32();
     const Gp result = em->c->new_gp64();
 
-    InvokeNode* invoke_node;
-    WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_GCString_compare, FuncSignature::build<int, const woort_GCString*, const woort_GCString*>());
+    const Label L_done = em->c->new_label();
 
-    invoke_node->set_arg(0, reg_a);
-    invoke_node->set_arg(1, reg_b);
-    invoke_node->set_ret(0, cmp_result);
-
-    /* result = (reg_a != reg_b) */
+    WOORT_JIT_CODE(mov(result, 0));
     WOORT_JIT_CODE(cmp(reg_a, reg_b));
-    WOORT_JIT_CODE(cset(result, CondCode::kNE));
+    WOORT_JIT_CODE(b_eq(L_done));
+    {
+        const Gp cmp_result = em->c->new_gp32();
+        InvokeNode* invoke_node;
+        WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_GCString_compare, FuncSignature::build<int, const woort_GCString*, const woort_GCString*>());
+        invoke_node->set_arg(0, reg_a);
+        invoke_node->set_arg(1, reg_b);
+        invoke_node->set_ret(0, cmp_result);
 
-    /* result &= (cmp_result != 0) */
-    WOORT_JIT_CODE(cmp(cmp_result, 0));
-    const Gp ne_zero = em->c->new_gp64();
-    WOORT_JIT_CODE(cset(ne_zero, CondCode::kNE));
-    WOORT_JIT_CODE(and_(result, result, ne_zero));
-
+        WOORT_JIT_CODE(cmp(cmp_result, 0));
+        WOORT_JIT_CODE(cset(result, CondCode::kNE));
+    }
+    WOORT_JIT_CODE(bind(L_done));
     em->store_stack(dst, result);
 }
 
@@ -4010,7 +4339,7 @@ void woort_JIT_Backend_arm64_CADDR(void* emitter, woort_Opcode_Stack dst, woort_
     WOORT_JIT_CODE(ldr(vec, em->sb_slot(dst)));
     WOORT_JIT_CODE(ldr(vec_b, em->sb_slot(src)));
     WOORT_JIT_CODE(fadd(vec, vec, vec_b));
-    WOORT_JIT_CODE(str(vec, em->sb_slot(dst)));
+    em->store_stack(dst, vec);
 }
 
 void woort_JIT_Backend_arm64_CSUBR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -4024,7 +4353,7 @@ void woort_JIT_Backend_arm64_CSUBR(void* emitter, woort_Opcode_Stack dst, woort_
     WOORT_JIT_CODE(ldr(vec, em->sb_slot(dst)));
     WOORT_JIT_CODE(ldr(vec_b, em->sb_slot(src)));
     WOORT_JIT_CODE(fsub(vec, vec, vec_b));
-    WOORT_JIT_CODE(str(vec, em->sb_slot(dst)));
+    em->store_stack(dst, vec);
 }
 
 void woort_JIT_Backend_arm64_CMULR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -4038,7 +4367,7 @@ void woort_JIT_Backend_arm64_CMULR(void* emitter, woort_Opcode_Stack dst, woort_
     WOORT_JIT_CODE(ldr(vec, em->sb_slot(dst)));
     WOORT_JIT_CODE(ldr(vec_b, em->sb_slot(src)));
     WOORT_JIT_CODE(fmul(vec, vec, vec_b));
-    WOORT_JIT_CODE(str(vec, em->sb_slot(dst)));
+    em->store_stack(dst, vec);
 }
 
 void woort_JIT_Backend_arm64_CDIVR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -4052,7 +4381,7 @@ void woort_JIT_Backend_arm64_CDIVR(void* emitter, woort_Opcode_Stack dst, woort_
     WOORT_JIT_CODE(ldr(vec, em->sb_slot(dst)));
     WOORT_JIT_CODE(ldr(vec_b, em->sb_slot(src)));
     WOORT_JIT_CODE(fdiv(vec, vec, vec_b));
-    WOORT_JIT_CODE(str(vec, em->sb_slot(dst)));
+    em->store_stack(dst, vec);
 }
 
 void woort_JIT_Backend_arm64_CADDS(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -4127,7 +4456,7 @@ void woort_JIT_Backend_arm64_CMODR(void* emitter, woort_Opcode_Stack dst, woort_
     invoke_node->set_arg(1, vec_src);
     invoke_node->set_ret(0, vec_ret);
 
-    WOORT_JIT_CODE(str(vec_ret, em->sb_slot(dst)));
+    em->store_stack(dst, vec_ret);
 }
 
 void woort_JIT_Backend_arm64_CLAND(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack src)
@@ -4237,13 +4566,10 @@ void woort_JIT_Backend_arm64_LDIDVEC(void* emitter, woort_Opcode_Stack dst, woor
     const Gp elem = em->c->new_gp64();
     WOORT_JIT_CODE(ldr(elem, ptr(datas, idx_val, lsl(3))));
 
+    /* A3: inline the DynBox tag-decode instead of invoking
+     * woort_JIT_unbox_dyn_no_check (avoids caller-save spill/reload). */
     const Gp result = em->c->new_gp64();
-    InvokeNode* invoke_node;
-    WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_JIT_unbox_dyn_no_check,
-        FuncSignature::build<uint64_t, woort_BoxedValue>());
-
-    invoke_node->set_arg(0, elem);
-    invoke_node->set_ret(0, result);
+    em->emit_unbox_dyn_no_check(result, elem);
 
     em->store_stack(dst, result);
 }
@@ -5023,9 +5349,8 @@ void woort_JIT_Backend_arm64_STIDSTRUCT(void* emitter, woort_Opcode_Stack obj, w
     const Label L_fast = em->c->new_label();
     const Label L_end = em->c->new_label();
 
-    const Gp flag_ptr = em->c->new_gp_ptr();
+    const Gp flag_ptr = em->get_gc_flag_ptr();
     const Gp flag_val = em->c->new_gp32();
-    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
     WOORT_JIT_CODE(ldrb(flag_val, ptr(flag_ptr)));
     WOORT_JIT_CODE(cbz(flag_val, L_fast));
     {
@@ -5094,13 +5419,10 @@ void woort_JIT_Backend_arm64_UNPACKVEC(void* emitter, woort_Opcode_Count n, woor
             const Gp dynbox_val = em->c->new_gp64();
             WOORT_JIT_CODE(ldr(dynbox_val, ptr(datas_ptr, static_cast<int32_t>(i * static_cast<int32_t>(sizeof(woort_DynBox))))));
 
+            /* A3: inline the DynBox tag-decode instead of invoking
+             * woort_JIT_unbox_dyn_no_check per element. */
             const Gp result = em->c->new_gp64();
-            InvokeNode* invoke_node;
-            WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_JIT_unbox_dyn_no_check,
-                FuncSignature::build<uint64_t, woort_BoxedValue>());
-
-            invoke_node->set_arg(0, dynbox_val);
-            invoke_node->set_ret(0, result);
+            em->emit_unbox_dyn_no_check(result, dynbox_val);
 
             WOORT_JIT_CODE(str(result, ptr(em->m_sp, static_cast<int32_t>((i + 1) * static_cast<int32_t>(sizeof(woort_Value))))));
         }
@@ -5615,13 +5937,9 @@ void woort_JIT_Backend_arm64_ASTORE(void* emitter, woort_Opcode_Global storage, 
 {
     woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
-    const woort_Value* const storage_addr =
-        &em->m_cenv_static_storage[storage];
-
     const Gp val = em->load_stack_gp(src);
 
-    const Gp storage_ptr = em->c->new_gp_ptr();
-    WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(storage_addr)));
+    const Gp storage_ptr = em->static_slot_ptr(storage);
     WOORT_JIT_CODE(stlr(val, ptr(storage_ptr)));
 }
 
@@ -5629,11 +5947,7 @@ void woort_JIT_Backend_arm64_ALOAD(void* emitter, woort_Opcode_Stack dst, woort_
 {
     woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
-    const woort_Value* const storage_addr =
-        &em->m_cenv_static_storage[storage];
-
-    const Gp storage_ptr = em->c->new_gp_ptr();
-    WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(storage_addr)));
+    const Gp storage_ptr = em->static_slot_ptr(storage);
 
     const Gp val = em->c->new_gp64();
     WOORT_JIT_CODE(ldar(val, ptr(storage_ptr)));
@@ -5644,14 +5958,10 @@ void woort_JIT_Backend_arm64_CAS(void* emitter, woort_Opcode_Global storage, woo
 {
     woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
-    const woort_Value* const storage_addr =
-        &em->m_cenv_static_storage[storage];
-
     const Gp expected_val = em->load_stack_gp(expected);
     const Gp desired_val = em->load_stack_gp(desired);
 
-    const Gp storage_ptr = em->c->new_gp_ptr();
-    WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(storage_addr)));
+    const Gp storage_ptr = em->static_slot_ptr(storage);
 
     const Gp acc = em->c->new_gp64();
     WOORT_JIT_CODE(mov(acc, expected_val));
@@ -5663,13 +5973,9 @@ void woort_JIT_Backend_arm64_JIFINITED(void* emitter, woort_Opcode_Global flag, 
 {
     woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
 
-    const woort_Value* const flag_addr =
-        &em->m_cenv_static_storage[flag];
-
     const Label target_lbl = em->get_label(em->m_cenv_codes + target);
 
-    const Gp storage_ptr = em->c->new_gp_ptr();
-    WOORT_JIT_CODE(mov(storage_ptr, reinterpret_cast<uintptr_t>(flag_addr)));
+    const Gp storage_ptr = em->static_slot_ptr(flag);
 
     const Gp flag_stat = em->c->new_gp64();
     WOORT_JIT_CODE(ldar(flag_stat, ptr(storage_ptr)));
