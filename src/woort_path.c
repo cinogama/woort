@@ -3,6 +3,7 @@
 #include "woort_diagnosis.h"
 #include "woort_utf8.h"
 #include "woort_platform.h"
+#include "woort_spin.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -23,14 +24,18 @@
 #define WOORT_MAX_EXE_PATH_LEN 16384
 
 static char* g_exe_path_cache = NULL;
+static woort_RWSpinlock g_exe_path_lock;
 
 void _woort_path_bootup(void)
 {
     g_exe_path_cache = NULL;
+    woort_rwspinlock_init(&g_exe_path_lock);
 }
 
 void _woort_path_shutdown(void)
 {
+    woort_rwspinlock_deinit(&g_exe_path_lock);
+
     free(g_exe_path_cache);
     g_exe_path_cache = NULL;
 }
@@ -124,33 +129,58 @@ WOORT_NODISCARD bool woort_set_exe_path(const char* path)
 
     strcpy(new_exe_path, path);
 
-    if (g_exe_path_cache != NULL)
-        free(g_exe_path_cache);
+    woort_rwspinlock_write_lock(&g_exe_path_lock);
 
+    char* const old_exe_path = g_exe_path_cache;
     g_exe_path_cache = new_exe_path;
+
+    woort_rwspinlock_write_unlock(&g_exe_path_lock);
+
+    free(old_exe_path);
 
     return true;
 }
 
 WOORT_NODISCARD size_t woort_exe_path(char* buf, size_t bufsz)
 {
+    /* Fast path: cache already built, read under read-lock. */
+    woort_rwspinlock_read_lock(&g_exe_path_lock);
+    if (g_exe_path_cache != NULL)
+    {
+        const size_t len = strlen(g_exe_path_cache);
+        if (bufsz != 0)
+        {
+            assert(buf != NULL);
+            const size_t copy = (len < bufsz) ? len : bufsz - 1;
+            memcpy(buf, g_exe_path_cache, copy);
+            buf[copy] = '\0';
+        }
+        woort_rwspinlock_read_unlock(&g_exe_path_lock);
+        return len;
+    }
+    woort_rwspinlock_read_unlock(&g_exe_path_lock);
+
+    /* Slow path: build cache under write-lock. */
+    woort_rwspinlock_write_lock(&g_exe_path_lock);
+    /* Double-check: another thread may have built it while we waited. */
     if (g_exe_path_cache == NULL)
     {
         if (!_woort_path_build_exe_cache())
+        {
+            woort_rwspinlock_write_unlock(&g_exe_path_lock);
             return 0;
+        }
     }
 
     const size_t len = strlen(g_exe_path_cache);
-
     if (bufsz != 0)
     {
         assert(buf != NULL);
-
         const size_t copy = (len < bufsz) ? len : bufsz - 1;
         memcpy(buf, g_exe_path_cache, copy);
         buf[copy] = '\0';
     }
-
+    woort_rwspinlock_write_unlock(&g_exe_path_lock);
     return len;
 }
 
