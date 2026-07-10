@@ -101,22 +101,21 @@ WOORT_NODISCARD static bool _woort_path_build_exe_cache(void)
     if (perm_fail)
     {
         /* Cache an empty string so we don't retry the OS on every call. */
-        g_exe_path_cache = (char*)malloc(1);
-        if (g_exe_path_cache == NULL)
-            return false;   /* OOM: retryable */
-        g_exe_path_cache[0] = '\0';
+        (void)woort_set_exe_path("");
         return false;
     }
 
     if (full_path == NULL)
         return false;   /* OOM: retryable */
 
-    /* In-place: the directory part is always shorter than full_path, so it
-       fits within full_path's own buffer. full_path is then kept as the
-       cache -- no second allocation and no separate normalization. */
+    /* Extract the directory part in-place: it is always shorter than
+       full_path, so it fits within full_path's own buffer. woort_set_exe_path
+       then copies just the directory into a tightly-sized cache entry. */
     (void)woort_get_file_loc(full_path, full_path, strlen(full_path) + 1);
-    g_exe_path_cache = full_path;
-    return true;
+    const bool result = woort_set_exe_path(full_path);
+    free(full_path);
+
+    return result;
 }
 
 WOORT_NODISCARD bool woort_set_exe_path(const char* path)
@@ -160,28 +159,31 @@ WOORT_NODISCARD size_t woort_exe_path(char* buf, size_t bufsz)
     }
     woort_rwspinlock_read_unlock(&g_exe_path_lock);
 
-    /* Slow path: build cache under write-lock. */
-    woort_rwspinlock_write_lock(&g_exe_path_lock);
-    /* Double-check: another thread may have built it while we waited. */
+    /* Slow path: build cache. _woort_path_build_exe_cache delegates to
+       woort_set_exe_path which acquires the write-lock internally, so we
+       must not hold it here. */
+    (void)_woort_path_build_exe_cache();
+
+    /* Re-read under read-lock; OOM may have left the cache empty. */
+    woort_rwspinlock_read_lock(&g_exe_path_lock);
     if (g_exe_path_cache == NULL)
     {
-        if (!_woort_path_build_exe_cache())
-        {
-            woort_rwspinlock_write_unlock(&g_exe_path_lock);
-            return 0;
-        }
+        woort_rwspinlock_read_unlock(&g_exe_path_lock);
+        return 0;
     }
 
-    const size_t len = strlen(g_exe_path_cache);
-    if (bufsz != 0)
     {
-        assert(buf != NULL);
-        const size_t copy = (len < bufsz) ? len : bufsz - 1;
-        memcpy(buf, g_exe_path_cache, copy);
-        buf[copy] = '\0';
+        const size_t len = strlen(g_exe_path_cache);
+        if (bufsz != 0)
+        {
+            assert(buf != NULL);
+            const size_t copy = (len < bufsz) ? len : bufsz - 1;
+            memcpy(buf, g_exe_path_cache, copy);
+            buf[copy] = '\0';
+        }
+        woort_rwspinlock_read_unlock(&g_exe_path_lock);
+        return len;
     }
-    woort_rwspinlock_write_unlock(&g_exe_path_lock);
-    return len;
 }
 
 WOORT_NODISCARD size_t woort_work_path(char* buf, size_t bufsz)
