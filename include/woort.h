@@ -4310,6 +4310,17 @@ WOORT_API void woort_struct_set_bool(
 WOORT_NODISCARD WOORT_API size_t woort_exe_path(/* OPTIONAL */ char* buf, size_t bufsz);
 
 /**
+  * @brief Set the directory containing the executable.
+  *
+  * Overrides the auto-detected value used by @ref woort_exe_path. @p path must
+  * be a directory (not an executable file path) and must not be NULL.
+  *
+  * @param path  The directory containing the executable. Must not be NULL.
+  * @return true on success, false on failure (e.g. out of memory).
+  */
+WOORT_NODISCARD WOORT_API bool woort_set_exe_path(const char* path);
+
+/**
  * @brief Get the current working directory.
  *
  * Fills @p buf following snprintf semantics:
@@ -4337,7 +4348,7 @@ WOORT_NODISCARD WOORT_API size_t woort_work_path(/* OPTIONAL */ char* buf, size_
  * @param path  The new working directory path.
  * @return true on success, false on failure.
  */
-WOORT_API bool woort_set_work_path(const char* path);
+WOORT_NODISCARD WOORT_API bool woort_set_work_path(const char* path);
 
 /**
  * @brief Get the directory part of a file path.

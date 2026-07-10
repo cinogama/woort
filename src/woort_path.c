@@ -8,6 +8,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
 #   include <windows.h>
@@ -113,6 +114,24 @@ WOORT_NODISCARD static bool _woort_path_build_exe_cache(void)
     return true;
 }
 
+WOORT_NODISCARD bool woort_set_exe_path(const char* path)
+{
+    const size_t len = strlen(path);
+    char* const new_exe_path = (char*)malloc(len + 1);
+
+    if (new_exe_path == NULL)
+        return false;
+
+    strcpy(new_exe_path, path);
+
+    if (g_exe_path_cache != NULL)
+        free(g_exe_path_cache);
+
+    g_exe_path_cache = new_exe_path;
+
+    return true;
+}
+
 WOORT_NODISCARD size_t woort_exe_path(char* buf, size_t bufsz)
 {
     if (g_exe_path_cache == NULL)
@@ -121,13 +140,13 @@ WOORT_NODISCARD size_t woort_exe_path(char* buf, size_t bufsz)
             return 0;
     }
 
-    size_t len = strlen(g_exe_path_cache);
+    const size_t len = strlen(g_exe_path_cache);
 
     if (bufsz != 0)
     {
         assert(buf != NULL);
 
-        size_t copy = (len < bufsz) ? len : bufsz - 1;
+        const size_t copy = (len < bufsz) ? len : bufsz - 1;
         memcpy(buf, g_exe_path_cache, copy);
         buf[copy] = '\0';
     }
@@ -189,7 +208,7 @@ WOORT_NODISCARD size_t woort_work_path(char* buf, size_t bufsz)
 #endif
 }
 
-bool woort_set_work_path(const char* path)
+WOORT_NODISCARD bool woort_set_work_path(const char* path)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     {
