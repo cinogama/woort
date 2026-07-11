@@ -22,6 +22,7 @@ void woort_thread_join(woort_Thread* thread);
 
 void woort_thread_sleep_ms(uint32_t ms);
 void woort_thread_yield(void);
+WOORT_NODISCARD uint64_t woort_thread_current_id(void);
 
 typedef struct woort_Mutex woort_Mutex;
 typedef struct woort_TimeMutex woort_TimeMutex;

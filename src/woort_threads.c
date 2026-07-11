@@ -141,6 +141,11 @@ void woort_thread_yield(void)
     thrd_yield();
 }
 
+WOORT_NODISCARD uint64_t woort_thread_current_id(void)
+{
+    return (uint64_t)(uintptr_t)thrd_current();
+}
+
 /* ----------- Mutex ----------- */
 
 struct woort_Mutex
@@ -522,6 +527,11 @@ void woort_thread_sleep_ms(uint32_t ms)
 void woort_thread_yield(void)
 {
     SwitchToThread();
+}
+
+WOORT_NODISCARD uint64_t woort_thread_current_id(void)
+{
+    return (uint64_t)GetCurrentThreadId();
 }
 
 /* ----------- Mutex ----------- */
@@ -956,6 +966,17 @@ void woort_thread_sleep_ms(uint32_t ms)
 void woort_thread_yield(void)
 {
     sched_yield();
+}
+
+WOORT_NODISCARD uint64_t woort_thread_current_id(void)
+{
+#if defined(WOORT_PLATFORM_OS_APPLE)
+    uint64_t tid = 0;
+    pthread_threadid_np(NULL, &tid);
+    return tid;
+#else
+    return (uint64_t)(uintptr_t)pthread_self();
+#endif
 }
 
 /* ----------- Mutex ----------- */
