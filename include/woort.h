@@ -2880,24 +2880,6 @@ WOORT_NODISCARD WOORT_API woort_VmCallStatus woort_bootup(
     woort_StackValue dst, woort_CodeEnv* cenv, bool jit);
 
 /**
- * @brief Load the default entry function from a CodeEnv and invoke it.
- * @deprecated Superseded by woort_bootup(), which additionally allows
- *             JIT-compiling the code environment in the same call.
- *             Use woort_bootup() instead.
- *
- * Reserves a stack slot, loads the extern constant named WOORT_DEFAULT_ENTRY
- * ("@entry") from the given code environment, then invokes it as a function.
- * Equivalent to calling woort_load_extern_const() with WOORT_DEFAULT_ENTRY
- * followed by woort_invoke().
- *
- * @param dst   Stack slot for the return value, or WOORT_IGNORE to discard.
- * @param cenv  The code environment holding the compiled bytecode. Must not be NULL.
- * @return The call status (NORMAL or ABORTED).
- */
-WOORT_DEPRECATED WOORT_NODISCARD WOORT_API woort_VmCallStatus woort_bootup_codeenv(
-    woort_StackValue dst, woort_CodeEnv* cenv);
-
-/**
  * @brief Invoke a function value and wait for completion.
  * @param dst  Stack slot for the return value, or WOORT_IGNORE to discard.
  * @param f    Stack slot holding the callable value.

@@ -1212,30 +1212,6 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
     return woort_resume(dst);
 }
 
-WOORT_NODISCARD woort_VmCallStatus woort_bootup_codeenv(
-    woort_StackValue dst, woort_CodeEnv* cenv)
-{
-    woort_StackValue v;
-    if (!woort_push_reserve(1, &v))
-    {
-        woort_panic(WOORT_PANIC_STACK_OVERFLOW, "Stack overflow.");
-        return WOORT_VM_CALL_STATUS_ABORTED;
-    }
-
-    if (!woort_load_extern_const(v, cenv, WOORT_DEFAULT_ENTRY))
-    {
-        woort_panic(WOORT_PANIC_STACK_OVERFLOW, "Cannot find entry: `" WOORT_DEFAULT_ENTRY "`.");
-        return WOORT_VM_CALL_STATUS_ABORTED;
-    }
-
-    const woort_VmCallStatus result = woort_invoke(dst, v);
-    
-    if (result == WOORT_VM_CALL_STATUS_NORMAL)
-        woort_pop(1);
-
-    return result;
-}
-
 WOORT_NODISCARD woort_VmCallStatus woort_bootup(
     woort_StackValue dst, woort_CodeEnv* cenv, bool jit)
 {
