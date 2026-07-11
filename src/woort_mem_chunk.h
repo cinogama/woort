@@ -38,13 +38,13 @@ void woort_mem_chunk_deinit(woort_mem_Chunk* self);
 
 WOORT_NODISCARD bool woort_mem_chunk_is_init_failed(const woort_mem_Chunk* self);
 
-WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chunk* self);
-WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_allocate_huge_page(
+WOORT_NODISCARD  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chunk* self);
+WOORT_NODISCARD  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_allocate_huge_page(
     woort_mem_Chunk* self, size_t size);
 void woort_mem_chunk_free_page(
     woort_mem_Chunk* self, woort_mem_PageHead* page);
 
-WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_validate(
+WOORT_NODISCARD  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_validate(
     woort_mem_Chunk* self, void* ptr);
 
 WOORT_NODISCARD size_t woort_mem_chunk_get_total_size(const woort_mem_Chunk* self);

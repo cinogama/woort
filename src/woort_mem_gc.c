@@ -503,6 +503,7 @@ static void woort_mem_gcworker_process_gray_units(woort_mem_GCWorker* self)
         woort_mem_UnitHead* const unit =
             *(woort_mem_UnitHead**)woort_vector_at(
                 &self->m_local_work, self->m_local_work.m_size - 1);
+
         (void)woort_vector_erase_at(
             &self->m_local_work, self->m_local_work.m_size - 1);
 

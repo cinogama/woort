@@ -4,6 +4,7 @@ woort_mem_chunk.c
 
 #include "woort_mem_chunk.h"
 #include "woort_mem_os.h"
+#include "woort_log.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -25,13 +26,17 @@ WOORT_NODISCARD static woort_mem_PageHead* woort_mem_chunk_index_to_page(
         + idx * WOORT_MEM_NORMAL_PAGE_SIZE);
 }
 
-WOORT_NODISCARD static woort_mem_PageHead* woort_mem_chunk_commit_page(
+WOORT_NODISCARD static /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_commit_page(
     woort_mem_Chunk* self, size_t idx)
 {
     woort_mem_PageHead* const p = woort_mem_chunk_index_to_page(self, idx);
     if (!self->commit_arr[idx])
     {
-        (void)woort_mem_os_commit_memory(p, WOORT_MEM_NORMAL_PAGE_SIZE);
+        if (woort_mem_os_commit_memory(p, WOORT_MEM_NORMAL_PAGE_SIZE) != 0)
+        {
+            WOORT_DEBUG("woort_mem_os_commit_memory failed");
+            return NULL;
+        }
         self->commit_arr[idx] = 1;
     }
     return p;
@@ -119,7 +124,7 @@ WOORT_NODISCARD static uint32_t woort_mem_chunk_free_list_find_block(
     return WOORT_MEM_CHUNK_INDEX_NULL;
 }
 
-WOORT_NODISCARD static woort_mem_PageHead* woort_mem_chunk_allocate_pages(
+WOORT_NODISCARD static  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_allocate_pages(
     woort_mem_Chunk* self, uint32_t required_pages)
 {
     woort_rwspinlock_write_lock(&self->rwlock);
@@ -154,7 +159,13 @@ WOORT_NODISCARD static woort_mem_PageHead* woort_mem_chunk_allocate_pages(
             self->count_arr[idx + j] = 0;
 
         for (uint32_t j = 0; j < required_pages; ++j)
-            (void)woort_mem_chunk_commit_page(self, idx + j);
+        {
+            if (!woort_mem_chunk_commit_page(self, idx + j))
+            {
+                woort_rwspinlock_write_unlock(&self->rwlock);
+                return NULL;
+            }
+        }
 
         woort_mem_PageHead* const page =
             woort_mem_chunk_index_to_page(self, idx);
@@ -219,7 +230,11 @@ void woort_mem_chunk_deinit(woort_mem_Chunk* self)
     free(self->commit_arr);
     if (self->base)
     {
-        (void)woort_mem_os_release_memory(self->base, self->reserved_size);
+        if (woort_mem_os_release_memory(self->base, self->reserved_size) != 0)
+        {
+            WOORT_DEBUG("woort_mem_os_release_memory failed");
+            abort();
+        }
     }
     woort_rwspinlock_deinit(&self->rwlock);
 
@@ -235,7 +250,7 @@ WOORT_NODISCARD bool woort_mem_chunk_is_init_failed(const woort_mem_Chunk* self)
     return self->base == NULL && self->total_pages == 0;
 }
 
-WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chunk* self)
+WOORT_NODISCARD  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chunk* self)
 {
     woort_mem_PageHead* page = woort_mem_chunk_allocate_pages(self, 1);
     if (page != NULL)
@@ -243,7 +258,7 @@ WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chun
     return page;
 }
 
-WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_allocate_huge_page(
+WOORT_NODISCARD  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_allocate_huge_page(
     woort_mem_Chunk* self, size_t size)
 {
     assert(self->base != NULL && size != 0);
