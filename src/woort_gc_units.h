@@ -6,16 +6,16 @@ woort_gc_units.h
 
 #include "woort_gc_units_types.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define WOORT_GCUNIT_ALLOC_ATTRIB_O 0
-#define WOORT_GCUNIT_ALLOC_ATTRIB_A WOOMEM_ATTRIB_AUTO_MARK
-#define WOORT_GCUNIT_ALLOC_ATTRIB_M WOOMEM_ATTRIB_MARK_CALLBACK
-#define WOORT_GCUNIT_ALLOC_ATTRIB_F WOOMEM_ATTRIB_FREE_CALLBACK
+#define WOORT_GCUNIT_ALLOC_ATTRIB_A WOORT_MEM_ATTRIB_AUTO_MARK
+#define WOORT_GCUNIT_ALLOC_ATTRIB_M WOORT_MEM_ATTRIB_MARK_CALLBACK
+#define WOORT_GCUNIT_ALLOC_ATTRIB_F WOORT_MEM_ATTRIB_FREE_CALLBACK
 
 #define WOORT_GCUNIT_ALLOC_ATTRIB_AM \
     (WOORT_GCUNIT_ALLOC_ATTRIB_A | WOORT_GCUNIT_ALLOC_ATTRIB_M)
@@ -43,7 +43,7 @@ inline static void* woort_GCUnit_realloc(void* ptr, size_t sz)
 {
     do
     {
-        void* p = woomem_reallocate(ptr, sz);
+        void* p = woort_mem_reallocate(ptr, sz);
         if (p != NULL)
             return p;
 
@@ -56,7 +56,7 @@ inline static void* woort_GCUnit_alloc_delay_init(size_t sz)
 {
     do
     {
-        void* p = woomem_allocate_begin(sz);
+        void* p = woort_mem_allocate_begin(sz);
         if (p != NULL)
             return p;
 
@@ -67,7 +67,7 @@ inline static void* woort_GCUnit_alloc_delay_init(size_t sz)
 }
 
 #define woort_GCUnit_init_delay_alloc(ATTRIB, PTR)  \
-    woomem_allocate_end(                            \
+    woort_mem_allocate_end(                            \
         PTR,                                        \
-        WOOMEM_ATTRIB_NEED_SWEEP                    \
+        WOORT_MEM_ATTRIB_NEED_SWEEP                    \
         | (WOORT_GCUNIT_ALLOC_ATTRIB_##ATTRIB))

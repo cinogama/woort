@@ -4,7 +4,7 @@
 #include "woort_util.h"
 #include "woort_log.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <stddef.h>
 #include <stdint.h>

@@ -20,7 +20,7 @@
 #include "woort_serialize.h"
 #include "woort_dylib.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -4146,22 +4146,22 @@ static void _woort_VMRuntime_advise_to_shrink_vm_stack_after_sync(woort_VMRuntim
 
 void woort_VMRuntime_mark_vm_after_sync(woort_VMRuntime* vm)
 {
-    woomem_mark_root_unit_head(vm->m_env);
+    woort_mem_mark_root_unit_head(vm->m_env);
 
     /* TODO: Optimize for fast marking. */
     for (void** p = (void**)vm->m_sp; p != (void**)vm->m_stack_end; ++p)
-        woomem_mark_root_fuzzy_unit(*p);
+        woort_mem_mark_root_fuzzy_unit(*p);
 
     _woort_VMRuntime_advise_to_shrink_vm_stack_after_sync(vm);
 }
 
 void woort_VMRuntime_mark_weak_vm_after_sync(woort_VMRuntime* vm)
 {
-    woomem_mark_unit_head(vm->m_env);
+    woort_mem_mark_unit_head(vm->m_env);
 
     /* TODO: Optimize for fast marking. */
     for (void** p = (void**)vm->m_sp; p != (void**)vm->m_stack_end; ++p)
-        woomem_mark_fuzzy_unit(*p);
+        woort_mem_mark_fuzzy_unit(*p);
 
     _woort_VMRuntime_advise_to_shrink_vm_stack_after_sync(vm);
 }

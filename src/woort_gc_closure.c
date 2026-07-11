@@ -3,7 +3,7 @@
 #include "woort_gc_closure.h"
 #include "woort_diagnosis.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <stddef.h>
 #include <stdint.h>

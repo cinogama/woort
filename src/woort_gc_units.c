@@ -28,7 +28,7 @@ WOORT_NODISCARD void* _woort_GCUnit_alloc_for_env_constant(
     void* ptr;
     do
     {
-        ptr = woomem_allocate_begin(size);
+        ptr = woort_mem_allocate_begin(size);
 
         if (ptr != NULL)
             break;
@@ -66,7 +66,7 @@ void _woort_GCUnit_alloc_failed(void)
         (void)woort_vm_swap(NULL);
     }
 
-    woomem_trigger_gc(false);
+    woort_mem_trigger_gc(false);
 
     if (current_vm != NULL)
     {

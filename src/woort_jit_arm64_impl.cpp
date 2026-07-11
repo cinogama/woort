@@ -10,7 +10,7 @@
 extern "C" woort_GCVec* woort_GCVec_new(void);
 extern "C" void _woort_GCVec_extern(woort_GCVec* vec, size_t size);
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include "asmjit/a64.h"
 
@@ -815,7 +815,7 @@ void woort_JIT_Backend_arm64_STORE(void* emitter, woort_Opcode_Global dst, woort
 
     const Gp flag_ptr = em->c->new_gp_ptr();
     const Gp flag_val = em->c->new_gp32();
-    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
+    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woort_mem_gc_marking_state_flag)));
     WOORT_JIT_CODE(ldrb(flag_val, ptr(flag_ptr)));
     WOORT_JIT_CODE(cbz(flag_val, L_fast));
     {
@@ -855,7 +855,7 @@ void woort_JIT_Backend_arm64_STOREPVALUE(void* emitter, woort_Opcode_Stack dst, 
 
     const Gp flag_ptr = em->c->new_gp_ptr();
     const Gp flag_val = em->c->new_gp32();
-    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
+    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woort_mem_gc_marking_state_flag)));
     WOORT_JIT_CODE(ldrb(flag_val, ptr(flag_ptr)));
     WOORT_JIT_CODE(cbz(flag_val, L_fast));
     {
@@ -1065,7 +1065,7 @@ void woort_JIT_Backend_arm64_POPC(void* emitter, woort_Opcode_Global dst)
 
     const Gp flag_ptr = em->c->new_gp_ptr();
     const Gp flag_val = em->c->new_gp32();
-    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
+    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woort_mem_gc_marking_state_flag)));
     WOORT_JIT_CODE(ldrb(flag_val, ptr(flag_ptr)));
     WOORT_JIT_CODE(cbz(flag_val, L_fast));
     {
@@ -5025,7 +5025,7 @@ void woort_JIT_Backend_arm64_STIDSTRUCT(void* emitter, woort_Opcode_Stack obj, w
 
     const Gp flag_ptr = em->c->new_gp_ptr();
     const Gp flag_val = em->c->new_gp32();
-    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woomem_gc_marking_state_flag)));
+    WOORT_JIT_CODE(mov(flag_ptr, reinterpret_cast<uintptr_t>(&woort_mem_gc_marking_state_flag)));
     WOORT_JIT_CODE(ldrb(flag_val, ptr(flag_ptr)));
     WOORT_JIT_CODE(cbz(flag_val, L_fast));
     {

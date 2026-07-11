@@ -13,7 +13,7 @@
 #include "woort_util.h"
 #include "woort_platform.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -860,7 +860,7 @@ WOORT_NODISCARD bool woort_DynBox_debug_check_is_valid(
         /* Check pointer is valid? */
         woort_GCUnit* const p = _woort_boxed_to_gcunit(may_not_a_valid_box.m_boxed);
         if (p != NULL
-            && (woomem_validate_addr(p) != p
+            && (woort_mem_validate_addr(p) != p
                 || (p->m_proxy != &WOORT_EX_BOX_PROXY
                     && p->m_proxy != &WOORT_GCSTRING_UNIT_PROXY
                     && p->m_proxy != &WOORT_GCVEC_UNIT_PROXY

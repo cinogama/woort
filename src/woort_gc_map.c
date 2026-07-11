@@ -5,7 +5,7 @@
 #include "woort_gc_string.h"
 #include "woort_util.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <string.h>
 

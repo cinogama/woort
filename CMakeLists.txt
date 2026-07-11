@@ -59,7 +59,6 @@ if (WOORT_BUILD_WITH_ASMJIT)
     add_subdirectory("3rd/asmjit")
 endif()
 
-add_subdirectory ("3rd/woomem")
 add_subdirectory ("src")
 
 enable_testing()

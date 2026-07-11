@@ -14,7 +14,7 @@
 #include "woort_opcode_dispatcher.h"
 #include "woort_codeenv.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <string.h>
 

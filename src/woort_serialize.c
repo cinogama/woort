@@ -10,7 +10,7 @@
 #include "woort_utf8.h"
 #include "woort_util.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <stdlib.h>
 #include <string.h>

@@ -4,7 +4,7 @@
 #include "woort_diagnosis.h"
 #include "woort_gc.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <stddef.h>
 #include <stdint.h>

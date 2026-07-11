@@ -20,7 +20,7 @@
 #include "woort_vfs.h"
 #include "woort_jit.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <stdbool.h>
 #include <assert.h>
@@ -87,7 +87,7 @@ static bool _codeenv_mark_callback(
     woort_CodeEnv* const code_env = *(woort_CodeEnv**)value;
 
     if (code_env->m_hold)
-        woomem_mark_root_unit_head(code_env);
+        woort_mem_mark_root_unit_head(code_env);
 
     return true;
 }
@@ -151,7 +151,7 @@ static void _woort_CodeEnv_GC_mark_code(woort_GCUnit* unit)
     woort_CodeEnv_Code* const code = (woort_CodeEnv_Code*)unit;
     assert(code->m_gc_unit.m_proxy == &g_codeenv_global_ctx->m_code_proxy);
 
-    woomem_mark_unit_head(code->m_code_env);
+    woort_mem_mark_unit_head(code->m_code_env);
 }
 
 static void _woort_CodeEnv_GC_destroy(woort_GCUnit* unit)

@@ -62,9 +62,9 @@ WOORT_NODISCARD woort_GCPin* woort_GCPin_create(size_t count)
 
             *g_gcpin_chain_head = NULL;
 
-            woomem_allocate_end_as_root(
+            woort_mem_allocate_end_as_root(
                 g_gcpin_chain_head,
-                WOOMEM_ATTRIB_NEED_SWEEP | WOOMEM_ATTRIB_AUTO_MARK);
+                WOORT_MEM_ATTRIB_NEED_SWEEP | WOORT_MEM_ATTRIB_AUTO_MARK);
 
             p->m_next = NULL;
         }
@@ -109,7 +109,7 @@ void woort_GCPin_destroy(woort_GCPin* pin)
             if (pin->m_next == NULL)
             {
                 /* No pin in chain. */
-                woomem_remove_from_root_set(g_gcpin_chain_head);
+                woort_mem_remove_from_root_set(g_gcpin_chain_head);
                 g_gcpin_chain_head = NULL;
             }
             else

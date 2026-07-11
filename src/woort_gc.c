@@ -11,7 +11,7 @@
 #include "woort_codeenv.h"
 #include "woort_threads.h"
 
-#include "woomem.h"
+#include "woort_mem.h"
 
 #include <stdbool.h>
 #include <assert.h>
@@ -305,7 +305,7 @@ static void _woort_GC_thread_entry(void)
 
 WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
 {
-    if (!woomem_init(
+    if (!woort_mem_init(
         reserving_memory_size,
         &_woort_GC_start_callback,
         &_woort_GC_stop_mark_callback,
@@ -491,14 +491,14 @@ void woort_GC_shutdown(void)
         woort_rwspinlock_write_unlock(&g_gc_context.m_root_vms_to_mark_mx);
 
         /* 触发一次完整的 GC 回收（标记 → 终结 → 清扫） */
-        woomem_trigger_gc(false);
+        woort_mem_trigger_gc(false);
 
         if (already_no_vm_exists
-            && woomem_gc_memory_size_after_last_round_sweep == 0)
+            && woort_mem_gc_memory_size_after_last_round_sweep == 0)
             break;
     }
 
-    woomem_shutdown();
+    woort_mem_shutdown();
 
     woort_rwspinlock_deinit(&g_gc_context.m_gc_stage_switch_lock);
     woort_rwspinlock_deinit(&g_gc_context.m_root_vms_to_mark_mx);
@@ -611,13 +611,13 @@ void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
 void woort_GC_mark_droped_env_manually(
     const woort_CodeEnv* env)
 {
-    woomem_mark_unit_head((void*)env);
+    woort_mem_mark_unit_head((void*)env);
 }
 
 void woort_GC_mark_internal_value_manually(
     const woort_Value* val)
 {
-    woomem_mark_fuzzy_unit_head(val->m_gcinstance);
+    woort_mem_mark_fuzzy_unit_head(val->m_gcinstance);
 }
 
 void woort_GC_set_internal_value_with_mixed_write_barrier(
@@ -649,21 +649,21 @@ WOORT_NODISCARD void* woort_GC_allocate_as_root(size_t sz, int attribute)
     void* const p = woort_GCUnit_alloc_delay_init(sz);
 
     if (attribute & WOORT_GCALLOCATE_FLAG_AUTO_MARK)
-        woomem_allocate_end_as_root(p, WOOMEM_ATTRIB_NEED_SWEEP | WOOMEM_ATTRIB_AUTO_MARK);
+        woort_mem_allocate_end_as_root(p, WOORT_MEM_ATTRIB_NEED_SWEEP | WOORT_MEM_ATTRIB_AUTO_MARK);
     else
-        woomem_allocate_end_as_root(p, WOOMEM_ATTRIB_NEED_SWEEP);
+        woort_mem_allocate_end_as_root(p, WOORT_MEM_ATTRIB_NEED_SWEEP);
 
     return p;
 }
 
 void woort_GC_unregister_root(void* p)
 {
-    woomem_remove_from_root_set(p);
+    woort_mem_remove_from_root_set(p);
 }
 
 void woort_GC_mark_addr_manually(/* OPTIONAL */ void* p)
 {
-    woomem_mark_fuzzy_unit(p);
+    woort_mem_mark_fuzzy_unit(p);
 }
 
 void woort_GC_set_addr_with_mixed_write_barrier(void** dst, void* p)

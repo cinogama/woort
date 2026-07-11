@@ -14,7 +14,6 @@ add_library(woort
     ${woort_src_cpp}
     "../include/woort.h")
 
-target_include_directories(woort PRIVATE "../3rd/woomem/include")
 target_compile_definitions(woort PRIVATE -DWOORT_IMPL)
 
 if (WOORT_SPECIFY_PLATFORM_TYPE STREQUAL "WOORT_PLATFORM_32")
@@ -29,7 +28,6 @@ set_target_properties(
     woort PROPERTIES PREFIX "")
 
 set(woort_required_libs "")
-list(APPEND woort_required_libs woomem)
 
 if (WOORT_BUILD_WITH_ASMJIT)
     list(APPEND woort_required_libs asmjit)
@@ -43,8 +41,6 @@ target_link_libraries(woort
     PUBLIC ${woort_required_libs})
 
 if (BUILD_SHARED_LIBS)
-    set_target_properties(
-        woomem PROPERTIES POSITION_INDEPENDENT_CODE ON)
     if (WOORT_BUILD_WITH_ASMJIT)
         set_target_properties(
             asmjit PROPERTIES POSITION_INDEPENDENT_CODE ON)
