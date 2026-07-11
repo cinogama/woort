@@ -140,7 +140,7 @@ static void t1_worker(void* user_data)
 TEST(massive_parallel_alloc_free)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 32 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 32 * 1024 * 1024));
 
     woort_AtomicInt32 total_ops;
     woort_atomic_init(&total_ops, 0);
@@ -205,7 +205,7 @@ TEST(multi_chunk_parallel_isolated)
 {
     woort_mem_Chunk chunks[T2_K_CHUNKS];
     for (int i = 0; i < T2_K_CHUNKS; i++)
-        woort_mem_chunk_init(&chunks[i], 4 * 1024 * 1024);
+        CHECK(woort_mem_chunk_init(&chunks[i], 4 * 1024 * 1024));
 
     woort_AtomicInt32 ops;
     woort_atomic_init(&ops, 0);
@@ -308,7 +308,7 @@ static void t3_consumer(void* user_data)
 TEST(producer_consumer_pattern)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 8 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 8 * 1024 * 1024));
 
     BoundedQueue queue;
     bq_init(&queue, T3_K_QUEUE);
@@ -438,7 +438,7 @@ static void t4_worker(void* user_data)
 TEST(mixed_order_concurrent)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 16 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 16 * 1024 * 1024));
 
     woort_AtomicInt32 ops;
     woort_atomic_init(&ops, 0);
@@ -539,7 +539,7 @@ static void t5_worker(void* user_data)
 TEST(validate_under_pressure)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 8 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 8 * 1024 * 1024));
 
     woort_AtomicUInt8 stop;
     woort_AtomicInt32 validate_ops, validate_ok;
@@ -619,7 +619,7 @@ static void t6_worker(void* user_data)
 TEST(near_exhaustion_thrash)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1 * 1024 * 1024));
 
     woort_AtomicInt32 successes;
     woort_atomic_init(&successes, 0);
@@ -688,7 +688,7 @@ static void t7_worker(void* user_data)
 TEST(random_power2_allocations)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 32 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 32 * 1024 * 1024));
 
     woort_AtomicInt32 ops, huge_ops;
     woort_atomic_init(&ops, 0);
@@ -785,7 +785,7 @@ static void t8_worker(void* user_data)
 TEST(alloc_free_interleaved_stress)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 8 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 8 * 1024 * 1024));
 
     woort_AtomicPtr slots[T8_K_SLOTS];
     for (int i = 0; i < T8_K_SLOTS; i++)
@@ -859,7 +859,7 @@ static void t9_worker(void* user_data)
 TEST(no_double_alloc)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 2 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 2 * 1024 * 1024));
 
     woort_AtomicInt32 ops;
     woort_atomic_init(&ops, 0);
@@ -932,7 +932,7 @@ static void t10_worker(void* user_data)
 TEST(huge_page_non_overlapping)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 16 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 16 * 1024 * 1024));
 
     woort_AtomicInt32 ops;
     woort_atomic_init(&ops, 0);
@@ -1036,7 +1036,7 @@ static void t11_worker(void* user_data)
 TEST(long_running_stress)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 32 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 32 * 1024 * 1024));
 
     woort_AtomicUInt8 stop;
     woort_AtomicInt64 total_alloc, total_free, alloc_fail;
@@ -1114,7 +1114,7 @@ static void t12_worker(void* user_data)
 TEST(max_concurrency_stress)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 16 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 16 * 1024 * 1024));
 
     unsigned hw = test_hardware_concurrency();
     int k_threads = (int)(hw * 4 > 8 ? hw * 4 : 8);
@@ -1185,7 +1185,7 @@ static void t13_worker(void* user_data)
 TEST(rapid_alloc_free_burst)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 32 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 32 * 1024 * 1024));
 
     woort_AtomicInt32 ops;
     woort_atomic_init(&ops, 0);
@@ -1215,7 +1215,7 @@ TEST(rapid_alloc_free_burst)
 TEST(sequential_after_parallel)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 4 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 4 * 1024 * 1024));
 
     woort_mem_PageHead* pages[128];
     for (int i = 0; i < 128; i++)
@@ -1286,7 +1286,7 @@ static void t15_worker(void* user_data)
 TEST(zigzag_order_allocation)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 16 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 16 * 1024 * 1024));
 
     woort_AtomicInt32 ops;
     woort_atomic_init(&ops, 0);

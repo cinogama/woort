@@ -179,20 +179,23 @@ WOORT_NODISCARD static  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_alloc
     }
 }
 
-void woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved_size)
+WOORT_NODISCARD bool woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved_size)
 {
     self->base = NULL;
     self->reserved_size = 0;
     self->total_pages = 0;
+
     self->count_arr = NULL;
+    self->commit_arr = NULL;
+
     self->free_prev = NULL;
     self->free_next = NULL;
     self->free_head = WOORT_MEM_CHUNK_INDEX_NULL;
-    self->commit_arr = NULL;
+
     woort_rwspinlock_init(&self->rwlock);
 
     if (reserved_size == 0)
-        return;
+        return true;
 
     self->total_pages =
         (reserved_size + WOORT_MEM_NORMAL_PAGE_SIZE - 1)
@@ -201,16 +204,19 @@ void woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved_size)
 
     self->base = woort_mem_os_reserve_memory(self->reserved_size);
     if (!self->base)
-    {
-        self->total_pages = 0;
-        self->reserved_size = 0;
-        return;
-    }
+        return false;
 
     self->count_arr = (uint32_t*)calloc(self->total_pages, sizeof(uint32_t));
+    self->commit_arr = (uint8_t*)calloc(self->total_pages, sizeof(uint8_t));
+
     self->free_prev = (uint32_t*)malloc(self->total_pages * sizeof(uint32_t));
     self->free_next = (uint32_t*)malloc(self->total_pages * sizeof(uint32_t));
-    self->commit_arr = (uint8_t*)calloc(self->total_pages, sizeof(uint8_t));
+
+    if (!self->count_arr
+        || !self->commit_arr
+        || !self->free_prev
+        || !self->free_next)
+        return false;
 
     for (size_t i = 0; i < self->total_pages; ++i)
     {
@@ -220,6 +226,8 @@ void woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved_size)
 
     self->count_arr[0] = (uint32_t)self->total_pages;
     self->free_head = 0;
+
+    return true;
 }
 
 void woort_mem_chunk_deinit(woort_mem_Chunk* self)

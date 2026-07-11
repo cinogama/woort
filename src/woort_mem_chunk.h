@@ -24,16 +24,17 @@ typedef struct woort_mem_Chunk
     size_t          total_pages;
 
     uint32_t*       count_arr;
+    uint8_t*        commit_arr;
+
     uint32_t*       free_prev;
     uint32_t*       free_next;
     uint32_t        free_head;
-    uint8_t*        commit_arr;
 
     woort_RWSpinlock rwlock;
 
 } woort_mem_Chunk;
 
-void woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved_size);
+WOORT_NODISCARD bool woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved_size);
 void woort_mem_chunk_deinit(woort_mem_Chunk* self);
 
 WOORT_NODISCARD bool woort_mem_chunk_is_init_failed(const woort_mem_Chunk* self);

@@ -14,35 +14,35 @@ int g_failures = 0;
 TEST(construct_zero_size)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 0);
+    CHECK(woort_mem_chunk_init(&chunk, 0));
     woort_mem_chunk_deinit(&chunk);
 }
 
 TEST(construct_small_size)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 100);
+    CHECK(woort_mem_chunk_init(&chunk, 100));
     woort_mem_chunk_deinit(&chunk);
 }
 
 TEST(construct_non_power_of_two)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 100 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 100 * 1024));
     woort_mem_chunk_deinit(&chunk);
 }
 
 TEST(construct_exact_power_of_two_pages)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_chunk_deinit(&chunk);
 }
 
 TEST(allocate_single_page)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p = woort_mem_chunk_allocate_page(&chunk);
     CHECK(p != NULL);
     woort_mem_chunk_free_page(&chunk, p);
@@ -52,7 +52,7 @@ TEST(allocate_single_page)
 TEST(allocate_exhaust_all_pages)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 64 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 64 * 1024));
     woort_mem_PageHead* pages[2];
     for (int i = 0; i < 2; i++)
     {
@@ -68,7 +68,7 @@ TEST(allocate_exhaust_all_pages)
 TEST(allocate_reuse_same_page_after_free)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p1 = woort_mem_chunk_allocate_page(&chunk);
     CHECK(p1 != NULL);
     woort_mem_chunk_free_page(&chunk, p1);
@@ -83,7 +83,7 @@ TEST(allocate_reuse_same_page_after_free)
 TEST(allocate_many_pages)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* pages[32];
     for (int i = 0; i < 32; i++)
     {
@@ -99,7 +99,7 @@ TEST(allocate_many_pages)
 TEST(allocate_pages_non_overlapping)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* a = woort_mem_chunk_allocate_page(&chunk);
     woort_mem_PageHead* b = woort_mem_chunk_allocate_page(&chunk);
     CHECK(a != NULL);
@@ -113,7 +113,7 @@ TEST(allocate_pages_non_overlapping)
 TEST(huge_page_smaller_than_one_page)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p = woort_mem_chunk_allocate_huge_page(&chunk, 100);
     CHECK(p != NULL);
     woort_mem_chunk_free_page(&chunk, p);
@@ -123,7 +123,7 @@ TEST(huge_page_smaller_than_one_page)
 TEST(huge_page_exact_one_page)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p = woort_mem_chunk_allocate_huge_page(&chunk, K_PAGE_SIZE);
     CHECK(p != NULL);
     woort_mem_chunk_free_page(&chunk, p);
@@ -133,7 +133,7 @@ TEST(huge_page_exact_one_page)
 TEST(huge_page_two_pages)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p = woort_mem_chunk_allocate_huge_page(&chunk, 2 * K_PAGE_SIZE);
     CHECK(p != NULL);
     woort_mem_chunk_free_page(&chunk, p);
@@ -143,7 +143,7 @@ TEST(huge_page_two_pages)
 TEST(huge_page_large_allocation)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 4 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 4 * 1024 * 1024));
     woort_mem_PageHead* p = woort_mem_chunk_allocate_huge_page(&chunk, 2 * 1024 * 1024);
     CHECK(p != NULL);
     woort_mem_chunk_free_page(&chunk, p);
@@ -153,7 +153,7 @@ TEST(huge_page_large_allocation)
 TEST(huge_page_exceeds_available)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 64 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 64 * 1024));
     CHECK(woort_mem_chunk_allocate_huge_page(&chunk, 128 * 1024) == NULL);
     woort_mem_chunk_deinit(&chunk);
 }
@@ -161,7 +161,7 @@ TEST(huge_page_exceeds_available)
 TEST(validate_nullptr_returns_null)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     CHECK(woort_mem_chunk_validate(&chunk, NULL) == NULL);
     woort_mem_chunk_deinit(&chunk);
 }
@@ -169,7 +169,7 @@ TEST(validate_nullptr_returns_null)
 TEST(validate_outside_range_returns_null)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     int dummy = 42;
     CHECK(woort_mem_chunk_validate(&chunk, &dummy) == NULL);
     woort_mem_chunk_deinit(&chunk);
@@ -178,7 +178,7 @@ TEST(validate_outside_range_returns_null)
 TEST(validate_exact_page_start)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p = woort_mem_chunk_allocate_page(&chunk);
     CHECK(p != NULL);
     CHECK_EQ(woort_mem_chunk_validate(&chunk, p), p);
@@ -189,7 +189,7 @@ TEST(validate_exact_page_start)
 TEST(validate_interior_of_page)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p = woort_mem_chunk_allocate_page(&chunk);
     CHECK(p != NULL);
     void* interior = (char*)p + 100;
@@ -201,7 +201,7 @@ TEST(validate_interior_of_page)
 TEST(validate_freed_returns_null)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p = woort_mem_chunk_allocate_page(&chunk);
     CHECK(p != NULL);
     woort_mem_chunk_free_page(&chunk, p);
@@ -212,7 +212,7 @@ TEST(validate_freed_returns_null)
 TEST(validate_huge_page_interior)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p = woort_mem_chunk_allocate_huge_page(&chunk, 4 * K_PAGE_SIZE);
     CHECK(p != NULL);
     void* interior = (char*)p + 3 * K_PAGE_SIZE + 10;
@@ -224,7 +224,7 @@ TEST(validate_huge_page_interior)
 TEST(buddy_coalesce_all_to_max_order)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* pages[32];
     for (int i = 0; i < 32; i++)
     {
@@ -243,7 +243,7 @@ TEST(buddy_coalesce_all_to_max_order)
 TEST(buddy_coalesce_to_order_1)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p0 = woort_mem_chunk_allocate_page(&chunk);
     woort_mem_PageHead* p1 = woort_mem_chunk_allocate_page(&chunk);
     CHECK(p0 != NULL);
@@ -260,7 +260,7 @@ TEST(buddy_coalesce_to_order_1)
 TEST(buddy_no_coalesce_when_still_allocated)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     woort_mem_PageHead* p0 = woort_mem_chunk_allocate_page(&chunk);
     woort_mem_PageHead* p1 = woort_mem_chunk_allocate_page(&chunk);
     CHECK(p0 != NULL);
@@ -279,8 +279,8 @@ TEST(buddy_no_coalesce_when_still_allocated)
 TEST(multi_chunk_isolation)
 {
     woort_mem_Chunk chunk1, chunk2;
-    woort_mem_chunk_init(&chunk1, 1024 * 1024);
-    woort_mem_chunk_init(&chunk2, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk1, 1024 * 1024));
+    CHECK(woort_mem_chunk_init(&chunk2, 1024 * 1024));
     woort_mem_PageHead* p1 = woort_mem_chunk_allocate_page(&chunk1);
     woort_mem_PageHead* p2 = woort_mem_chunk_allocate_page(&chunk2);
     CHECK(p1 != NULL);
@@ -299,7 +299,7 @@ TEST(multi_chunk_isolation)
 TEST(alloc_free_alloc_cycle)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     for (int round = 0; round < 10; round++)
     {
         woort_mem_PageHead* a = woort_mem_chunk_allocate_page(&chunk);
@@ -318,7 +318,7 @@ TEST(alloc_free_alloc_cycle)
 TEST(huge_page_boundary_case)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 1024 * 1024));
     size_t sz = K_PAGE_SIZE + 1;
     woort_mem_PageHead* p = woort_mem_chunk_allocate_huge_page(&chunk, sz);
     CHECK(p != NULL);
@@ -411,7 +411,7 @@ static void caf_worker(void* user_data)
 TEST(concurrent_alloc_free_128_pages)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 4 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 4 * 1024 * 1024));
 
     woort_AtomicPtr slots[CAF_K_PAGES];
     for (int i = 0; i < CAF_K_PAGES; i++)
@@ -498,7 +498,7 @@ static void cmaf_worker(void* user_data)
 TEST(concurrent_mixed_alloc_free)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 2 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 2 * 1024 * 1024));
 
     woort_AtomicInt32 ops;
     woort_atomic_init(&ops, 0);
@@ -565,7 +565,7 @@ static void chf_worker(void* user_data)
 TEST(concurrent_huge_page_and_validate)
 {
     woort_mem_Chunk chunk;
-    woort_mem_chunk_init(&chunk, 4 * 1024 * 1024);
+    CHECK(woort_mem_chunk_init(&chunk, 4 * 1024 * 1024));
 
     CHFCtx ctxs[4];
     woort_Thread* threads[4];

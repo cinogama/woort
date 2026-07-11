@@ -104,11 +104,8 @@ WOORT_NODISCARD bool woort_mem_global_context_init(size_t reserved_chunk_size)
 {
     assert(!g_woort_mem_global_context.m_globalcontext_inited);
 
-    woort_mem_chunk_init(
-        &g_woort_mem_global_context.m_chunk, reserved_chunk_size);
-
-    if (woort_mem_chunk_is_init_failed(
-            &g_woort_mem_global_context.m_chunk))
+    if (!woort_mem_chunk_init(
+            &g_woort_mem_global_context.m_chunk, reserved_chunk_size))
     {
         woort_mem_chunk_deinit(&g_woort_mem_global_context.m_chunk);
         return false;
