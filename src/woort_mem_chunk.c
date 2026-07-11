@@ -221,8 +221,12 @@ WOORT_NODISCARD bool woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved
 
     memset(self->count_arr, 0, u32_bytes);
     memset(self->commit_arr, 0, u8_bytes);
-    memset(self->free_prev, 0xFF, u32_bytes);
-    memset(self->free_next, 0xFF, u32_bytes);
+
+    for (size_t i = 0; i < self->total_pages; ++i)
+    {
+        self->free_prev[i] = WOORT_MEM_CHUNK_INDEX_NULL;
+        self->free_next[i] = WOORT_MEM_CHUNK_INDEX_NULL;
+    }
 
     self->count_arr[0] = (uint32_t)self->total_pages;
     self->free_head = 0;
@@ -244,9 +248,10 @@ void woort_mem_chunk_deinit(woort_mem_Chunk* self)
     woort_rwspinlock_deinit(&self->rwlock);
 
     self->count_arr = NULL;
+    self->commit_arr = NULL;
     self->free_prev = NULL;
     self->free_next = NULL;
-    self->commit_arr = NULL;
+
     self->base = NULL;
 }
 

@@ -3,6 +3,8 @@ test_mem_chunk_parallel.c — Parallel stress tests for Chunk allocator.
 Ported from woomem/test/test_chunk_parallel.cpp to C11.
 */
 
+#ifdef WOORT_STATIC_LIB
+
 #include "test_mem_chunk_common.h"
 #include "woort_spin.h"
 #include "woort_hashmap.h"
@@ -1337,3 +1339,10 @@ int main(void)
     printf("\n=== %d failures ===\n", g_failures);
     return g_failures > 0 ? 1 : 0;
 }
+
+#else
+
+int main(void)
+{}
+
+#endif

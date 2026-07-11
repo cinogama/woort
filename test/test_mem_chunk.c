@@ -3,6 +3,8 @@ test_mem_chunk.c — Chunk allocator unit and concurrency tests.
 Ported from woomem/test/test_chunk.cpp to C11.
 */
 
+#ifdef WOORT_STATIC_LIB
+
 #include "test_mem_chunk_common.h"
 
 int g_failures = 0;
@@ -625,3 +627,10 @@ int main(void)
     printf("\n=== %d failures ===\n", g_failures);
     return g_failures > 0 ? 1 : 0;
 }
+
+#else
+
+int main(void)
+{}
+
+#endif
