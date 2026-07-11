@@ -6,6 +6,7 @@ Unit allocation groups, page-unit allocator header, unit header,
 and inline allocation helpers.
 */
 
+#include "woort.h"
 #include "woort_mem_page.h"
 #include "woort_atomic.h"
 
@@ -136,7 +137,7 @@ _Static_assert(sizeof(woort_mem_UnitHead) == 8,
 void woort_mem_init_page_for_unit_allocating(
     woort_mem_PageHead* page, woort_mem_UnitAllocGroup group_type);
 
-static inline woort_mem_UnitAllocGroup
+WOORT_NODISCARD static inline woort_mem_UnitAllocGroup
 woort_mem_eval_group_by_small_unit_size(size_t unit_size)
 {
     if (unit_size <= WOORT_MEM_MAX_SMALL_UNIT_SIZE)
@@ -163,7 +164,7 @@ woort_mem_eval_group_by_small_unit_size(size_t unit_size)
     }
 }
 
-static inline size_t
+WOORT_NODISCARD static inline size_t
 woort_mem_unit_get_available_size(const woort_mem_UnitHead* self)
 {
     if (self->m_next_free_unit_offset != 0)
@@ -185,7 +186,7 @@ woort_mem_unit_get_available_size(const woort_mem_UnitHead* self)
     }
 }
 
-static inline woort_mem_UnitHead*
+WOORT_NODISCARD static inline woort_mem_UnitHead*
 woort_mem_pick_unit_from_page_without_init(woort_mem_PageHead* page)
 {
     const uint16_t UNIT_PAGE_HEAD_SIZE = (uint16_t)(

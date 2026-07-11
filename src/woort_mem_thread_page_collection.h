@@ -57,7 +57,7 @@ static inline void woort_mem_tpc_shutdown_manually(
     }
 }
 
-static inline void* woort_mem_tpc_pick_unit_in_page(
+WOORT_NODISCARD static inline void* woort_mem_tpc_pick_unit_in_page(
     woort_mem_ThreadPageCollection* self, size_t unit_size)
 {
     assert(self->m_global_page_collection != NULL

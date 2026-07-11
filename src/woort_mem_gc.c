@@ -32,7 +32,7 @@ woort_mem_GC* g_woort_mem_gc = NULL;
 /* Helpers                                                       */
 /* ============================================================ */
 
-static size_t woort_mem_hardware_concurrency(void)
+WOORT_NODISCARD static size_t woort_mem_hardware_concurrency(void)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     SYSTEM_INFO si;
@@ -46,7 +46,7 @@ static size_t woort_mem_hardware_concurrency(void)
 #endif
 }
 
-static uint64_t woort_mem_monotonic_ms(void)
+WOORT_NODISCARD static uint64_t woort_mem_monotonic_ms(void)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     static LARGE_INTEGER freq = { 0 };
@@ -64,7 +64,7 @@ static uint64_t woort_mem_monotonic_ms(void)
 #endif
 }
 
-static size_t woort_mem_default_gc_worker_count(void)
+WOORT_NODISCARD static size_t woort_mem_default_gc_worker_count(void)
 {
     const size_t count = woort_mem_hardware_concurrency() / 8;
     return count == 0 ? 1 : count;
@@ -105,7 +105,7 @@ static void woort_mem_gc_wait_for_worker_launch(
     woort_mutex_unlock(self->m_gc_worker_threshold_mx);
 }
 
-static bool woort_mem_gc_wait_for_worker_launch_or_shutdown(
+WOORT_NODISCARD static bool woort_mem_gc_wait_for_worker_launch_or_shutdown(
     woort_mem_GC* self, woort_mem_WorkerThresholdState expected_state)
 {
     woort_mutex_lock(self->m_gc_worker_threshold_mx);
@@ -194,7 +194,7 @@ void woort_mem_gc_mark_root_unit_to_gray(
     }
 }
 
-woort_mem_GCWorker* woort_mem_gc_fetch_thread_worker(woort_mem_GC* self)
+WOORT_NODISCARD woort_mem_GCWorker* woort_mem_gc_fetch_thread_worker(woort_mem_GC* self)
 {
     const size_t assigned_worker_id =
         woort_atomic_fetch_add_explicit(
@@ -288,7 +288,7 @@ void woort_mem_gcworker_mark_unit_to_gray(
     }
 }
 
-static bool woort_mem_gcworker_check_and_free_unmarked_unit(
+WOORT_NODISCARD static bool woort_mem_gcworker_check_and_free_unmarked_unit(
     woort_mem_GCWorker* self,
     woort_mem_UnitHead* unit, woort_mem_PageHead* page_may_null)
 {
@@ -600,7 +600,7 @@ typedef struct _woort_mem_root_mark_ctx
     woort_mem_GC* gc;
 } _woort_mem_root_mark_ctx;
 
-static bool _woort_mem_root_mark_callback(
+WOORT_NODISCARD static bool _woort_mem_root_mark_callback(
     const void* key, void* value, void* user_data)
 {
     (void)value;
@@ -802,7 +802,7 @@ static void _woort_mem_gc_main_thread_entry(void* user_data)
 /* GC create / destroy                                           */
 /* ============================================================ */
 
-woort_mem_GC* woort_mem_gc_create(
+WOORT_NODISCARD woort_mem_GC* woort_mem_gc_create(
     size_t worker_count,
     void (*callback_for_marking_root)(void),
     void (*callback_stop_marking)(void),
@@ -941,7 +941,7 @@ typedef struct _woort_mem_assign_mc_ctx
     woort_mem_GC* gc;
 } _woort_mem_assign_mc_ctx;
 
-static bool _woort_mem_assign_mc_callback(
+WOORT_NODISCARD static bool _woort_mem_assign_mc_callback(
     const void* key, void* value, void* user_data)
 {
     (void)value;
@@ -976,7 +976,7 @@ void woort_mem_global_context_assign_marking_contexts(
         &g_woort_mem_global_context.m_thread_entries_mx);
 }
 
-static bool _woort_mem_clear_mc_callback(
+WOORT_NODISCARD static bool _woort_mem_clear_mc_callback(
     const void* key, void* value, void* user_data)
 {
     (void)value;

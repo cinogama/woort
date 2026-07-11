@@ -43,7 +43,7 @@ static inline void woort_mem_mpsc_init(woort_mem_MpscGrayQueue* self)
         woort_atomic_init(&self->m_slots[i].sequence, i);
 }
 
-static inline bool woort_mem_mpsc_try_enqueue(
+WOORT_NODISCARD static inline bool woort_mem_mpsc_try_enqueue(
     woort_mem_MpscGrayQueue* self, woort_mem_UnitHead* item)
 {
     size_t pos = woort_atomic_load_explicit(
@@ -71,7 +71,7 @@ static inline bool woort_mem_mpsc_try_enqueue(
     }
 }
 
-static inline size_t woort_mem_mpsc_drain(
+WOORT_NODISCARD static inline size_t woort_mem_mpsc_drain(
     woort_mem_MpscGrayQueue* self,
     woort_mem_UnitHead** output, size_t max_count)
 {
@@ -100,7 +100,7 @@ static inline size_t woort_mem_mpsc_drain(
     return count;
 }
 
-static inline bool woort_mem_mpsc_empty(const woort_mem_MpscGrayQueue* self)
+WOORT_NODISCARD static inline bool woort_mem_mpsc_empty(const woort_mem_MpscGrayQueue* self)
 {
     const size_t pos = woort_atomic_load_explicit(
         &self->m_dequeue_pos, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);

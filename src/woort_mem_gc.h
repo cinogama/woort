@@ -85,7 +85,7 @@ typedef struct woort_mem_GC
 
 extern woort_mem_GC* g_woort_mem_gc;
 
-woort_mem_GC* woort_mem_gc_create(
+WOORT_NODISCARD woort_mem_GC* woort_mem_gc_create(
     size_t worker_count,
     void (*callback_for_marking_root)(void),
     void (*callback_stop_marking)(void),
@@ -104,7 +104,7 @@ void woort_mem_gc_unregister_root_unit_head(
 
 void woort_mem_gc_mark_root_unit_to_gray(
     woort_mem_GC* self, woort_mem_UnitHead* unit_head);
-woort_mem_GCWorker* woort_mem_gc_fetch_thread_worker(woort_mem_GC* self);
+WOORT_NODISCARD woort_mem_GCWorker* woort_mem_gc_fetch_thread_worker(woort_mem_GC* self);
 
 /* GCWorker methods */
 void woort_mem_gcworker_mark_unit_to_gray(

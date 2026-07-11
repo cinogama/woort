@@ -41,13 +41,13 @@ void woort_mem_global_context_ensure_thread_entries_init(void);
 void woort_mem_global_context_thread_entries_insert(struct woort_mem_ThreadContext* ctx);
 void woort_mem_global_context_thread_entries_remove(struct woort_mem_ThreadContext* ctx);
 
-bool woort_mem_global_context_init(size_t reserved_chunk_size);
+WOORT_NODISCARD bool woort_mem_global_context_init(size_t reserved_chunk_size);
 void woort_mem_global_context_shutdown(void);
 void woort_mem_global_context_deinit(void);
 
 void woort_mem_global_context_add_new_page_into_chain(woort_mem_PageHead* page);
 void woort_mem_global_context_add_page_back_to_into_chain(woort_mem_PageHead* page);
-woort_mem_PageHead* woort_mem_global_context_allocate_huge_page(size_t size);
+WOORT_NODISCARD woort_mem_PageHead* woort_mem_global_context_allocate_huge_page(size_t size);
 
 /* Called by GC constructor/destructor to update thread marking contexts. */
 void woort_mem_global_context_assign_marking_contexts(struct woort_mem_GC* gc);

@@ -9,7 +9,7 @@ woort_mem_chunk.c
 #include <string.h>
 #include <assert.h>
 
-static size_t woort_mem_chunk_page_to_index(
+WOORT_NODISCARD static size_t woort_mem_chunk_page_to_index(
     const woort_mem_Chunk* self, woort_mem_PageHead* page)
 {
     return (size_t)(
@@ -17,7 +17,7 @@ static size_t woort_mem_chunk_page_to_index(
         / WOORT_MEM_NORMAL_PAGE_SIZE);
 }
 
-static woort_mem_PageHead* woort_mem_chunk_index_to_page(
+WOORT_NODISCARD static woort_mem_PageHead* woort_mem_chunk_index_to_page(
     const woort_mem_Chunk* self, size_t idx)
 {
     return (woort_mem_PageHead*)(
@@ -25,7 +25,7 @@ static woort_mem_PageHead* woort_mem_chunk_index_to_page(
         + idx * WOORT_MEM_NORMAL_PAGE_SIZE);
 }
 
-static woort_mem_PageHead* woort_mem_chunk_commit_page(
+WOORT_NODISCARD static woort_mem_PageHead* woort_mem_chunk_commit_page(
     woort_mem_Chunk* self, size_t idx)
 {
     woort_mem_PageHead* const p = woort_mem_chunk_index_to_page(self, idx);
@@ -106,7 +106,7 @@ restart:
     }
 }
 
-static uint32_t woort_mem_chunk_free_list_find_block(
+WOORT_NODISCARD static uint32_t woort_mem_chunk_free_list_find_block(
     const woort_mem_Chunk* self, uint32_t required)
 {
     uint32_t curr = self->free_head;
@@ -119,7 +119,7 @@ static uint32_t woort_mem_chunk_free_list_find_block(
     return WOORT_MEM_CHUNK_INDEX_NULL;
 }
 
-static woort_mem_PageHead* woort_mem_chunk_allocate_pages(
+WOORT_NODISCARD static woort_mem_PageHead* woort_mem_chunk_allocate_pages(
     woort_mem_Chunk* self, uint32_t required_pages)
 {
     woort_rwspinlock_write_lock(&self->rwlock);
@@ -230,12 +230,12 @@ void woort_mem_chunk_deinit(woort_mem_Chunk* self)
     self->base = NULL;
 }
 
-bool woort_mem_chunk_is_init_failed(const woort_mem_Chunk* self)
+WOORT_NODISCARD bool woort_mem_chunk_is_init_failed(const woort_mem_Chunk* self)
 {
     return self->base == NULL && self->total_pages == 0;
 }
 
-woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chunk* self)
+WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chunk* self)
 {
     woort_mem_PageHead* page = woort_mem_chunk_allocate_pages(self, 1);
     if (page != NULL)
@@ -243,7 +243,7 @@ woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chunk* self)
     return page;
 }
 
-woort_mem_PageHead* woort_mem_chunk_allocate_huge_page(
+WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_allocate_huge_page(
     woort_mem_Chunk* self, size_t size)
 {
     assert(self->base != NULL && size != 0);
@@ -292,7 +292,7 @@ void woort_mem_chunk_free_page(
     woort_rwspinlock_write_unlock(&self->rwlock);
 }
 
-woort_mem_PageHead* woort_mem_chunk_validate(
+WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_validate(
     woort_mem_Chunk* self, void* ptr)
 {
     assert(self->base != NULL);
@@ -339,12 +339,12 @@ woort_mem_PageHead* woort_mem_chunk_validate(
     }
 }
 
-size_t woort_mem_chunk_get_total_size(const woort_mem_Chunk* self)
+WOORT_NODISCARD size_t woort_mem_chunk_get_total_size(const woort_mem_Chunk* self)
 {
     return self->reserved_size;
 }
 
-size_t woort_mem_chunk_get_total_page_count(const woort_mem_Chunk* self)
+WOORT_NODISCARD size_t woort_mem_chunk_get_total_page_count(const woort_mem_Chunk* self)
 {
     return self->total_pages;
 }

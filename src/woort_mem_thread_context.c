@@ -38,7 +38,7 @@ void woort_mem_thread_context_deinit(woort_mem_ThreadContext* self)
 static WOORT_THREAD_LOCAL woort_mem_ThreadContext t_woort_mem_thread_context;
 static WOORT_THREAD_LOCAL bool t_woort_mem_thread_context_inited = false;
 
-woort_mem_ThreadContext* woort_mem_get_thread_context(void)
+WOORT_NODISCARD woort_mem_ThreadContext* woort_mem_get_thread_context(void)
 {
     if (!t_woort_mem_thread_context_inited)
     {

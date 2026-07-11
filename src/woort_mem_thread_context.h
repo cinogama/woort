@@ -27,7 +27,7 @@ void woort_mem_thread_context_deinit(woort_mem_ThreadContext* self);
  * on first call. The C++ thread_guard ensures woort_mem_thread_context_on_exit
  * is invoked at thread exit.
  */
-woort_mem_ThreadContext* woort_mem_get_thread_context(void);
+WOORT_NODISCARD woort_mem_ThreadContext* woort_mem_get_thread_context(void);
 
 /* Called by the C++ thread_guard destructor at thread exit. */
 void woort_mem_thread_context_on_exit(void);

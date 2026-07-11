@@ -15,7 +15,7 @@ OS-level virtual memory primitives (merged win32 + unix).
 #   include <errno.h>
 #endif
 
-size_t woort_mem_os_page_size(void)
+WOORT_NODISCARD size_t woort_mem_os_page_size(void)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     SYSTEM_INFO sysInfo;
@@ -28,7 +28,7 @@ size_t woort_mem_os_page_size(void)
 #endif
 }
 
-/* OPTIONAL */ void* woort_mem_os_reserve_memory(size_t size)
+WOORT_NODISCARD /* OPTIONAL */ void* woort_mem_os_reserve_memory(size_t size)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     return VirtualAlloc(
@@ -60,7 +60,7 @@ size_t woort_mem_os_page_size(void)
 #endif
 }
 
-int /* 0 means OK */ woort_mem_os_commit_memory(void* addr, size_t size)
+WOORT_NODISCARD int /* 0 means OK */ woort_mem_os_commit_memory(void* addr, size_t size)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     void* result = VirtualAlloc(
@@ -84,7 +84,7 @@ int /* 0 means OK */ woort_mem_os_commit_memory(void* addr, size_t size)
 #endif
 }
 
-int /* 0 means OK */ woort_mem_os_decommit_memory(void* addr, size_t size)
+WOORT_NODISCARD int /* 0 means OK */ woort_mem_os_decommit_memory(void* addr, size_t size)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     BOOL result = VirtualFree(
@@ -107,7 +107,7 @@ int /* 0 means OK */ woort_mem_os_decommit_memory(void* addr, size_t size)
 #endif
 }
 
-int /* 0 means OK */ woort_mem_os_release_memory(void* addr, size_t size)
+WOORT_NODISCARD int /* 0 means OK */ woort_mem_os_release_memory(void* addr, size_t size)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     (void)size;

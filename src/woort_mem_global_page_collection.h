@@ -47,7 +47,7 @@ static inline void woort_mem_free_page_list_deinit(
     woort_spinlock_deinit(&self->m_spin);
 }
 
-static inline woort_mem_PageHead* woort_mem_free_page_list_pick(
+WOORT_NODISCARD static inline woort_mem_PageHead* woort_mem_free_page_list_pick(
     woort_mem_FreePageList* self)
 {
     woort_spinlock_lock(&self->m_spin);
@@ -94,7 +94,7 @@ static inline void woort_mem_free_page_list_return(
     woort_spinlock_unlock(&self->m_spin);
 }
 
-static inline woort_mem_PageHead* woort_mem_gpc_require_normal_page(
+WOORT_NODISCARD static inline woort_mem_PageHead* woort_mem_gpc_require_normal_page(
     woort_mem_GlobalPageCollection* self, woort_mem_UnitAllocGroup group)
 {
     woort_mem_PageHead* page =

@@ -67,7 +67,7 @@ typedef struct _woort_mem_init_te_ctx
     woort_mem_GlobalPageCollection* gpc;
 } _woort_mem_init_te_ctx;
 
-static bool _woort_mem_init_te_callback(
+WOORT_NODISCARD static bool _woort_mem_init_te_callback(
     const void* key, void* value, void* user_data)
 {
     (void)value;
@@ -87,7 +87,7 @@ typedef struct _woort_mem_shutdown_te_ctx
     int unused;
 } _woort_mem_shutdown_te_ctx;
 
-static bool _woort_mem_shutdown_te_callback(
+WOORT_NODISCARD static bool _woort_mem_shutdown_te_callback(
     const void* key, void* value, void* user_data)
 {
     (void)value;
@@ -100,7 +100,7 @@ static bool _woort_mem_shutdown_te_callback(
     return true;
 }
 
-bool woort_mem_global_context_init(size_t reserved_chunk_size)
+WOORT_NODISCARD bool woort_mem_global_context_init(size_t reserved_chunk_size)
 {
     assert(!g_woort_mem_global_context.m_globalcontext_inited);
 
@@ -216,7 +216,7 @@ void woort_mem_global_context_add_page_back_to_into_chain(
     }
 }
 
-woort_mem_PageHead* woort_mem_global_context_allocate_huge_page(
+WOORT_NODISCARD woort_mem_PageHead* woort_mem_global_context_allocate_huge_page(
     size_t size)
 {
     return woort_mem_chunk_allocate_huge_page(

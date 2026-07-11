@@ -36,16 +36,16 @@ typedef struct woort_mem_Chunk
 void woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved_size);
 void woort_mem_chunk_deinit(woort_mem_Chunk* self);
 
-bool woort_mem_chunk_is_init_failed(const woort_mem_Chunk* self);
+WOORT_NODISCARD bool woort_mem_chunk_is_init_failed(const woort_mem_Chunk* self);
 
-woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chunk* self);
-woort_mem_PageHead* woort_mem_chunk_allocate_huge_page(
+WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chunk* self);
+WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_allocate_huge_page(
     woort_mem_Chunk* self, size_t size);
 void woort_mem_chunk_free_page(
     woort_mem_Chunk* self, woort_mem_PageHead* page);
 
-woort_mem_PageHead* woort_mem_chunk_validate(
+WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_validate(
     woort_mem_Chunk* self, void* ptr);
 
-size_t woort_mem_chunk_get_total_size(const woort_mem_Chunk* self);
-size_t woort_mem_chunk_get_total_page_count(const woort_mem_Chunk* self);
+WOORT_NODISCARD size_t woort_mem_chunk_get_total_size(const woort_mem_Chunk* self);
+WOORT_NODISCARD size_t woort_mem_chunk_get_total_page_count(const woort_mem_Chunk* self);
