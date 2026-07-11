@@ -37,7 +37,6 @@ void woort_mutex_unlock(woort_Mutex* mutex);
 WOORT_NODISCARD bool woort_time_mutex_create(woort_TimeMutex** out_mutex);
 void woort_time_mutex_destroy(woort_TimeMutex* mutex);
 void woort_time_mutex_lock(woort_TimeMutex* mutex);
-WOORT_NODISCARD bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms);
 void woort_time_mutex_unlock(woort_TimeMutex* mutex);
 
 WOORT_NODISCARD bool woort_recursive_mutex_create(woort_RecursiveMutex** out_mutex);
@@ -49,14 +48,12 @@ void woort_recursive_mutex_unlock(woort_RecursiveMutex* mutex);
 WOORT_NODISCARD bool woort_time_recursive_mutex_create(woort_TimeRecursiveMutex** out_mutex);
 void woort_time_recursive_mutex_destroy(woort_TimeRecursiveMutex* mutex);
 WOORT_NODISCARD bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* mutex);
-WOORT_NODISCARD bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms);
 void woort_time_recursive_mutex_unlock(woort_TimeRecursiveMutex* mutex);
 
 typedef struct woort_ConditionVariable woort_ConditionVariable;
 WOORT_NODISCARD bool woort_condition_variable_create(woort_ConditionVariable** out_cv);
 void woort_condition_variable_destroy(woort_ConditionVariable* cv);
 void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mutex);
-WOORT_NODISCARD bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms);
 void woort_condition_variable_signal(woort_ConditionVariable* cv);
 void woort_condition_variable_broadcast(woort_ConditionVariable* cv);
 

@@ -219,23 +219,6 @@ void woort_time_mutex_lock(woort_TimeMutex* mutex)
     mtx_lock(&mutex->handle);
 }
 
-WOORT_NODISCARD bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
-{
-    assert(NULL != mutex);
-
-    struct timespec ts;
-    timespec_get(&ts, TIME_UTC);
-    ts.tv_sec += timeout_ms / 1000;
-    ts.tv_nsec += (timeout_ms % 1000) * 1000000L;
-    if (ts.tv_nsec >= 1000000000L)
-    {
-        ts.tv_sec += 1;
-        ts.tv_nsec -= 1000000000L;
-    }
-
-    return mtx_timedlock(&mutex->handle, &ts) == thrd_success;
-}
-
 void woort_time_mutex_unlock(woort_TimeMutex* mutex)
 {
     assert(NULL != mutex);
@@ -336,23 +319,6 @@ WOORT_NODISCARD bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* m
     return mtx_lock(&mutex->handle) == thrd_success;
 }
 
-WOORT_NODISCARD bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
-{
-    assert(NULL != mutex);
-
-    struct timespec ts;
-    timespec_get(&ts, TIME_UTC);
-    ts.tv_sec += timeout_ms / 1000;
-    ts.tv_nsec += (timeout_ms % 1000) * 1000000L;
-    if (ts.tv_nsec >= 1000000000L)
-    {
-        ts.tv_sec += 1;
-        ts.tv_nsec -= 1000000000L;
-    }
-
-    return mtx_timedlock(&mutex->handle, &ts) == thrd_success;
-}
-
 void woort_time_recursive_mutex_unlock(woort_TimeRecursiveMutex* mutex)
 {
     assert(NULL != mutex);
@@ -399,24 +365,6 @@ void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mut
     assert(NULL != cv);
     assert(NULL != mutex);
     cnd_wait(&cv->handle, &mutex->handle);
-}
-
-WOORT_NODISCARD bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
-{
-    assert(NULL != cv);
-    assert(NULL != mutex);
-
-    struct timespec ts;
-    timespec_get(&ts, TIME_UTC);
-    ts.tv_sec += timeout_ms / 1000;
-    ts.tv_nsec += (timeout_ms % 1000) * 1000000L;
-    if (ts.tv_nsec >= 1000000000L)
-    {
-        ts.tv_sec += 1;
-        ts.tv_nsec -= 1000000000L;
-    }
-
-    return cnd_timedwait(&cv->handle, &mutex->handle, &ts) == thrd_success;
 }
 
 void woort_condition_variable_signal(woort_ConditionVariable* cv)
@@ -630,19 +578,6 @@ void woort_time_mutex_lock(woort_TimeMutex* mutex)
     EnterCriticalSection(&mutex->cs);
 }
 
-WOORT_NODISCARD bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
-{
-    assert(NULL != mutex);
-
-    DWORD result = WaitForSingleObject(mutex->event, (DWORD)timeout_ms);
-    if (result == WAIT_OBJECT_0)
-    {
-        EnterCriticalSection(&mutex->cs);
-        return true;
-    }
-    return false;
-}
-
 void woort_time_mutex_unlock(woort_TimeMutex* mutex)
 {
     assert(NULL != mutex);
@@ -768,35 +703,6 @@ WOORT_NODISCARD bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* m
     return true;
 }
 
-WOORT_NODISCARD bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
-{
-    assert(NULL != mutex);
-
-    DWORD current_thread = GetCurrentThreadId();
-
-    EnterCriticalSection(&mutex->cs);
-    if (mutex->owner_thread == current_thread)
-    {
-        mutex->lock_count++;
-        LeaveCriticalSection(&mutex->cs);
-        return true;
-    }
-    LeaveCriticalSection(&mutex->cs);
-
-    DWORD result = WaitForSingleObject(mutex->event, (DWORD)timeout_ms);
-    if (result != WAIT_OBJECT_0)
-    {
-        return false;
-    }
-
-    EnterCriticalSection(&mutex->cs);
-    mutex->owner_thread = current_thread;
-    mutex->lock_count = 1;
-    LeaveCriticalSection(&mutex->cs);
-
-    return true;
-}
-
 void woort_time_recursive_mutex_unlock(woort_TimeRecursiveMutex* mutex)
 {
     assert(NULL != mutex);
@@ -850,13 +756,6 @@ void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mut
     assert(NULL != cv);
     assert(NULL != mutex);
     SleepConditionVariableSRW(&cv->cv, &mutex->lock, INFINITE, 0);
-}
-
-WOORT_NODISCARD bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
-{
-    assert(NULL != cv);
-    assert(NULL != mutex);
-    return SleepConditionVariableSRW(&cv->cv, &mutex->lock, (DWORD)timeout_ms, 0) != 0;
 }
 
 void woort_condition_variable_signal(woort_ConditionVariable* cv)
@@ -1023,25 +922,6 @@ struct woort_TimeMutex
     pthread_mutex_t handle;
 };
 
-static void _woort_get_abs_timeout(struct timespec* ts, uint32_t timeout_ms)
-{
-#if defined(WOORT_PLATFORM_OS_APPLE)
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    ts->tv_sec = tv.tv_sec + (timeout_ms / 1000);
-    ts->tv_nsec = tv.tv_usec * 1000 + (timeout_ms % 1000) * 1000000L;
-#else
-    clock_gettime(CLOCK_REALTIME, ts);
-    ts->tv_sec += timeout_ms / 1000;
-    ts->tv_nsec += (timeout_ms % 1000) * 1000000L;
-#endif
-    if (ts->tv_nsec >= 1000000000L)
-    {
-        ts->tv_sec += 1;
-        ts->tv_nsec -= 1000000000L;
-    }
-}
-
 WOORT_NODISCARD bool woort_time_mutex_create(woort_TimeMutex** out_mutex)
 {
     assert(NULL != out_mutex);
@@ -1074,31 +954,6 @@ void woort_time_mutex_lock(woort_TimeMutex* mutex)
 {
     assert(NULL != mutex);
     pthread_mutex_lock(&mutex->handle);
-}
-
-WOORT_NODISCARD bool woort_time_mutex_trylock(woort_TimeMutex* mutex, uint32_t timeout_ms)
-{
-    assert(NULL != mutex);
-
-#if defined(WOORT_PLATFORM_OS_APPLE)
-    /* macOS doesn't have pthread_mutex_timedlock, use polling */
-    uint32_t elapsed = 0;
-    const uint32_t sleep_interval = 1; /* 1 ms */
-    while (elapsed < timeout_ms)
-    {
-        if (pthread_mutex_trylock(&mutex->handle) == 0)
-        {
-            return true;
-        }
-        usleep(sleep_interval * 1000);
-        elapsed += sleep_interval;
-    }
-    return pthread_mutex_trylock(&mutex->handle) == 0;
-#else
-    struct timespec ts;
-    _woort_get_abs_timeout(&ts, timeout_ms);
-    return pthread_mutex_timedlock(&mutex->handle, &ts) == 0;
-#endif
 }
 
 void woort_time_mutex_unlock(woort_TimeMutex* mutex)
@@ -1213,31 +1068,6 @@ WOORT_NODISCARD bool woort_time_recursive_mutex_lock(woort_TimeRecursiveMutex* m
     return pthread_mutex_lock(&mutex->handle) == 0;
 }
 
-WOORT_NODISCARD bool woort_time_recursive_mutex_trylock(woort_TimeRecursiveMutex* mutex, uint32_t timeout_ms)
-{
-    assert(NULL != mutex);
-
-#if defined(WOORT_PLATFORM_OS_APPLE)
-    /* macOS doesn't have pthread_mutex_timedlock, use polling */
-    uint32_t elapsed = 0;
-    const uint32_t sleep_interval = 1; /* 1 ms */
-    while (elapsed < timeout_ms)
-    {
-        if (pthread_mutex_trylock(&mutex->handle) == 0)
-        {
-            return true;
-        }
-        usleep(sleep_interval * 1000);
-        elapsed += sleep_interval;
-    }
-    return pthread_mutex_trylock(&mutex->handle) == 0;
-#else
-    struct timespec ts;
-    _woort_get_abs_timeout(&ts, timeout_ms);
-    return pthread_mutex_timedlock(&mutex->handle, &ts) == 0;
-#endif
-}
-
 void woort_time_recursive_mutex_unlock(woort_TimeRecursiveMutex* mutex)
 {
     assert(NULL != mutex);
@@ -1284,17 +1114,6 @@ void woort_condition_variable_wait(woort_ConditionVariable* cv, woort_Mutex* mut
     assert(NULL != cv);
     assert(NULL != mutex);
     pthread_cond_wait(&cv->handle, &mutex->handle);
-}
-
-WOORT_NODISCARD bool woort_condition_variable_timed_wait(woort_ConditionVariable* cv, woort_Mutex* mutex, uint32_t timeout_ms)
-{
-    assert(NULL != cv);
-    assert(NULL != mutex);
-
-    struct timespec ts;
-    _woort_get_abs_timeout(&ts, timeout_ms);
-
-    return pthread_cond_timedwait(&cv->handle, &mutex->handle, &ts) == 0;
 }
 
 void woort_condition_variable_signal(woort_ConditionVariable* cv)
