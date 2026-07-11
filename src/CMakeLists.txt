@@ -38,7 +38,8 @@ endif()
 target_link_libraries(woort 
     PRIVATE woort_options
     PRIVATE ${CMAKE_DL_LIBS}
-    PUBLIC ${woort_required_libs})
+    PUBLIC ${woort_required_libs}
+    PUBLIC Threads::Threads)
 
 if (BUILD_SHARED_LIBS)
     if (WOORT_BUILD_WITH_ASMJIT)

@@ -31,7 +31,7 @@ WOORT_NODISCARD static woort_mem_PageHead* woort_mem_chunk_commit_page(
     woort_mem_PageHead* const p = woort_mem_chunk_index_to_page(self, idx);
     if (!self->commit_arr[idx])
     {
-        woort_mem_os_commit_memory(p, WOORT_MEM_NORMAL_PAGE_SIZE);
+        (void)woort_mem_os_commit_memory(p, WOORT_MEM_NORMAL_PAGE_SIZE);
         self->commit_arr[idx] = 1;
     }
     return p;
@@ -219,7 +219,7 @@ void woort_mem_chunk_deinit(woort_mem_Chunk* self)
     free(self->commit_arr);
     if (self->base)
     {
-        woort_mem_os_release_memory(self->base, self->reserved_size);
+        (void)woort_mem_os_release_memory(self->base, self->reserved_size);
     }
     woort_rwspinlock_deinit(&self->rwlock);
 

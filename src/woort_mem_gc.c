@@ -189,7 +189,11 @@ void woort_mem_gc_mark_root_unit_to_gray(
                 assigned_worker_id % self->m_gc_worker_count];
 
         woort_spinlock_lock(&worker->m_local_work_spin_for_root);
-        woort_vector_push_back(&worker->m_local_work, 1, &unit_head);
+        if (!woort_vector_push_back(&worker->m_local_work, 1, &unit_head))
+        {
+            WOORT_DEBUG("woort_vector_push_back failed for GC root mark");
+            abort();
+        }
         woort_spinlock_unlock(&worker->m_local_work_spin_for_root);
     }
 }
@@ -258,7 +262,11 @@ void woort_mem_gcworker_mark_unit_to_gray(
     {
         if (woort_thread_current_id() == self->m_worker_thread_id)
         {
-            woort_vector_push_back(&self->m_local_work, 1, &unit_head);
+            if (!woort_vector_push_back(&self->m_local_work, 1, &unit_head))
+            {
+                WOORT_DEBUG("woort_vector_push_back failed for GC worker mark");
+                abort();
+            }
         }
         else
         {
@@ -274,8 +282,14 @@ void woort_mem_gcworker_mark_unit_to_gray(
                         &self->m_is_draining,
                         WOORT_ATOMIC_MEMORY_ORDER_RELAXED))
                     {
-                        woort_vector_push_back(
-                            &self->m_local_work, 1, &unit_head);
+                        if (!woort_vector_push_back(
+                                &self->m_local_work, 1, &unit_head))
+                        {
+                            WOORT_DEBUG(
+                                "woort_vector_push_back failed "
+                                "for GC worker fallback mark");
+                            abort();
+                        }
                         woort_spinlock_unlock(
                             &self->m_local_work_spin_for_root);
                         break;
@@ -454,8 +468,13 @@ static void woort_mem_gcworker_drain_queue_into_local(
     {
         for (size_t i = 0; i < count; ++i)
         {
-            woort_vector_push_back(
-                &self->m_local_work, 1, &self->m_drain_buf[i]);
+            if (!woort_vector_push_back(
+                    &self->m_local_work, 1, &self->m_drain_buf[i]))
+            {
+                WOORT_DEBUG(
+                    "woort_vector_push_back failed during GC queue drain");
+                abort();
+            }
         }
     }
 }
@@ -484,7 +503,7 @@ static void woort_mem_gcworker_process_gray_units(woort_mem_GCWorker* self)
         woort_mem_UnitHead* const unit =
             *(woort_mem_UnitHead**)woort_vector_at(
                 &self->m_local_work, self->m_local_work.m_size - 1);
-        woort_vector_erase_at(
+        (void)woort_vector_erase_at(
             &self->m_local_work, self->m_local_work.m_size - 1);
 
         assert(WOORT_MEM_UNIT_LIFE_SELF_MARKED

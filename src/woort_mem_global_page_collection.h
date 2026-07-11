@@ -10,10 +10,12 @@ Per-size-class free page pool shared by all threads.
 #include "woort_mem_unit.h"
 #include "woort_spin.h"
 #include "woort_vector.h"
+#include "woort_log.h"
 
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 typedef struct woort_mem_FreePageList
 {
@@ -57,7 +59,12 @@ WOORT_NODISCARD static inline woort_mem_PageHead* woort_mem_free_page_list_pick(
         {
             page = *(woort_mem_PageHead**)
                 woort_vector_at(&self->m_pages, self->m_pages.m_size - 1);
-            woort_vector_erase_at(&self->m_pages, self->m_pages.m_size - 1);
+            if (!woort_vector_erase_at(
+                    &self->m_pages, self->m_pages.m_size - 1))
+            {
+                WOORT_DEBUG("woort_vector_erase_at failed in free page list pick");
+                abort();
+            }
 
             if (page == NULL)
                 continue;
@@ -89,7 +96,11 @@ static inline void woort_mem_free_page_list_return(
 {
     woort_spinlock_lock(&self->m_spin);
     {
-        woort_vector_push_back(&self->m_pages, 1, &page);
+        if (!woort_vector_push_back(&self->m_pages, 1, &page))
+        {
+            WOORT_DEBUG("woort_vector_push_back failed in free page list return");
+            abort();
+        }
     }
     woort_spinlock_unlock(&self->m_spin);
 }

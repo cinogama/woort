@@ -14,6 +14,8 @@ target_compile_features(woort_options INTERFACE c_std_11)
 target_compile_features(woort_options INTERFACE cxx_std_17)
 target_include_directories(woort_options INTERFACE "include")
 
+find_package(Threads REQUIRED)
+
 ####################################################################################################
 
 if (NOT WOORT_SPECIFY_PLATFORM_TYPE STREQUAL ""

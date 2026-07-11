@@ -85,7 +85,9 @@ void woort_vector_clear(woort_Vector* vector)
 }
 WOORT_NODISCARD bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element)
 {
-    assert(index < vector->m_size);
+    if (index >= vector->m_size)
+        return false;
+
     *out_element = vector->m_data + index * vector->m_element_size;
     return true;
 }
@@ -99,7 +101,8 @@ WOORT_NODISCARD void* woort_vector_at(woort_Vector* vector, size_t index)
 }
 WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index)
 {
-    assert(index < vector->m_size);
+    if (index >= vector->m_size)
+        return false;
 
     /* 如果不是最后一个元素，需要移动后续元素 */
     if (index < vector->m_size - 1)
@@ -116,7 +119,8 @@ WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index)
 }
 WOORT_NODISCARD bool woort_vector_insert(woort_Vector* vector, size_t place, const void* element)
 {
-    assert(place <= vector->m_size);
+    if (place > vector->m_size)
+        return false;
 
     if (!woort_vector_reserve(vector, vector->m_size + 1))
         return false;
