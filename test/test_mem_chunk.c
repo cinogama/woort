@@ -437,7 +437,7 @@ TEST(concurrent_alloc_free_128_pages)
             .free_count = &free_count, .done = &done,
             .role = 0,
         };
-        woort_thread_start(caf_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(caf_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < CAF_K_FREE; i++)
     {
@@ -448,7 +448,7 @@ TEST(concurrent_alloc_free_128_pages)
             .free_count = &free_count, .done = &done,
             .role = 1,
         };
-        woort_thread_start(caf_worker, &ctxs[idx], &threads[idx]);
+        CHECK(woort_thread_start(caf_worker, &ctxs[idx], &threads[idx]));
     }
 
     for (int i = 0; i < CAF_K_ALLOC + CAF_K_FREE; i++)
@@ -511,7 +511,7 @@ TEST(concurrent_mixed_alloc_free)
     for (int i = 0; i < CMAF_K_THREADS; i++)
     {
         ctxs[i] = (CMAFCtx){ .chunk = &chunk, .ops = &ops };
-        woort_thread_start(cmaf_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(cmaf_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < CMAF_K_THREADS; i++)
         woort_thread_join(threads[i]);
@@ -575,10 +575,10 @@ TEST(concurrent_huge_page_and_validate)
     for (int i = 0; i < 3; i++)
     {
         ctxs[i] = (CHFCtx){ .chunk = &chunk, .role = 0 };
-        woort_thread_start(chf_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(chf_worker, &ctxs[i], &threads[i]));
     }
     ctxs[3] = (CHFCtx){ .chunk = &chunk, .role = 1 };
-    woort_thread_start(chf_worker, &ctxs[3], &threads[3]);
+    CHECK(woort_thread_start(chf_worker, &ctxs[3], &threads[3]));
 
     for (int i = 0; i < 4; i++)
         woort_thread_join(threads[i]);

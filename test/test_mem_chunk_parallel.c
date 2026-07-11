@@ -33,9 +33,9 @@ static void bq_init(BoundedQueue* q, int cap)
     q->head = q->tail = q->count = 0;
     q->cap = cap;
     q->closed = false;
-    woort_mutex_create(&q->mtx);
-    woort_condition_variable_create(&q->not_empty);
-    woort_condition_variable_create(&q->not_full);
+    CHECK(woort_mutex_create(&q->mtx));
+    CHECK(woort_condition_variable_create(&q->not_empty));
+    CHECK(woort_condition_variable_create(&q->not_full));
 }
 
 static void bq_deinit(BoundedQueue* q)
@@ -153,7 +153,7 @@ TEST(massive_parallel_alloc_free)
     for (int i = 0; i < T1_K_THREADS; i++)
     {
         ctxs[i] = (T1Ctx){ .chunk = &chunk, .tid = i, .total_ops = &total_ops };
-        woort_thread_start(t1_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t1_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < T1_K_THREADS; i++)
         woort_thread_join(threads[i]);
@@ -222,7 +222,7 @@ TEST(multi_chunk_parallel_isolated)
         for (int t = 0; t < T2_K_THREADS_PER; t++)
         {
             ctxs[idx] = (T2Ctx){ .chunk = &chunks[c], .ops = &ops };
-            woort_thread_start(t2_worker, &ctxs[idx], &threads[idx]);
+            CHECK(woort_thread_start(t2_worker, &ctxs[idx], &threads[idx]));
             idx++;
         }
     }
@@ -338,12 +338,12 @@ TEST(producer_consumer_pattern)
             .active_producers = &active,
             .alloc_mx = &alloc_mx, .allocated = &allocated,
         };
-        woort_thread_start(t3_producer, &pctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t3_producer, &pctxs[i], &threads[i]));
     }
     for (int i = 0; i < T3_K_CONSUMERS; i++)
     {
         cctxs[i] = pctxs[0]; /* copy shared fields */
-        woort_thread_start(t3_consumer, &cctxs[i], &threads[T3_K_PRODUCERS + i]);
+        CHECK(woort_thread_start(t3_consumer, &cctxs[i], &threads[T3_K_PRODUCERS + i]));
     }
 
     for (int i = 0; i < T3_K_PRODUCERS + T3_K_CONSUMERS; i++)
@@ -451,7 +451,7 @@ TEST(mixed_order_concurrent)
     for (int i = 0; i < T4_K_THREADS; i++)
     {
         ctxs[i] = (T4Ctx){ .chunk = &chunk, .tid = i, .ops = &ops };
-        woort_thread_start(t4_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t4_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < T4_K_THREADS; i++)
         woort_thread_join(threads[i]);
@@ -559,7 +559,7 @@ TEST(validate_under_pressure)
             .validate_ops = &validate_ops, .validate_ok = &validate_ok,
             .tid = i, .role = 0,
         };
-        woort_thread_start(t5_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t5_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < T5_K_VALIDATE; i++)
     {
@@ -569,7 +569,7 @@ TEST(validate_under_pressure)
             .validate_ops = &validate_ops, .validate_ok = &validate_ok,
             .tid = i, .role = 1,
         };
-        woort_thread_start(t5_worker, &ctxs[idx], &threads[idx]);
+        CHECK(woort_thread_start(t5_worker, &ctxs[idx], &threads[idx]));
     }
 
     woort_thread_sleep_ms(T5_DURATION);
@@ -632,7 +632,7 @@ TEST(near_exhaustion_thrash)
     for (int i = 0; i < T6_K_THREADS; i++)
     {
         ctxs[i] = (T6Ctx){ .chunk = &chunk, .successes = &successes };
-        woort_thread_start(t6_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t6_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < T6_K_THREADS; i++)
         woort_thread_join(threads[i]);
@@ -705,7 +705,7 @@ TEST(random_power2_allocations)
             .chunk = &chunk, .tid = i,
             .ops = &ops, .huge_ops = &huge_ops,
         };
-        woort_thread_start(t7_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t7_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < T7_K_THREADS; i++)
         woort_thread_join(threads[i]);
@@ -805,7 +805,7 @@ TEST(alloc_free_interleaved_stress)
             .chunk = &chunk, .tid = i,
             .slots = slots, .ops = &ops,
         };
-        woort_thread_start(t8_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t8_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < T8_K_THREADS; i++)
         woort_thread_join(threads[i]);
@@ -872,7 +872,7 @@ TEST(no_double_alloc)
     for (int i = 0; i < T9_K_THREADS; i++)
     {
         ctxs[i] = (T9Ctx){ .chunk = &chunk, .ops = &ops };
-        woort_thread_start(t9_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t9_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < T9_K_THREADS; i++)
         woort_thread_join(threads[i]);
@@ -955,7 +955,7 @@ TEST(huge_page_non_overlapping)
             .chunk = &chunk, .tid = i, .ops = &ops,
             .addr_mx = &addr_mx, .allocated = &allocated,
         };
-        woort_thread_start(t10_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t10_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < T10_K_THREADS; i++)
         woort_thread_join(threads[i]);
@@ -1057,7 +1057,7 @@ TEST(long_running_stress)
             .total_alloc = &total_alloc, .total_free = &total_free,
             .alloc_fail = &alloc_fail,
         };
-        woort_thread_start(t11_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t11_worker, &ctxs[i], &threads[i]));
     }
 
     woort_thread_sleep_ms(T11_DURATION);
@@ -1133,7 +1133,7 @@ TEST(max_concurrency_stress)
     for (int i = 0; i < k_threads; i++)
     {
         ctxs[i] = (T12Ctx){ .chunk = &chunk, .ops = &ops };
-        woort_thread_start(t12_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t12_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < k_threads; i++)
         woort_thread_join(threads[i]);
@@ -1198,7 +1198,7 @@ TEST(rapid_alloc_free_burst)
     for (int i = 0; i < T13_K_THREADS; i++)
     {
         ctxs[i] = (T13Ctx){ .chunk = &chunk, .ops = &ops };
-        woort_thread_start(t13_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t13_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < T13_K_THREADS; i++)
         woort_thread_join(threads[i]);
@@ -1299,7 +1299,7 @@ TEST(zigzag_order_allocation)
     for (int i = 0; i < T15_K_THREADS; i++)
     {
         ctxs[i] = (T15Ctx){ .chunk = &chunk, .ops = &ops };
-        woort_thread_start(t15_worker, &ctxs[i], &threads[i]);
+        CHECK(woort_thread_start(t15_worker, &ctxs[i], &threads[i]));
     }
     for (int i = 0; i < T15_K_THREADS; i++)
         woort_thread_join(threads[i]);
