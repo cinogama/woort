@@ -19,19 +19,41 @@
  * Include platform-specific headers
  * ============================================================================ */
 
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+#   define WIN32_LEAN_AND_MEAN
+#   include <windows.h>
+#elif defined(WOORT_PLATFORM_OS_POSIX)
+#   include <pthread.h>
+#endif
+
 #if defined(WOORT_THREADS_USE_C11)
 #   include <threads.h>
 #   include <time.h>
 #elif defined(WOORT_THREADS_USE_WIN32)
-#   define WIN32_LEAN_AND_MEAN
-#   include <windows.h>
+    /* Nothing to include. */
 #elif defined(WOORT_THREADS_USE_PTHREAD)
-#   include <pthread.h>
 #   include <unistd.h>
 #   include <errno.h>
 #   include <sys/time.h>
 #   include <time.h>
 #endif
+
+/* ============================================================================
+  * Thread ID (OS-level, independent of threading backend)
+  * ============================================================================ */
+
+WOORT_NODISCARD uint64_t woort_thread_current_id(void)
+{
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+    return (uint64_t)GetCurrentThreadId();
+#elif defined(WOORT_PLATFORM_OS_APPLE)
+    uint64_t tid = 0;
+    pthread_threadid_np(NULL, &tid);
+    return tid;
+#else
+    return (uint64_t)(uintptr_t)pthread_self();
+#endif
+}
 
 /* ============================================================================
  * C11 Threads Implementation
@@ -139,11 +161,6 @@ void woort_thread_sleep_ms(uint32_t ms)
 void woort_thread_yield(void)
 {
     thrd_yield();
-}
-
-WOORT_NODISCARD uint64_t woort_thread_current_id(void)
-{
-    return (uint64_t)(uintptr_t)thrd_current();
 }
 
 /* ----------- Mutex ----------- */
@@ -527,11 +544,6 @@ void woort_thread_sleep_ms(uint32_t ms)
 void woort_thread_yield(void)
 {
     SwitchToThread();
-}
-
-WOORT_NODISCARD uint64_t woort_thread_current_id(void)
-{
-    return (uint64_t)GetCurrentThreadId();
 }
 
 /* ----------- Mutex ----------- */
@@ -966,17 +978,6 @@ void woort_thread_sleep_ms(uint32_t ms)
 void woort_thread_yield(void)
 {
     sched_yield();
-}
-
-WOORT_NODISCARD uint64_t woort_thread_current_id(void)
-{
-#if defined(WOORT_PLATFORM_OS_APPLE)
-    uint64_t tid = 0;
-    pthread_threadid_np(NULL, &tid);
-    return tid;
-#else
-    return (uint64_t)(uintptr_t)pthread_self();
-#endif
 }
 
 /* ----------- Mutex ----------- */
