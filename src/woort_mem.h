@@ -5,9 +5,15 @@ woort_mem.h
 Public API for the GC-enabled memory allocator (formerly woomem).
 */
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdbool.h>
+#ifdef __cplusplus
+#   include <cstddef>
+#   include <cstdint>
+extern "C"{
+#else
+#   include <stddef.h>
+#   include <stdint.h>
+#   include <stdbool.h>
+#endif
 
 extern uint8_t  woort_mem_gc_marking_round_counter;
 extern bool     woort_mem_gc_marking_state_flag;
@@ -58,3 +64,7 @@ void woort_mem_mark_fuzzy_unit_head(void* ptr_head_may_invalid_null);
 void woort_mem_mark_root_unit_head(void* ptr_head_may_null);
 void woort_mem_mark_root_fuzzy_unit(void* ptr_may_invalid_or_null);
 void woort_mem_mark_root_fuzzy_unit_head(void* ptr_head_may_invalid_null);
+
+#ifdef __cplusplus
+}
+#endif
