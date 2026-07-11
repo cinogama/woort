@@ -206,23 +206,23 @@ WOORT_NODISCARD bool woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved
     if (!self->base)
         return false;
 
-    self->count_arr = (uint32_t*)calloc(self->total_pages, sizeof(uint32_t));
-    self->commit_arr = (uint8_t*)calloc(self->total_pages, sizeof(uint8_t));
+    const size_t u32_bytes = self->total_pages * sizeof(uint32_t);
+    const size_t u8_bytes  = self->total_pages * sizeof(uint8_t);
+    const size_t meta_size = u32_bytes * 3 + u8_bytes;
 
-    self->free_prev = (uint32_t*)malloc(self->total_pages * sizeof(uint32_t));
-    self->free_next = (uint32_t*)malloc(self->total_pages * sizeof(uint32_t));
-
-    if (!self->count_arr
-        || !self->commit_arr
-        || !self->free_prev
-        || !self->free_next)
+    uint8_t* meta = (uint8_t*)malloc(meta_size);
+    if (!meta)
         return false;
 
-    for (size_t i = 0; i < self->total_pages; ++i)
-    {
-        self->free_prev[i] = WOORT_MEM_CHUNK_INDEX_NULL;
-        self->free_next[i] = WOORT_MEM_CHUNK_INDEX_NULL;
-    }
+    self->count_arr  = (uint32_t*)(meta);
+    self->free_prev  = (uint32_t*)(meta + u32_bytes);
+    self->free_next  = (uint32_t*)(meta + u32_bytes * 2);
+    self->commit_arr = (uint8_t*)(meta + u32_bytes * 3);
+
+    memset(self->count_arr, 0, u32_bytes);
+    memset(self->commit_arr, 0, u8_bytes);
+    memset(self->free_prev, 0xFF, u32_bytes);
+    memset(self->free_next, 0xFF, u32_bytes);
 
     self->count_arr[0] = (uint32_t)self->total_pages;
     self->free_head = 0;
@@ -233,9 +233,6 @@ WOORT_NODISCARD bool woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved
 void woort_mem_chunk_deinit(woort_mem_Chunk* self)
 {
     free(self->count_arr);
-    free(self->free_prev);
-    free(self->free_next);
-    free(self->commit_arr);
     if (self->base)
     {
         if (woort_mem_os_release_memory(self->base, self->reserved_size) != 0)
