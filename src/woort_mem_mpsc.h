@@ -41,6 +41,8 @@ static inline void woort_mem_mpsc_init(woort_mem_MpscGrayQueue* self)
 {
     for (size_t i = 0; i < WOORT_MEM_GRAY_QUEUE_CAPACITY; ++i)
         woort_atomic_init(&self->m_slots[i].sequence, i);
+    woort_atomic_init(&self->m_enqueue_pos, 0);
+    woort_atomic_init(&self->m_dequeue_pos, 0);
 }
 
 WOORT_NODISCARD static inline bool woort_mem_mpsc_try_enqueue(
