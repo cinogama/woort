@@ -36,24 +36,29 @@ void woort_mem_thread_context_deinit(woort_mem_ThreadContext* self)
 }
 
 static WOORT_THREAD_LOCAL woort_mem_ThreadContext t_woort_mem_thread_context;
-static WOORT_THREAD_LOCAL bool t_woort_mem_thread_context_inited = false;
+static WOORT_THREAD_LOCAL woort_mem_ThreadContext* t_woort_mem_thread_context_inited = NULL;
 
 WOORT_NODISCARD woort_mem_ThreadContext* woort_mem_get_thread_context(void)
 {
-    if (!t_woort_mem_thread_context_inited)
+    woort_mem_ThreadContext* const tls_ctx = t_woort_mem_thread_context_inited;
+    if (tls_ctx == NULL)
     {
-        woort_mem_thread_context_init(&t_woort_mem_thread_context);
-        t_woort_mem_thread_context_inited = true;
+        t_woort_mem_thread_context_inited = &t_woort_mem_thread_context;
+        woort_mem_thread_context_init(t_woort_mem_thread_context_inited);
+
         woort_mem_thread_guard_touch();
+
+        return t_woort_mem_thread_context_inited;
     }
-    return &t_woort_mem_thread_context;
+    return tls_ctx;
 }
 
 void woort_mem_thread_context_on_exit(void)
 {
-    if (t_woort_mem_thread_context_inited)
+    woort_mem_ThreadContext* const tls_ctx = t_woort_mem_thread_context_inited;
+    if (tls_ctx != NULL)
     {
-        woort_mem_thread_context_deinit(&t_woort_mem_thread_context);
-        t_woort_mem_thread_context_inited = false;
+        woort_mem_thread_context_deinit(tls_ctx);
+        t_woort_mem_thread_context_inited = NULL;
     }
 }

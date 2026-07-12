@@ -221,7 +221,7 @@ void woort_mem_mark_unit_head(void* ptr_head_may_null)
 {
     if (ptr_head_may_null != NULL)
     {
-        woort_mem_GCWorker* worker =
+        woort_mem_GCWorker* const worker =
             woort_mem_get_thread_context()->m_gc_marking_context;
         if (worker != NULL)
             woort_mem_gcworker_mark_unit_to_gray(

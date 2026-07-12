@@ -87,7 +87,7 @@ restart:
 
         if (next != WOORT_MEM_CHUNK_INDEX_NULL)
         {
-            uint32_t next_count = self->count_arr[next];
+            const uint32_t next_count = self->count_arr[next];
             if (idx + count == next)
             {
                 woort_mem_chunk_free_list_remove(self, next);
@@ -129,22 +129,22 @@ WOORT_NODISCARD static  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_alloc
 {
     woort_rwspinlock_write_lock(&self->rwlock);
     {
-        uint32_t idx = woort_mem_chunk_free_list_find_block(self, required_pages);
+        const uint32_t idx = woort_mem_chunk_free_list_find_block(self, required_pages);
         if (idx == WOORT_MEM_CHUNK_INDEX_NULL)
         {
             woort_rwspinlock_write_unlock(&self->rwlock);
             return NULL;
         }
 
-        uint32_t block_count = self->count_arr[idx]
+        const uint32_t block_count = self->count_arr[idx]
             & WOORT_MEM_CHUNK_COUNT_MASK;
 
         woort_mem_chunk_free_list_remove(self, idx);
 
         if (block_count > required_pages)
         {
-            uint32_t left_idx = idx + required_pages;
-            uint32_t left_count = block_count - required_pages;
+            const uint32_t left_idx = idx + required_pages;
+            const uint32_t left_count = block_count - required_pages;
 
             self->count_arr[left_idx] = left_count;
             for (uint32_t j = 1; j < left_count; ++j)
@@ -210,7 +210,7 @@ WOORT_NODISCARD bool woort_mem_chunk_init(woort_mem_Chunk* self, size_t reserved
     const size_t u8_bytes  = self->total_pages * sizeof(uint8_t);
     const size_t meta_size = u32_bytes * 3 + u8_bytes;
 
-    uint8_t* meta = (uint8_t*)malloc(meta_size);
+    uint8_t* const meta = (uint8_t*)malloc(meta_size);
     if (!meta)
         return false;
 
@@ -262,7 +262,7 @@ WOORT_NODISCARD bool woort_mem_chunk_is_init_failed(const woort_mem_Chunk* self)
 
 WOORT_NODISCARD  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_allocate_page(woort_mem_Chunk* self)
 {
-    woort_mem_PageHead* page = woort_mem_chunk_allocate_pages(self, 1);
+    woort_mem_PageHead* const page = woort_mem_chunk_allocate_pages(self, 1);
     if (page != NULL)
         page->m_page_count_if_huge = 0;
     return page;
@@ -280,7 +280,7 @@ WOORT_NODISCARD  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_allocate_hug
     if (required_pages > self->total_pages)
         return NULL;
 
-    woort_mem_PageHead* page =
+    woort_mem_PageHead* const page =
         woort_mem_chunk_allocate_pages(self, (uint32_t)required_pages);
     if (page != NULL)
         page->m_page_count_if_huge = required_pages;
@@ -296,8 +296,8 @@ void woort_mem_chunk_free_page(
 
     woort_rwspinlock_write_lock(&self->rwlock);
     {
-        size_t idx = woort_mem_chunk_page_to_index(self, page);
-        uint32_t c = self->count_arr[idx];
+        const size_t idx = woort_mem_chunk_page_to_index(self, page);
+        const uint32_t c = self->count_arr[idx];
 
         if (!(c & WOORT_MEM_CHUNK_ALLOCATED_FLAG))
         {
@@ -305,7 +305,7 @@ void woort_mem_chunk_free_page(
             return;
         }
 
-        uint32_t block_count = c & WOORT_MEM_CHUNK_COUNT_MASK;
+        const uint32_t block_count = c & WOORT_MEM_CHUNK_COUNT_MASK;
 
         for (uint32_t j = 0; j < block_count; ++j)
             self->count_arr[idx + j] = 0;
@@ -322,8 +322,8 @@ WOORT_NODISCARD woort_mem_PageHead* woort_mem_chunk_validate(
 {
     assert(self->base != NULL);
 
-    uintptr_t addr = (uintptr_t)ptr;
-    uintptr_t base_addr = (uintptr_t)self->base;
+    const uintptr_t addr = (uintptr_t)ptr;
+    const uintptr_t base_addr = (uintptr_t)self->base;
 
     if (addr < base_addr || addr >= base_addr + self->reserved_size)
         return NULL;
