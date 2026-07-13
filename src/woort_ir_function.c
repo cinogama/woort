@@ -866,8 +866,8 @@ static bool _phase2_liveness_analysis(woort_IRFunction* f, const uint32_t* const
  * Phase 3b: 常量直接使用标记
  *
  * 扫描所有 SOURCE_CONST vreg，如果某个 CONST vreg 仅被一条
- * PUSHCHK 或 RET 使用（use_count == 1），标记为 const_direct。
- * 发射层将直接使用 PUSHCCHK / RETVC 而非 LOAD + PUSHSCHK / RETVS。
+ * PUSHCHK、CALL 或 RET 使用（use_count == 1），标记为 const_direct。
+ * 发射层将直接使用 PUSHCCHK / CALLC / RETVC 而非 LOAD + PUSHSCHK / CALLS / RETVS。
  *
  * 注意：CONST vreg 不参与指令流中的 DEF（没有 LOAD_CONST 指令），
  * 它们只作为其他指令的 m_src[] 出现。
@@ -909,18 +909,20 @@ static bool _phase3b_const_optimization(woort_IRFunction* f)
         if (use_count != 1 || unique_user == NULL)
             continue;
 
-        /* 检查唯一使用者是否是 MOV, PUSHCHK 或 RET */
+        /* 检查唯一使用者是否是 MOV, PUSHCHK, CALL 或 RET */
         if (unique_user->m_op != WOORT_IROP_KIND_MOV &&
             unique_user->m_op != WOORT_IROP_KIND_PANIC &&
             unique_user->m_op != WOORT_IROP_KIND_PUSHCHK &&
+            unique_user->m_op != WOORT_IROP_KIND_CALL &&
             unique_user->m_op != WOORT_IROP_KIND_RET)
         {
             continue;
         }
 
-        /* RETVC 没有扩展编码，const_index 超 U24 范围时不可用 */
+        /* RETVC / PANIC / CALLC 没有扩展编码，const_index 超 U24 范围时不可用 */
         if ((unique_user->m_op == WOORT_IROP_KIND_RET ||
-            unique_user->m_op == WOORT_IROP_KIND_PANIC) &&
+            unique_user->m_op == WOORT_IROP_KIND_PANIC ||
+            unique_user->m_op == WOORT_IROP_KIND_CALL) &&
             cv->m_const_idx > ((1u << 24) - 1))
         {
             continue;

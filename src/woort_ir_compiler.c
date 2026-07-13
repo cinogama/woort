@@ -714,11 +714,23 @@ _handle_call_result:
     {
         (void)c;
         assert(op->m_src[0] != NULL);
-        int16_t f16;
-        if (!_load_to_s16(blk, op->m_src[0], -128, &f16))
-            return false;
-        if (!_emit_bc(blk, woort_OpCode_CALLS(f16)))
-            return false;
+
+        /* 常量直连优化：直接发 CALLC（按常量区下标调用），跳过 LOAD + CALLS */
+        if (op->m_src[0]->m_is_const_direct)
+        {
+            const uint32_t cidx = op->m_src[0]->m_const_idx;
+            assert(cidx <= WOORT_UINT24_MAX_VAL); /* CALLC 操作数为 C24 */
+            if (!_emit_bc(blk, woort_OpCode_CALLC(cidx)))
+                return false;
+        }
+        else
+        {
+            int16_t f16;
+            if (!_load_to_s16(blk, op->m_src[0], -128, &f16))
+                return false;
+            if (!_emit_bc(blk, woort_OpCode_CALLS(f16)))
+                return false;
+        }
 
         if (op->m_dst != NULL)
         {

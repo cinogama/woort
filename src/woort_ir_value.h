@@ -52,8 +52,8 @@ struct woort_IRValue
     /*
      * 常量直连优化 (Phase 3b 填充，仅 SOURCE_CONST 有效)
      *
-     * 如果此 CONST vreg 仅被一条支持常量直连的指令（PUSHCHK / RET）使用，
-     * 标记为 true。发射层将直接发出 PUSHCCHK / RETVC，跳过 LOAD 和栈槽分配。
+     * 如果此 CONST vreg 仅被一条支持常量直连的指令（PUSHCHK / CALL / RET）使用，
+     * 标记为 true。发射层将直接发出 PUSHCCHK / CALLC / RETVC，跳过 LOAD 和栈槽分配。
      */
     bool m_is_const_direct;
 
