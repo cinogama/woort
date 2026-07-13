@@ -159,9 +159,9 @@ static int _compare_intervals_by_start(const void* a, const void* b)
  * ======================================================================== */
 
 void woort_IRFunction_init(
-    woort_IRFunction* f, 
-    woort_IRCompiler* c, 
-    uint32_t param_count, 
+    woort_IRFunction* f,
+    woort_IRCompiler* c,
+    uint32_t param_count,
     uint32_t captured_count)
 {
     f->m_param_count = param_count;
@@ -920,10 +920,10 @@ static bool _phase3b_const_optimization(woort_IRFunction* f)
         }
 
         /* RETVC / PANIC / CALLC 没有扩展编码，const_index 超 U24 范围时不可用 */
-        if ((unique_user->m_op == WOORT_IROP_KIND_RET ||
-            unique_user->m_op == WOORT_IROP_KIND_PANIC ||
-            unique_user->m_op == WOORT_IROP_KIND_CALL) &&
-            cv->m_const_idx > ((1u << 24) - 1))
+        if (cv->m_const_idx > ((1u << 24) - 1)
+            && (unique_user->m_op == WOORT_IROP_KIND_RET ||
+                unique_user->m_op == WOORT_IROP_KIND_PANIC ||
+                unique_user->m_op == WOORT_IROP_KIND_CALL))
         {
             continue;
         }
