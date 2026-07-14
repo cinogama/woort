@@ -529,6 +529,9 @@ bool woort_JIT_Backend_x64_prologue(
         em->scan_jump_targets();
     }
 
+    /* Emit checkpoint at function begin. */
+    em->emit_checkpoint(*ip);
+
     if (!em->is_okay())
     {
         delete em;
