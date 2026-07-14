@@ -56,12 +56,12 @@ static const char g_woort_version_str[] = WOORT_VERSION;
 #undef WOORT_VERSION_INT
 #undef WOORT_VERSION_STR
 
-const char* woort_version(void)
+WOORT_NODISCARD const char* woort_version(void)
 {
     return g_woort_version_str;
 }
 
-uint64_t woort_version_int(void)
+WOORT_NODISCARD uint64_t woort_version_int(void)
 {
     return g_woort_version_int;
 }

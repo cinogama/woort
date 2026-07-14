@@ -122,7 +122,7 @@ static int _woort_console_refill(
 
 #endif /* WOORT_PLATFORM_OS_WINDOWS */
 
-const char* woort_env_locale_name(void)
+WOORT_NODISCARD const char* woort_env_locale_name(void)
 {
     return WOORT_DEFAULT_LOCALE_NAME;
 }
@@ -415,7 +415,7 @@ static void woort_conin_reset(void)
 
 #endif /* WOORT_PLATFORM_OS_WINDOWS */
 
-int woort_conin_getc(void)
+WOORT_NODISCARD int woort_conin_getc(void)
 {
 #if defined(WOORT_PLATFORM_OS_WINDOWS)
     if (g_conin_ungot != EOF)
@@ -442,7 +442,7 @@ int woort_conin_getc(void)
     return getchar();
 }
 
-int woort_conin_ungetc(int ch)
+WOORT_NODISCARD int woort_conin_ungetc(int ch)
 {
     if (ch == EOF)
         return EOF;

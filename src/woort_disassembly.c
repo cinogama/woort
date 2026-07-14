@@ -735,7 +735,7 @@ static const woort_OpcodeDispatchers g_disasm_dispatchers = {
     .m_CHKDIVILR = _woort_dis_CHKDIVILR,
 };
 
-const woort_Bytecode* woort_disassembly(
+WOORT_NODISCARD const woort_Bytecode* woort_disassembly(
     const woort_Bytecode* c, woort_Disassembly_DumpCallback callback)
 {
     struct woort_DisassemblyCtx ctx = { callback, 0 };

@@ -66,7 +66,7 @@ static void _woort_get_abs_timeout(struct timespec* ts, uint32_t timeout_ms)
 #if defined(WOORT_PLATFORM_OS_POSIX)
     clock_gettime(CLOCK_REALTIME, ts);
 #else
-    timespec_get(ts, TIME_UTC);
+    (void)timespec_get(ts, TIME_UTC);
 #endif
     ts->tv_sec += timeout_ms / 1000;
     ts->tv_nsec += (timeout_ms % 1000) * 1000000L;

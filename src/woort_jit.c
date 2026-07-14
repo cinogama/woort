@@ -330,13 +330,23 @@ void woort_JIT_compile_env(woort_CodeEnv* cenv)
         {
         case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
         {
-            woort_JIT_CompileFunctionContext* const ctx = woort_hashmap_at(
-                &jit_compiled_functions_record,
-                &cenv->m_data_begin[cidx].m_closure->m_script_function);
+            const woort_GCClosure* const target_closure = cenv->m_data_begin[cidx].m_closure;
+            if (target_closure->m_script_function >= cenv->m_code_begin
+                && target_closure->m_script_function < cenv->m_code_end)
+            {
+                woort_JIT_CompileFunctionContext* const ctx = woort_hashmap_at(
+                    &jit_compiled_functions_record,
+                    &cenv->m_data_begin[cidx].m_closure->m_script_function);
 
-            assert(ctx->m_jit_function != NULL);
-            ((woort_GCClosure*)cenv->m_data_begin[cidx].m_closure)->m_jit_function =
-                ctx->m_jit_function;
+                assert(ctx->m_jit_function != NULL);
+                ((woort_GCClosure*)cenv->m_data_begin[cidx].m_closure)->m_jit_function =
+                    ctx->m_jit_function;
+            }
+            /* 
+            else: this function constant comes from other codeenv, only REPL
+                walk here, just let it do far-call. 
+            */
+
             break;
         }
         default:

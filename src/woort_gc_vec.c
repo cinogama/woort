@@ -16,7 +16,7 @@ const woort_GCUnitProxy WOORT_GCVEC_UNIT_PROXY = {
     .m_marker = NULL,
 };
 
-woort_GCVec* woort_GCVec_new(void)
+WOORT_NODISCARD woort_GCVec* woort_GCVec_new(void)
 {
     woort_GCVec* const gcvec = woort_GCUnit_alloc_delay_init(sizeof(woort_GCVec));
     gcvec->m_gc_unit.m_proxy = &WOORT_GCVEC_UNIT_PROXY;

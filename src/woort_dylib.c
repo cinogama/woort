@@ -150,7 +150,7 @@ static void* _woort_dylib_try_open_lib(const char* path)
 static woort_HashMap/* const char*, woort_Dylib* */          g_named_libs;
 static woort_RecursiveMutex* g_named_libs_mx;
 
-bool _woort_dylib_bootup(void)
+WOORT_NODISCARD bool _woort_dylib_bootup(void)
 {
     if (!woort_recursive_mutex_create(&g_named_libs_mx))
         return false;
@@ -169,11 +169,12 @@ static void _woort_dylib_registry_remove(woort_Dylib* dylib);
 
 static void _woort_dylib_free_fake_function_list(woort_ExternLibFunc* fake_libs)
 {
-    woort_ExternLibFunc* f = fake_libs;
-    while (f->m_name != NULL)
+    woort_ExternLibFunc* current_fun = fake_libs;
+
+    while (current_fun->m_name != NULL)
     {
-        free((void*)f->m_name);
-        ++f;
+        free((void*)current_fun->m_name);
+        ++current_fun;
     }
     free(fake_libs);
 }

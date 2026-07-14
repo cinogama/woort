@@ -10,7 +10,7 @@ const woort_GCUnitProxy WOORT_GCSTRUCT_UNIT_PROXY = {
     .m_marker = NULL,
 };
 
-woort_GCStruct* woort_GCStruct_new(size_t struct_size)
+WOORT_NODISCARD woort_GCStruct* woort_GCStruct_new(size_t struct_size)
 {
     woort_GCStruct* const gcstruct = woort_GCUnit_alloc_delay_init(
         sizeof(woort_GCStruct) 

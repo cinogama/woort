@@ -2355,8 +2355,7 @@ void woort_JIT_Backend_x64_CALLC(void* emitter, woort_Opcode_Global func)
     const woort_Value* const func_addr = &em->m_cenv_static_storage[func];
 
     const Gp target_closure = em->c->new_gp_ptr();
-    WOORT_JIT_CODE(mov(target_closure,
-        qword_ptr(reinterpret_cast<intptr_t>(func_addr))));
+    WOORT_JIT_CODE(mov(target_closure, qword_ptr(reinterpret_cast<intptr_t>(func_addr))));
 
     woort_JIT_x64_emit_closure_call(em, target_closure);
 }

@@ -39,7 +39,7 @@ const woort_GCUnitProxy WOORT_GCHANDLE_UNIT_PROXY = {
     .m_marker = _woort_GCHandle_marker,
 };
 
-const woort_GCHandle* woort_GCHandle_new(
+WOORT_NODISCARD const woort_GCHandle* woort_GCHandle_new(
     void* addr,
     /* OPTIONAL */ woort_Value* holding,
     woort_GCHandle_UserDestructFunction destructor,
@@ -68,7 +68,7 @@ const woort_GCHandle* woort_GCHandle_new(
     return gchandle;
 }
 
-const woort_GCHandle* woort_GCHandle_new_with_marker(
+WOORT_NODISCARD const woort_GCHandle* woort_GCHandle_new_with_marker(
     void* addr,
     woort_GCHandle_UserMarkFunction marker,
     woort_GCHandle_UserDestructFunction destructor,

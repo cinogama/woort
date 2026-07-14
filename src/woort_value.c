@@ -110,7 +110,7 @@ WOORT_NODISCARD bool _woort_unbox_bool(uint64_t val)
 
 /* ====================================================================== */
 
-woort_DynBox woort_DynBox_box_real(woort_Real val)
+WOORT_NODISCARD woort_DynBox woort_DynBox_box_real(woort_Real val)
 {
     woort_DynBox result;
     if (!_woort_try_box_float63(val, &result.m_boxed))
@@ -129,7 +129,7 @@ woort_DynBox woort_DynBox_box_real(woort_Real val)
     }
     return result;
 }
-woort_DynBox woort_DynBox_box_int(woort_Int val)
+WOORT_NODISCARD woort_DynBox woort_DynBox_box_int(woort_Int val)
 {
     woort_DynBox result;
     if (!_woort_try_box_int62(val, &result.m_boxed))
@@ -148,14 +148,14 @@ woort_DynBox woort_DynBox_box_int(woort_Int val)
     }
     return result;
 }
-woort_DynBox woort_DynBox_box_bool(bool val)
+WOORT_NODISCARD woort_DynBox woort_DynBox_box_bool(bool val)
 {
     woort_DynBox result;
     result.m_boxed = _woort_box_bool(val);
     return result;
 }
 
-woort_DynBox woort_DynBox_box_real_for_env_constant(woort_CodeEnv* cenv, woort_Real val)
+WOORT_NODISCARD woort_DynBox woort_DynBox_box_real_for_env_constant(woort_CodeEnv* cenv, woort_Real val)
 {
     woort_DynBox result;
     if (!_woort_try_box_float63(val, &result.m_boxed))
@@ -175,7 +175,7 @@ woort_DynBox woort_DynBox_box_real_for_env_constant(woort_CodeEnv* cenv, woort_R
     return result;
 }
 
-woort_DynBox woort_DynBox_box_int_for_env_constant(woort_CodeEnv* cenv, woort_Int val)
+WOORT_NODISCARD woort_DynBox woort_DynBox_box_int_for_env_constant(woort_CodeEnv* cenv, woort_Int val)
 {
     woort_DynBox result;
     if (!_woort_try_box_int62(val, &result.m_boxed))
@@ -195,7 +195,7 @@ woort_DynBox woort_DynBox_box_int_for_env_constant(woort_CodeEnv* cenv, woort_In
     return result;
 }
 
-woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
+WOORT_NODISCARD woort_DynBox woort_DynBox_box(woort_Value val, woort_BoxValueType type)
 {
     switch (type)
     {
