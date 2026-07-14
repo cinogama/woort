@@ -3070,6 +3070,69 @@ static woort_api woort_builtin_map_get_or_set_default_do_xx(void)
     return woort_ret();
 }
 
+static woort_api woort_builtin_map_get_or_set_default_do_iv(void)
+{
+    woort_Int key = woort_int(1);
+    if (woort_map_get_by_int(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_IGNORE, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_panic("Failed to invoke callback function.");
+
+    woort_set_void(WOORT_RETURN_SLOT);
+    (void)woort_map_set_by_int(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_rv(void)
+{
+    woort_Real key = woort_real(1);
+    if (woort_map_get_by_real(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_IGNORE, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_panic("Failed to invoke callback function.");
+
+    woort_set_void(WOORT_RETURN_SLOT);
+    (void)woort_map_set_by_real(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_bv(void)
+{
+    bool key = woort_bool(1);
+    if (woort_map_get_by_bool(WOORT_RETURN_SLOT, 0, key))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_IGNORE, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_panic("Failed to invoke callback function.");
+
+    woort_set_void(WOORT_RETURN_SLOT);
+    (void)woort_map_set_by_bool(0, key, WOORT_RETURN_SLOT);
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_map_get_or_set_default_do_xv(void)
+{
+    if (woort_map_get(WOORT_RETURN_SLOT, 0, 1))
+    {
+        (void)woort_unbox(WOORT_RETURN_SLOT, WOORT_RETURN_SLOT);
+        return woort_ret();
+    }
+    if (woort_invoke(WOORT_IGNORE, 2) == WOORT_VM_CALL_STATUS_ABORTED)
+        return woort_ret_panic("Failed to invoke callback function.");
+
+    woort_set_void(WOORT_RETURN_SLOT);
+    (void)woort_map_set(0, 1, WOORT_RETURN_SLOT);
+    return woort_ret_void();
+}
+
 static woort_api woort_builtin_map_swap(void)
 {
     woort_map_swap(0, 1);
@@ -3757,6 +3820,10 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(map_get_or_set_default_do_xr),
     WOORT_BUILTIN_FUNC(map_get_or_set_default_do_xb),
     WOORT_BUILTIN_FUNC(map_get_or_set_default_do_xx),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_iv),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_rv),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_bv),
+    WOORT_BUILTIN_FUNC(map_get_or_set_default_do_xv),
     WOORT_BUILTIN_FUNC(map_swap),
     WOORT_BUILTIN_FUNC(map_copy),
     WOORT_BUILTIN_FUNC(map_keys),
