@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 8)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 9)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -4948,13 +4948,13 @@ typedef enum woort_REPLPrinter_FlushResult
 
 /**
  * @brief Create a new REPL printer.
- * @param out_printer Output handle receiving the newly created printer.
  * @param callback   Optional callback invoked on flush; if NULL, flushed text is written to stdout.
+ * @param out_printer Output handle receiving the newly created printer.
  * @return true on success, false on allocation failure.
  */
 WOORT_NODISCARD WOORT_API bool woort_REPLPrinter_create(
-    woort_REPLPrinter* out_printer,
-    /* OPTIONAL */woort_REPLPrinter_ResultCallback callback);
+    /* OPTIONAL */woort_REPLPrinter_ResultCallback callback,
+    woort_REPLPrinter** out_printer);
 
 /** @brief Destroy a REPL printer and release all associated resources. */
 WOORT_API void woort_REPLPrinter_destroy(woort_REPLPrinter* printer);

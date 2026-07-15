@@ -103,7 +103,7 @@ static woort_api woort_builtin_input_read_i(void)
         char  tok[64];
         size_t tlen = 0;
         int    c;
-        char*  endptr;
+        char* endptr;
 
         /* skip leading whitespace */
         do
@@ -152,7 +152,7 @@ static woort_api woort_builtin_input_read_r(void)
         char   tok[128];
         size_t tlen = 0;
         int    c;
-        char*  endptr;
+        char* endptr;
 
         do
             c = woort_conin_getc();
@@ -3637,8 +3637,15 @@ static woort_api woort_builtin_repl_print_normal(void)
         if (i != 2)
             (void)woort_REPLPrinter_print_string(repl_printer, " ");
 
-        (void)woort_REPLPrinter_print_mixed(
-            repl_printer, woort_internal_value((woort_StackValue)i)->m_dynamic);
+        if (woort_unbox_type((woort_StackValue)i)
+            == WOORT_BOX_VALUE_TYPE_STRING)
+        {
+            (void)woort_REPLPrinter_print_string(
+                repl_printer, woort_string((woort_StackValue)i));
+        }
+        else
+            (void)woort_REPLPrinter_print_mixed(
+                repl_printer, woort_internal_value((woort_StackValue)i)->m_dynamic);
     }
     return woort_ret_void();
 }

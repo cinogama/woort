@@ -18,8 +18,8 @@ struct woort_REPLPrinter
 };
 
 WOORT_NODISCARD bool woort_REPLPrinter_create(
-    woort_REPLPrinter* out_printer,
-    /* OPTIONAL */woort_REPLPrinter_ResultCallback callback)
+    /* OPTIONAL */woort_REPLPrinter_ResultCallback callback,
+    woort_REPLPrinter** out_printer)
 {
     woort_REPLPrinter* const instance =
         (woort_REPLPrinter*)malloc(sizeof(woort_REPLPrinter));
@@ -32,6 +32,8 @@ WOORT_NODISCARD bool woort_REPLPrinter_create(
 
     woort_vector_init(&instance->m_print_buffer, sizeof(char));
     instance->m_print_callback = callback;
+
+    *out_printer = instance;
 
     return true;
 }
