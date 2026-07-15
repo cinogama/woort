@@ -326,35 +326,60 @@ WOORT_NODISCARD bool _woort_guess_is_float(const void* valp)
 {
     uint64_t bits;
     int64_t as_int;
+    double as_double;
     memcpy(&bits, valp, sizeof(bits));
     memcpy(&as_int, valp, sizeof(as_int));
+    memcpy(&as_double, valp, sizeof(as_double));
 
-    /* 0.0 与整数 0 比特完全相同，按整数处理 */
-    if (bits == 0)
+    const uint64_t biased_exp = (bits >> 52) & 0x7FF;
+
+    /* 指数全 0：零或次正规数。真实浮点几乎不会出现这些位模式，它们通常是小
+     * 整数的位模式（小正整数高位为 0 → 次正规，例如 4.94e-324），直接判整数。 */
+    if (biased_exp == 0)
         return false;
 
-    /* 取出 IEEE-754 double 的 11 位偏置指数（bit 52..62） */
-    const uint64_t exp = (bits >> 52) & 0x7FF;
-
-    /* 指数全 0：作为 double 是非规格化数。
-     * 真实浮点数据几乎不会是非规格化数，这通常是小幅正整数的位模式。 */
-    if (exp == 0)
+    /* 指数全 1：无穷（frac == 0）或 NaN（frac != 0）。小负整数高位全 1 时会
+     * 落入此处（NaN 位模式），真实浮点中 +/-∞ 与 NaN 同样少见，统一判整数。 */
+    if (biased_exp == 0x7FF)
         return false;
 
-    /* 指数全 1（0x7FF）：作为 double 是 NaN/Infinity。
-     * 这通常是小负整数的位模式（高位全 1），而非真实浮点数。 */
-    if (exp == 0x7FF)
-        return false;
+    /* ---- 以下为正规数：整数解释为大整数，浮点解释为合法规格化数 ----
+     * 二者结构上都"合法"，用打分法比较哪种解释更像真实代码里的值。 */
 
-    /* 指数落在 normal 范围 [1, 0x7FE]：double 解释为一个合法的规格化数。
-     * 此时若整数解释仍处于 "人类常用整数" 范围内（|i| <= 2^53，
-     * 即 double 可精确表示所有整数的边界），更可能是整数；
-     * 否则整数解释会是 ~10^18 量级的巨大值——这正是一个正常浮点数
-     * 位模式（指数占据高位）的典型特征，故判定为浮点数。 */
-    if (as_int >= -(1LL << 53) && as_int <= (1LL << 53))
-        return false;
+    int int_score = 0;
+    int float_score = 1; /* 正规数基础分 */
 
-    return true;
+    const uint64_t abs_int = as_int >= 0
+        ? (uint64_t)as_int
+        : -(uint64_t)as_int;
+
+    /* 小整数更像整数 */
+    if (abs_int < 65536)
+        int_score += 2;
+
+    /* 2 的幂更像整数（含 0，但此处 biased_exp != 0，故 abs_int != 0） */
+    if ((abs_int & (abs_int - 1)) == 0)
+        int_score += 1;
+
+    const double abs_f = as_double >= 0 ? as_double : -as_double;
+
+    /* 数量级落在常规范围 [1e-6, 1e6] 内更像真实浮点 */
+    if (1e-6 <= abs_f && abs_f <= 1e6)
+        float_score += 2;
+
+    /* 接近整数值的浮点（如 3.0）。这类值整数也能精确表示，若同时又像小整数
+     * 则更偏向整数解释。 */
+    const double diff = fabs(as_double - round(as_double));
+    const double threshold = 1e-6 * (abs_f > 1.0 ? abs_f : 1.0);
+    if (diff < threshold)
+    {
+        float_score += 1;
+        if (abs_int < (1ULL << 20))
+            int_score += 2;
+    }
+
+    /* 整数得分严格更高则判整数（false），否则判浮点（true）。 */
+    return float_score >= int_score;
 }
 
 WOORT_NODISCARD bool _woort_serialize_guess_int_or_real_to_buf(
@@ -435,6 +460,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
             if (val.m_integer != 0b0100 && val.m_integer != 0b1100)
             {
                 // Not regular bool value.
+                return true;
             }
             else
             {
