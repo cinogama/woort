@@ -117,7 +117,7 @@ WOORT_NODISCARD bool woort_REPLPrinter_print_string(
     return true;
 }
 
-WOORT_NODISCARD WOORT_API woort_REPLPrinter_FlushResult woort_REPLPrinter_flush(
+WOORT_NODISCARD woort_REPLPrinter_FlushResult woort_REPLPrinter_flush(
     woort_REPLPrinter* printer)
 {
     if (printer->m_print_buffer.m_size == 0)
