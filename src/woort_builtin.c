@@ -327,6 +327,18 @@ static woort_api woort_builtin_is_same(void)
     const woort_Int b = woort_int(1);
     return woort_ret_bool(a == b);
 }
+static woort_api woort_builtin_is_same_gc_unit(void)
+{
+#ifdef WOORT_PLATFORM_64
+    const woort_Int a = woort_int(0);
+    const woort_Int b = woort_int(1);
+    return woort_ret_bool(a == b);
+#else
+    woort_GCUnit* const a = woort_internal_value(0)->m_gcinstance;
+    woort_GCUnit* const b = woort_internal_value(1)->m_gcinstance;
+    return woort_ret_bool(a == b);
+#endif
+}
 static woort_api woort_builtin_cmdlines(void)
 {
     woort_StackValue elem_slot;
@@ -3694,6 +3706,7 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(host_path),
     WOORT_BUILTIN_FUNC(sleep),
     WOORT_BUILTIN_FUNC(is_same),
+    WOORT_BUILTIN_FUNC(is_same_gc_unit),
     WOORT_BUILTIN_FUNC(make_dup),
     WOORT_BUILTIN_FUNC(clock),
 
