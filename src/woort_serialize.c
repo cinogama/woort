@@ -165,7 +165,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             return _woort_serialize_append_str(buf, "[]");
 
         woort_hashmap_Result _hr = woort_hashmap_insert(
-            visited_set, 
+            visited_set,
             (void**)&vec,
             NULL);
 
@@ -222,7 +222,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
             return _woort_serialize_append_str(buf, "{}");
 
         woort_hashmap_Result _hr = woort_hashmap_insert(
-            visited_set, 
+            visited_set,
             (void**)&gcmap,
             NULL);
 
@@ -393,6 +393,90 @@ WOORT_NODISCARD bool _woort_serialize_guess_int_or_real_to_buf(
             buf, "%lld", (long long)val->m_integer);
 }
 
+/* ========================================================================
+ * 内部辅助：fuzzy 模式下，使用 _woort_guess_float_weight 的权重值比较
+ * boxed（正确装箱）与 raw（missed unbox）两种解释，输出最可能的值。
+ *
+ * boxed_type: 由 tag bits 检测到的类型（INT 或 REAL）
+ * val:        按 tag bits 解箱后的值
+ * vp:         原始字节重新解释为 woort_Value
+ * ======================================================================== */
+
+WOORT_NODISCARD static bool _woort_serialize_fuzzy_scalar(
+    woort_BoxValueType boxed_type,
+    const woort_Value* val,
+    const woort_Value* vp,
+    woort_Vector* buf)
+{
+    const int w_boxed = _woort_guess_float_weight(val);
+    const int w_raw = _woort_guess_float_weight(vp);
+
+    if (boxed_type == WOORT_BOX_VALUE_TYPE_INT)
+    {
+        /* boxed 解释期望整数（w_boxed <= 0） */
+        if (w_boxed > 0)
+        {
+            /* 解箱结果更像浮点 → boxed INT 不可信，判定 missed unbox */
+            return _woort_serialize_guess_int_or_real_to_buf(vp, buf);
+        }
+
+        /* boxed 整数可信，与 raw 解释比较 */
+        if (w_raw > 0)
+        {
+            /* raw 字节更像浮点 */
+            if (w_raw > -w_boxed)
+            {
+                /* raw 浮点权重高于 boxed 整数 → 更可能 missed unbox */
+                return _woort_serialize_append_vfmt(
+                    buf, "%.16g?Boxed(%lld)", vp->m_real, (long long)val->m_integer);
+            }
+            /* boxed 整数权重更高，但 raw 浮点也有可能 */
+            return _woort_serialize_append_vfmt(
+                buf, "%lld?Raw(%.16g)", (long long)val->m_integer, vp->m_real);
+        }
+
+        /* 两者都像整数 */
+        if (-w_raw >= -w_boxed)
+            return _woort_serialize_append_vfmt(
+                buf, "%lld?Boxed(%lld)", (long long)vp->m_integer, (long long)val->m_integer);
+        else
+            return _woort_serialize_append_vfmt(
+                buf, "%lld?Raw(%lld)", (long long)val->m_integer, (long long)vp->m_integer);
+    }
+    else /* WOORT_BOX_VALUE_TYPE_REAL */
+    {
+        /* boxed 解释期望浮点（w_boxed > 0） */
+        if (w_boxed <= 0)
+        {
+            /* 解箱结果更像整数 → boxed REAL 不可信，判定 missed unbox */
+            return _woort_serialize_guess_int_or_real_to_buf(vp, buf);
+        }
+
+        /* boxed 浮点可信，与 raw 解释比较 */
+        if (w_raw <= 0)
+        {
+            /* raw 字节更像整数 */
+            if (-w_raw > w_boxed)
+            {
+                /* raw 整数权重高于 boxed 浮点 → 更可能 missed unbox */
+                return _woort_serialize_append_vfmt(
+                    buf, "%lld?Boxed(%.16g)", (long long)vp->m_integer, val->m_real);
+            }
+            /* boxed 浮点权重更高，但 raw 整数也有可能 */
+            return _woort_serialize_append_vfmt(
+                buf, "%.16g?Raw(%lld)", val->m_real, (long long)vp->m_integer);
+        }
+
+        /* 两者都像浮点 */
+        if (w_raw >= w_boxed)
+            return _woort_serialize_append_vfmt(
+                buf, "%.16g?Boxed(%.16g)", vp->m_real, val->m_real);
+        else
+            return _woort_serialize_append_vfmt(
+                buf, "%.16g?Raw(%.16g)", val->m_real, vp->m_real);
+    }
+}
+
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     woort_DynBox boxed,
     woort_Vector* buf,
@@ -414,19 +498,8 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     case WOORT_BOX_VALUE_TYPE_INT:
         if (is_fuzzy)
         {
-            // Not sure, check unbox result?
-            if (_woort_guess_float_weight(&val) > 0)
-            {
-                // Unbox result seemed like not a integer, may unboxed vp.
-                return _woort_serialize_append_vfmt(
-                    buf, "%lld", (long long)vp->m_integer);
-            }
-            else
-            {
-                // Not sure, both boxed or unboxed are possiable.
-                return _woort_serialize_append_vfmt(
-                    buf, "%lld? Boxed(%lld)", (long long)vp->m_integer, (long long)val.m_integer);
-            }
+            return _woort_serialize_fuzzy_scalar(
+                WOORT_BOX_VALUE_TYPE_INT, &val, vp, buf);
         }
         return _woort_serialize_append_vfmt(
             buf, "%lld", (long long)val.m_integer);
@@ -434,19 +507,8 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     case WOORT_BOX_VALUE_TYPE_REAL:
         if (is_fuzzy)
         {
-            // Not sure, check unbox result?
-            if (_woort_guess_float_weight(&val) < 0)
-            {
-                // Unbox result seemed like not a integer, may unboxed vp.
-                return _woort_serialize_append_vfmt(
-                    buf, "%.16g", vp->m_real);
-            }
-            else
-            {
-                // Not sure, both boxed or unboxed are possiable.
-                return _woort_serialize_append_vfmt(
-                    buf, "%.16g? Boxed(%.16g)", vp->m_real, val.m_real);
-            }
+            return _woort_serialize_fuzzy_scalar(
+                WOORT_BOX_VALUE_TYPE_REAL, &val, vp, buf);
         }
         return _woort_serialize_append_vfmt(
             buf, "%.16g", val.m_real);
@@ -454,30 +516,25 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     case WOORT_BOX_VALUE_TYPE_BOOL:
         if (is_fuzzy)
         {
-            if (!_woort_serialize_guess_int_or_real_to_buf(vp, buf))
-                return false;
-
-            if (val.m_integer != 0b0100 && val.m_integer != 0b1100)
+            /* 检查原始字节是否为合法 bool 位模式（4=false, 12=true） */
+            if (boxed.m_boxed == 0b0100 || boxed.m_boxed == 0b1100)
             {
-                // Not regular bool value.
-                return true;
+                /* 合法 bool 模式，但同样的位模式也可能是原始小整数
+                 * （4 或 12），两者权重均为 0，真正模棱两可 */
+                return _woort_serialize_append_vfmt(buf,
+                    "%s? Raw(%llu)",
+                    val.m_integer ? "true" : "false",
+                    (unsigned long long)boxed.m_boxed);
             }
-            else
-            {
-                // Not sure
-                return _woort_serialize_append_str(
-                    buf, val.m_integer ? "? Boxed(true)" : "Boxed(false)");
-            }
+            /* 非合法 bool 模式 → 确定是 missed unbox */
+            return _woort_serialize_guess_int_or_real_to_buf(vp, buf);
         }
-        return _woort_serialize_append_str(
-            buf, val.m_integer ? "true" : "false");
+        return _woort_serialize_append_str(buf,
+            val.m_integer ? "true" : "false");
 
     case WOORT_BOX_VALUE_TYPE_NIL:
-        if (is_fuzzy)
-        {
-            if (!_woort_serialize_guess_int_or_real_to_buf(vp, buf))
-                return false;
-        }
+        /* 零字节在所有解释下都是零（nil / int 0 / float 0.0），
+         * 没有实质歧义 */
         return _woort_serialize_append_str(buf, "nil");
 
     case WOORT_BOX_VALUE_TYPE_STRING:
@@ -694,9 +751,9 @@ WOORT_NODISCARD bool _woort_serialize_map_impl(
     woort_HashMap visited_set;
     woort_hashmap_init(
         &visited_set,
-        sizeof(const woort_GCUnit*), 
+        sizeof(const woort_GCUnit*),
         0,
-        woort_util_ptr_hash, 
+        woort_util_ptr_hash,
         woort_util_ptr_equal);
 
     if (!_woort_serialize_dynbox_to_buf(
@@ -735,9 +792,9 @@ WOORT_NODISCARD bool _woort_serialize_vec_impl(
     woort_HashMap visited_set;
     woort_hashmap_init(
         &visited_set,
-        sizeof(const woort_GCUnit*), 
+        sizeof(const woort_GCUnit*),
         0,
-        woort_util_ptr_hash, 
+        woort_util_ptr_hash,
         woort_util_ptr_equal);
 
     if (!_woort_serialize_dynbox_to_buf(
