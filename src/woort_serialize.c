@@ -322,6 +322,52 @@ static bool _woort_serialize_append_vfmt(woort_Vector* buf, const char* fmt, ...
  * 内部序列化：DynBox -> 调试缓冲区
  * ======================================================================== */
 
+WOORT_NODISCARD bool _woort_guess_is_float(const void* valp)
+{
+    uint64_t bits;
+    int64_t as_int;
+    memcpy(&bits, valp, sizeof(bits));
+    memcpy(&as_int, valp, sizeof(as_int));
+
+    /* 0.0 与整数 0 比特完全相同，按整数处理 */
+    if (bits == 0)
+        return false;
+
+    /* 取出 IEEE-754 double 的 11 位偏置指数（bit 52..62） */
+    const uint64_t exp = (bits >> 52) & 0x7FF;
+
+    /* 指数全 0：作为 double 是非规格化数。
+     * 真实浮点数据几乎不会是非规格化数，这通常是小幅正整数的位模式。 */
+    if (exp == 0)
+        return false;
+
+    /* 指数全 1（0x7FF）：作为 double 是 NaN/Infinity。
+     * 这通常是小负整数的位模式（高位全 1），而非真实浮点数。 */
+    if (exp == 0x7FF)
+        return false;
+
+    /* 指数落在 normal 范围 [1, 0x7FE]：double 解释为一个合法的规格化数。
+     * 此时若整数解释仍处于 "人类常用整数" 范围内（|i| <= 2^53，
+     * 即 double 可精确表示所有整数的边界），更可能是整数；
+     * 否则整数解释会是 ~10^18 量级的巨大值——这正是一个正常浮点数
+     * 位模式（指数占据高位）的典型特征，故判定为浮点数。 */
+    if (as_int >= -(1LL << 53) && as_int <= (1LL << 53))
+        return false;
+
+    return true;
+}
+
+WOORT_NODISCARD bool _woort_serialize_guess_int_or_real_to_buf(
+    const woort_Value* val, woort_Vector* buf)
+{
+    if (_woort_guess_is_float(val))
+        return _woort_serialize_append_vfmt(
+            buf, "%.16g", val->m_real);
+    else
+        return _woort_serialize_append_vfmt(
+            buf, "%lld", (long long)val->m_integer);
+}
+
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     woort_DynBox boxed,
     woort_Vector* buf,
@@ -332,11 +378,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     woort_Value* const vp = (woort_Value*)&boxed;
 
     if (!woort_DynBox_debug_check_is_valid(boxed))
-    {
-        return _woort_serialize_append_vfmt(
-            buf, "[i64: %lld f64: %f]",
-            (long long)vp->m_integer, vp->m_real);
-    }
+        return _woort_serialize_guess_int_or_real_to_buf(vp, buf);
 
     if (depth > WOORT_SERIALIZE_MAX_DEBUG_DEPTH)
         return _woort_serialize_append_str(buf, "<max depth>");
@@ -347,10 +389,19 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     case WOORT_BOX_VALUE_TYPE_INT:
         if (is_fuzzy)
         {
-            if (!_woort_serialize_append_vfmt(
-                buf, "[i64: %lld f64: %f] or boxed ",
-                (long long)vp->m_integer, vp->m_real))
-                return false;
+            // Not sure, check unbox result?
+            if (_woort_guess_is_float(&val))
+            {
+                // Unbox result seemed like not a integer, may unboxed vp.
+                return _woort_serialize_append_vfmt(
+                    buf, "%lld", (long long)vp->m_integer);
+            }
+            else
+            {
+                // Not sure, both boxed or unboxed are possiable.
+                return _woort_serialize_append_vfmt(
+                    buf, "%lld? Boxed(%lld)", (long long)vp->m_integer, (long long)val.m_integer);
+            }
         }
         return _woort_serialize_append_vfmt(
             buf, "%lld", (long long)val.m_integer);
@@ -358,20 +409,39 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     case WOORT_BOX_VALUE_TYPE_REAL:
         if (is_fuzzy)
         {
-            if (!_woort_serialize_append_vfmt(
-                buf, "[i64: %lld f64: %f] or boxed ",
-                (long long)vp->m_integer, vp->m_real))
-                return false;
+            // Not sure, check unbox result?
+            if (!_woort_guess_is_float(&val))
+            {
+                // Unbox result seemed like not a integer, may unboxed vp.
+                return _woort_serialize_append_vfmt(
+                    buf, "%.16g", vp->m_real);
+            }
+            else
+            {
+                // Not sure, both boxed or unboxed are possiable.
+                return _woort_serialize_append_vfmt(
+                    buf, "%.16g? Boxed(%.16g)", vp->m_real, val.m_real);
+            }
         }
-        return _woort_serialize_append_vfmt(buf, "%.16g", val.m_real);
+        return _woort_serialize_append_vfmt(
+            buf, "%.16g", val.m_real);
 
     case WOORT_BOX_VALUE_TYPE_BOOL:
         if (is_fuzzy)
         {
-            if (!_woort_serialize_append_vfmt(
-                buf, "[i64: %lld f64: %f] or boxed ",
-                (long long)vp->m_integer, vp->m_real))
+            if (!_woort_serialize_guess_int_or_real_to_buf(vp, buf))
                 return false;
+
+            if (val.m_integer != 0b0100 && val.m_integer != 0b1100)
+            {
+                // Not regular bool value.
+            }
+            else
+            {
+                // Not sure.
+                return _woort_serialize_append_str(
+                    buf, val.m_integer ? "? Boxed(true)" : "Boxed(false)");
+            }
         }
         return _woort_serialize_append_str(
             buf, val.m_integer ? "true" : "false");
@@ -379,9 +449,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     case WOORT_BOX_VALUE_TYPE_NIL:
         if (is_fuzzy)
         {
-            if (!_woort_serialize_append_vfmt(
-                buf, "[i64: %lld f64: %f] or boxed ",
-                (long long)vp->m_integer, vp->m_real))
+            if (!_woort_serialize_guess_int_or_real_to_buf(vp, buf))
                 return false;
         }
         return _woort_serialize_append_str(buf, "nil");
