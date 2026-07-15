@@ -3596,16 +3596,8 @@ static woort_api woort_builtin_debug_print(void)
         if (i != 1)
             fputc(' ', stdout);
 
-        if (woort_unbox_type((woort_StackValue)i)
-            == WOORT_BOX_VALUE_TYPE_STRING)
-        {
-            fputs(woort_string((woort_StackValue)i), stdout);
-        }
-        else
-        {
-            _woort_WAIPO_print_value(
-                woort_internal_value((woort_StackValue)i)->m_dynamic, false);
-        }
+        _woort_WAIPO_print_value(
+            woort_internal_value((woort_StackValue)i)->m_dynamic, false);
     }
     return woort_ret_void();
 }
