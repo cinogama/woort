@@ -386,11 +386,9 @@ WOORT_NODISCARD bool _woort_serialize_guess_int_or_real_to_buf(
     const woort_Value* val, woort_Vector* buf)
 {
     if (_woort_guess_float_weight(val) > 0)
-        return _woort_serialize_append_vfmt(
-            buf, "%.16g", val->m_real);
+        return _woort_serialize_append_real(buf, val->m_real);
     else
-        return _woort_serialize_append_vfmt(
-            buf, "%lld", (long long)val->m_integer);
+        return _woort_serialize_append_int(buf, val->m_integer);
 }
 
 /* ========================================================================
@@ -427,21 +425,33 @@ WOORT_NODISCARD static bool _woort_serialize_fuzzy_scalar(
             if (w_raw > -w_boxed)
             {
                 /* raw 浮点权重高于 boxed 整数 → 更可能 missed unbox */
-                return _woort_serialize_append_vfmt(
-                    buf, "%.16g?Boxed(%lld)", vp->m_real, (long long)val->m_integer);
+                return _woort_serialize_append_real(buf, vp->m_real)
+                    && _woort_serialize_append_str(buf, "?Boxed(")
+                    && _woort_serialize_append_int(buf, val->m_integer)
+                    && _woort_serialize_append_str(buf, ")");
             }
             /* boxed 整数权重更高，但 raw 浮点也有可能 */
-            return _woort_serialize_append_vfmt(
-                buf, "%lld?Raw(%.16g)", (long long)val->m_integer, vp->m_real);
+            return _woort_serialize_append_int(buf, val->m_integer)
+                && _woort_serialize_append_str(buf, "?Raw(")
+                && _woort_serialize_append_real(buf, vp->m_real)
+                && _woort_serialize_append_str(buf, ")");
         }
 
         /* 两者都像整数 */
         if (-w_raw >= -w_boxed)
-            return _woort_serialize_append_vfmt(
-                buf, "%lld?Boxed(%lld)", (long long)vp->m_integer, (long long)val->m_integer);
+        {
+            return _woort_serialize_append_int(buf, vp->m_integer)
+                && _woort_serialize_append_str(buf, "?Boxed(")
+                && _woort_serialize_append_int(buf, val->m_integer)
+                && _woort_serialize_append_str(buf, ")");
+        }
         else
-            return _woort_serialize_append_vfmt(
-                buf, "%lld?Raw(%lld)", (long long)val->m_integer, (long long)vp->m_integer);
+        {
+            return _woort_serialize_append_int(buf, val->m_integer)
+                && _woort_serialize_append_str(buf, "?Raw(")
+                && _woort_serialize_append_int(buf, vp->m_integer)
+                && _woort_serialize_append_str(buf, ")");
+        }
     }
     else /* WOORT_BOX_VALUE_TYPE_REAL */
     {
@@ -459,21 +469,33 @@ WOORT_NODISCARD static bool _woort_serialize_fuzzy_scalar(
             if (-w_raw > w_boxed)
             {
                 /* raw 整数权重高于 boxed 浮点 → 更可能 missed unbox */
-                return _woort_serialize_append_vfmt(
-                    buf, "%lld?Boxed(%.16g)", (long long)vp->m_integer, val->m_real);
+                return _woort_serialize_append_int(buf, vp->m_integer)
+                    && _woort_serialize_append_str(buf, "?Boxed(")
+                    && _woort_serialize_append_real(buf, val->m_real)
+                    && _woort_serialize_append_str(buf, ")");
             }
             /* boxed 浮点权重更高，但 raw 整数也有可能 */
-            return _woort_serialize_append_vfmt(
-                buf, "%.16g?Raw(%lld)", val->m_real, (long long)vp->m_integer);
+            return _woort_serialize_append_real(buf, val->m_real)
+                && _woort_serialize_append_str(buf, "?Raw(")
+                && _woort_serialize_append_int(buf, vp->m_integer)
+                && _woort_serialize_append_str(buf, ")");
         }
 
         /* 两者都像浮点 */
         if (w_raw >= w_boxed)
-            return _woort_serialize_append_vfmt(
-                buf, "%.16g?Boxed(%.16g)", vp->m_real, val->m_real);
+        {
+            return _woort_serialize_append_real(buf, vp->m_real)
+                && _woort_serialize_append_str(buf, "?Boxed(")
+                && _woort_serialize_append_real(buf, val->m_real)
+                && _woort_serialize_append_str(buf, ")");
+        }
         else
-            return _woort_serialize_append_vfmt(
-                buf, "%.16g?Raw(%.16g)", val->m_real, vp->m_real);
+        {
+            return _woort_serialize_append_real(buf, val->m_real)
+                && _woort_serialize_append_str(buf, "?Raw(")
+                && _woort_serialize_append_real(buf, vp->m_real)
+                && _woort_serialize_append_str(buf, ")");
+        }
     }
 }
 
@@ -501,8 +523,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
             return _woort_serialize_fuzzy_scalar(
                 WOORT_BOX_VALUE_TYPE_INT, &val, vp, buf);
         }
-        return _woort_serialize_append_vfmt(
-            buf, "%lld", (long long)val.m_integer);
+        return _woort_serialize_append_int(buf, val.m_integer);
 
     case WOORT_BOX_VALUE_TYPE_REAL:
         if (is_fuzzy)
@@ -510,8 +531,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
             return _woort_serialize_fuzzy_scalar(
                 WOORT_BOX_VALUE_TYPE_REAL, &val, vp, buf);
         }
-        return _woort_serialize_append_vfmt(
-            buf, "%.16g", val.m_real);
+        return _woort_serialize_append_real(buf, val.m_real);
 
     case WOORT_BOX_VALUE_TYPE_BOOL:
         if (is_fuzzy)
