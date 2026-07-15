@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 7)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 8)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -4930,23 +4930,42 @@ WOORT_NODISCARD WOORT_API size_t woort_u32strn_to_str(
 
 /* ========== REPL support ========== */
 
+/** @brief Opaque handle to a REPL printer that buffers serialized Woolang values and flushes them as UTF-8 text. */
 typedef struct woort_REPLPrinter woort_REPLPrinter;
+
+/** @brief Callback invoked by woort_REPLPrinter_flush() to deliver flushed UTF-8 text. Parameters are the text buffer and its length in bytes. */
 typedef void(*woort_REPLPrinter_ResultCallback)(const char*, size_t);
 
+/** @brief Outcome codes returned by woort_REPLPrinter_flush(). */
 typedef enum woort_REPLPrinter_FlushResult
 {
-    WOORT_REPL_PRINTER_FLUSH_OK,
-    WOORT_REPL_PRINTER_FLUSH_NOTHING,
+    WOORT_REPL_PRINTER_FLUSH_OK,      /**< @brief The buffered output was flushed successfully. */
+    WOORT_REPL_PRINTER_FLUSH_NOTHING, /**< @brief Nothing to flush; the print buffer was empty. */
 
-    WOORT_REPL_PRINTER_FLUSH_FAILED,
+    WOORT_REPL_PRINTER_FLUSH_FAILED,  /**< @brief The flush failed (e.g. allocation failure). */
 
 } woort_REPLPrinter_FlushResult;
 
+/**
+ * @brief Create a new REPL printer.
+ * @param out_printer Output handle receiving the newly created printer.
+ * @param callback   Optional callback invoked on flush; if NULL, flushed text is written to stdout.
+ * @return true on success, false on allocation failure.
+ */
 WOORT_NODISCARD WOORT_API bool woort_REPLPrinter_create(
     woort_REPLPrinter* out_printer,
     /* OPTIONAL */woort_REPLPrinter_ResultCallback callback);
 
+/** @brief Destroy a REPL printer and release all associated resources. */
 WOORT_API void woort_REPLPrinter_destroy(woort_REPLPrinter* printer);
+
+/**
+ * @brief Flush the buffered output of a REPL printer.
+ *
+ * Writes the buffered UTF-8 text to the result callback (or stdout when no callback was set) and clears the buffer.
+ * @param printer The printer whose buffer to flush.
+ * @return A woort_REPLPrinter_FlushResult indicating the outcome of the flush.
+ */
 WOORT_NODISCARD WOORT_API woort_REPLPrinter_FlushResult woort_REPLPrinter_flush(
     woort_REPLPrinter* printer);
 
