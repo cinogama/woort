@@ -322,7 +322,7 @@ static bool _woort_serialize_append_vfmt(woort_Vector* buf, const char* fmt, ...
  * 内部序列化：DynBox -> 调试缓冲区
  * ======================================================================== */
 
-WOORT_NODISCARD bool _woort_guess_is_float(const void* valp)
+WOORT_NODISCARD int _woort_guess_float_weight(const void* valp)
 {
     uint64_t bits;
     int64_t as_int;
@@ -379,13 +379,13 @@ WOORT_NODISCARD bool _woort_guess_is_float(const void* valp)
     }
 
     /* 整数得分严格更高则判整数（false），否则判浮点（true）。 */
-    return float_score >= int_score;
+    return float_score - int_score;
 }
 
 WOORT_NODISCARD bool _woort_serialize_guess_int_or_real_to_buf(
     const woort_Value* val, woort_Vector* buf)
 {
-    if (_woort_guess_is_float(val))
+    if (_woort_guess_float_weight(val) > 0)
         return _woort_serialize_append_vfmt(
             buf, "%.16g", val->m_real);
     else
@@ -415,7 +415,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         if (is_fuzzy)
         {
             // Not sure, check unbox result?
-            if (_woort_guess_is_float(&val))
+            if (_woort_guess_float_weight(&val) > 0)
             {
                 // Unbox result seemed like not a integer, may unboxed vp.
                 return _woort_serialize_append_vfmt(
@@ -435,7 +435,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         if (is_fuzzy)
         {
             // Not sure, check unbox result?
-            if (!_woort_guess_is_float(&val))
+            if (_woort_guess_float_weight(&val) < 0)
             {
                 // Unbox result seemed like not a integer, may unboxed vp.
                 return _woort_serialize_append_vfmt(
@@ -464,7 +464,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
             }
             else
             {
-                // Not sure.
+                // Not sure
                 return _woort_serialize_append_str(
                     buf, val.m_integer ? "? Boxed(true)" : "Boxed(false)");
             }
