@@ -351,7 +351,7 @@ WOORT_NODISCARD int _woort_guess_float_weight(const void* valp)
 
     const uint64_t abs_int = as_int >= 0
         ? (uint64_t)as_int
-        : -(uint64_t)as_int;
+        : (uint64_t)-as_int;
 
     /* 小整数更像整数 */
     if (abs_int < 65536)

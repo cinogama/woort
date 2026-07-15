@@ -4267,28 +4267,28 @@ WOORT_API void woort_struct_set_bool(
  * Path utilities
  * ================================================================ */
 
-/**
-  * @brief Get the directory containing the executable.
-  *
-  * The result is cached after the first call. Fills @p buf following
-  * snprintf semantics:
-  *  - Returns the path length EXCLUDING the NUL terminator.
-  *  - Success iff the returned value is less than @p bufsz.
-  *  - If @p bufsz is 0, @p buf may be NULL; nothing is written and only the
-  *    required length is returned.
-  *  - If @p bufsz is too small, the output is truncated (still NUL-terminated)
-  *    and the full required length is returned.
-  *  - Returns 0 on failure (unsupported platform or OS error).
-  *
-  * Typical usage:
-  * @code
-  *   size_t need = woort_exe_path(NULL, 0) + 1;   // +1 for NUL
-  *   char* path = (char*)malloc(need);
-  *   woort_exe_path(path, need);
-  *   ...
-  *   free(path);
-  * @endcode
-  */
+ /**
+   * @brief Get the directory containing the executable.
+   *
+   * The result is cached after the first call. Fills @p buf following
+   * snprintf semantics:
+   *  - Returns the path length EXCLUDING the NUL terminator.
+   *  - Success iff the returned value is less than @p bufsz.
+   *  - If @p bufsz is 0, @p buf may be NULL; nothing is written and only the
+   *    required length is returned.
+   *  - If @p bufsz is too small, the output is truncated (still NUL-terminated)
+   *    and the full required length is returned.
+   *  - Returns 0 on failure (unsupported platform or OS error).
+   *
+   * Typical usage:
+   * @code
+   *   size_t need = woort_exe_path(NULL, 0) + 1;   // +1 for NUL
+   *   char* path = (char*)malloc(need);
+   *   woort_exe_path(path, need);
+   *   ...
+   *   free(path);
+   * @endcode
+   */
 WOORT_NODISCARD WOORT_API size_t woort_exe_path(/* OPTIONAL */ char* buf, size_t bufsz);
 
 /**
@@ -4764,11 +4764,11 @@ typedef enum woort_PanicHandler_Action
  * @return          A woort_PanicHandler_Action indicating how to proceed.
  */
 typedef woort_PanicHandler_Action(*woort_PanicHandlerFunction)(
-    /* OPTIONAL */ woort_VMRuntime* vm, 
-    const char* funcname, 
+    /* OPTIONAL */ woort_VMRuntime* vm,
+    const char* funcname,
     const char* location,
-    int line, 
-    int reason, 
+    int line,
+    int reason,
     const char* message);
 
 /**
@@ -4927,6 +4927,28 @@ WOORT_NODISCARD WOORT_API size_t woort_u32str_to_str(
  */
 WOORT_NODISCARD WOORT_API size_t woort_u32strn_to_str(
     const char32_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen);
+
+/* ========== REPL support ========== */
+
+typedef struct woort_REPLPrinter woort_REPLPrinter;
+typedef void(*woort_REPLPrinter_ResultCallback)(const char*, size_t);
+
+typedef enum woort_REPLPrinter_FlushResult
+{
+    WOORT_REPL_PRINTER_FLUSH_OK,
+    WOORT_REPL_PRINTER_FLUSH_NOTHING,
+
+    WOORT_REPL_PRINTER_FLUSH_FAILED,
+
+} woort_REPLPrinter_FlushResult;
+
+WOORT_NODISCARD WOORT_API bool woort_REPLPrinter_create(
+    woort_REPLPrinter* out_printer,
+    /* OPTIONAL */woort_REPLPrinter_ResultCallback callback);
+
+WOORT_API void woort_REPLPrinter_destroy(woort_REPLPrinter* printer);
+WOORT_NODISCARD WOORT_API woort_REPLPrinter_FlushResult woort_REPLPrinter_flush(
+    woort_REPLPrinter* printer);
 
 /* ========== ANSI Escape Code Macros ========== */
 

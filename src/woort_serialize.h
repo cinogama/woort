@@ -42,7 +42,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     woort_Vector* buf,
     woort_HashMap* visited_set,
     int depth,
-    bool show_raw);
+    bool is_fuzzy);
 
 /*
 内部 impl：将 GCMap 序列化为字符串，写入 *dst。

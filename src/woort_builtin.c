@@ -14,6 +14,7 @@
 #include "woort_gc.h"
 #include "woort_utf8.h"
 #include "woort_waipo_debugger.h"
+#include "woort_repl_printer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,7 @@
 #include <wctype.h>
 #include <ctype.h>
 #include <time.h>
+#include <assert.h>
 
 /* ================================================================
  * Global handle and lifecycle
@@ -3596,8 +3598,65 @@ static woort_api woort_builtin_debug_print(void)
         if (i != 1)
             fputc(' ', stdout);
 
-        _woort_WAIPO_print_value(
-            woort_internal_value((woort_StackValue)i)->m_dynamic, false);
+        if (woort_unbox_type((woort_StackValue)i)
+            == WOORT_BOX_VALUE_TYPE_STRING)
+        {
+            fputs(woort_string((woort_StackValue)i), stdout);
+        }
+        else
+        {
+            char* const str =
+                woort_serialize_dynbox(
+                    (woort_StackValue)i,
+                    WOORT_SERIALIZE_FLAG_NONE);
+            if (str == NULL)
+                return woort_ret_panic("Out of memory.");
+            else
+            {
+                fputs(str, stdout);
+                free(str);
+            }
+        }
+    }
+    return woort_ret_void();
+}
+
+/*
+* REPL Printer
+*/
+
+static woort_api woort_builtin_repl_print_normal(void)
+{
+    const woort_Int argn = woort_int(0);
+
+    assert(argn >= 2);
+    woort_REPLPrinter* const repl_printer = (woort_REPLPrinter*)woort_pointer(1);
+
+    for (woort_Int i = 2; i <= argn; ++i)
+    {
+        if (i != 2)
+            (void)woort_REPLPrinter_print_string(repl_printer, " ");
+
+        (void)woort_REPLPrinter_print_mixed(
+            repl_printer, woort_internal_value((woort_StackValue)i)->m_dynamic);
+    }
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_repl_print_debug(void)
+{
+    const woort_Int argn = woort_int(0);
+
+    assert(argn >= 2);
+    woort_REPLPrinter* const repl_printer = (woort_REPLPrinter*)woort_pointer(1);
+
+    for (woort_Int i = 2; i <= argn; ++i)
+    {
+        if (i != 2)
+            (void)woort_REPLPrinter_print_string(repl_printer, " ");
+
+        (void)woort_REPLPrinter_print_debug(
+            repl_printer, woort_internal_value((woort_StackValue)i)->m_dynamic);
     }
     return woort_ret_void();
 }
@@ -3850,6 +3909,9 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(debug_trace_callstack),
     WOORT_BUILTIN_FUNC(debug_runtime_version),
     WOORT_BUILTIN_FUNC(debug_print),
+
+    WOORT_BUILTIN_FUNC(repl_print_normal),
+    WOORT_BUILTIN_FUNC(repl_print_debug),
 
     WOORT_EXTERN_LIB_FUNC_END,
 };

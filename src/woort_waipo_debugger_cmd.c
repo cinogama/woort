@@ -1236,6 +1236,9 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
 
 void _woort_WAIPO_print_value(woort_DynBox boxed, bool is_fuzzy)
 {
+    woort_Vector buf;
+    woort_vector_init(&buf, sizeof(char));
+
     woort_HashMap visited_set;
     woort_hashmap_init(
         &visited_set,
@@ -1243,9 +1246,6 @@ void _woort_WAIPO_print_value(woort_DynBox boxed, bool is_fuzzy)
         0,
         woort_util_ptr_hash,
         woort_util_ptr_equal);
-
-    woort_Vector buf;
-    woort_vector_init(&buf, sizeof(char));
 
     if (_woort_serialize_dynbox_to_buf_for_debug(
         boxed, &buf, &visited_set, 0, is_fuzzy))
