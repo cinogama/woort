@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 10)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 11)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -4934,7 +4934,7 @@ WOORT_NODISCARD WOORT_API size_t woort_u32strn_to_str(
 typedef struct woort_REPLPrinter woort_REPLPrinter;
 
 /** @brief Callback invoked by woort_REPLPrinter_flush() to deliver flushed UTF-8 text. Parameters are the text buffer and its length in bytes. */
-typedef void(*woort_REPLPrinter_ResultCallback)(const char*, size_t);
+typedef void(*woort_REPLPrinter_ResultCallback)(const char*, size_t, void*);
 
 /** @brief Outcome codes returned by woort_REPLPrinter_flush(). */
 typedef enum woort_REPLPrinter_FlushResult
@@ -4953,7 +4953,8 @@ typedef enum woort_REPLPrinter_FlushResult
  * @return true on success, false on allocation failure.
  */
 WOORT_NODISCARD WOORT_API bool woort_REPLPrinter_create(
-    /* OPTIONAL */woort_REPLPrinter_ResultCallback callback,
+    /* OPTIONAL */ woort_REPLPrinter_ResultCallback callback,
+    /* OPTIONAL */ void* param,
     woort_REPLPrinter** out_printer);
 
 /** @brief Destroy a REPL printer and release all associated resources. */

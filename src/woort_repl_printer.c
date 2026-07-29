@@ -15,10 +15,12 @@ struct woort_REPLPrinter
 {
     woort_Vector /* char */ m_print_buffer;
     /* OPTIONAL */ woort_REPLPrinter_ResultCallback m_print_callback;
+    /* OPTIONAL */ void* m_print_callback_param;
 };
 
 WOORT_NODISCARD bool woort_REPLPrinter_create(
-    /* OPTIONAL */woort_REPLPrinter_ResultCallback callback,
+    /* OPTIONAL */ woort_REPLPrinter_ResultCallback callback,
+    /* OPTIONAL */ void* param,
     woort_REPLPrinter** out_printer)
 {
     woort_REPLPrinter* const instance =
@@ -32,6 +34,7 @@ WOORT_NODISCARD bool woort_REPLPrinter_create(
 
     woort_vector_init(&instance->m_print_buffer, sizeof(char));
     instance->m_print_callback = callback;
+    instance->m_print_callback_param = param;
 
     *out_printer = instance;
 
@@ -135,8 +138,9 @@ WOORT_NODISCARD woort_REPLPrinter_FlushResult woort_REPLPrinter_flush(
     else
     {
         printer->m_print_callback(
-            (char*)printer->m_print_buffer.m_data,
-            printer->m_print_buffer.m_size - 1);
+            printer->m_print_buffer.m_data,
+            printer->m_print_buffer.m_size - 1,
+            printer->m_print_callback_param);
     }
 
     woort_vector_clear(&printer->m_print_buffer);
