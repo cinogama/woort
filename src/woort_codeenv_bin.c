@@ -82,7 +82,7 @@
 #define WOORT_CODEENV_BINARY_MAGIC   0x54524f57u  /* "WORT" */
 #define WOORT_CODEENV_BINARY_VERSION 7u
 
-/* 字符串引用的 NULL 哨兵。序列化时写入此 offset 表示"无字符串"。 */
+  /* 字符串引用的 NULL 哨兵。序列化时写入此 offset 表示"无字符串"。 */
 #define WOORT_STRREF_NULL UINT32_MAX
 
 /* ========================================================================
@@ -542,7 +542,7 @@ static bool _find_const_index_for_value(
  *  （extern 常量名收集、extern 常量写入、trap 写入）定义统一的 ctx。
  * ================================================================ */
 
-/* 收集 extern 常量名到字符串池（collect 阶段）。 */
+ /* 收集 extern 常量名到字符串池（collect 阶段）。 */
 struct _StrpoolCollectCtx {
     _CodeEnvBinStrPool* m_sp;
     bool* m_ok;
@@ -653,7 +653,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
      * 把所有需要序列化的字符串插入池。之后池大小固定，写入各引用段时再 insert 全部命中。
      */
 
-    /* 常量数据中的字符串/库名/函数名 */
+     /* 常量数据中的字符串/库名/函数名 */
     for (size_t i = 0; ok && i < const_count; ++i)
     {
         const woort_ConstRecord* rec = (const woort_ConstRecord*)woort_vector_at(
@@ -755,7 +755,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
      * 写各引用段。此时 insert 全部命中已有条目（O(1)），仅返回 offset。
      */
 
-    /* 写入外部库列表。 */
+     /* 写入外部库列表。 */
     if (ok)
     {
         ok = ok && _bin_write_u64(&w, (uint64_t)code_env->m_extern_libs.m_size);
@@ -873,15 +873,29 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
             }
 
             case WOORT_CONST_TYPE_BOX_INT:
-                ok = ok && _bin_write_i64(&w,
-                    _woort_unbox_int64((woort_BoxedInt62)val->m_dynamic.m_boxed));
-                break;
+            {
+                woort_Int unboxed_int_val;
+                if (val->m_dynamic.m_boxed & 0b0111)
+                    unboxed_int_val = _woort_unbox_int64(
+                        (woort_BoxedInt62)val->m_dynamic.m_boxed);
+                else
+                    unboxed_int_val = _woort_boxed_to_exvalue(val->m_dynamic.m_boxed)->m_int;
 
+                ok = ok && _bin_write_i64(&w, unboxed_int_val);
+                break;
+            }
             case WOORT_CONST_TYPE_BOX_REAL:
-                ok = ok && _bin_write_f64(&w,
-                    _woort_unbox_float64((woort_BoxedFloat63)val->m_dynamic.m_boxed));
-                break;
+            {
+                woort_Real unboxed_real_val;
+                if (val->m_dynamic.m_boxed & 0b0111)
+                    unboxed_real_val = _woort_unbox_float64(
+                        (woort_BoxedFloat63)val->m_dynamic.m_boxed);
+                else
+                    unboxed_real_val = _woort_boxed_to_exvalue(val->m_dynamic.m_boxed)->m_real;
 
+                ok = ok && _bin_write_f64(&w, unboxed_real_val);
+                break;
+            }
             case WOORT_CONST_TYPE_BOX_BOOL:
                 ok = ok && _bin_write_u8(&w,
                     _woort_unbox_bool(val->m_dynamic.m_boxed) ? 1 : 0);
@@ -1313,7 +1327,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 || !_restore_read_str_ref(&r, &str_tracker, strpool_data, &lib_script_path, &oom))
             {
                 result = oom ? WOORT_CODEENV_RESTORE_FAIL_ALLOC
-                             : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                 goto _restore_fail;
             }
 
@@ -1468,7 +1482,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 || !_restore_read_str_ref(&r, &str_tracker, strpool_data, &func_name, &oom))
             {
                 result = oom ? WOORT_CODEENV_RESTORE_FAIL_ALLOC
-                             : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                 goto _restore_fail;
             }
             if (lib_name == NULL || func_name == NULL)
@@ -1633,7 +1647,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
             if (!_restore_read_str_ref(&r, &str_tracker, strpool_data, &name, &oom))
             {
                 result = oom ? WOORT_CODEENV_RESTORE_FAIL_ALLOC
-                             : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                 goto _restore_fail;
             }
             uint32_t cidx;
@@ -1675,7 +1689,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 || !_restore_read_str_ref(&r, &str_tracker, strpool_data, &fb.m_name, &oom))
             {
                 result = oom ? WOORT_CODEENV_RESTORE_FAIL_ALLOC
-                             : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                 goto _restore_fail;
             }
             /* intern 到 CodeEnv 字符串池做生命周期管理（fb.m_name 可能是 NULL）。 */
@@ -1728,7 +1742,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     || !_bin_read_u32(&r, &entries[si].m_location.m_end_column))
                 {
                     result = oom ? WOORT_CODEENV_RESTORE_FAIL_ALLOC
-                                 : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                        : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                     free(entries);
                     goto _restore_fail;
                 }
@@ -1805,7 +1819,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 || !_bin_read_u32(&r, (uint32_t*)&info.m_stack_offset))
             {
                 result = oom ? WOORT_CODEENV_RESTORE_FAIL_ALLOC
-                             : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                 goto _restore_fail;
             }
             if (info.m_name != NULL)
@@ -1843,7 +1857,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 || !_bin_read_u32(&r, (uint32_t*)&info.m_static_idx))
             {
                 result = oom ? WOORT_CODEENV_RESTORE_FAIL_ALLOC
-                             : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
+                    : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                 goto _restore_fail;
             }
             if (info.m_name != NULL)
