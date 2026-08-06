@@ -122,7 +122,7 @@ size_t woort_u8combineu32(const char* u8charp, size_t bytelen, char32_t* out_c32
             ((u8ptr[2] & 0x3F) << 12) | ((u8ptr[3] & 0x3F) << 6) | (u8ptr[4] & 0x3F);
         break;
     case 6:
-        codepoint = ((u8ptr[0] & 0x01) << 30) | ((u8ptr[1] & 0x3F) << 24) |
+        *out_c32 = ((u8ptr[0] & 0x01) << 30) | ((u8ptr[1] & 0x3F) << 24) |
             ((u8ptr[2] & 0x3F) << 18) | ((u8ptr[3] & 0x3F) << 12) |
             ((u8ptr[4] & 0x3F) << 6) | (u8ptr[5] & 0x3F);
         break;
