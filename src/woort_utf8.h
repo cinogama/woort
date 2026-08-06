@@ -32,7 +32,7 @@ typedef __CHAR32_TYPE__ char32_t;
 #   endif
 #endif
 
-#define WOORT_UTF8MAXLEN MB_LEN_MAX
+#define WOORT_UTF8MAXLEN 6
 #define WOORT_UTF16MAXLEN 2
 
 typedef const char* woort_string_t;

@@ -18,9 +18,10 @@ size_t woort_u8charnlen(const char* u8charp, size_t bytelen)
         {
             mask >>= 1;
 
-            if ((uint8_t)(mask) != ((uint8_t)(mask)&u8ch)
-                || i >= bytelen)
+            if ((uint8_t)(mask) != ((uint8_t)(mask)&u8ch))
                 return i;
+            else if (i >= bytelen)
+                return 1;
             else
             {
                 if ((uint8_t)(0b10000000u)
@@ -116,7 +117,17 @@ size_t woort_u8combineu32(const char* u8charp, size_t bytelen, char32_t* out_c32
         *out_c32 = ((u8ptr[0] & 0x07) << 18) | ((u8ptr[1] & 0x3F) << 12) |
             ((u8ptr[2] & 0x3F) << 6) | (u8ptr[3] & 0x3F);
         break;
+    case 5:
+        *out_c32 = ((u8ptr[0] & 0x03) << 24) | ((u8ptr[1] & 0x3F) << 18) |
+            ((u8ptr[2] & 0x3F) << 12) | ((u8ptr[3] & 0x3F) << 6) | (u8ptr[4] & 0x3F);
+        break;
+    case 6:
+        codepoint = ((u8ptr[0] & 0x01) << 30) | ((u8ptr[1] & 0x3F) << 24) |
+            ((u8ptr[2] & 0x3F) << 18) | ((u8ptr[3] & 0x3F) << 12) |
+            ((u8ptr[4] & 0x3F) << 6) | (u8ptr[5] & 0x3F);
+        break;
     default:
+        _Static_assert(WOORT_UTF8MAXLEN <= 6, "");
         *out_c32 = (char32_t)0xFFFD;
         break;
     }
