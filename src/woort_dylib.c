@@ -6,7 +6,6 @@
 #include "woort_hashmap.h"
 #include "woort_util.h"
 #include "woort_threads.h"
-#include "woort_utf8.h"
 #include "woort_platform.h"
 
 #include <stdlib.h>

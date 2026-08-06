@@ -14,7 +14,6 @@
 #include "woort_gc_map.h"
 #include "woort_gc_struct.h"
 #include "woort_gc_closure.h"
-#include "woort_utf8.h"
 #include "woort_vm_debugger_api.h"
 #include "woort_disassembly.h"
 #include "woort_serialize.h"

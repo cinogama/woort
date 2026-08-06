@@ -12,7 +12,6 @@
 #include "woort_gc_struct.h"
 #include "woort_gc_gchandle.h"
 #include "woort_gc.h"
-#include "woort_utf8.h"
 #include "woort_waipo_debugger.h"
 #include "woort_repl_printer.h"
 

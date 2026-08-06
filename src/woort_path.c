@@ -1,7 +1,6 @@
 #include "woort_path.h"
 
 #include "woort_diagnosis.h"
-#include "woort_utf8.h"
 #include "woort_platform.h"
 #include "woort_spin.h"
 

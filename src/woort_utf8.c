@@ -1,4 +1,4 @@
-#include "woort_utf8.h"
+#include "woort.h"
 #include "woort_diagnosis.h"
 
 #include <stdlib.h>
@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-size_t woort_u8charnlen(const char* u8charp, size_t bytelen)
+WOORT_NODISCARD size_t woort_u8charnlen(const char* u8charp, size_t bytelen)
 {
     if (bytelen != 0)
     {
@@ -34,7 +34,7 @@ size_t woort_u8charnlen(const char* u8charp, size_t bytelen)
     return 0;
 }
 
-size_t woort_u8strnlen(woort_string_t u8str, size_t bytelen)
+WOORT_NODISCARD size_t woort_u8strnlen(woort_string_t u8str, size_t bytelen)
 {
     size_t result = 0;
     while (bytelen)
@@ -47,7 +47,7 @@ size_t woort_u8strnlen(woort_string_t u8str, size_t bytelen)
     return result;
 }
 
-bool woort_u8strnchar(woort_string_t u8str, size_t bytelen, size_t* out_charsz)
+WOORT_NODISCARD bool woort_u8strnchar(woort_string_t u8str, size_t bytelen, size_t* out_charsz)
 {
     if (1 == (*out_charsz = woort_u8charnlen(u8str, bytelen)))
     {
@@ -57,7 +57,7 @@ bool woort_u8strnchar(woort_string_t u8str, size_t bytelen, size_t* out_charsz)
     return true;
 }
 
-woort_string_t woort_u8substr(woort_string_t u8str, size_t bytelen, size_t from, size_t* out_len)
+WOORT_NODISCARD woort_string_t woort_u8substr(woort_string_t u8str, size_t bytelen, size_t from, size_t* out_len)
 {
     const char* p = u8str;
     for (; from != 0 && bytelen != 0; --from)
@@ -70,7 +70,7 @@ woort_string_t woort_u8substr(woort_string_t u8str, size_t bytelen, size_t from,
     return p;
 }
 
-woort_string_t woort_u8substrn(woort_string_t u8str, size_t bytelen, size_t from, size_t length, size_t* out_len)
+WOORT_NODISCARD woort_string_t woort_u8substrn(woort_string_t u8str, size_t bytelen, size_t from, size_t length, size_t* out_len)
 {
     size_t step_a_len;
     const char* p = woort_u8substr(u8str, bytelen, from, &step_a_len);
@@ -79,22 +79,22 @@ woort_string_t woort_u8substrn(woort_string_t u8str, size_t bytelen, size_t from
     return p;
 }
 
-woort_string_t woort_u8substrr(woort_string_t u8str, size_t bytelen, size_t from, size_t tail, size_t* out_len)
+WOORT_NODISCARD woort_string_t woort_u8substrr(woort_string_t u8str, size_t bytelen, size_t from, size_t tail, size_t* out_len)
 {
     return woort_u8substrn(u8str, bytelen, from, tail >= from ? (tail - from) + 1 : 0, out_len);
 }
 
-bool woort_u16hisurrogate(char16_t ch)
+WOORT_NODISCARD bool woort_u16hisurrogate(char16_t ch)
 {
     return ch >= (char16_t)(0xD800u) && ch <= (char16_t)(0xDBFFu);
 }
 
-bool woort_u16losurrogate(char16_t ch)
+WOORT_NODISCARD bool woort_u16losurrogate(char16_t ch)
 {
     return ch >= (char16_t)(0xDC00u) && ch <= (char16_t)(0xDFFFu);
 }
 
-size_t woort_u8combineu32(const char* u8charp, size_t bytelen, char32_t* out_c32)
+WOORT_NODISCARD size_t woort_u8combineu32(const char* u8charp, size_t bytelen, char32_t* out_c32)
 {
     const uint8_t* u8ptr = (const uint8_t*)(u8charp);
     const size_t charlen = woort_u8charnlen(u8charp, bytelen);
@@ -172,7 +172,7 @@ void woort_u32exractu8(char32_t ch32, char out_c8[WOORT_UTF8MAXLEN], size_t* out
     }
 }
 
-size_t woort_u8combineu16(const char* u8charp, size_t bytelen, char16_t out_c16[WOORT_UTF16MAXLEN], size_t* out_u16len)
+WOORT_NODISCARD size_t woort_u8combineu16(const char* u8charp, size_t bytelen, char16_t out_c16[WOORT_UTF16MAXLEN], size_t* out_u16len)
 {
     char32_t codepoint;
     const size_t charlen = woort_u8combineu32(u8charp, bytelen, &codepoint);
@@ -204,7 +204,7 @@ size_t woort_u8combineu16(const char* u8charp, size_t bytelen, char16_t out_c16[
     return charlen;
 }
 
-size_t woort_u16exractu8(const char16_t* u16charp, size_t charcount, char out_c8[WOORT_UTF8MAXLEN], size_t* out_u8len)
+WOORT_NODISCARD size_t woort_u16exractu8(const char16_t* u16charp, size_t charcount, char out_c8[WOORT_UTF8MAXLEN], size_t* out_u8len)
 {
     if (charcount == 0)
     {
@@ -235,7 +235,7 @@ size_t woort_u16exractu8(const char16_t* u16charp, size_t charcount, char out_c8
     return 1;
 }
 
-char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode)
+WOORT_NODISCARD char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode)
 {
     char* result = (char*)malloc(bytelen * 6 + 3);
     if (!result) return NULL;
@@ -315,7 +315,7 @@ char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int force_unicode)
     return result;
 }
 
-char* woort_u8destring(woort_string_t enu8str_zero_term, /* OPTIONAL */ size_t* out_len)
+WOORT_NODISCARD char* woort_u8destring(woort_string_t enu8str_zero_term, /* OPTIONAL */ size_t* out_len)
 {
     size_t len = strlen(enu8str_zero_term);
     char* result = (char*)malloc(len + 1);
@@ -473,7 +473,7 @@ char* woort_u8destring(woort_string_t enu8str_zero_term, /* OPTIONAL */ size_t* 
     return result;
 }
 
-char32_t* woort_u8strtou32(woort_string_t u8str, size_t bytelen, size_t* out_len)
+WOORT_NODISCARD char32_t* woort_u8strtou32(woort_string_t u8str, size_t bytelen, size_t* out_len)
 {
     char32_t* result = (char32_t*)malloc((bytelen + 1) * sizeof(char32_t));
     if (!result) return NULL;
@@ -492,7 +492,7 @@ char32_t* woort_u8strtou32(woort_string_t u8str, size_t bytelen, size_t* out_len
     return result;
 }
 
-char* woort_u32strtou8(const char32_t* u32charp, size_t u32len, size_t* out_len)
+WOORT_NODISCARD char* woort_u32strtou8(const char32_t* u32charp, size_t u32len, size_t* out_len)
 {
     char* result = (char*)malloc(u32len * 4 + 1);
     if (!result) return NULL;
@@ -515,7 +515,7 @@ char* woort_u32strtou8(const char32_t* u32charp, size_t u32len, size_t* out_len)
     return result;
 }
 
-char16_t* woort_u8strtou16(woort_string_t u8str, size_t bytelen, size_t* out_len)
+WOORT_NODISCARD char16_t* woort_u8strtou16(woort_string_t u8str, size_t bytelen, size_t* out_len)
 {
     char16_t* result = (char16_t*)malloc((bytelen * 2 + 1) * sizeof(char16_t));
     if (!result) return NULL;
@@ -538,7 +538,7 @@ char16_t* woort_u8strtou16(woort_string_t u8str, size_t bytelen, size_t* out_len
     return result;
 }
 
-char* woort_u16strtou8(const char16_t* u16charp, size_t u16len, size_t* out_len)
+WOORT_NODISCARD char* woort_u16strtou8(const char16_t* u16charp, size_t u16len, size_t* out_len)
 {
     char* result = (char*)malloc(u16len * 3 + 1);
     if (!result) return NULL;
@@ -561,7 +561,7 @@ char* woort_u16strtou8(const char16_t* u16charp, size_t u16len, size_t* out_len)
     return result;
 }
 
-size_t woort_u16strcount(const char16_t* u16str)
+WOORT_NODISCARD size_t woort_u16strcount(const char16_t* u16str)
 {
     size_t count = 0;
     while (*(u16str++))
@@ -569,7 +569,7 @@ size_t woort_u16strcount(const char16_t* u16str)
     return count;
 }
 
-size_t woort_u32strcount(const char32_t* u32str)
+WOORT_NODISCARD size_t woort_u32strcount(const char32_t* u32str)
 {
     size_t count = 0;
     while (*(u32str++))
@@ -577,12 +577,12 @@ size_t woort_u32strcount(const char32_t* u32str)
     return count;
 }
 
-bool woort_u32isu16(char32_t ch32)
+WOORT_NODISCARD bool woort_u32isu16(char32_t ch32)
 {
     return ch32 <= (char32_t)(0xFFFFu);
 }
 
-bool woort_u8stridx(const char* str, size_t size, size_t index, char32_t* out_ch)
+WOORT_NODISCARD bool woort_u8stridx(const char* str, size_t size, size_t index, char32_t* out_ch)
 {
     size_t result_byte_len;
     const char* u8idx = woort_u8substr(

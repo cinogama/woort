@@ -2,7 +2,6 @@
 
 #include "woort_env.h"
 #include "woort_log.h"
-#include "woort_utf8.h"
 #include "woort_diagnosis.h"
 #include "woort_platform.h"
 

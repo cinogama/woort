@@ -7,7 +7,6 @@
 #include "woort_gc_closure.h"
 #include "woort_gc_gchandle.h"
 #include "woort_codeenv.h"
-#include "woort_utf8.h"
 #include "woort_util.h"
 
 #include "woort_mem.h"

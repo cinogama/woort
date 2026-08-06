@@ -408,9 +408,11 @@ typedef uint32_t woort_Bytecode;
 /** @brief A UTF-8 encoded, null-terminated C string pointer. */
 typedef const char* woort_U8CString;
 
+/** @brief Alias for a const UTF-8 C string (used by the raw UTF-8 helpers). */
+typedef const char* woort_string_t;
+
 /*
 Ensure char16_t and char32_t are available in pure C mode.
-See also: woort_utf8.h for the same guard.
 */
 #if !defined(__cplusplus) && !defined(_CHAR16T)
 #   if defined(_MSC_VER)
@@ -4927,6 +4929,144 @@ WOORT_NODISCARD WOORT_API size_t woort_u32str_to_str(
  */
 WOORT_NODISCARD WOORT_API size_t woort_u32strn_to_str(
     const char32_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen);
+
+/* ========== Raw UTF-8 Helpers ========== */
+
+/*
+ * Low-level UTF-8 / UTF-16 / UTF-32 conversion primitives.
+ *
+ * These are the raw building blocks used internally by woort. Unlike the
+ * buffer-based woort_strn_to_* / woort_*strn_to_str family above (which write
+ * into a caller-supplied buffer), several helpers here return freshly
+ * malloc-allocated buffers that MUST be released with woort_free().
+ */
+
+/** @brief Maximum byte length of a single UTF-8 code point. */
+#define WOORT_UTF8MAXLEN 6
+/** @brief Maximum unit length of a single UTF-16 code point. */
+#define WOORT_UTF16MAXLEN 2
+
+/** @brief Length (in bytes) of the UTF-8 character starting at @p u8charp. */
+WOORT_NODISCARD WOORT_API size_t woort_u8charnlen(const char* u8charp, size_t bytelen);
+
+/** @brief Count the number of UTF-8 characters in a byte range. */
+WOORT_NODISCARD WOORT_API size_t woort_u8strnlen(const char* u8str, size_t bytelen);
+
+/**
+ * @brief Inspect the first UTF-8 character in a byte range.
+ * @param out_charsz  Receives the byte length of the character.
+ * @return true if the character is well-formed, false if it is an invalid lead byte.
+ */
+WOORT_NODISCARD WOORT_API bool woort_u8strnchar(
+    const char* u8str, size_t bytelen, size_t* out_charsz);
+
+/** @brief Advance @p from UTF-8 characters into @p u8str, returning the sub-pointer and remaining length. */
+WOORT_NODISCARD WOORT_API const char* woort_u8substr(
+    const char* u8str, size_t bytelen, size_t from, size_t* out_len);
+
+/** @brief Extract the UTF-8 substring [from, tail]. */
+WOORT_NODISCARD WOORT_API const char* woort_u8substrr(
+    const char* u8str, size_t bytelen, size_t from, size_t tail, size_t* out_len);
+
+/** @brief Extract @p length UTF-8 characters starting at @p from. */
+WOORT_NODISCARD WOORT_API const char* woort_u8substrn(
+    const char* u8str, size_t bytelen, size_t from, size_t length, size_t* out_len);
+
+/**
+ * @brief Decode the UTF-8 character at @p u8charp into a code point.
+ * @return The byte length consumed (0 if @p bytelen is 0).
+ */
+WOORT_NODISCARD WOORT_API size_t woort_u8combineu32(
+    const char* u8charp, size_t bytelen, char32_t* out_c32);
+
+/** @brief Encode a code point as UTF-8 into @p out_c8 (max WOORT_UTF8MAXLEN bytes). */
+WOORT_API void woort_u32exractu8(
+    char32_t ch32, char out_c8[WOORT_UTF8MAXLEN], size_t* out_u8len);
+
+/** @brief Decode the UTF-8 character at @p u8charp into UTF-16 (1 or 2 units). */
+WOORT_NODISCARD WOORT_API size_t woort_u8combineu16(
+    const char* u8charp, size_t bytelen,
+    char16_t out_c16[WOORT_UTF16MAXLEN], size_t* out_u16len);
+
+/** @brief Encode a UTF-16 unit sequence as UTF-8. Returns the number of UTF-16 units consumed (1 or 2). */
+WOORT_NODISCARD WOORT_API size_t woort_u16exractu8(
+    const char16_t* u16charp, size_t charcount,
+    char out_c8[WOORT_UTF8MAXLEN], size_t* out_u8len);
+
+/** @brief Return true if @p ch is a UTF-16 high (leading) surrogate. */
+WOORT_NODISCARD WOORT_API bool woort_u16hisurrogate(char16_t ch);
+
+/** @brief Return true if @p ch is a UTF-16 low (trailing) surrogate. */
+WOORT_NODISCARD WOORT_API bool woort_u16losurrogate(char16_t ch);
+
+/**
+ * @brief Escape a UTF-8 string into a quoted Woolang string literal.
+ *
+ * The returned buffer is malloc-allocated and must be freed with woort_free().
+ * @param force_unicode  If non-zero, always emit \uXXXX escapes for non-ASCII.
+ * @return NUL-terminated quoted string literal, or NULL on allocation failure.
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u8enstring(
+    const char* u8str, size_t bytelen, int force_unicode);
+
+/**
+ * @brief Unescape a Woolang string literal (with or without surrounding quotes).
+ *
+ * The returned buffer is malloc-allocated and must be freed with woort_free().
+ * @param out_len  Optional receiver for the decoded byte length.
+ * @return NUL-terminated decoded string, or NULL on allocation failure.
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u8destring(
+    const char* enu8str_zero_term, /* OPTIONAL */ size_t* out_len);
+
+/**
+ * @brief Convert a UTF-8 string to a UTF-32 string.
+ *
+ * The returned buffer is malloc-allocated (count units + NUL) and must be
+ * freed with woort_free().
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char32_t* woort_u8strtou32(
+    const char* u8str, size_t bytelen, size_t* out_len);
+
+/**
+ * @brief Convert a UTF-32 string to a UTF-8 string.
+ *
+ * The returned buffer is malloc-allocated and must be freed with woort_free().
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u32strtou8(
+    const char32_t* u32charp, size_t u32len, size_t* out_len);
+
+/**
+ * @brief Convert a UTF-8 string to a UTF-16 string.
+ *
+ * The returned buffer is malloc-allocated and must be freed with woort_free().
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char16_t* woort_u8strtou16(
+    const char* u8str, size_t bytelen, size_t* out_len);
+
+/**
+ * @brief Convert a UTF-16 string to a UTF-8 string.
+ *
+ * The returned buffer is malloc-allocated and must be freed with woort_free().
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u16strtou8(
+    const char16_t* u16charp, size_t u16len, size_t* out_len);
+
+/** @brief Count code units in a NUL-terminated UTF-16 string. */
+WOORT_NODISCARD WOORT_API size_t woort_u16strcount(const char16_t* u16str);
+
+/** @brief Count code units in a NUL-terminated UTF-32 string. */
+WOORT_NODISCARD WOORT_API size_t woort_u32strcount(const char32_t* u32str);
+
+/** @brief Return true if @p ch32 fits in a single UTF-16 unit (BMP). */
+WOORT_NODISCARD WOORT_API bool woort_u32isu16(char32_t ch32);
+
+/**
+ * @brief Get the Unicode code point at a character index in a UTF-8 string.
+ * @return true on success, false if @p index is out of range.
+ */
+WOORT_NODISCARD WOORT_API bool woort_u8stridx(
+    const char* str, size_t size, size_t index, char32_t* out_ch);
 
 /* ========== REPL support ========== */
 

@@ -292,7 +292,7 @@ const char* woort_env_locale_name(void); /* 平台 UTF-8 locale 名（静态分�
 
 ### UTF-8 工具
 
-`src/woort_utf8.h` 提供 UTF-8 / char16_t / char32_t 转换工具（内部使用）。`woort_Char` 即 `char32_t`。
+`src/woort_utf8.c` 实现 UTF-8 / char16_t / char32_t 转换工具，其接口通过 `woort.h` 的 "Raw UTF-8 Helpers" 区段导出（不再使用独立的 `woort_utf8.h`）。`woort_Char` 即 `char32_t`。
 
 ### 诊断与日志
 
