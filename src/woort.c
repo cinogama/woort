@@ -32,6 +32,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <wchar.h>
 
 /* ========== Version API ========== */
 
