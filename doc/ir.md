@@ -98,6 +98,11 @@ woort_IR_MOV(f, dst, src);            /* dst = src              */
 woort_IR_LOAD(f, dst, si);            /* dst = Static[si]       */
 woort_IR_STORE(f, si, src);           /* Static[si] = src       */
 
+/* pvalue 指针（见 opcodes.md §2.2 / §15.4）*/
+woort_IR_LOADPVALUE(f, dst, ptr);     /* dst = *ptr.m_pvalue    */
+woort_IR_STOREPVALUE(f, ptr, src);    /* *ptr.m_pvalue = src（带写屏障）*/
+woort_IR_MKPVALUE(f, dst, src);       /* 分配 GC 盒：dst.m_pvalue -> new box; *box = src */
+
 /* 栈操作 */
 woort_IR_PUSHCHK(f, src);             /* 压栈（带溢出检查）       */
 woort_IR_PUSHSTATICCHK(f, si);        /* 压入静态值（带检查）     */
@@ -407,7 +412,7 @@ woort_IRCompiler_add_function(&irc, /*param_count=*/1, /*captured_count=*/0, &f)
 1. **源码位置去重**：把编译期 `push_srcloc` 产生的 `woort_SourceLocation` 去重合并到 `m_source_locations`。
 2. **Label → Block 切分**：根据 Label 绑定点和跳转指令自动切分基本块，构建 CFG。
 3. **活跃性分析**：标准的迭代数据流分析（USE/DEF → LIVE_IN/LIVE_OUT）。`CONST` 源的 vreg 不参与 bitset 活跃性。
-4. **常量直连标记**：检查 `CONST` vreg 是否仅被一条支持直连的指令（`PUSHCHK`/`RET`）使用，标记为 `m_is_const_direct`（发射 `PUSHCCHK`/`RETVC`）。
+4. **常量直连标记**：检查 `CONST` vreg 是否仅被一条支持直连的指令（`PUSHCHK`/`RET`/`CALL`）使用，标记为 `m_is_const_direct`（发射 `PUSHCCHK`/`RETVC`/`CALLC`）。
 5. **栈槽分配**：线性扫描算法，活跃区间不重叠的普通 vreg 共享栈槽。`CONST` vreg 跳过。
 6. **Dominator 分析 + 循环检测**：Cooper-Harvey-Kennedy 算法构建支配树，检测自然循环。
 7. **常量加载放置**：为非 const_direct 的 `CONST` vreg 分配独立栈槽，将 `LOAD` 放置到使用点的公共支配者处；循环内的常量加载提升到循环外。
@@ -418,7 +423,7 @@ woort_IRCompiler_add_function(&irc, /*param_count=*/1, /*captured_count=*/0, &f)
 
 * `fetch_const` 返回的 const IRValue* 代表不可变常量，**不应**作为指令的 `dst`。可变变量用 `new_vreg` 创建，通过 `woort_IR_MOV` 从常量初始化。
 * 同一 `const_index` 多次调用 `fetch_const` 返回相同指针（天然去重）。
-* 常量值的加载时机由框架自动决定：单次用于 `PUSHCHK`/`RET` 时直接特化指令；多次使用时在最优位置放置 `LOAD`。
+* 常量值的加载时机由框架自动决定：单次用于 `PUSHCHK`/`RET`/`CALL` 时直接特化指令；多次使用时在最优位置放置 `LOAD`。
 * `CALLNWO/CALLNFP/CALLNJIT/CALL` 的 `argc` 表示调用前已压入栈的实参数量，用于生成 `RESULT`/`POPR` 清理。
 * 如果调用的 `dst` 为 `NULL`，则不生成 `RESULT`，直接 `POPR`。
 * 所有指令发射函数返回 `bool`，`false` 表示 OOM。

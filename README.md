@@ -19,7 +19,7 @@ WooRT 是 [Woolang](https://git.cinogama.net/cinogamaproject/woolang) 脚本语�
 ### 功能特性
 
 - 一个高效且通用的字节码解释执行器
-- 一个适配 GC 支持的内存管理器（通过 `woomem` 子模块）
+- 一个适配 GC 支持的内存管理器（内置 `woort_mem` 分配层，mark-sweep）
 - 用于生成可执行 CodeEnv 的 IR 编译器接口
 - 原生函数与 JIT 调用支持（x64 / ARM64，基于 asmjit）
 - 内置调试与介入支持（WAIPO 调试器、陷阱、反汇编）
@@ -73,7 +73,7 @@ WooRT is the C11 runtime for the [Woolang](https://git.cinogama.net/cinogamaproj
 ### Features
 
 - An efficient and general-purpose bytecode interpreter
-- A GC-aware memory manager (via the `woomem` submodule)
+- A GC-aware memory manager (built-in `woort_mem` allocator, mark-sweep)
 - An IR compiler API for generating executable CodeEnvs
 - Native (C) and JIT function call support (x64 / ARM64 via asmjit)
 - Built-in debugging and inspection (WAIPO debugger, traps, disassembly)

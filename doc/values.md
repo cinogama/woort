@@ -1,6 +1,6 @@
 # 值与装箱（Values & Boxing）
 
-本文档介绍 WooRT 的值表示、装箱方案以及内置容器/复合类型的公开 API。权威定义见 [`src/woort_value.h`](../src/woort_value.h) 与 [`include/woort.h`](../include/woort.h) 的 `Stack Value Setters / Readers`、`Vector`、`Map`、`Struct`、`Union` 各节。
+本文档介绍 WooRT 的值表示、装箱方案以及内置容器/复合类型的公开 API。权威定义见 [`src/woort_value.h`](../src/woort_value.h)（含 [`src/woort_value_types.h`](../src/woort_value_types.h)）与 [`include/woort.h`](../include/woort.h) 的 `Stack Value Setters / Readers`、`Vector`、`Map`、`Struct`、`Union` 各节。
 
 ## 两种值类型
 
@@ -15,6 +15,7 @@ WooRT 有两种「值」表示，对应两个层面：
 
 ```c
 union woort_Value {
+    woort_Value*            m_pvalue;       /* 指向另一个 woort_Value 的 GC 指针（pvalue 语义）*/
     woort_GCUnit*           m_gcinstance;   /* 任意 GC 对象 */
     woort_Int               m_integer;      /* 64 位整数 */
     woort_Real              m_real;         /* double */
@@ -34,6 +35,8 @@ union woort_Value {
 ```
 
 栈槽**没有运行时类型标签**——具体存的是什么由当前执行的字节码指令决定（静态类型）。这也是为什么几乎所有算术/比较指令都按类型族特化（`ADDI`/`ADDR`/`ADDS`，详见 [opcodes.md](./opcodes.md)）。
+
+> **`m_pvalue` 字段**：是一个 GC 管理的 `woort_Value*` 指针，用于支持「pvalue 指针」语义（间接寻址另一个值槽）。由 `MKPVALUE` 创建、`LOADPVALUE`/`STOREPVALUE` 读写（见 [opcodes.md §2.2 / §15.4](./opcodes.md)）。
 
 ### woort_DynBox：带标签的装箱值
 
@@ -71,7 +74,7 @@ typedef enum woort_BoxValueType {
 } woort_BoxValueType;
 ```
 
-> **为什么 GCUnit 标签是 000？** 所有 GC 对象由 woomem 分配，天然 8 字节对齐，指针低 3 位本来就是 `000`。因此 GC 指针本身就是它的装箱表示，无需额外编码。
+> **为什么 GCUnit 标签是 000？** 所有 GC 对象由分配层（woort_mem，见 [gc.md](./gc.md)）分配，天然 8 字节对齐，指针低 3 位本来就是 `000`。因此 GC 指针本身就是它的装箱表示，无需额外编码。
 
 ### 装箱细节
 

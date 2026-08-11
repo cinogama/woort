@@ -1,6 +1,6 @@
 # WooRT 技术文档
 
-WooRT（Woolang Runtime V1.0）是 Woolang 脚本语言的 C11 运行时，包含字节码解释器、基于 GC 的内存管理器（woomem 子模块）、IR 编译器与调试支持。唯一公开 API 头文件是 [`include/woort.h`](../include/woort.h)。
+WooRT（Woolang Runtime）是 Woolang 脚本语言的 C11 运行时，包含字节码解释器、基于 GC 的内存管理器（内置的 `woort_mem` 分配层）、IR 编译器与调试支持。唯一公开 API 头文件是 [`include/woort.h`](../include/woort.h)。
 
 本目录是 WooRT 的架构与技术参考文档。所有文档与代码同步，权威定义以头文件与源码为准。
 
@@ -12,7 +12,7 @@ WooRT（Woolang Runtime V1.0）是 Woolang 脚本语言的 C11 运行时，包�
 | [values.md](./values.md) | **值与装箱**：`woort_Value`/`woort_DynBox` 表示、Float63/Int62/Bool 内联装箱、容器类型、union/option/result | 使用者 / 前端实现者 |
 | [ir.md](./ir.md) | **IR（中间表示）**：无限虚拟寄存器 + Label 的字节码构建 API、`finish()` 流程、源码位置 | 前端实现者 |
 | [opcodes.md](./opcodes.md) | **指令集参考**：全部字节码指令、编码格式、操作数语义 | 前端实现者 / 调试 |
-| [gc.md](./gc.md) | **垃圾回收**：woomem 分层、`woort_GCUnit` 对象模型、两阶段分配、写屏障、root set | 内部实现者 / 扩展 GC 类型 |
+| [gc.md](./gc.md) | **垃圾回收**：woort_mem 分层、`woort_GCUnit` 对象模型、两阶段分配、写屏障、root set | 内部实现者 / 扩展 GC 类型 |
 | [subsystems.md](./subsystems.md) | **子系统**：二进制序列化、VFS、Dylib、WAIPO 调试器与陷阱、线程与协程 | 进阶使用者 |
 
 ## 推荐阅读路径
@@ -60,6 +60,7 @@ src/
 ├─ woort_ir_*.{h,c}          IR 编译器（compiler/function/block/op/value/srcloc）
 ├─ woort_opcode*.h           字节码定义与编码格式
 ├─ woort_gc*.{h,c}           GC 对象类型（string/vec/map/struct/closure/gchandle/pin）
+├─ woort_mem*.{h,c}          内存分配层（GC 堆 / mark-sweep，原 woomem，已内置）
 ├─ woort_serialize.{h,c}     DynBox 文本序列化
 ├─ woort_vfs.{h,c}           虚拟文件系统
 ├─ woort_dylib.{h,c}         动态库（原生 + 伪库）
@@ -67,7 +68,7 @@ src/
 ├─ woort_threads.{h,c}       OS 线程原语（内部）
 ├─ woort_hashmap/ordermap    内部非 GC 容器原语
 └─ woort_utf8/path/env/...   工具
-3rd/woomem/                  GC 分配器（git 子模块）
+3rd/asmjit/                  asmjit JIT 后端（git 子模块，可选，由 WOORT_BUILD_WITH_ASMJIT 控制）
 test/                        每个测试 .c 编译为独立可执行 + ctest 条目
 ```
 

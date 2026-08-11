@@ -124,14 +124,16 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 
 ### 2.2 扩展加载/存储（LDSTEX，带 EX）
 
-支持 32 位常量索引与 16 位栈偏移。
+支持 32 位常量索引与 16 位栈偏移；mode 2/3 复用为 pvalue 指针的解引用加载/存储。
 
 | 变体 | Mode | 字段 | 说明 |
 |------|------|------|------|
 | `LOADEX` | 0 | R_ONLY C32 (EX), W_ONLY S16 | `G[c32] → [SB+s16]` |
 | `STOREEX` | 1 | R_ONLY C32 (EX), W_ONLY S16 | `[SB+s16] → G[c32]` |
-| `<保留>` | 2 | — | — |
-| `<保留>` | 3 | — | — |
+| `LOADPVALUE` | 2 | W_ONLY S8, R_ONLY S16 | `[SB+s8] = *[SB+s16].m_pvalue`（解指针加载）|
+| `STOREPVALUE` | 3 | R_ONLY S8, R_ONLY S16 | `*[SB+s16].m_pvalue = [SB+s8]`（解指针存储，**带写屏障**）|
+
+> `LOADPVALUE`/`STOREPVALUE` 操作的是栈槽的 `m_pvalue` 字段（指向另一个 `woort_Value` 的 GC 指针，见 [values.md](./values.md)）。`STOREPVALUE` 走混合写屏障，因为目标单元会被原地修改。`MKPVALUE`（§15.4）用于创建这种 pvalue 盒子。
 
 ### 2.3 静态区加载/存储（LOAD/STORE，STATIC 段）
 
@@ -239,7 +241,9 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 |------|------|--------|------|
 | `CALLNWO` | `OP6_MABC26` | R_ONLY C26 | 调用脚本函数（NEAR，不发生 FAR_CALL） |
 | `CALLNFP` | `OP6_MABC26` | R_ONLY C26 | 调用原生函数指针 |
-| `CALLNJIT` | `OP6_MABC26` | R_ONLY C26 | 调用 JIT 编译函数 |
+| `CALLNJIT` | `OP6_MABC26` | JIT26 | 调用 JIT 编译函数（**操作数为 `CodeEnv::m_jit_functions` 下标**，不再是常量池 cidx）|
+
+> **CALLNJIT 语义变更**：自 v1.0.6.x 起，`CALLNJIT` 的操作数不再编码常量池索引，而是 `CodeEnv::m_jit_functions` 数组的下标。这使 JIT 后端可以提前分配函数槽并嵌入稳定地址。`CALLNWO` 在 JIT 编译时被改写为 `CALLNJIT`，反汇编输出 `JIT[%u]` 而非 `G[%u]`。
 
 ### 6.2 间接调用（CALL）
 
@@ -490,7 +494,9 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | `CLAND` | 0 | R S8, R_W S16 | 复合逻辑与 |
 | `CLOR` | 1 | R S8, R_W S16 | 复合逻辑或 |
 | `CLNOT` | 2 | R_W S16 | 复合逻辑非 |
-| `<保留>` | 3 | — | — |
+| `MKPVALUE` | 3 | R S8, W S16 | **分配 GC 盒并取 pvalue 指针**：`[SB+s16].m_pvalue = new box; *box = [SB+s8]` |
+
+> `MKPVALUE` 借放在 `OPCLAON` 的 mode 3 槽位，但**不是**复合逻辑运算。它分配一个新的 `woort_BoxedExValue` 盒（proxy 为 `WOORT_EX_BOX_PROXY`），把 `[SB+s8]` 的值写入盒中，并把盒子的地址作为 `m_pvalue` 写入 `[SB+s16]`。配合 `LOADPVALUE`/`STOREPVALUE`（§2.2）实现 pvalue 指针语义。
 
 ---
 
@@ -711,4 +717,4 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 陷阱与 Panic（TRAP） | 1 | 3 |
 | **总计** | **64 条枚举值**（含 `count`） | — |
 
-> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_count <= 64)`）。实际可用主指令 63 条 + `count` 哨兵。
+> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。实际可用主指令 63 条 + `COUNT` 哨兵。

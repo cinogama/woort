@@ -46,9 +46,9 @@ typedef enum woort_CodeEnv_RestoreResult {
 
 ### 二进制格式（`src/woort_codeenv_bin.c`）
 
-* **Magic**：`0x30314345`（`"EC10"`）
-* **Version**：`6`
-* **布局**：32 字节头部（magic、version、code_size、data_count、constant_count）→ 代码段 → 字符串池（长度前缀，二进制安全）→ 常量数据。
+* **Magic**：`0x54524f57`（ASCII `"WORT"`）
+* **Version**：`7`（与 v6 同字段、同顺序、同编码；仅版本号变更并修正 struct 成员索引回退 bug——对状态正常的 CodeEnv 产生相同字节）
+* **布局**：32 字节头部（magic、version、code_size、data_count、constant_count）→ 代码段 → 字符串池（长度前缀，二进制安全）→ 外部库表 → 常量数据 → 外部常量映射 → 函数边界 / 源码映射 / trap / 局部变量 / 静态变量调试信息。详见 `src/woort_codeenv_bin.c` 文件顶部的布局注释。
 * **外部函数恢复**：常量池中的 extern 函数/闭包记录了库名与函数名（见 `woort_ConstRecord`），反序列化时通过 Dylib 子系统重新解析符号。
 
 > 序列化要求常量池的每个槽都通过 `woort_CodeEnv_set_const_record()` 记录了类型元数据（`woort_ConstRecordType`），因为 `woort_Value` 是无标签联合体，无法从其二进制表示反推类型。
@@ -160,7 +160,7 @@ woort_Dylib* woort_dylib_fake(const char* libname,
 woort_Dylib* woort_dylib_load(const char* libname, const char* path,
                               const char* script_path, bool panic_when_fail);
 void*        woort_dylib_load_func(woort_Dylib* lib, const char* funcname);
-const char*  woort_dylib_get_func_name(woort_Dylib* lib, void* func_addr);  /* 反查 */
+const char*  woort_dylib_get_func_name(woort_Dylib* lib, void* func_addr);  /* 反查，func_addr 可为 NULL */
 void         woort_dylib_unload(woort_Dylib* lib, woort_DylibUnloadMethod method);
 void         woort_dylib_keep(woort_Dylib* lib);                            /* 引用计数加一 */
 ```
@@ -188,11 +188,17 @@ bool woort_CodeEnv_add_extern_lib(woort_CodeEnv* env, woort_Dylib* lib);
 WAIPO（Watch And Inspect Program Operation）是 WooRT 的交互式、多 VM 调试器，支持断点、单步、值检查。
 
 ```c
-bool woort_WAIPO_Debugger_attach(void);                 /* 挂载调试器到当前 VM */
-void woort_VMRuntime_Debugger_breakdown_all_vm(void);   /* 向所有 root VM 发调试回调请求 */
+typedef enum woort_DebuggerAttachResult {
+    WOORT_DEBUGGER_ATTACH_RESULT_FAILED,            /* OOM 或其他失败            */
+    WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED,  /* 已有调试器挂载            */
+    WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS,           /* 新挂载成功                */
+} woort_DebuggerAttachResult;
+
+woort_DebuggerAttachResult woort_WAIPO_Debugger_attach(void);  /* 挂载调试器到当前 VM */
+void woort_VMRuntime_Debugger_breakdown_all_vm(void);          /* 向所有 root VM 发调试回调请求 */
 ```
 
-挂载后，VM 在检查点（断点命中、回跳、native-call 返回等）会调用调试器回调。`breakdown_all_vm` 设置 `DEBUG_CALLBACK` 请求位，使所有 VM 在下一个检查点进入调试器。
+挂载后，VM 在检查点（断点命中、回跳、native-call 返回等）会调用调试器回调。`breakdown_all_vm` 设置 `DEBUG_CALLBACK` 请求位，使所有 VM 在下一个检查点进入调试器。若已有调试器挂载，`attach` 会释放新实例并返回 `ALREADY_ATTACHED`，原调试器保持不变。
 
 ### Ctrl+C 信号处理
 
@@ -299,7 +305,31 @@ const char* woort_env_locale_name(void); /* 平台 UTF-8 locale 名（静态分�
 ```c
 /* woort_panic 是 include/woort.h 中的宏，触发 ABORT */
 /* woort_ret_panic(fmt, ...) 在原生函数中触发 panic */
+
+/* 自定义 panic 处理器（覆盖默认的「打印 + abort」行为）*/
+typedef enum woort_PanicHandler_Action {
+    WOORT_PANIC_HANDLER_ACTION_ABORT,                /* 终止程序（默认）*/
+    WOORT_PANIC_HANDLER_ACTION_CONTINUE,             /* 吞掉 panic 继续执行 */
+    WOORT_PANIC_HANDLER_ACTION_USE_DEFAULT_HANDLER,  /* 交给默认处理器 */
+} woort_PanicHandler_Action;
+
+typedef woort_PanicHandler_Action(*woort_PanicHandlerFunction)(
+    /* OPTIONAL */ woort_VMRuntime* vm,
+    const char* funcname, const char* location, int line,
+    int reason, const char* message);
+
+woort_PanicHandlerFunction woort_set_panic_callback(
+    /* OPTIONAL */ woort_PanicHandlerFunction callback);   /* 返回前一个处理器 */
 ```
+
+### 版本信息
+
+```c
+const char* woort_version(void);     /* "major.minor.patch.tweak" 形式的版本字符串 */
+uint64_t    woort_version_int(void); /* 64 位打包版本（每 16 位一个字段）*/
+```
+
+`include/woort.h` 顶部的 `WOORT_VERSION` 宏定义为 `WOORT_VERSION_WRAP(major, minor, patch, tweak)`，可用于编译期断言。
 
 ### 设置
 

@@ -1,6 +1,8 @@
 # 垃圾回收（GC）
 
-本文档介绍 WooRT 的 GC 架构：woomem 分层、`woort_GCUnit` 对象模型、两阶段分配模式、写屏障，以及 root set 与标记同步。权威定义见 [`3rd/woomem/include/woomem.h`](../3rd/woomem/include/woomem.h)、[`src/woort_gc.h`](../src/woort_gc.h)、[`src/woort_gc_units.h`](../src/woort_gc_units.h)、[`src/woort_gc.c`](../src/woort_gc.c)。
+本文档介绍 WooRT 的 GC 架构：内存分配层（`woort_mem`，源自独立的 woomem 项目，现已内置到 `src/`）、`woort_GCUnit` 对象模型、两阶段分配模式、写屏障，以及 root set 与标记同步。权威定义见 [`src/woort_mem.h`](../src/woort_mem.h)、[`src/woort_gc.h`](../src/woort_gc.h)、[`src/woort_gc_units.h`](../src/woort_gc_units.h)、[`src/woort_gc.c`](../src/woort_gc.c)。
+
+> **历史**：woomem 原本是独立的 git 子模块（`3rd/woomem/`）。自 v1.0.6.x 起，woomem 已整体内置到仓库 `src/woort_mem*.{h,c}` 中，所有公开符号由 `woomem_*` 改名为 `woort_mem_*`，旧路径不再存在。
 
 ## 分层架构
 
@@ -13,33 +15,33 @@
 │  ├─ 写屏障（src/woort_gc.h，static inline）   │
 │  └─ GC 生命周期（bootup/shutdown/root VM）    │
 ├─────────────────────────────────────────────┤
-│  woomem（GC 子模块，独立仓库）                 │
+│  woort_mem（内存分配层，内置在 src/）          │
 │  ├─ 堆分配 / mark-sweep                       │
 │  ├─ marking 状态标志 + mark API               │
 │  └─ 回调 WooRT 的 marker/destructor trampoline │
 └─────────────────────────────────────────────┘
 ```
 
-* **woomem** 拥有堆、执行 mark/sweep、维护全局 marking 状态，并通过回调通知 WooRT。
-* **WooRT** 在 woomem 之上加了「类型表」（`woort_GCUnitProxy`）和「写屏障」，使具体对象类型（string/vec/map/...）可被正确标记与析构。
+* **woort_mem** 拥有堆、执行 mark/sweep、维护全局 marking 状态，并通过回调通知 WooRT。
+* **WooRT** 在分配层之上加了「类型表」（`woort_GCUnitProxy`）和「写屏障」，使具体对象类型（string/vec/map/...）可被正确标记与析构。
 
-## 全局状态（woomem）
+## 全局状态（woort_mem）
 
 ```c
-extern uint8_t woomem_gc_marking_round_counter;       /* mark 轮次计数 */
-extern bool    woomem_gc_marking_state_flag;          /* true = 当前处于 mark 阶段 */
-extern size_t  woomem_gc_memory_size_after_last_round_sweep;
+extern uint8_t  woort_mem_gc_marking_round_counter;                 /* mark 轮次计数 */
+extern bool     woort_mem_gc_marking_state_flag;                    /* true = 当前处于 mark 阶段 */
+extern size_t   woort_mem_gc_memory_size_after_last_round_sweep;
 ```
 
-`woomem_gc_marking_state_flag` 是**所有写屏障的门控**——mark 阶段之外，写屏障退化为普通赋值，零开销。
+`woort_mem_gc_marking_state_flag` 是**所有写屏障的门控**——mark 阶段之外，写屏障退化为普通赋值，零开销。
 
-### 分配属性（woomem_Attrib）
+### 分配属性（woort_mem_Attrib）
 
 ```c
-WOOMEM_ATTRIB_NEED_SWEEP      /* 需要在 sweep 阶段回收 */
-WOOMEM_ATTRIB_AUTO_MARK       /* woomem 自动扫描对象内部的内嵌指针 */
-WOOMEM_ATTRIB_MARK_CALLBACK   /* 调用注册的 mark 回调 */
-WOOMEM_ATTRIB_FREE_CALLBACK   /* sweep 时调用析构回调 */
+WOORT_MEM_ATTRIB_NEED_SWEEP      /* 需要在 sweep 阶段回收 */
+WOORT_MEM_ATTRIB_AUTO_MARK       /* 分配层自动扫描对象内部的内嵌指针 */
+WOORT_MEM_ATTRIB_MARK_CALLBACK   /* 调用注册的 mark 回调 */
+WOORT_MEM_ATTRIB_FREE_CALLBACK   /* sweep 时调用析构回调 */
 ```
 
 WooRT 的封装宏（`src/woort_gc_units.h`）：
@@ -71,7 +73,7 @@ struct woort_GCUnit {
 
 `m_proxy` 是该类型的「虚表」：一个指向静态分配的 `woort_GCUnitProxy` 常量的指针，携带该类型的 mark + 析构回调。因为 `woort_GCUnit` 总是首成员，任何 `woort_GCUnit*` 都能向上转型为具体类型。
 
-woomem 通过两个 trampoline 回调到 WooRT，再由 proxy 分派（`src/woort_gc.c`）：
+woort_mem 通过两个 trampoline 回调到 WooRT，再由 proxy 分派（`src/woort_gc.c`）：
 
 ```c
 static void _woort_GC_marker_callback(void* unit) {
@@ -100,7 +102,7 @@ static void _woort_GC_destroier_callback(void* unit) {
 
 ## 两阶段分配模式（必需）
 
-woomem 的并发 mark/sweep 要求分配与「向 GC 注册」分离，否则 GC 的 marker 回调可能命中一个半构造（`m_proxy` 还是 NULL）的对象。因此 WooRT 强制使用**两阶段分配**：
+woort_mem 的并发 mark/sweep 要求分配与「向 GC 注册」分离，否则 GC 的 marker 回调可能命中一个半构造（`m_proxy` 还是 NULL）的对象。因此 WooRT 强制使用**两阶段分配**：
 
 ```c
 /* 阶段 1：分配未初始化、未跟踪的内存（不暴露给 GC）*/
@@ -110,22 +112,22 @@ MyType* obj = woort_GCUnit_alloc_delay_init(sizeof(MyType));
 obj->m_gc_unit.m_proxy = &MY_TYPE_UNIT_PROXY;
 obj->m_field = ...;
 
-/* 阶段 2：向 woomem 注册，此刻起对象对 GC 可见 */
+/* 阶段 2：向 woort_mem 注册，此刻起对象对 GC 可见 */
 woort_GCUnit_init_delay_alloc(ATTRIB, obj);
 ```
 
-* `woort_GCUnit_alloc_delay_init(sz)`：循环调用 `woomem_allocate_begin`，OOM 时触发一次 GC 后重试。返回的内存**尚未注册**。
-* `woort_GCUnit_init_delay_alloc(ATTRIB, PTR)` 宏：展开为 `woomem_allocate_end(PTR, NEED_SWEEP | ATTRIB)`。这是对象对 GC 可见的时刻。
+* `woort_GCUnit_alloc_delay_init(sz)`：循环调用 `woort_mem_allocate_begin`，OOM 时触发一次 GC 后重试。返回的内存**尚未注册**。
+* `woort_GCUnit_init_delay_alloc(ATTRIB, PTR)` 宏：展开为 `woort_mem_allocate_end(PTR, WOORT_MEM_ATTRIB_NEED_SWEEP | ATTRIB)`。这是对象对 GC 可见的时刻。
 
-> **可能失败的分配**：若需要在分配后、注册前执行可能失败的操作，改用 `woomem_allocate_begin(sz)` 直接分配，失败可中途放弃；成功初始化字段后再 `woort_GCUnit_init_delay_alloc`。
+> **可能失败的分配**：若需要在分配后、注册前执行可能失败的操作，改用 `woort_mem_allocate_begin(sz)` 直接分配，失败可中途放弃；成功初始化字段后再 `woort_GCUnit_init_delay_alloc`。
 
-还有 `woort_GCUnit_realloc(ptr, sz)` 用于原地扩容（调用 `woomem_reallocate`）。
+还有 `woort_GCUnit_realloc(ptr, sz)` 用于原地扩容（调用 `woort_mem_reallocate`）。
 
 ---
 
 ## 写屏障（Write Barriers）
 
-写屏障保证在 mark 阶段「被覆盖的旧值」与「写入的新值」都不会被错误回收。所有写屏障都在 `src/woort_gc.h` 中以 `static inline` 定义，**由 `woomem_gc_marking_state_flag` 门控**——非 mark 阶段时退化为普通赋值。
+写屏障保证在 mark 阶段「被覆盖的旧值」与「写入的新值」都不会被错误回收。所有写屏障都在 `src/woort_gc.h` 中以 `static inline` 定义，**由 `woort_mem_gc_marking_state_flag` 门控**——非 mark 阶段时退化为普通赋值。
 
 > AGENTS.md 规定：**写入 GC 引用时必须使用写屏障**。这是硬性要求。
 
@@ -141,7 +143,7 @@ woort_GCUnit_init_delay_alloc(ATTRIB, obj);
 
 | 后缀 | 槽位类型 | 标记方式 |
 |------|----------|----------|
-| `_gcaddr` | 裸 `void*`，可能指向对象内部（内部指针） | `woomem_mark_fuzzy_unit`（src 与 old 都用 fuzzy） |
+| `_gcaddr` | 裸 `void*`，可能指向对象内部（内部指针） | `woort_mem_mark_fuzzy_unit`（src 与 old 都用 fuzzy） |
 | `_gcunit` | 裸 `void*`，指向对象**头部**（`woort_GCUnit`） | src 用 `mark_unit_head`（精确），old 用 `mark_fuzzy_unit_head` |
 | `_value` | `woort_Value` 联合体 | 经 `m_gcinstance` 字段 fuzzy 标记 |
 | `_dynbox` | `woort_DynBox`（装箱值） | 仅当 `boxed != 0 && (boxed & 0b111) == 0`（即 GCUNIT 标签）时标记 |
@@ -170,7 +172,7 @@ woort_GC_delete_barrier_dynbox(removed_box);
 
 `woort_DynBox_box_*_with_barrier`（见 [values.md](./values.md)）内部使用 `init_write_barrier_dynbox`，用于向容器写入装箱值。
 
-> **fuzzy vs head**：fuzzy 标记（`mark_fuzzy_unit[_head]`）允许传入内部指针或已被 sweep 的地址；head 标记（`mark_unit_head`）要求传入有效的对象头部指针。具体见 woomem 头文件。
+> **fuzzy vs head**：fuzzy 标记（`woort_mem_mark_fuzzy_unit[_head]`）允许传入内部指针或已被 sweep 的地址；head 标记（`woort_mem_mark_unit_head`）要求传入有效的对象头部指针。具体见 `src/woort_mem.h`。
 
 ---
 
@@ -181,7 +183,7 @@ bool woort_GC_bootup(size_t reserving_memory_size);   /* woort_init 内部调用
 void woort_GC_shutdown(void);                          /* woort_shutdown 内部调用 */
 ```
 
-`woort_GC_bootup` 调用 `woomem_init`，注册四个回调：
+`woort_GC_bootup` 调用 `woort_mem_init`，注册四个回调：
 
 | 回调 | 作用 |
 |------|------|
@@ -192,7 +194,7 @@ void woort_GC_shutdown(void);                          /* woort_shutdown 内部�
 
 ### 回收触发
 
-**没有** `woort_GC_collect`。回收由 woomem 的 `woomem_trigger_gc(bool async)` 触发，WooRT 在两处调用：
+**没有** `woort_GC_collect`。回收由 woort_mem 的 `woort_mem_trigger_gc(bool async)` 触发，WooRT 在两处调用：
 
 1. **分配失败**：`_woort_GCUnit_alloc_failed`（`src/woort_gc_units.c`）临时脱离当前 VM（保存/恢复 `m_sp`），同步触发 GC 后重试分配。
 2. **关闭**：`woort_GC_shutdown` 执行最后一次 mark → finalize → sweep。

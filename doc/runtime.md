@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
 
 `woort_init` 会：
 
-1. 初始化 woomem（GC 堆）；
+1. 初始化 woort_mem（GC 堆）；
 2. 注册内置伪库 `"woolang"`（含 `print`、`panic` 等）；
 3. 设置平台 locale（UTF-8）。
 
