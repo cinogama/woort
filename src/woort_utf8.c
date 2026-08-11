@@ -99,6 +99,7 @@ WOORT_NODISCARD size_t woort_u8combineu32(const char* u8charp, size_t bytelen, c
     const uint8_t* u8ptr = (const uint8_t*)(u8charp);
     const size_t charlen = woort_u8charnlen(u8charp, bytelen);
 
+    _Static_assert(WOORT_UTF8MAXLEN <= 6, "");
     switch (charlen)
     {
     case 0:
@@ -127,7 +128,6 @@ WOORT_NODISCARD size_t woort_u8combineu32(const char* u8charp, size_t bytelen, c
             ((u8ptr[4] & 0x3F) << 6) | (u8ptr[5] & 0x3F);
         break;
     default:
-        _Static_assert(WOORT_UTF8MAXLEN <= 6, "");
         *out_c32 = (char32_t)0xFFFD;
         break;
     }
