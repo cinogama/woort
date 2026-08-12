@@ -24,11 +24,13 @@ typedef woort_Atomic int32_t  woort_AtomicInt32;
 typedef woort_Atomic uint32_t woort_AtomicUInt32;
 typedef woort_Atomic int64_t  woort_AtomicInt64;
 typedef woort_Atomic uint64_t woort_AtomicUInt64;
-typedef woort_Atomic intptr_t woort_AtomicIntPtr;
-typedef woort_Atomic uintptr_t woort_AtomicUIntPtr;
-typedef woort_Atomic size_t  woort_AtomicSize;
-typedef woort_Atomic ptrdiff_t woort_AtomicPtrDiff;
 typedef void* woort_Atomic woort_AtomicPtr;
+
+#ifdef WOORT_PLATFORM_32
+typedef woort_AtomicUInt32 woort_AtomicSize;
+#else
+typedef woort_AtomicUInt64 woort_AtomicSize;
+#endif
 
 #ifdef __STDC_NO_ATOMICS__
 
