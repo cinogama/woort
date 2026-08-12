@@ -3792,13 +3792,13 @@ _label_continue_execution:
         /* CHKDIVIR */
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 1):
         {
-            const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
-            if (-1 != dividend && 0 != dividend)
+            const woort_Int divisor = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            if (-1 != divisor && 0 != divisor)
                 break;
 
-            if (0 == dividend)
+            if (0 == divisor)
                 WOORT_VM_SYNC_STATE_AND_PANIC(
-                    WOORT_PANIC_INTEGER_DIV_FAIL, "Dividend cannot be zero.");
+                    WOORT_PANIC_INTEGER_DIV_FAIL, "Divisor cannot be zero.");
             else
                 WOORT_VM_SYNC_STATE_AND_PANIC(
                     WOORT_PANIC_INTEGER_DIV_FAIL, "Division overflow.");
@@ -3806,25 +3806,25 @@ _label_continue_execution:
         /* CHKDIVIRZ */
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 2):
         {
-            const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
-            if (0 != dividend)
+            const woort_Int divisor = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            if (0 != divisor)
                 break;
 
             WOORT_VM_SYNC_STATE_AND_PANIC(
-                WOORT_PANIC_INTEGER_DIV_FAIL, "Dividend cannot be zero.");
+                WOORT_PANIC_INTEGER_DIV_FAIL, "Divisor cannot be zero.");
         }
         /* CHKDIVILR */
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 3):
         {
-            const woort_Int divisor = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
-            const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            const woort_Int dividend = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            const woort_Int divisor = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
 
-            if (0 != dividend && (-1 != dividend || INT64_MIN != divisor))
+            if (0 != divisor && (-1 != divisor || INT64_MIN != dividend))
                 break;
 
-            if (0 == dividend)
+            if (0 == divisor)
                 WOORT_VM_SYNC_STATE_AND_PANIC(
-                    WOORT_PANIC_INTEGER_DIV_FAIL, "Dividend cannot be zero.");
+                    WOORT_PANIC_INTEGER_DIV_FAIL, "Divisor cannot be zero.");
             else
                 WOORT_VM_SYNC_STATE_AND_PANIC(
                     WOORT_PANIC_INTEGER_DIV_FAIL, "Division overflow.");
@@ -4260,7 +4260,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     return last_vm;
 }
 
-WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_current()
+WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_current(void)
 {
     return WOORT_t_this_thread_vm;
 }
