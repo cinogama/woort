@@ -3971,7 +3971,7 @@ _label_continue_execution:
         if (/* UNLIKELY */ !woort_CodeEnv_find(vm->m_ip, &vm->m_env))
         {
             WOORT_VM_SYNC_STATE_AND_PANIC(
-                WOORT_PANIC_CODE_ENV_NOT_FOUND,
+                WOORT_PANIC_CODE_NOT_FOUND,
                 "Cannot find code environment from `%p`.", vm->m_ip);
         }
         WOORT_VM_HANDLED();

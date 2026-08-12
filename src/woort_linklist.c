@@ -123,13 +123,15 @@ WOORT_NODISCARD bool woort_linklist_index(woort_LinkList* list, size_t index, vo
     while (index--)
     {
         if (current == NULL)
-            /* Out of range. */
-            return false;
+            /* Unexpected tail. */
+            break;
 
         current = current->m_next;
     }
 
-    assert(current != NULL);
+    if (current == NULL)
+        /* Out of range. */        
+        return false;
 
     *out_storage = current->m_storage;
     return true;

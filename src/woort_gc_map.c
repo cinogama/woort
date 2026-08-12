@@ -593,6 +593,9 @@ void woort_GCMap_emplace_commit(woort_GCMap* gcmap)
 
 void woort_GCMap_copy(woort_GCMap* dst, const woort_GCMap* src)
 {
+    if (dst == src)
+        return;
+
     woort_GCMap_clear(dst);
     woort_GCMap_reserve(dst, src->m_size);
 

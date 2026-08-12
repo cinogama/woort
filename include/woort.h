@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 13)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 14)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -2801,7 +2801,7 @@ typedef enum woort_PanicReason
 {
     WOORT_PANIC_BAD_BYTE_CODE = 0xD001,
     WOORT_PANIC_STACK_OVERFLOW = 0xD002,
-    WOORT_PANIC_CODE_ENV_NOT_FOUND = 0xD003,
+    WOORT_PANIC_CODE_NOT_FOUND = 0xD003,
     WOORT_PANIC_BAD_CALLSTACK = 0xD004,
     WOORT_PANIC_BAD_TYPE = 0xD005,
     WOORT_PANIC_BAD_VM_REQUEST = 0xD006,

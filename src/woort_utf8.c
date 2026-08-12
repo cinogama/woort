@@ -254,7 +254,8 @@ WOORT_NODISCARD char* woort_u8enstring(woort_string_t u8str, size_t bytelen, int
         char16_t u16buf[WOORT_UTF16MAXLEN];
         size_t u16len = 0;
 
-        const size_t this_char_u8_length = woort_u8combineu16(p, bytelen, u16buf, &u16len);
+        const size_t this_char_u8_length = woort_u8combineu16(
+            p, (size_t)(p_end - p), u16buf, &u16len);
 
         switch (u16len)
         {
