@@ -376,7 +376,12 @@ static void _phase0_jump_chaining(woort_IRFunction* f)
 
         assert(final_target != NULL && final_target->m_bound);
 
-        for (;;)
+        /* 每轮追踪恰好跟随一条 JMP，到达一个新的 label。由于 label 数目
+         * 不超过 instr_count，追踪步数超过 instr_count 必然意味着进入了
+         * 不含 original_target 的环（如 L_a -> L_b -> L_a）。此时终止追踪，
+         * final_target 保留为环中某个合法 label，下游 Phase 1b 会消除该
+         * 死代码。这样既保证可终止，又不截断任何合法（无环）跳转链。 */
+        for (size_t step = 0; step < instr_count; ++step)
         {
             assert(final_target->m_bound);
             uint32_t bind_idx = final_target->m_bind_index;

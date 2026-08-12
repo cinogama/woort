@@ -2965,7 +2965,7 @@ WOORT_API void woort_set_int(
     woort_StackValue dst, woort_Int src);
 
 /** @brief Set a stack slot to an pointer (cast to integer). */
-#define woort_set_pointer(dst, src) (woort_set_int(dst, (woort_Int)(src)))
+#define woort_set_pointer(dst, src) (woort_set_int(dst, (woort_Int)(intptr_t)(src)))
 
 /** @brief Set a stack slot to a boxed pointer (cast to integer). */
 #define woort_set_box_pointer(dst, src) (woort_set_box_int(dst, (woort_Int)(intptr_t)(src)))
