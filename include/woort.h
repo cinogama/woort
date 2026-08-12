@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 13)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 14)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
@@ -427,6 +427,9 @@ typedef uint32_t char32_t;
 #   elif defined(__clang__) || defined(__GNUC__)
 typedef __CHAR16_TYPE__ char16_t;
 typedef __CHAR32_TYPE__ char32_t;
+#   else
+typedef uint16_t char16_t;
+typedef uint32_t char32_t;
 #   endif
 #endif
 
@@ -617,7 +620,7 @@ typedef struct woort_GCPin woort_GCPin;
  * Must be called within a GC scope. When no VM is running, call
  * woort_GC_sync_marking_lock() first.
  *
- * @param count  Number of value slots in the pin. Must be >= 0.
+ * @param count  Number of value slots in the pin.
  * @return Pointer to the created GC pin. Never NULL.
  */
 WOORT_NODISCARD WOORT_API woort_GCPin* woort_GCPin_create(size_t count);
@@ -766,7 +769,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
  * @brief Get the current thread-local VM instance.
  * @return The current VM instance, or NULL if no VM is active on this thread.
  */
-WOORT_NODISCARD WOORT_API  /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_current();
+WOORT_NODISCARD WOORT_API  /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_current(void);
 
 /**
  * @brief Get the runtime error message if the VM has aborted.
@@ -1129,6 +1132,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ const char* woort_IRCompiler_intern_str
  * @brief Add a new function definition to the compiler.
  * @param c              The compiler. Must not be NULL.
  * @param param_count    The number of parameters the function accepts.
+ * @param captured_count The number of captured upvalues the function closes over.
  * @param[out] out_f     Pointer to receive the IR function handle. Must not be NULL.
  * @return true on success, false on out-of-memory.
  */
@@ -1285,7 +1289,7 @@ WOORT_API void woort_IRFunction_record_local_var(
  *
  * @param c     The IR compiler. Must not be NULL.
  * @param name  The variable name. Must not be NULL.
- * @param idx   The static data index. Must not be NULL.
+ * @param idx   The static data index to associate with the variable.
  */
 WOORT_API void woort_IRCompiler_record_static_var(
     woort_IRCompiler* c,
@@ -2797,7 +2801,7 @@ typedef enum woort_PanicReason
 {
     WOORT_PANIC_BAD_BYTE_CODE = 0xD001,
     WOORT_PANIC_STACK_OVERFLOW = 0xD002,
-    WOORT_PANIC_CODE_ENV_NOT_FOUND = 0xD003,
+    WOORT_PANIC_CODE_NOT_FOUND = 0xD003,
     WOORT_PANIC_BAD_CALLSTACK = 0xD004,
     WOORT_PANIC_BAD_TYPE = 0xD005,
     WOORT_PANIC_BAD_VM_REQUEST = 0xD006,
@@ -2961,7 +2965,7 @@ WOORT_API void woort_set_int(
     woort_StackValue dst, woort_Int src);
 
 /** @brief Set a stack slot to an pointer (cast to integer). */
-#define woort_set_pointer(dst, src) (woort_set_int(dst, (woort_Int)(src)))
+#define woort_set_pointer(dst, src) (woort_set_int(dst, (woort_Int)(intptr_t)(src)))
 
 /** @brief Set a stack slot to a boxed pointer (cast to integer). */
 #define woort_set_box_pointer(dst, src) (woort_set_box_int(dst, (woort_Int)(intptr_t)(src)))
@@ -3008,6 +3012,7 @@ WOORT_API void woort_set_struct(
  * @param hold   Stack slot holding a reference to prevent premature collection,
  *               or WOORT_IGNORE to not hold any value.
  * @param close  Destructor callback invoked when the handle is collected.
+ * @param dylib  Optional dynamic library to keep alive for the lifetime of the handle, or NULL.
  */
 WOORT_API void woort_set_gchandle(
     woort_StackValue dst,
@@ -3022,6 +3027,7 @@ WOORT_API void woort_set_gchandle(
  * @param addr   Pointer to the external object.
  * @param mark   Mark callback to trace GC references within the object.
  * @param close  Destructor callback invoked when collected.
+ * @param dylib  Optional dynamic library to keep alive for the lifetime of the handle, or NULL.
  */
 WOORT_API void woort_set_gcstruct(
     woort_StackValue dst,
@@ -3123,6 +3129,7 @@ WOORT_API void woort_set_union_struct(
  * @param hold   Stack slot holding a reference to prevent premature collection,
  *               or WOORT_IGNORE to not hold any value.
  * @param close  Destructor callback.
+ * @param dylib  Optional dynamic library to keep alive for the lifetime of the handle, or NULL.
  */
 WOORT_API void woort_set_union_gchandle(
     woort_StackValue dst,
@@ -3139,6 +3146,7 @@ WOORT_API void woort_set_union_gchandle(
  * @param addr   Pointer to the external object.
  * @param mark   Mark callback.
  * @param close  Destructor callback.
+ * @param dylib  Optional dynamic library to keep alive for the lifetime of the handle, or NULL.
  */
 WOORT_API void woort_set_union_gcstruct(
     woort_StackValue dst,
@@ -4515,11 +4523,10 @@ WOORT_NODISCARD WOORT_API bool woort_vfile_open_reader(
 /**
  * @brief Read up to @p size bytes from a streaming file handle.
  *
- * @param file           The file handle.
- * @param buffer         Destination buffer (may be NULL to skip/advance).
- * @param size           Maximum number of bytes to read.
- * @param out_bytes_read Receives the actual number of bytes read .
- * @return Fact readed byte count.
+ * @param file    The file handle.
+ * @param buffer  Destination buffer (may be NULL to skip/advance).
+ * @param size    Maximum number of bytes to read.
+ * @return The actual number of bytes read.
  */
 WOORT_NODISCARD WOORT_API size_t woort_vfile_read(
     woort_VFile* file,
@@ -4758,10 +4765,10 @@ typedef enum woort_PanicHandler_Action
 /**
  * @brief Prototype of a user-supplied panic-handler callback.
  * @param vm        The VM instance where the panic occurred, or NULL if no VM running.
- * @param reason    The panic reason code (see woort_PanicReason enum).
  * @param funcname  Name of the function where the panic was raised.
  * @param location  File where the panic was raised.
  * @param line      Line where the panic was raised.
+ * @param reason    The panic reason code (see woort_PanicReason enum).
  * @param message   A human-readable description of the panic.
  * @return          A woort_PanicHandler_Action indicating how to proceed.
  */

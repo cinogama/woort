@@ -376,7 +376,12 @@ static void _phase0_jump_chaining(woort_IRFunction* f)
 
         assert(final_target != NULL && final_target->m_bound);
 
-        for (;;)
+        /* 每轮追踪恰好跟随一条 JMP，到达一个新的 label。由于 label 数目
+         * 不超过 instr_count，追踪步数超过 instr_count 必然意味着进入了
+         * 不含 original_target 的环（如 L_a -> L_b -> L_a）。此时终止追踪，
+         * final_target 保留为环中某个合法 label，下游 Phase 1b 会消除该
+         * 死代码。这样既保证可终止，又不截断任何合法（无环）跳转链。 */
+        for (size_t step = 0; step < instr_count; ++step)
         {
             assert(final_target->m_bound);
             uint32_t bind_idx = final_target->m_bind_index;
@@ -538,17 +543,20 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
             block_count++;
     }
 
-    /* 预分配 blocks vector */
-    if (!woort_vector_resize(&f->m_blocks, block_count))
+    /* instruction → block index 映射 */
+    uint32_t* const instr_to_block =
+        (uint32_t*)malloc(instr_count * sizeof(uint32_t));
+
+    if (instr_to_block == NULL)
     {
         free(is_leader);
         return false;
     }
 
-    /* instruction → block index 映射 */
-    uint32_t* instr_to_block = (uint32_t*)malloc(instr_count * sizeof(uint32_t));
-    if (instr_to_block == NULL)
+    /* 预分配 blocks vector */
+    if (!woort_vector_resize(&f->m_blocks, block_count))
     {
+        free(instr_to_block);
         free(is_leader);
         return false;
     }
@@ -563,12 +571,14 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
                 if (blk_idx > 0)
                 {
                     /* 填充前一个 block 的 m_end */
-                    woort_IRBlock* prev_blk = (woort_IRBlock*)woort_vector_at(
-                        &f->m_blocks, blk_idx - 1);
+                    woort_IRBlock* const prev_blk =
+                        (woort_IRBlock*)woort_vector_at(
+                            &f->m_blocks, blk_idx - 1);
                     prev_blk->m_end = (uint32_t)i;
                 }
 
-                woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, blk_idx);
+                woort_IRBlock* const blk =
+                    (woort_IRBlock*)woort_vector_at(&f->m_blocks, blk_idx);
                 _woort_IRBlock_init(blk);
                 blk->m_begin = (uint32_t)i;
                 blk_idx++;
@@ -580,8 +590,9 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
 
         /* 最后一个 block 的 m_end */
         {
-            woort_IRBlock* last_blk = (woort_IRBlock*)woort_vector_at(
-                &f->m_blocks, block_count - 1);
+            woort_IRBlock* const last_blk =
+                (woort_IRBlock*)woort_vector_at(
+                    &f->m_blocks, block_count - 1);
             last_blk->m_end = (uint32_t)instr_count;
         }
     }
@@ -628,7 +639,7 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
         {
             /* 条件跳转: 目标边 + fallthrough 边 */
             uint32_t target_blk = last_op->m_jump_target->m_block_index;
-            woort_IRBlock* target_block = (woort_IRBlock*)woort_vector_at(
+            woort_IRBlock* const target_block = (woort_IRBlock*)woort_vector_at(
                 &f->m_blocks, target_blk);
             if (!_add_cfg_edge(blk, b, target_block, target_blk))
             {
@@ -684,11 +695,11 @@ static void _phase1b_eliminate_dead_blocks(woort_IRFunction* f)
     if (block_count <= 1)
         return;
 
-    bool* reachable = (bool*)calloc(block_count, sizeof(bool));
+    bool* const reachable = (bool*)calloc(block_count, sizeof(bool));
     if (reachable == NULL)
         return;
 
-    uint32_t* queue = (uint32_t*)malloc(block_count * sizeof(uint32_t));
+    uint32_t* const queue = (uint32_t*)malloc(block_count * sizeof(uint32_t));
     if (queue == NULL)
     {
         free(reachable);
@@ -716,7 +727,7 @@ static void _phase1b_eliminate_dead_blocks(woort_IRFunction* f)
 
     free(queue);
 
-    woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
+    woort_IROp* const instrs = (woort_IROp*)f->m_instructions.m_data;
     for (uint32_t b = 0; b < block_count; ++b)
     {
         if (reachable[b])

@@ -136,6 +136,15 @@ WOORT_NODISCARD static  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_alloc
             return NULL;
         }
 
+        for (uint32_t j = 0; j < required_pages; ++j)
+        {
+            if (!woort_mem_chunk_commit_page(self, idx + j))
+            {
+                woort_rwspinlock_write_unlock(&self->rwlock);
+                return NULL;
+            }
+        }
+
         const uint32_t block_count = self->count_arr[idx]
             & WOORT_MEM_CHUNK_COUNT_MASK;
 
@@ -157,15 +166,6 @@ WOORT_NODISCARD static  /* OPTIONAL */ woort_mem_PageHead* woort_mem_chunk_alloc
             | WOORT_MEM_CHUNK_ALLOCATED_FLAG;
         for (uint32_t j = 1; j < required_pages; ++j)
             self->count_arr[idx + j] = 0;
-
-        for (uint32_t j = 0; j < required_pages; ++j)
-        {
-            if (!woort_mem_chunk_commit_page(self, idx + j))
-            {
-                woort_rwspinlock_write_unlock(&self->rwlock);
-                return NULL;
-            }
-        }
 
         woort_mem_PageHead* const page =
             woort_mem_chunk_index_to_page(self, idx);

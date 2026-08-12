@@ -23,7 +23,7 @@ _Static_assert(
 
 typedef struct woort_mem_MpscSlot
 {
-    woort_AtomicSize        sequence;
+    woort_AtomicUInt64      sequence;
     woort_mem_UnitHead*     item;
 
 } woort_mem_MpscSlot;
@@ -32,8 +32,8 @@ typedef struct woort_mem_MpscGrayQueue
 {
     _Alignas(64) woort_mem_MpscSlot m_slots[WOORT_MEM_GRAY_QUEUE_CAPACITY];
 
-    _Alignas(64) woort_AtomicSize   m_enqueue_pos;
-    _Alignas(64) woort_AtomicSize   m_dequeue_pos;
+    _Alignas(64) woort_AtomicUInt64 m_enqueue_pos;
+    _Alignas(64) woort_AtomicUInt64 m_dequeue_pos;
 
 } woort_mem_MpscGrayQueue;
 
@@ -48,7 +48,7 @@ static inline void woort_mem_mpsc_init(woort_mem_MpscGrayQueue* self)
 WOORT_NODISCARD static inline bool woort_mem_mpsc_try_enqueue(
     woort_mem_MpscGrayQueue* self, woort_mem_UnitHead* item)
 {
-    size_t pos = woort_atomic_load_explicit(
+    uint64_t pos = woort_atomic_load_explicit(
         &self->m_enqueue_pos, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
     for (;;)
     {
@@ -80,7 +80,7 @@ WOORT_NODISCARD static inline size_t woort_mem_mpsc_drain(
     size_t count = 0;
     for (; count < max_count; ++count)
     {
-        const size_t pos = woort_atomic_load_explicit(
+        const uint64_t pos = woort_atomic_load_explicit(
             &self->m_dequeue_pos, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
         woort_mem_MpscSlot* slot =
@@ -104,7 +104,7 @@ WOORT_NODISCARD static inline size_t woort_mem_mpsc_drain(
 
 WOORT_NODISCARD static inline bool woort_mem_mpsc_empty(const woort_mem_MpscGrayQueue* self)
 {
-    const size_t pos = woort_atomic_load_explicit(
+    const uint64_t pos = woort_atomic_load_explicit(
         &self->m_dequeue_pos, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
     const woort_mem_MpscSlot* slot =

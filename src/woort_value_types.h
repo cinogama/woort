@@ -7,6 +7,9 @@ woort_value_types.h
 #include "woort.h"
 
 #include "woort_gc_units_types.h"
+#ifndef __cplusplus
+#   include "woort_atomic.h"
+#endif
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -69,9 +72,22 @@ union woort_Value
     woort_DynBox            m_dynamic;
 
     woort_RetBP             m_ret_bp;
-    const void* m_ret_addr;
+    const void*             m_ret_addr;
 
+#ifndef __cplusplus
+    woort_AtomicInt64       m_atomic_i64;
+#endif
 };
+
+#ifdef __cplusplus
+static_assert
+#else
+_Static_assert(sizeof(woort_AtomicInt64) == sizeof(woort_Int),
+    "_Atomic int64_t must be 8 bytes; otherwise the C union diverges from C++");
+_Static_assert
+#endif
+(sizeof(woort_Value) == sizeof(uint64_t),
+    "woort_Value must stay 8 bytes in both C and C++ (cross-TU ABI invariant)");
 
 /* 扩展装箱类型：用于存储超出内联范围的整数或浮点数 */
 typedef struct woort_BoxedExValue

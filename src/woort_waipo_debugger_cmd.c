@@ -1068,21 +1068,38 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
         {
             target = cenv->m_data_begin[WOORT_BYTECODE(ABC24, bc)].m_closure;
         }
-        if (target->m_script_function != NULL)
+
+        woort_GCClosure* const invoked_closure_instance =
+            woort_mem_validate_addr_head(target->m_native_function);
+
+        /*
+        The minimum unit of memory allocation in Woomem is 8 bytes. We need to
+        verify the type of the unit here, and the type information happens to
+        fall within the first eight bytes; therefore, reading the first 8 bytes
+        of the unit is safe.
+        */
+
+        _Static_assert(
+            offsetof(woort_GCClosure, m_gc_unit)
+            + sizeof(invoked_closure_instance->m_gc_unit) <= 8,
+            "woort_GCUnit is too large/far to safely verify its type.");
+
+        if (invoked_closure_instance != NULL
+            && invoked_closure_instance == target
+            && invoked_closure_instance->m_gc_unit.m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY
+            && invoked_closure_instance->m_native_function != NULL)
         {
-            *out_next_ip = target->m_script_function;
+            if (invoked_closure_instance->m_script_function != NULL)
+                *out_next_ip = invoked_closure_instance->m_script_function;
+            else
+                *out_next_ip = ip + 1;
+
             return true;
         }
-        if (target->m_native_function != NULL
-            /* || target->m_jit_function != NULL */)
-        {
-            (void)woort_VMRuntime_request_set(
-                vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
-        }
-        *out_next_ip = ip + 1;
-        return true;
+        else
+            /* Bad closure instance */
+            return false;
     }
-
     case WOORT_OPCODE_RET:
     {
         if (m2 == 3)
@@ -1101,22 +1118,20 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
         *out_next_ip = (const woort_Bytecode*)trace_sb[2].m_ret_addr;
         return true;
     }
-
     case WOORT_OPCODE_JIFINITED:
     {
-        woort_AtomicInt64* flag =
-            (woort_AtomicInt64*)&cenv->m_data_begin[ip[1]].m_integer;
+        woort_AtomicInt64* const flag = &cenv->m_data_begin[ip[1]].m_atomic_i64;
         const int64_t flag_stat = woort_atomic_load_explicit(
-            flag, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+            (woort_AtomicInt64*)flag,
+            WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+
         if (flag_stat == 2)
-        {
             *out_next_ip = cenv->m_code_begin + WOORT_BYTECODE(MABC26, bc);
-            return true;
-        }
-        *out_next_ip = ip + 2;
+        else
+            *out_next_ip = ip + 2;
+
         return true;
     }
-
     case WOORT_OPCODE_TRAP:
     {
         if (m2 != 0)
@@ -1124,7 +1139,6 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
         *out_next_ip = ip + 1;
         return true;
     }
-
     default:
     {
     label_fall_to_default:

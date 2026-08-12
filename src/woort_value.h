@@ -5,7 +5,6 @@ woort_value.h
 */
 
 #include "woort_value_types.h"
-
 #include "woort_gc_units.h"
 
 #include <stdint.h>

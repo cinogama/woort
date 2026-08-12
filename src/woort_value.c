@@ -67,7 +67,7 @@ WOORT_NODISCARD static bool _woort_try_box_int62(woort_Int val, woort_BoxedInt62
     if (val >= WOORT_BOXED_INT62_MIN && val <= WOORT_BOXED_INT62_MAX)
     {
         *out_val = (woort_BoxedInt62)(
-            (val << 2) | WOORT_BOX_VALUE_TYPE_INT);
+            ((woort_BoxedInt62)val << 2) | WOORT_BOX_VALUE_TYPE_INT);
 
         return true;
     }

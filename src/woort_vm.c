@@ -3667,7 +3667,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 0):
         {
             woort_AtomicInt64* const storage =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+                &rt_env_data[rt_ip[1]].m_atomic_i64;
 
             const woort_Int desired =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -3684,7 +3684,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 1):
         {
             woort_AtomicInt64* const storage =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+                &rt_env_data[rt_ip[1]].m_atomic_i64;
 
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer =
                 woort_atomic_load_explicit(
@@ -3698,7 +3698,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 2):
         {
             woort_AtomicInt64* const storage =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+                &rt_env_data[rt_ip[1]].m_atomic_i64;
 
             const woort_Int desired =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
@@ -3716,7 +3716,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_JIFINITED):
         {
             woort_AtomicInt64* const flag =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+                &rt_env_data[rt_ip[1]].m_atomic_i64;
 
             int64_t flag_stat = woort_atomic_load_explicit(
                 (woort_AtomicInt64*)flag, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
@@ -3792,13 +3792,13 @@ _label_continue_execution:
         /* CHKDIVIR */
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 1):
         {
-            const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
-            if (-1 != dividend && 0 != dividend)
+            const woort_Int divisor = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            if (-1 != divisor && 0 != divisor)
                 break;
 
-            if (0 == dividend)
+            if (0 == divisor)
                 WOORT_VM_SYNC_STATE_AND_PANIC(
-                    WOORT_PANIC_INTEGER_DIV_FAIL, "Dividend cannot be zero.");
+                    WOORT_PANIC_INTEGER_DIV_FAIL, "Divisor cannot be zero.");
             else
                 WOORT_VM_SYNC_STATE_AND_PANIC(
                     WOORT_PANIC_INTEGER_DIV_FAIL, "Division overflow.");
@@ -3806,25 +3806,25 @@ _label_continue_execution:
         /* CHKDIVIRZ */
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 2):
         {
-            const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
-            if (0 != dividend)
+            const woort_Int divisor = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            if (0 != divisor)
                 break;
 
             WOORT_VM_SYNC_STATE_AND_PANIC(
-                WOORT_PANIC_INTEGER_DIV_FAIL, "Dividend cannot be zero.");
+                WOORT_PANIC_INTEGER_DIV_FAIL, "Divisor cannot be zero.");
         }
         /* CHKDIVILR */
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CHKDIVI, 3):
         {
-            const woort_Int divisor = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
-            const woort_Int dividend = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
+            const woort_Int dividend = rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
+            const woort_Int divisor = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
 
-            if (0 != dividend && (-1 != dividend || INT64_MIN != divisor))
+            if (0 != divisor && (-1 != divisor || INT64_MIN != dividend))
                 break;
 
-            if (0 == dividend)
+            if (0 == divisor)
                 WOORT_VM_SYNC_STATE_AND_PANIC(
-                    WOORT_PANIC_INTEGER_DIV_FAIL, "Dividend cannot be zero.");
+                    WOORT_PANIC_INTEGER_DIV_FAIL, "Divisor cannot be zero.");
             else
                 WOORT_VM_SYNC_STATE_AND_PANIC(
                     WOORT_PANIC_INTEGER_DIV_FAIL, "Division overflow.");
@@ -3971,7 +3971,7 @@ _label_continue_execution:
         if (/* UNLIKELY */ !woort_CodeEnv_find(vm->m_ip, &vm->m_env))
         {
             WOORT_VM_SYNC_STATE_AND_PANIC(
-                WOORT_PANIC_CODE_ENV_NOT_FOUND,
+                WOORT_PANIC_CODE_NOT_FOUND,
                 "Cannot find code environment from `%p`.", vm->m_ip);
         }
         WOORT_VM_HANDLED();
@@ -4192,7 +4192,7 @@ void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
                    的 GC 已经开始并接收到 GC_PROCESSING 正在阻塞等待。
                    此处需要执行重标记，然后唤起 GC 工作线程 */
 
-                /* Mark vm by it self. */
+                   /* Mark vm by it self. */
                 woort_VMRuntime_mark_vm_after_sync(vm);
             }
             woort_VMRuntime_wakeup(vm);
@@ -4260,7 +4260,7 @@ WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_swap(
     return last_vm;
 }
 
-WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_current()
+WOORT_NODISCARD /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_current(void)
 {
     return WOORT_t_this_thread_vm;
 }

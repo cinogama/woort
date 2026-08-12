@@ -400,12 +400,6 @@ WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
         dylib->m_fake_funcs = copy;
     }
 
-    if (dependence_dylib != NULL)
-    {
-        woort_atomic_fetch_add_explicit(
-            &dependence_dylib->m_use_count, 1, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
-    }
-
     _woort_dylib_registry_insert(dylib);
 
     woort_recursive_mutex_unlock(g_named_libs_mx);

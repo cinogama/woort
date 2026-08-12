@@ -1161,7 +1161,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
             if (!woort_CodeEnv_find(target->m_script_function, &env))
             {
                 woort_panic(
-                    WOORT_PANIC_CODE_ENV_NOT_FOUND,
+                    WOORT_PANIC_CODE_NOT_FOUND,
                     "Cannot find code environment from `%p`.", vm->m_ip);
                 return WOORT_VM_CALL_STATUS_ABORTED;
             }
@@ -1227,7 +1227,9 @@ WOORT_NODISCARD woort_VmCallStatus woort_bootup(
 
     if (!woort_load_extern_const(v, cenv, WOORT_DEFAULT_ENTRY))
     {
-        woort_panic(WOORT_PANIC_STACK_OVERFLOW, "Cannot find entry: `" WOORT_DEFAULT_ENTRY "`.");
+        woort_panic(
+            WOORT_PANIC_CODE_NOT_FOUND,
+            "Cannot find entry: `" WOORT_DEFAULT_ENTRY "`.");
         return WOORT_VM_CALL_STATUS_ABORTED;
     }
 

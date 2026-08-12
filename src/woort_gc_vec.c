@@ -233,6 +233,9 @@ void woort_GCVec_clear(woort_GCVec* vec)
 
 void woort_GCVec_copy(woort_GCVec* dst, const woort_GCVec* src)
 {
+    if (dst == src)
+        return;
+
     woort_GCVec_clear(dst);
     _woort_GCVec_extern(dst, src->m_length);
 
