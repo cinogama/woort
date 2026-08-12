@@ -124,7 +124,7 @@ WOORT_NODISCARD bool woort_linklist_index(woort_LinkList* list, size_t index, vo
     {
         if (current == NULL)
             /* Out of range. */
-            break;
+            return false;
 
         current = current->m_next;
     }

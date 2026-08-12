@@ -3667,7 +3667,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 0):
         {
             woort_AtomicInt64* const storage =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+                &rt_env_data[rt_ip[1]].m_atomic_i64;
 
             const woort_Int desired =
                 rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
@@ -3684,7 +3684,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 1):
         {
             woort_AtomicInt64* const storage =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+                &rt_env_data[rt_ip[1]].m_atomic_i64;
 
             rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer =
                 woort_atomic_load_explicit(
@@ -3698,7 +3698,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_ATOMIC, 2):
         {
             woort_AtomicInt64* const storage =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+                &rt_env_data[rt_ip[1]].m_atomic_i64;
 
             const woort_Int desired =
                 rt_sb[(int8_t)WOORT_BYTECODE(A8, c)].m_integer;
@@ -3716,7 +3716,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_JIFINITED):
         {
             woort_AtomicInt64* const flag =
-                (woort_AtomicInt64*)&rt_env_data[rt_ip[1]].m_integer;
+                &rt_env_data[rt_ip[1]].m_atomic_i64;
 
             int64_t flag_stat = woort_atomic_load_explicit(
                 (woort_AtomicInt64*)flag, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
@@ -4192,7 +4192,7 @@ void woort_VMRuntime_handle_gc_check_request_and_mark(woort_VMRuntime* vm)
                    的 GC 已经开始并接收到 GC_PROCESSING 正在阻塞等待。
                    此处需要执行重标记，然后唤起 GC 工作线程 */
 
-                /* Mark vm by it self. */
+                   /* Mark vm by it self. */
                 woort_VMRuntime_mark_vm_after_sync(vm);
             }
             woort_VMRuntime_wakeup(vm);

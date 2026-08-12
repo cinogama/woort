@@ -1118,22 +1118,20 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
         *out_next_ip = (const woort_Bytecode*)trace_sb[2].m_ret_addr;
         return true;
     }
-
     case WOORT_OPCODE_JIFINITED:
     {
-        woort_AtomicInt64* flag =
-            (woort_AtomicInt64*)&cenv->m_data_begin[ip[1]].m_integer;
+        woort_AtomicInt64* const flag = &cenv->m_data_begin[ip[1]].m_atomic_i64;
         const int64_t flag_stat = woort_atomic_load_explicit(
-            flag, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+            (woort_AtomicInt64*)flag,
+            WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+
         if (flag_stat == 2)
-        {
             *out_next_ip = cenv->m_code_begin + WOORT_BYTECODE(MABC26, bc);
-            return true;
-        }
-        *out_next_ip = ip + 2;
+        else
+            *out_next_ip = ip + 2;
+
         return true;
     }
-
     case WOORT_OPCODE_TRAP:
     {
         if (m2 != 0)
@@ -1141,7 +1139,6 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
         *out_next_ip = ip + 1;
         return true;
     }
-
     default:
     {
     label_fall_to_default:
