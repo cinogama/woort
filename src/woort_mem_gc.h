@@ -52,7 +52,7 @@ typedef struct woort_mem_GCWorker
 typedef struct woort_mem_GC
 {
     size_t              m_gc_worker_count;
-    woort_AtomicSize    m_gc_assigned_thread_idx;
+    woort_AtomicUInt64  m_gc_assigned_thread_idx;
     woort_AtomicUInt8   m_shutdown;
     woort_AtomicUInt8   m_worker_shutdown;
 
@@ -74,12 +74,12 @@ typedef struct woort_mem_GC
     woort_AtomicUInt8   m_force_trigger_gc;
     woort_Mutex*        m_trigger_mx;
     woort_ConditionVariable* m_trigger_cv;
-    woort_AtomicSize    m_gc_cycle_count;
+    woort_AtomicUInt64  m_gc_cycle_count;
 
     woort_Spinlock      m_root_gc_unit_set_mx;
     woort_HashMap       m_root_gc_unit_set;
 
-    woort_AtomicSize    m_new_allocated_size_since_last_gc;
+    woort_AtomicUInt64  m_new_allocated_size_since_last_gc;
 
 } woort_mem_GC;
 

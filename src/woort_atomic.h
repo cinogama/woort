@@ -26,12 +26,6 @@ typedef woort_Atomic int64_t  woort_AtomicInt64;
 typedef woort_Atomic uint64_t woort_AtomicUInt64;
 typedef void* woort_Atomic woort_AtomicPtr;
 
-#ifdef WOORT_PLATFORM_32
-typedef woort_AtomicUInt32 woort_AtomicSize;
-#else
-typedef woort_AtomicUInt64 woort_AtomicSize;
-#endif
-
 #ifdef __STDC_NO_ATOMICS__
 
 typedef enum woort_atomic_MemoryOrder
