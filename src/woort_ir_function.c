@@ -543,17 +543,20 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
             block_count++;
     }
 
-    /* 预分配 blocks vector */
-    if (!woort_vector_resize(&f->m_blocks, block_count))
+    /* instruction → block index 映射 */
+    uint32_t* const instr_to_block =
+        (uint32_t*)malloc(instr_count * sizeof(uint32_t));
+
+    if (instr_to_block == NULL)
     {
         free(is_leader);
         return false;
     }
 
-    /* instruction → block index 映射 */
-    uint32_t* instr_to_block = (uint32_t*)malloc(instr_count * sizeof(uint32_t));
-    if (instr_to_block == NULL)
+    /* 预分配 blocks vector */
+    if (!woort_vector_resize(&f->m_blocks, block_count))
     {
+        free(instr_to_block);
         free(is_leader);
         return false;
     }
@@ -568,12 +571,14 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
                 if (blk_idx > 0)
                 {
                     /* 填充前一个 block 的 m_end */
-                    woort_IRBlock* prev_blk = (woort_IRBlock*)woort_vector_at(
-                        &f->m_blocks, blk_idx - 1);
+                    woort_IRBlock* const prev_blk =
+                        (woort_IRBlock*)woort_vector_at(
+                            &f->m_blocks, blk_idx - 1);
                     prev_blk->m_end = (uint32_t)i;
                 }
 
-                woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, blk_idx);
+                woort_IRBlock* const blk =
+                    (woort_IRBlock*)woort_vector_at(&f->m_blocks, blk_idx);
                 _woort_IRBlock_init(blk);
                 blk->m_begin = (uint32_t)i;
                 blk_idx++;
@@ -585,8 +590,9 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
 
         /* 最后一个 block 的 m_end */
         {
-            woort_IRBlock* last_blk = (woort_IRBlock*)woort_vector_at(
-                &f->m_blocks, block_count - 1);
+            woort_IRBlock* const last_blk =
+                (woort_IRBlock*)woort_vector_at(
+                    &f->m_blocks, block_count - 1);
             last_blk->m_end = (uint32_t)instr_count;
         }
     }
@@ -633,7 +639,7 @@ static bool _phase1_split_blocks_and_build_cfg(woort_IRFunction* f)
         {
             /* 条件跳转: 目标边 + fallthrough 边 */
             uint32_t target_blk = last_op->m_jump_target->m_block_index;
-            woort_IRBlock* target_block = (woort_IRBlock*)woort_vector_at(
+            woort_IRBlock* const target_block = (woort_IRBlock*)woort_vector_at(
                 &f->m_blocks, target_blk);
             if (!_add_cfg_edge(blk, b, target_block, target_blk))
             {
@@ -689,11 +695,11 @@ static void _phase1b_eliminate_dead_blocks(woort_IRFunction* f)
     if (block_count <= 1)
         return;
 
-    bool* reachable = (bool*)calloc(block_count, sizeof(bool));
+    bool* const reachable = (bool*)calloc(block_count, sizeof(bool));
     if (reachable == NULL)
         return;
 
-    uint32_t* queue = (uint32_t*)malloc(block_count * sizeof(uint32_t));
+    uint32_t* const queue = (uint32_t*)malloc(block_count * sizeof(uint32_t));
     if (queue == NULL)
     {
         free(reachable);
@@ -721,7 +727,7 @@ static void _phase1b_eliminate_dead_blocks(woort_IRFunction* f)
 
     free(queue);
 
-    woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
+    woort_IROp* const instrs = (woort_IROp*)f->m_instructions.m_data;
     for (uint32_t b = 0; b < block_count; ++b)
     {
         if (reachable[b])
