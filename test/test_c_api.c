@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 
 /* ========== 测试基础设施 ========== */
 
@@ -2105,6 +2106,118 @@ static void test_struct_detailed_ops(void)
 
 /* ========== 主函数 ========== */
 
+/* ========== 测试: serialize/deserialize 特殊浮点值 inf/nan ========== */
+static void test_serialize_deserialize_inf_nan(void)
+{
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    TEST_ASSERT(woort_push_reserve(2, &sv));
+
+    /* round-trip: inf */
+    {
+        TEST_BEGIN("serialize_deserialize_inf_roundtrip");
+
+        woort_set_box_real(sv, (woort_Real)INFINITY);
+        /* OPTIONAL */ char* s = woort_serialize_dynbox(sv, WOORT_SERIALIZE_FLAG_NONE);
+        TEST_ASSERT(s != NULL);
+        TEST_ASSERT(strcmp(s, "inf") == 0);
+
+        TEST_ASSERT(woort_deserialize_dynbox(sv + 1, s));
+        woort_BoxValueType type = woort_unbox_type(sv + 1);
+        TEST_ASSERT(type == WOORT_BOX_VALUE_TYPE_REAL);
+        woort_Real r = woort_unbox_real(sv + 1);
+        TEST_ASSERT(isinf(r) && r > 0);
+
+        woort_free(s);
+        TEST_END();
+    }
+
+    /* round-trip: -inf */
+    {
+        TEST_BEGIN("serialize_deserialize_neg_inf_roundtrip");
+
+        woort_set_box_real(sv, -(woort_Real)INFINITY);
+        /* OPTIONAL */ char* s = woort_serialize_dynbox(sv, WOORT_SERIALIZE_FLAG_NONE);
+        TEST_ASSERT(s != NULL);
+        TEST_ASSERT(strcmp(s, "-inf") == 0);
+
+        TEST_ASSERT(woort_deserialize_dynbox(sv + 1, s));
+        woort_BoxValueType type = woort_unbox_type(sv + 1);
+        TEST_ASSERT(type == WOORT_BOX_VALUE_TYPE_REAL);
+        woort_Real r = woort_unbox_real(sv + 1);
+        TEST_ASSERT(isinf(r) && r < 0);
+
+        woort_free(s);
+        TEST_END();
+    }
+
+    /* round-trip: nan */
+    {
+        TEST_BEGIN("serialize_deserialize_nan_roundtrip");
+
+        woort_set_box_real(sv, (woort_Real)NAN);
+        /* OPTIONAL */ char* s = woort_serialize_dynbox(sv, WOORT_SERIALIZE_FLAG_NONE);
+        TEST_ASSERT(s != NULL);
+        TEST_ASSERT(strcmp(s, "nan") == 0);
+
+        TEST_ASSERT(woort_deserialize_dynbox(sv + 1, s));
+        woort_BoxValueType type = woort_unbox_type(sv + 1);
+        TEST_ASSERT(type == WOORT_BOX_VALUE_TYPE_REAL);
+        woort_Real r = woort_unbox_real(sv + 1);
+        TEST_ASSERT(isnan(r));
+
+        woort_free(s);
+        TEST_END();
+    }
+
+    /* 直接反序列化各种 inf/nan 拼写 */
+    {
+        TEST_BEGIN("deserialize_inf_nan_spellings");
+
+        const char* cases[] = {
+            "inf", "Inf", "INF", "infinity", "Infinity", "INFINITY",
+            "+inf", "-inf",
+            "nan", "NaN", "NAN", "+nan", "-nan",
+        };
+        const size_t n = sizeof(cases) / sizeof(cases[0]);
+        bool ok = true;
+        for (size_t i = 0; i < n; ++i)
+        {
+            if (!woort_deserialize_dynbox(sv + 1, cases[i]))
+            {
+                ok = false;
+                break;
+            }
+            if (woort_unbox_type(sv + 1) != WOORT_BOX_VALUE_TYPE_REAL)
+            {
+                ok = false;
+                break;
+            }
+        }
+        TEST_ASSERT(ok);
+        TEST_END();
+    }
+
+    /* 普通实数仍能正确反序列化（回归） */
+    {
+        TEST_BEGIN("deserialize_normal_real_regression");
+
+        TEST_ASSERT(woort_deserialize_dynbox(sv + 1, "3.14"));
+        TEST_ASSERT(woort_unbox_type(sv + 1) == WOORT_BOX_VALUE_TYPE_REAL);
+        woort_Real r = woort_unbox_real(sv + 1);
+        TEST_ASSERT(r > 3.13 && r < 3.15);
+
+        TEST_END();
+    }
+
+    woort_pop(2);
+    (void)woort_VMRuntime_swap(NULL);
+    woort_VMRuntime_destroy(vm);
+}
+
 int main(int argc, char** argv)
 {
     (void)argc;
@@ -2154,6 +2267,7 @@ int main(int argc, char** argv)
     test_vector_detailed_ops();
     test_map_detailed_ops();
     test_struct_detailed_ops();
+    test_serialize_deserialize_inf_nan();
 
     (void)printf("\n=== Results: %d/%d passed ===\n\n",
         g_tests_passed, g_tests_run);

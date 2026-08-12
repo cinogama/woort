@@ -872,7 +872,17 @@ WOORT_NODISCARD static bool _woort_deserialize_number(
     }
 
     if (end == start)
-        return false;
+    {
+        /* strtoll 无法解析，可能是 inf/-inf/+inf/nan/-nan 等特殊浮点值，
+         * 或带符号但无数字的形式。标准 strtod 支持 inf/infinity/nan
+         * （大小写不敏感，可带正负号），交由 strtod 处理。*/
+        const double d = strtod(start, &end);
+        if (end == start)
+            return false;
+        *p = end;
+        *out_box = woort_DynBox_box_real(d);
+        return true;
+    }
 
     if (errno == ERANGE)
     {
@@ -1195,10 +1205,13 @@ WOORT_NODISCARD static bool _woort_deserialize_value(
         }
     }
 
-    /* 数字 */
+    /* 数字（含 inf/-inf/nan/-nan 等特殊浮点值；
+     * nil/null 已在前文先行处理，此处 'n' 仅可能是 nan） */
     if ((*pp >= '0' && *pp <= '9')
         || *pp == '+' || *pp == '-'
-        || *pp == '.')
+        || *pp == '.'
+        || *pp == 'i' || *pp == 'I'
+        || *pp == 'n' || *pp == 'N')
     {
         *p = pp;
         return _woort_deserialize_number(p, out_box);
