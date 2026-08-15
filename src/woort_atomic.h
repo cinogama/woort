@@ -1460,7 +1460,9 @@ static inline void woort_atomic_thread_fence(woort_atomic_MemoryOrder order)
     (void)order;
 #   if defined(WOORT_PLATFORM_X86) || defined(WOORT_PLATFORM_X64)
     _mm_mfence();
-#   elif defined(WOORT_PLATFORM_ARM) || defined(WOORT_PLATFORM_ARM64)
+#   elif defined(WOORT_PLATFORM_ARM64)
+    __dmb(_ARM64_BARRIER_ISH);
+#   elif defined(WOORT_PLATFORM_ARM)
     __dmb(_ARM_BARRIER_ISH);
 #   endif
 #elif defined(WOORT_ATOMIC_GCC)
