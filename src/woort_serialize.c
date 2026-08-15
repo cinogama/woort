@@ -60,14 +60,17 @@ static bool _woort_serialize_append_int(woort_Vector* buf, woort_Int val)
 */
 static bool _woort_serialize_append_real(woort_Vector* buf, woort_Real val)
 {
+    /* 各平台 printf 对非有限值的拼写不一致（MSVC 输出 "-nan(ind)"，
+     * glibc 可能输出 "-nan"），统一归一化为固定拼写以保证 round-trip。 */
+    if (isnan(val))
+        return _woort_serialize_append_str(buf, "nan");
+    if (isinf(val))
+        return _woort_serialize_append_str(buf, val > 0 ? "inf" : "-inf");
+
     char tmp[64];
     const int n = snprintf(tmp, sizeof(tmp), "%.16g", val);
     if (n < 0 || (size_t)n >= sizeof(tmp))
         return false;
-
-    /* For non-finite values (NaN, Inf), output as-is */
-    if (!isfinite(val))
-        return woort_vector_push_back(buf, (size_t)n, tmp);
 
     /* Check if the formatted result already contains '.' or 'e'/'E'.
      * If it does, the number already has a decimal point or uses scientific
