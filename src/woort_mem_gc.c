@@ -337,7 +337,9 @@ WOORT_NODISCARD static bool woort_mem_gcworker_check_and_free_unmarked_unit(
         /* Fall through to survival path */
     }
 
-    assert(life != WOORT_MEM_UNIT_LIFE_SELF_MARKED);
+    assert(life != WOORT_MEM_UNIT_LIFE_SELF_MARKED 
+        /* Might be new unit, it was been self-marked by write-barrier. */
+        || unit->m_age == 15);
 
     if (unit->m_age != 0)
         --unit->m_age;
