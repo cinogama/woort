@@ -97,11 +97,12 @@ static int g_tests_passed = 0;
  */
 static woort_IRFunction* build_fn_with_live_slots(
     woort_IRCompiler* irc,
+    uint32_t param_count,
     uint32_t captured_count,
     uint32_t nv)
 {
     woort_IRFunction* f = NULL;
-    if (!woort_IRCompiler_add_function(irc, 1, captured_count, &f))
+    if (!woort_IRCompiler_add_function(irc, param_count, captured_count, &f))
         return NULL;
 
     woort_IRValue* arg0 = woort_IRFunction_get_argument(f, 0);
@@ -187,9 +188,9 @@ static void test_stack_margin_crossing_boundary(void)
 
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
-    woort_IRFunction* f_plain = build_fn_with_live_slots(irc, 0, NV);
+    woort_IRFunction* f_plain = build_fn_with_live_slots(irc, 1, 0, NV);
     TEST_ASSERT(f_plain != NULL);
-    woort_IRFunction* f_capt = build_fn_with_live_slots(irc, CAPTURED, NV);
+    woort_IRFunction* f_capt = build_fn_with_live_slots(irc, 1, CAPTURED, NV);
     TEST_ASSERT(f_capt != NULL);
 
     woort_CodeEnv* cenv;
@@ -219,9 +220,9 @@ static void test_stack_margin_not_crossed(void)
 
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
-    woort_IRFunction* f_plain = build_fn_with_live_slots(irc, 0, NV);
+    woort_IRFunction* f_plain = build_fn_with_live_slots(irc, 1, 0, NV);
     TEST_ASSERT(f_plain != NULL);
-    woort_IRFunction* f_capt = build_fn_with_live_slots(irc, CAPTURED, NV);
+    woort_IRFunction* f_capt = build_fn_with_live_slots(irc, 1, CAPTURED, NV);
     TEST_ASSERT(f_capt != NULL);
 
     woort_CodeEnv* cenv;
@@ -233,6 +234,72 @@ static void test_stack_margin_not_crossed(void)
     TEST_ASSERT(op_plain > 0);
     TEST_ASSERT(op_capt > 0);
     TEST_ASSERT_EQ_INT(op_plain, op_capt);
+
+    free_env(cenv);
+    woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
+/* ========== Test 3: 捕获数上限（不得侵入临时槽窗口） ========== */
+static void test_captured_count_limit(void)
+{
+    TEST_BEGIN("captured_count limit (<= 126, temp window)");
+
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    /*
+     * 捕获区在调用时解包到偏移 0..-(captured_count-1)，而 -126/-127/-128
+     * 是发射层固定的 a8 临时槽。captured_count >= 127 会使捕获值落进
+     * 临时槽窗口且更深的偏移会被错误平移 —— add_function 必须拒绝。
+     */
+    woort_IRFunction* f_bad = NULL;
+    TEST_ASSERT(woort_IRCompiler_add_function(irc, 0, 127, &f_bad) == false);
+    TEST_ASSERT(f_bad == NULL);
+
+    /* 126（窗口上沿）必须可用，且编译器未被污染 */
+    woort_IRFunction* f_ok = build_fn_with_live_slots(irc, 1, 126, 1);
+    TEST_ASSERT(f_ok != NULL);
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    free_env(cenv);
+    woort_IRCompiler_close(irc);
+
+    TEST_END();
+}
+
+/* ========== Test 4: 参数超出 S8 时帧需预留到临时槽窗口 ========== */
+static void test_many_params_temp_reserve(void)
+{
+    TEST_BEGIN("many params reserve temp window (-128)");
+
+    /*
+     * 参数偏移为 3+idx。param_count = 130 时最深参数在 +132，超出 S8；
+     * a8 类指令会把这类操作数搬运到固定临时槽 -126..-128，帧必须
+     * 预留到 -128（captured=0 时即 PUSHRCHK(128)）。
+     * 对照组 param_count=1，少量局部槽，无余量。
+     */
+    enum { NV = 2, MANY_PARAMS = 130 };
+
+    woort_IRCompiler* irc = woort_IRCompiler_create();
+
+    woort_IRFunction* f_plain = build_fn_with_live_slots(irc, 1, 0, NV);
+    TEST_ASSERT(f_plain != NULL);
+    woort_IRFunction* f_many = build_fn_with_live_slots(irc, MANY_PARAMS, 0, NV);
+    TEST_ASSERT(f_many != NULL);
+
+    woort_CodeEnv* cenv;
+    TEST_ASSERT(woort_IRCompiler_finish(irc, &cenv));
+
+    const int64_t op_plain = first_pushrchk_operand(irc, f_plain);
+    const int64_t op_many = first_pushrchk_operand(irc, f_many);
+
+    TEST_ASSERT(op_plain > 0);
+    TEST_ASSERT(op_plain <= 125); /* 对照组不需要临时槽窗口 */
+    TEST_ASSERT(op_many > 0);
+    TEST_ASSERT_EQ_INT(128, op_many);
 
     free_env(cenv);
     woort_IRCompiler_close(irc);
@@ -255,6 +322,8 @@ int main(int argc, char** argv)
 
     test_stack_margin_crossing_boundary();
     test_stack_margin_not_crossed();
+    test_captured_count_limit();
+    test_many_params_temp_reserve();
 
     (void)printf("\n  %d/%d tests passed.\n\n", g_tests_passed, g_tests_run);
 

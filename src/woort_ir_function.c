@@ -1312,9 +1312,26 @@ static bool _phase3_stack_allocation(
      * out_stack_space 已包含该余量，发射层直接使用。
      */
     {
-        const bool need_temp_margin =
-            max_slots > 0 && (f->m_captured_count + max_slots > 125);
-        *out_stack_space = max_slots + (need_temp_margin ? 3 : 0);
+        size_t reserve = max_slots;
+
+        if (max_slots > 0 && (f->m_captured_count + max_slots > 125))
+            reserve += 3;
+
+        /*
+         * 参数偏移为 3+idx。当某参数超出 S8 编码（param_count >= 126）时，
+         * a8 类指令（JCC 条件、CAS、STOREPVALUE 等）会把它搬运到固定
+         * 临时槽 -126..-128 —— 帧的可写底部为 -(captured_count+n)，
+         * 必须预留到 -128 以下，否则临时槽在帧外（栈溢出检查被绕过）。
+         */
+        if (f->m_param_count >= 126)
+        {
+            const size_t temp_floor_need = 128 -
+                (f->m_captured_count < 128 ? f->m_captured_count : 128);
+            if (reserve < temp_floor_need)
+                reserve = temp_floor_need;
+        }
+
+        *out_stack_space = reserve;
     }
     return true;
 }
@@ -1913,6 +1930,9 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
 {
     assert(f != NULL);
     assert(out_stack_space != NULL);
+
+    /* 捕获区不得侵入 a8 临时槽窗口 -126..-128（见 add_function 的约束说明） */
+    assert(f->m_captured_count <= 126);
 
     *out_stack_space = 0;
 

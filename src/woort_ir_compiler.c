@@ -2300,6 +2300,16 @@ void woort_IRCompiler_deinit(woort_IRCompiler* c)
 WOORT_NODISCARD bool woort_IRCompiler_add_function(
     woort_IRCompiler* c, uint32_t param_count, uint32_t captured_count, woort_IRFunction** out_f)
 {
+    /*
+     * 帧布局约束：捕获区在调用时解包到偏移 0..-(captured_count-1)，
+     * 而发射层固定使用 -126/-127/-128 作为 a8 临时槽（见 _get_fact_offset
+     * 与 _load_to_s8/_load_to_s16）。捕获数超过 126 会使捕获值落进
+     * 临时槽窗口（读会被临时槽写破坏），且更深的捕获偏移会被
+     * _get_fact_offset 错误平移到错误的槽位 —— 此处直接拒绝构造。
+     */
+    if (captured_count > 126)
+        return false;
+
     void* storage;
     if (!woort_linklist_emplace_back(&c->m_ir_functions, &storage))
         return false;
