@@ -154,6 +154,32 @@ static int _compare_intervals_by_start(const void* a, const void* b)
     return 0;
 }
 
+/*
+ * vreg 是否需要参与线性扫描栈槽分配。
+ * 排除：参数（含捕获，预分配偏移）、const_direct 常量（发射层直连，
+ * 不占栈槽）、无放置块的常量、以及无任何活跃区间的 vreg。
+ * 非 const_direct 的 CONST vreg 参与统一线性扫描。
+ */
+static bool _should_allocate_interval(
+    const woort_IRValue* v,
+    const uint32_t* const_placement_block,
+    uint32_t first_point)
+{
+    if (v == NULL)
+        return false;
+    if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
+        return false;
+    if (v->m_source == WOORT_IRVALUE_SOURCE_CONST)
+    {
+        if (v->m_is_const_direct)
+            return false;
+        if (const_placement_block == NULL ||
+            const_placement_block[v->m_id] == UINT32_MAX)
+            return false;
+    }
+    return first_point != UINT32_MAX;
+}
+
 /* ========================================================================
  * 公共 API 实现
  * ======================================================================== */
@@ -170,6 +196,7 @@ void woort_IRFunction_init(
 
     woort_linklist_init(&f->m_ir_values, sizeof(woort_IRValue));
     f->m_next_vreg_id = 0;
+    woort_vector_init(&f->m_const_vreg_table, sizeof(woort_IRValue*));
 
     woort_linklist_init(&f->m_ir_labels, sizeof(woort_IRLabel));
     f->m_next_label_id = 0;
@@ -199,6 +226,7 @@ void woort_IRFunction_deinit(woort_IRFunction* f)
     }
 
     woort_linklist_deinit(&f->m_ir_values);
+    woort_vector_deinit(&f->m_const_vreg_table);
     woort_linklist_deinit(&f->m_ir_labels);
     woort_vector_deinit(&f->m_instructions);
     woort_vector_deinit(&f->m_blocks);
@@ -327,15 +355,23 @@ WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_fetch_const
     woort_IRFunction* f, woort_IRConstantIndex idx)
 {
     /*
-     * 查找已有的 CONST vreg（同一 const_index 返回同一 IRValue*）
+     * 同一 const_index 返回同一 IRValue*。
+     * 侧表按 const_idx 直接索引（O(1) 命中）；条目为 NULL 表示尚未创建。
+     * 扩表时手动填 NULL（woort_vector_resize 不清零新区域）。
      */
-    for (woort_IRValue* v = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
-        v != NULL;
-        v = (woort_IRValue*)woort_linklist_next(v))
+    if (idx >= f->m_const_vreg_table.m_size)
     {
-        if (v->m_source == WOORT_IRVALUE_SOURCE_CONST && v->m_const_idx == idx)
-            return v;
+        const size_t old_size = f->m_const_vreg_table.m_size;
+        if (!woort_vector_resize(&f->m_const_vreg_table, (size_t)idx + 1))
+            return NULL;
+        for (size_t i = old_size; i < f->m_const_vreg_table.m_size; ++i)
+            *(woort_IRValue**)woort_vector_at(&f->m_const_vreg_table, i) = NULL;
     }
+
+    woort_IRValue* const existing =
+        *(woort_IRValue**)woort_vector_at(&f->m_const_vreg_table, idx);
+    if (existing != NULL)
+        return existing;
 
     /* 首次请求该 const_index，创建新的 CONST vreg */
     woort_IRValue* v;
@@ -344,6 +380,8 @@ WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_fetch_const
 
     woort_IRValue_init_const(v, f->m_next_vreg_id, idx);
     f->m_next_vreg_id++;
+
+    *(woort_IRValue**)woort_vector_at(&f->m_const_vreg_table, idx) = v;
     return v;
 }
 
@@ -362,6 +400,28 @@ static void _phase0_jump_chaining(woort_IRFunction* f)
         return;
 
     woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
+
+    /*
+     * 预计算 next_real[i]：位置 i 及其之后的第一条非 LABEL 指令索引
+     * （不存在则为 instr_count）。逆序一趟 O(N)，
+     * 替代链追踪中每步重复的前向线性扫描。
+     */
+    size_t* next_real = (size_t*)malloc(instr_count * sizeof(size_t));
+    if (next_real == NULL)
+        return; /* OOM: 跳过本优化，仅损失优化不损失正确性 */
+
+    if (instrs[instr_count - 1].m_op == WOORT_IROP_KIND_LABEL)
+        next_real[instr_count - 1] = instr_count;
+    else
+        next_real[instr_count - 1] = instr_count - 1;
+
+    for (size_t i = instr_count - 1; i > 0; --i)
+    {
+        if (instrs[i - 1].m_op == WOORT_IROP_KIND_LABEL)
+            next_real[i - 1] = next_real[i];
+        else
+            next_real[i - 1] = i - 1;
+    }
 
     for (size_t i = 0; i < instr_count; ++i)
     {
@@ -384,22 +444,13 @@ static void _phase0_jump_chaining(woort_IRFunction* f)
         for (size_t step = 0; step < instr_count; ++step)
         {
             assert(final_target->m_bound);
-            uint32_t bind_idx = final_target->m_bind_index;
 
-            woort_IROp* target_real_op = NULL;
-            for (size_t j = bind_idx; j < instr_count; ++j)
-            {
-                if (instrs[j].m_op != WOORT_IROP_KIND_LABEL)
-                {
-                    target_real_op = &instrs[j];
-                    break;
-                }
-            }
+            const size_t real_idx = next_real[final_target->m_bind_index];
 
-            if (target_real_op != NULL &&
-                target_real_op->m_op == WOORT_IROP_KIND_JMP)
+            if (real_idx < instr_count &&
+                instrs[real_idx].m_op == WOORT_IROP_KIND_JMP)
             {
-                woort_IRLabel* next_target = target_real_op->m_jump_target;
+                woort_IRLabel* next_target = instrs[real_idx].m_jump_target;
                 assert(next_target != NULL && next_target->m_bound);
 
                 if (next_target == final_target
@@ -416,6 +467,8 @@ static void _phase0_jump_chaining(woort_IRFunction* f)
 
         op->m_jump_target = final_target;
     }
+
+    free(next_real);
 }
 
 /* ===================================================================
@@ -886,12 +939,57 @@ static bool _phase2_liveness_analysis(woort_IRFunction* f, const uint32_t* const
 
 static bool _phase3b_const_optimization(woort_IRFunction* f)
 {
+    const uint32_t vreg_count = f->m_next_vreg_id;
     const size_t instr_count = f->m_instructions.m_size;
     woort_IROp* instrs = (woort_IROp*)f->m_instructions.m_data;
 
+    if (vreg_count == 0 || instr_count == 0)
+        return true;
+
     /*
-     * 对每个 CONST vreg 统计 use_count 并查找唯一使用者
+     * 单趟扫描指令流，按 vreg id 统计每个 CONST vreg 的使用次数
+     * 与唯一使用者，替代按常量遍历全部指令的 O(consts x instrs)
+     * 双重循环。
      */
+    uint32_t* use_count = (uint32_t*)calloc(vreg_count, sizeof(uint32_t));
+    woort_IROp** unique_user = (woort_IROp**)calloc(vreg_count, sizeof(woort_IROp*));
+
+    if (use_count == NULL || unique_user == NULL)
+    {
+        free(use_count);
+        free(unique_user);
+        /* OOM: 跳过本优化（常量走放置加载路径），不影响正确性 */
+        return true;
+    }
+
+    for (size_t i = 0; i < instr_count; ++i)
+    {
+        woort_IROp* const op = &instrs[i];
+
+        for (int s = 0; s < 3; ++s)
+        {
+            const woort_IRValue* src = op->m_src[s];
+            if (src == NULL || src->m_source != WOORT_IRVALUE_SOURCE_CONST)
+                continue;
+
+            /* 同一指令的多个 src 引用同一 vreg 只计一次 */
+            bool dup_in_op = false;
+            for (int t = 0; t < s; ++t)
+            {
+                if (op->m_src[t] == src)
+                {
+                    dup_in_op = true;
+                    break;
+                }
+            }
+            if (dup_in_op)
+                continue;
+
+            use_count[src->m_id]++;
+            unique_user[src->m_id] = op;
+        }
+    }
+
     for (woort_IRValue* cv = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
         cv != NULL;
         cv = (woort_IRValue*)woort_linklist_next(cv))
@@ -899,48 +997,35 @@ static bool _phase3b_const_optimization(woort_IRFunction* f)
         if (cv->m_source != WOORT_IRVALUE_SOURCE_CONST)
             continue;
 
-        /* 统计该 CONST vreg 在指令流中被作为 m_src[] 引用的次数 */
-        uint32_t use_count = 0;
-        woort_IROp* unique_user = NULL;
-
-        for (size_t i = 0; i < instr_count; ++i)
-        {
-            woort_IROp* op = &instrs[i];
-            for (int s = 0; s < 3; ++s)
-            {
-                if (op->m_src[s] == cv)
-                {
-                    use_count++;
-                    unique_user = op;
-                    break; /* 同一指令的多个 src 引用同一 vreg 只计一次 */
-                }
-            }
-        }
-
-        if (use_count != 1 || unique_user == NULL)
+        if (use_count[cv->m_id] != 1)
             continue;
 
+        woort_IROp* const user = unique_user[cv->m_id];
+
         /* 检查唯一使用者是否是 MOV, PUSHCHK, CALL 或 RET */
-        if (unique_user->m_op != WOORT_IROP_KIND_MOV &&
-            unique_user->m_op != WOORT_IROP_KIND_PANIC &&
-            unique_user->m_op != WOORT_IROP_KIND_PUSHCHK &&
-            unique_user->m_op != WOORT_IROP_KIND_CALL &&
-            unique_user->m_op != WOORT_IROP_KIND_RET)
+        if (user->m_op != WOORT_IROP_KIND_MOV &&
+            user->m_op != WOORT_IROP_KIND_PANIC &&
+            user->m_op != WOORT_IROP_KIND_PUSHCHK &&
+            user->m_op != WOORT_IROP_KIND_CALL &&
+            user->m_op != WOORT_IROP_KIND_RET)
         {
             continue;
         }
 
         /* RETVC / PANIC / CALLC 没有扩展编码，const_index 超 U24 范围时不可用 */
         if (cv->m_const_idx > ((1u << 24) - 1)
-            && (unique_user->m_op == WOORT_IROP_KIND_RET ||
-                unique_user->m_op == WOORT_IROP_KIND_PANIC ||
-                unique_user->m_op == WOORT_IROP_KIND_CALL))
+            && (user->m_op == WOORT_IROP_KIND_RET ||
+                user->m_op == WOORT_IROP_KIND_PANIC ||
+                user->m_op == WOORT_IROP_KIND_CALL))
         {
             continue;
         }
 
         cv->m_is_const_direct = true;
     }
+
+    free(use_count);
+    free(unique_user);
 
     return true;
 }
@@ -1080,27 +1165,14 @@ static bool _phase3_stack_allocation(
     }
 
     /*
-     * 构建需要分配的活跃区间列表（排除参数、const_direct 和未使用的 vreg）
-     * 非 const_direct 的 CONST vreg 参与统一线性扫描栈槽分配。
+     * 构建需要分配的活跃区间列表（筛选条件见 _should_allocate_interval）
      */
     uint32_t interval_count = 0;
     for (uint32_t id = 0; id < vreg_count; ++id)
     {
-        woort_IRValue* const v = vreg_by_id[id];
-        if (v == NULL)
-            continue;
-        if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
-            continue;
-        if (v->m_source == WOORT_IRVALUE_SOURCE_CONST)
-        {
-            if (v->m_is_const_direct)
-                continue;
-            if (const_placement_block == NULL || const_placement_block[id] == UINT32_MAX)
-                continue;
-        }
-        if (first_point[id] == UINT32_MAX)
-            continue;
-        interval_count++;
+        if (_should_allocate_interval(
+                vreg_by_id[id], const_placement_block, first_point[id]))
+            interval_count++;
     }
 
     _woort_LiveInterval* intervals = NULL;
@@ -1119,19 +1191,8 @@ static bool _phase3_stack_allocation(
         uint32_t idx = 0;
         for (uint32_t id = 0; id < vreg_count; ++id)
         {
-            woort_IRValue* v = vreg_by_id[id];
-            if (v == NULL)
-                continue;
-            if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
-                continue;
-            if (v->m_source == WOORT_IRVALUE_SOURCE_CONST)
-            {
-                if (v->m_is_const_direct)
-                    continue;
-                if (const_placement_block == NULL || const_placement_block[id] == UINT32_MAX)
-                    continue;
-            }
-            if (first_point[id] == UINT32_MAX)
+            if (!_should_allocate_interval(
+                    vreg_by_id[id], const_placement_block, first_point[id]))
                 continue;
 
             intervals[idx].m_vreg_id = id;
@@ -1605,26 +1666,6 @@ static int32_t _find_common_dominator(woort_IRFunction* f, int32_t a, int32_t b)
     return fa;
 }
 
-/*
- * 常量使用信息（临时结构，用于收集每个 CONST vreg 的所有使用 block）
- */
-typedef struct _woort_ConstUseInfo
-{
-    woort_IRValue* m_const_vreg;
-    woort_Vector /* uint32_t (block index) */ m_use_blocks;
-} _woort_ConstUseInfo;
-
-static void _cleanup_const_infos(woort_Vector* const_infos)
-{
-    for (size_t i = 0; i < const_infos->m_size; ++i)
-    {
-        _woort_ConstUseInfo* info = (_woort_ConstUseInfo*)woort_vector_at(
-            const_infos, i);
-        woort_vector_deinit(&info->m_use_blocks);
-    }
-    woort_vector_deinit(const_infos);
-}
-
 static bool _phase4c_determine_const_load_placement(
     woort_IRFunction* f,
     uint32_t** out_const_placement_block)
@@ -1668,65 +1709,53 @@ static bool _phase4c_determine_const_load_placement(
     }
 
     /*
-     * 收集所有非 const_direct 的 CONST vreg，及其使用点所在的 block
+     * 单趟扫描指令流，按 vreg id 收集每个非 const_direct 的 CONST vreg
+     * 的使用 block 列表（替代按常量遍历全部指令的 O(consts x instrs)
+     * 双重循环）。
+     *
+     * 指令按线性顺序遍历，instr_to_block 单调不减，因此每个列表内的
+     * block 索引单调不减，去重只需与最后一个元素比较。
+     * use_blocks_by_id 由 calloc 清零；woort_Vector 首次使用前需要
+     * woort_vector_init 设置元素大小（对全零内存调用 deinit 安全）。
      */
-    woort_Vector /* _woort_ConstUseInfo */ const_infos;
-    woort_vector_init(&const_infos, sizeof(_woort_ConstUseInfo));
-
-    for (woort_IRValue* cv = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
-        cv != NULL;
-        cv = (woort_IRValue*)woort_linklist_next(cv))
+    woort_Vector* use_blocks_by_id =
+        (woort_Vector*)calloc(vreg_count, sizeof(woort_Vector));
+    if (use_blocks_by_id == NULL)
     {
-        if (cv->m_source != WOORT_IRVALUE_SOURCE_CONST)
-            continue;
-        if (cv->m_is_const_direct)
-            continue;
+        free(instr_to_block);
+        free(const_placement_block);
+        return false;
+    }
 
-        _woort_ConstUseInfo* info;
-        if (!woort_vector_emplace_back(&const_infos, 1, (void**)&info))
-        {
-            _cleanup_const_infos(&const_infos);
-            free(instr_to_block);
-            free(const_placement_block);
-            return false;
-        }
-        info->m_const_vreg = cv;
-        woort_vector_init(&info->m_use_blocks, sizeof(uint32_t));
+    for (size_t i = 0; i < instr_count; ++i)
+    {
+        woort_IROp* op = &instrs[i];
 
-        for (size_t i = 0; i < instr_count; ++i)
+        for (int s = 0; s < 3; ++s)
         {
-            woort_IROp* op = &instrs[i];
-            bool used = false;
-            for (int s = 0; s < 3; ++s)
-            {
-                if (op->m_src[s] == cv)
-                {
-                    used = true;
-                    break;
-                }
-            }
-            if (!used)
+            const woort_IRValue* src = op->m_src[s];
+            if (src == NULL || src->m_source != WOORT_IRVALUE_SOURCE_CONST)
+                continue;
+            if (src->m_is_const_direct)
                 continue;
 
-            uint32_t blk_idx = instr_to_block[i];
-            bool already_in = false;
-            for (size_t ubi = 0; ubi < info->m_use_blocks.m_size; ++ubi)
+            woort_Vector* use_blocks = &use_blocks_by_id[src->m_id];
+            if (use_blocks->m_size == 0 && use_blocks->m_element_size == 0)
+                woort_vector_init(use_blocks, sizeof(uint32_t));
+
+            const uint32_t blk_idx = instr_to_block[i];
+            if (use_blocks->m_size > 0 &&
+                *(uint32_t*)woort_vector_at(use_blocks, use_blocks->m_size - 1) == blk_idx)
+                continue;
+
+            if (!woort_vector_push_back(use_blocks, 1, &blk_idx))
             {
-                if (*(uint32_t*)woort_vector_at(&info->m_use_blocks, ubi) == blk_idx)
-                {
-                    already_in = true;
-                    break;
-                }
-            }
-            if (!already_in)
-            {
-                if (!woort_vector_push_back(&info->m_use_blocks, 1, &blk_idx))
-                {
-                    _cleanup_const_infos(&const_infos);
-                    free(instr_to_block);
-                    free(const_placement_block);
-                    return false;
-                }
+                for (uint32_t id = 0; id < vreg_count; ++id)
+                    woort_vector_deinit(&use_blocks_by_id[id]);
+                free(use_blocks_by_id);
+                free(instr_to_block);
+                free(const_placement_block);
+                return false;
             }
         }
     }
@@ -1736,20 +1765,25 @@ static bool _phase4c_determine_const_load_placement(
     /*
      * 为每个 CONST vreg 计算放置位置（不分配栈槽）
      */
-    for (size_t ci = 0; ci < const_infos.m_size; ++ci)
+    for (woort_IRValue* cv = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
+        cv != NULL;
+        cv = (woort_IRValue*)woort_linklist_next(cv))
     {
-        _woort_ConstUseInfo* info = (_woort_ConstUseInfo*)woort_vector_at(
-            &const_infos, ci);
+        if (cv->m_source != WOORT_IRVALUE_SOURCE_CONST)
+            continue;
+        if (cv->m_is_const_direct)
+            continue;
 
-        if (info->m_use_blocks.m_size == 0)
+        woort_Vector* use_blocks = &use_blocks_by_id[cv->m_id];
+        if (use_blocks->m_size == 0)
             continue;
 
         /* 所有使用 block 的公共支配者 */
         int32_t common_dom = (int32_t)(
-            *(uint32_t*)woort_vector_at(&info->m_use_blocks, 0));
-        for (size_t ubi = 1; ubi < info->m_use_blocks.m_size; ++ubi)
+            *(uint32_t*)woort_vector_at(use_blocks, 0));
+        for (size_t ubi = 1; ubi < use_blocks->m_size; ++ubi)
         {
-            uint32_t ub = *(uint32_t*)woort_vector_at(&info->m_use_blocks, ubi);
+            uint32_t ub = *(uint32_t*)woort_vector_at(use_blocks, ubi);
             common_dom = _find_common_dominator(f, common_dom, (int32_t)ub);
         }
 
@@ -1772,26 +1806,31 @@ static bool _phase4c_determine_const_load_placement(
         /* 记录放置 block 索引 */
         if (common_dom >= 0 && (uint32_t)common_dom < block_count)
         {
-            const_placement_block[info->m_const_vreg->m_id] = (uint32_t)common_dom;
+            const_placement_block[cv->m_id] = (uint32_t)common_dom;
 
             /* 在放置 block 中记录常量加载（栈偏移暂为占位符） */
             woort_IRBlock* place_blk = (woort_IRBlock*)woort_vector_at(
                 &f->m_blocks, (uint32_t)common_dom);
 
             _woort_ConstLoadInfo load_info;
-            load_info.m_const_index = info->m_const_vreg->m_const_idx;
+            load_info.m_const_index = cv->m_const_idx;
             load_info.m_stack_offset = WOORT_IRVALUE_STACK_NOT_ASSIGN;
 
             if (!woort_vector_push_back(&place_blk->m_const_loads, 1, &load_info))
             {
-                _cleanup_const_infos(&const_infos);
+                for (uint32_t id = 0; id < vreg_count; ++id)
+                    woort_vector_deinit(&use_blocks_by_id[id]);
+                free(use_blocks_by_id);
                 free(const_placement_block);
                 return false;
             }
         }
     }
 
-    _cleanup_const_infos(&const_infos);
+    for (uint32_t id = 0; id < vreg_count; ++id)
+        woort_vector_deinit(&use_blocks_by_id[id]);
+    free(use_blocks_by_id);
+
     *out_const_placement_block = const_placement_block;
     return true;
 }

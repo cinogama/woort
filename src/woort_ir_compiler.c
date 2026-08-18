@@ -1396,7 +1396,11 @@ _handle_call_result:
             if (cidx <= WOORT_UINT24_MAX_VAL)
                 return _emit_bc(blk, woort_OpCode_RETVC(cidx));
 
-            /* 超出 24-bit 范围，回退到 RETVS */
+            /*
+             * 超出 24-bit 范围，回退到 RETVS。
+             * 注意：Phase 3b 对 RET 类指令做了 cidx <= U24 的门控，
+             * 正常不会走到此处，保留作为防御性回退。
+             */
             if (!_emit_bc_ex32(blk, woort_OpCode_LOADEX(-128), cidx))
                 return false;
 
@@ -1629,6 +1633,12 @@ _handle_call_result:
             uint32_t cidx = op->m_src[0]->m_const_idx;
             if (cidx <= WOORT_UINT24_MAX_VAL)
                 return _emit_bc(blk, woort_OpCode_PANICC(cidx));
+
+            /*
+             * Phase 3b 对 PANIC 类指令做了 cidx <= U24 的门控，
+             * const_direct 且超范围的情况不会出现；若防御性地走到
+             * 此处，则落入下方常规 PANICS 路径。
+             */
         }
 
         int16_t r;

@@ -30,6 +30,13 @@ struct woort_IRFunction
     woort_LinkList /* woort_IRValue */ m_ir_values;
     uint32_t m_next_vreg_id;
 
+    /*
+     * CONST vreg 侧表：按 const_idx 直接索引（编译器对 const_idx 稠密分配），
+     * 元素为 vreg 池中的指针或 NULL（未创建）。
+     * 避免 woort_IRFunction_fetch_const 每次线性遍历整个 vreg 链表。
+     */
+    woort_Vector /* woort_IRValue* */ m_const_vreg_table;
+
     /* Label 池（LinkList 持有 woort_IRLabel） */
     woort_LinkList /* woort_IRLabel */ m_ir_labels;
     uint32_t m_next_label_id;
