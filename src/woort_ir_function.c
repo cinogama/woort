@@ -1241,8 +1241,20 @@ static bool _phase3_stack_allocation(
     free(intervals);
     free(vreg_by_id);
 
-    /* NOTE: No need to reserve for captured, them will be expand in call. */
-    *out_stack_space = max_slots /*+ f->m_captured_count*/;
+    /*
+     * NOTE: No need to reserve for captured, them will be expand in call.
+     *
+     * 栈槽的逻辑偏移为 -slot-captured_count，发射层会把 <= -126 的逻辑偏移
+     * 再偏移 -3 以避开临时槽 -126/-127/-128（见 _get_fact_offset）。当捕获区
+     * 与局部槽合计越过该边界（captured_count + max_slots > 125）时，必须
+     * 额外预留 3 个槽，否则最深的栈槽会写到帧（rt_sp）之外。
+     * out_stack_space 已包含该余量，发射层直接使用。
+     */
+    {
+        const bool need_temp_margin =
+            max_slots > 0 && (f->m_captured_count + max_slots > 125);
+        *out_stack_space = max_slots + (need_temp_margin ? 3 : 0);
+    }
     return true;
 }
 

@@ -2213,10 +2213,14 @@ static bool _compile_function(
      */
     if (stack_space > 0)
     {
+        /*
+         * stack_space 已含临时槽余量：
+         * 分析阶段（_phase3_stack_allocation）依据 captured_count + max_slots
+         * 是否越过 -126 边界决定是否 +3，此处直接使用。
+         */
         assert(stack_space <= WOORT_UINT24_MAX_VAL);
 
-        woort_Bytecode bc = woort_OpCode_PUSHRCHK(
-            (uint32_t)(stack_space > 125 ? stack_space + 3 : stack_space));
+        woort_Bytecode bc = woort_OpCode_PUSHRCHK((uint32_t)stack_space);
         if (!woort_vector_push_back(&c->m_committed_codes, 1, &bc))
             return false;
 
