@@ -264,10 +264,19 @@ typedef struct _CaptureProbe
     woort_IRConstantIndex m_entry;
 } _CaptureProbe;
 
+/*
+ * inner_vregs：内层函数同时活跃的 vreg 数。
+ *   0    —— 内层直接 return captured[IDX]，max_slots == 0；
+ *   > 0  —— 内层构造 v0..v{n-1} = captured[IDX]; r = captured[IDX];
+ *           r += v0; ... r += v{n-1}; return r，
+ *           结果为 (n+1)*(IDX+1)。vreg 区（fact 从 -(C+3) 起）与
+ *           尾接区（最深 -(C+2)）紧邻，用于验证两区不重叠。
+ */
 static void run_large_capture_case(
     uint32_t captured_count,
     const uint32_t* probe_idx,
-    uint32_t probe_count)
+    uint32_t probe_count,
+    uint32_t inner_vregs)
 {
     woort_IRCompiler* irc = woort_IRCompiler_create();
 
@@ -289,14 +298,58 @@ static void run_large_capture_case(
 
     for (uint32_t i = 0; i < probe_count; ++i)
     {
-        /* inner: captured = C, return captured[IDX] */
+        /* inner: captured = C, return captured[IDX]（inner_vregs == 0）
+         *        或 (inner_vregs+1) 个 captured[IDX] 之和 */
         TEST_ASSERT(woort_IRCompiler_add_function(
             irc, 0, captured_count, &probes[i].m_inner));
         {
             const woort_IRValue* v =
                 woort_IRFunction_get_captured(probes[i].m_inner, probes[i].m_idx);
             TEST_ASSERT(v != NULL);
-            TEST_ASSERT(woort_IR_ret(probes[i].m_inner, v));
+
+            if (inner_vregs == 0)
+            {
+                TEST_ASSERT(woort_IR_ret(probes[i].m_inner, v));
+            }
+            else
+            {
+                woort_IRValue** vs =
+                    (woort_IRValue**)malloc(inner_vregs * sizeof(woort_IRValue*));
+                TEST_ASSERT(vs != NULL);
+
+                for (uint32_t n = 0; n < inner_vregs; ++n)
+                {
+                    vs[n] = woort_IRFunction_new_vreg(probes[i].m_inner);
+                    if (vs[n] == NULL ||
+                        !woort_IR_MOV(probes[i].m_inner, vs[n], v))
+                    {
+                        free(vs);
+                        TEST_ASSERT(false);
+                    }
+                }
+
+                woort_IRValue* r = woort_IRFunction_new_vreg(probes[i].m_inner);
+                if (r == NULL || !woort_IR_MOV(probes[i].m_inner, r, v))
+                {
+                    free(vs);
+                    TEST_ASSERT(false);
+                }
+
+                for (uint32_t n = 0; n < inner_vregs; ++n)
+                {
+                    woort_IRValue* r2 = woort_IRFunction_new_vreg(probes[i].m_inner);
+                    if (r2 == NULL ||
+                        !woort_IR_ADDI(probes[i].m_inner, r2, r, vs[n]))
+                    {
+                        free(vs);
+                        TEST_ASSERT(false);
+                    }
+                    r = r2;
+                }
+
+                free(vs);
+                TEST_ASSERT(woort_IR_ret(probes[i].m_inner, r));
+            }
         }
 
         /* outer: push 1..C; mkclosure; call; return result */
@@ -361,11 +414,13 @@ static void run_large_capture_case(
         }
         else
         {
+            const woort_Int expected =
+                (woort_Int)((inner_vregs + 1) * (probes[i].m_idx + 1));
             const woort_Int got = woort_int(sv + 1);
-            if (got != (woort_Int)(probes[i].m_idx + 1))
+            if (got != expected)
             {
-                (void)printf("FAIL\n    probe idx=%u expected %u got %lld\n",
-                    probes[i].m_idx, probes[i].m_idx + 1, (long long)got);
+                (void)printf("FAIL\n    probe idx=%u expected %lld got %lld\n",
+                    probes[i].m_idx, (long long)expected, (long long)got);
                 failed = 1;
             }
         }
@@ -386,18 +441,56 @@ static void run_large_capture_case(
 
 static void test_large_capture_relocation(void)
 {
-    TEST_BEGIN("large capture relocation (C=130 & C=127)");
+    TEST_BEGIN("large capture relocation (C=127..130)");
 
     /* C=130：窗口三槽全部重定位 + 窗口下方 idx 129 原地补偿 */
     {
         static const uint32_t idx130[] = { 0, 50, 125, 126, 127, 128, 129 };
-        run_large_capture_case(130, idx130, 7);
+        run_large_capture_case(130, idx130, 7, 0);
     }
 
     /* C=127：仅 idx 126 落入窗口，尾接区在捕获区之下（-129） */
     {
         static const uint32_t idx127[] = { 0, 126 };
-        run_large_capture_case(127, idx127, 2);
+        run_large_capture_case(127, idx127, 2, 0);
+    }
+
+    /* C=128：tail_base 分支边界（<= 129 档），2 个窗口槽重定位 */
+    {
+        static const uint32_t idx128[] = { 0, 126, 127 };
+        run_large_capture_case(128, idx128, 3, 0);
+    }
+
+    /* C=129：tail_base 分支另一沿（恰好 3 个窗口槽，尾接最深 -131） */
+    {
+        static const uint32_t idx129[] = { 0, 126, 127, 128 };
+        run_large_capture_case(129, idx129, 4, 0);
+    }
+
+    TEST_END();
+}
+
+/* ========== Test 3b: 尾接区与 vreg 区紧邻（不重叠） ========== */
+/*
+ * captured_count >= 127 且内层同时有活跃 vreg 时，尾接区最深槽
+ * -(C+2) 与 vreg 区首槽 -(C+3)（经 -3 平移后）紧邻。若两区
+ * 重叠，vreg 写会破坏重定位后的捕获值，求和结果出错。
+ */
+static void test_large_capture_tail_vreg_adjacency(void)
+{
+    TEST_BEGIN("large capture tail/vreg adjacency (C=127 & C=130)");
+
+    /* C=127 + 5 vreg：尾接 -129，vreg 区 -130..-134 */
+    {
+        static const uint32_t idxv127[] = { 0, 126 };
+        run_large_capture_case(127, idxv127, 2, 5);
+    }
+
+    /* C=130 + 5 vreg：尾接 -130..-132，vreg 区 -133..-137，
+     * 同时覆盖窗口下方捕获（idx 129，物理 -129） */
+    {
+        static const uint32_t idxv130[] = { 126, 129 };
+        run_large_capture_case(130, idxv130, 2, 5);
     }
 
     TEST_END();
@@ -456,6 +549,7 @@ int main(int argc, char** argv)
     test_stack_margin_crossing_boundary();
     test_stack_margin_not_crossed();
     test_large_capture_relocation();
+    test_large_capture_tail_vreg_adjacency();
     test_many_params_temp_reserve();
 
     (void)printf("\n  %d/%d tests passed.\n\n", g_tests_passed, g_tests_run);

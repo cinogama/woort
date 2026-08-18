@@ -375,6 +375,9 @@ static bool _emit_static_store(
         const int32_t wf = _get_fact_offset(op->m_dst->m_assigned_stack_offset); \
         if (wf >= INT16_MIN && wf <= INT16_MAX) \
         { \
+            /* 裸相等比较依赖逻辑偏移全局不别名：参数/捕获（含重映射后） \
+             * 恒 > -captured_count，vreg 槽恒 <= -captured_count（见 \
+             * _remap_captured_window 的不变量说明） */ \
             if (op->m_dst->m_assigned_stack_offset == op->m_src[0]->m_assigned_stack_offset) \
             { \
                 int8_t r; \
@@ -2227,9 +2230,13 @@ static bool _compile_function(
     if (stack_space > 0)
     {
         /*
-         * stack_space 已含临时槽余量：
-         * 分析阶段（_phase3_stack_allocation）依据 captured_count + max_slots
-         * 是否越过 -126 边界决定是否 +3，此处直接使用。
+         * stack_space 已含全部临时槽相关余量（统一由分析阶段
+         * _phase3_stack_allocation 计入，此处直接使用，不再重复判断）：
+         * - captured_count + max_slots 越过 -126 边界时 +3（深槽经
+         *   _get_fact_offset 平移后的落位余量）；
+         * - captured_count >= 127 时捕获区重定位尾接区（reserve >= 3，
+         *   见下方序言发射）；
+         * - param_count >= 126 时 a8 临时槽窗口 -126..-128 的帧底预留。
          */
         assert(stack_space <= WOORT_UINT24_MAX_VAL);
 

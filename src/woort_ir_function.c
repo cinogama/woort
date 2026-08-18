@@ -456,6 +456,22 @@ static void _remap_captured_window(woort_IRFunction* f)
             /* 窗口之下：物理位置即 -idx，补偿 -3 平移 */
             v->m_assigned_stack_offset = -(idx - 3);
         }
+
+        /*
+         * 不变量（修改任一侧公式前先读这里）：
+         * 1. 重映射后的逻辑偏移必须 <= -126 —— 补偿值只有经过
+         *    _get_fact_offset 的 -3 平移才能落回预期物理槽位；
+         * 2. 重映射后的逻辑偏移必须保持 > -captured_count。vreg 槽的
+         *    逻辑偏移为 -slot-captured_count（slot >= 0），恒
+         *    <= -captured_count，因此两者绝不相等 —— 发射层用裸相等
+         *    比较 m_assigned_stack_offset 来省略冗余搬运（见
+         *    woort_ir_compiler.c 的 _EMIT_BINOP_* 宏），逻辑别名会使
+         *    搬运被错误省略、读到/写到错误槽位。
+         * 未重映射的捕获（-idx，idx < captured_count）与参数（3+idx）
+         * 天然满足同样的不别名约束。
+         */
+        assert(v->m_assigned_stack_offset <= -126);
+        assert(v->m_assigned_stack_offset > -(int32_t)captured_count);
     }
 }
 
