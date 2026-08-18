@@ -386,6 +386,80 @@ WOORT_NODISCARD /* OPTIONAL */ const woort_IRValue* woort_IRFunction_fetch_const
 }
 
 /* ===================================================================
+ * 捕获区临时槽窗口重定位（超长捕获闭包支持）
+ *
+ * 捕获值在调用时解包到偏移 0..-(captured_count-1)（连续，VM 行为不变）。
+ * 当 captured_count > 126 时，captured_idx 126/127/128 会落在发射层固定
+ * 的 a8 临时槽窗口（fact -126/-127/-128）内。处理方式：
+ *
+ *   1. 落在窗口内的捕获值：函数序言（发射层生成，位于所有 block 之前，
+ *      后向跳转不会重新执行）把它们从窗口搬运到窗口下方的尾接区域；
+ *      引用它们的 IRValue 偏移重映射到新位置。
+ *   2. 窗口之下的捕获值（idx >= 129）：物理位置即 -idx（已在窗口之下，
+ *      不会被临时槽触碰），但其逻辑偏移需补偿 _get_fact_offset 的
+ *      -3 平移（存储 -(idx-3)，fact 后恰为 -idx）。
+ *   3. 未越界的捕获（idx <= 125）保持不变。
+ *
+ * 尾接区域起点取临时槽窗口与捕获区两者更深者之下：
+ *   captured_count <= 129 时为 -129，更大时为 -captured_count。
+ * =================================================================== */
+
+WOORT_NODISCARD uint32_t _woort_captured_relocate_count(uint32_t captured_count)
+{
+    if (captured_count <= 126)
+        return 0;
+    return (captured_count - 126 >= 3) ? 3 : (captured_count - 126);
+}
+
+WOORT_NODISCARD int32_t _woort_captured_relocate_tail_base(uint32_t captured_count)
+{
+    return (captured_count > 129)
+        ? -(int32_t)captured_count
+        : -129;
+}
+
+static void _remap_captured_window(woort_IRFunction* f)
+{
+    const uint32_t captured_count = f->m_captured_count;
+    if (captured_count <= 126)
+        return;
+
+    const int32_t tail_base = _woort_captured_relocate_tail_base(captured_count);
+
+    for (woort_IRValue* v = (woort_IRValue*)woort_linklist_iter(&f->m_ir_values);
+        v != NULL;
+        v = (woort_IRValue*)woort_linklist_next(v))
+    {
+        if (v->m_source != WOORT_IRVALUE_SOURCE_ARGUMENT)
+            continue;
+
+        /* 参数偏移为 3+idx（正数），捕获偏移为 -idx（非正数） */
+        const int32_t off = v->m_assigned_stack_offset;
+        if (off > 0)
+            continue;
+
+        const int32_t idx = -off;
+        assert(idx >= 0 && (uint32_t)idx < captured_count);
+
+        if (idx <= 125)
+            continue;
+
+        if (idx <= 128)
+        {
+            /* 窗口内：序言搬运到尾接区域。逻辑偏移回退 +3 使
+             * _get_fact_offset 平移后落在尾接槽上。 */
+            const int32_t j = idx - 126;
+            v->m_assigned_stack_offset = tail_base - j + 3;
+        }
+        else
+        {
+            /* 窗口之下：物理位置即 -idx，补偿 -3 平移 */
+            v->m_assigned_stack_offset = -(idx - 3);
+        }
+    }
+}
+
+/* ===================================================================
  * Phase 0: 跳转合并（Jump Chaining）
  *
  * 如果一条跳转指令的目标是一个纯重定向块（仅包含 LABEL + JMP），
@@ -1318,6 +1392,15 @@ static bool _phase3_stack_allocation(
             reserve += 3;
 
         /*
+         * 捕获区越过临时槽窗口（captured_count >= 127）：函数序言要把
+         * 窗口内的捕获值搬运到窗口下方的尾接区域，其最深 fact 槽为
+         * tail_base - (relocate_count - 1)，对任何 captured_count >= 127
+         * 都恰为 -(captured_count+2)。统一预留 3 个槽即可覆盖。
+         */
+        if (f->m_captured_count >= 127 && reserve < 3)
+            reserve = 3;
+
+        /*
          * 参数偏移为 3+idx。当某参数超出 S8 编码（param_count >= 126）时，
          * a8 类指令（JCC 条件、CAS、STOREPVALUE 等）会把它搬运到固定
          * 临时槽 -126..-128 —— 帧的可写底部为 -(captured_count+n)，
@@ -1931,10 +2014,10 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     assert(f != NULL);
     assert(out_stack_space != NULL);
 
-    /* 捕获区不得侵入 a8 临时槽窗口 -126..-128（见 add_function 的约束说明） */
-    assert(f->m_captured_count <= 126);
-
     *out_stack_space = 0;
+
+    /* 捕获区临时槽窗口重映射（captured_count > 126 时生效） */
+    _remap_captured_window(f);
 
     /* Phase 0: 跳转合并 */
     _phase0_jump_chaining(f);

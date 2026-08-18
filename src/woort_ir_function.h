@@ -79,6 +79,21 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     woort_IRFunction* f, size_t* out_stack_space);
 
 /*
+ * 捕获区与 a8 临时槽窗口（fact -126/-127/-128）冲突时的重定位参数。
+ *
+ * 捕获值在调用时解包到偏移 0..-(captured_count-1)。当 captured_count > 126
+ * 时，captured_idx 126..128 会落在临时槽窗口内：
+ *   - 这些值由函数序言（发射层在所有 block 之前生成）搬运到窗口下方的
+ *     尾接区域，起点为 fact 偏移 _woort_captured_relocate_tail_base()；
+ *   - 窗口之下的捕获值（idx >= 129）物理位置不变，仅偏移映射补偿平移。
+ * 返回需要搬运的捕获值个数（0 表示无冲突）。
+ */
+WOORT_NODISCARD uint32_t _woort_captured_relocate_count(uint32_t captured_count);
+
+/* 尾接区域第一个槽的 fact 偏移（负值）：临时槽窗口与捕获区两者更深者之下。 */
+WOORT_NODISCARD int32_t _woort_captured_relocate_tail_base(uint32_t captured_count);
+
+/*
  * 获取当前栈顶源码位置对应的 m_source_locations 索引。
  * 如果栈为空，返回 WOORT_SRCLOC_INVALID_INDEX。
  * 内部使用：会在 m_source_locations 中去重查找或新增。

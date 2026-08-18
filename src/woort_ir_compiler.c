@@ -1775,10 +1775,12 @@ static bool _patch_jumps(
         /* 计算每个块的起始偏移 */
 
         /*
-         * PUSHRCHK 占据 1 个 bytecode 槽（单指令编码），如果存在，
-         * block 0 的实际起始偏移需要加上它。
+         * 偏移 1 为函数入口的 PUSHRCHK 占位（单指令编码，若存在），
+         * 加上捕获区重定位序言的长度（若有）。序言与 PUSHRCHK 一样
+         * 位于所有 block 之外，后向跳转不会落到它们之上。
          */
-        uint32_t offset = (stack_space > 0) ? 1 : 0;
+        uint32_t offset = (stack_space > 0 ? 1u : 0u) +
+            _woort_captured_relocate_count(f->m_captured_count);
 
         for (uint32_t bi = 0; bi < block_count; ++bi)
         {
@@ -2126,9 +2128,10 @@ static void _fixup_source_map_offsets(
         /*
          * 使用新的 block 大小重新计算全局偏移。
          * 新偏移 = 前面所有 block 的新大小之和 + 调整后的局部偏移
-         *         + PUSHRCHK 占位（若有）
+         *         + PUSHRCHK 占位（若有）+ 捕获区重定位序言长度（若有）
          */
-        uint32_t new_offset = (stack_space > 0) ? 1u : 0u;
+        uint32_t new_offset = (stack_space > 0 ? 1u : 0u) +
+            _woort_captured_relocate_count(f->m_captured_count);
         for (uint32_t j = 0; j < bi; ++j)
         {
             woort_IRBlock* blk =
@@ -2252,6 +2255,39 @@ static bool _compile_function(
         }
     }
 
+    /*
+     * 捕获区重定位序言（captured_count > 126 时）：
+     * 解包后的捕获值会覆盖 a8 临时槽窗口（fact -126/-127/-128），
+     * 把落在窗口内的捕获值搬运到窗口下方的尾接区域（分析阶段
+     * _remap_captured_window 已把引用这些值的 IRValue 重映射到新位置）。
+     *
+     * 与 PUSHRCHK 一致放在所有 block 之前：后向跳转（含跳回 block 0）
+     * 不会重新执行 —— 重执行会搬运已被临时槽污染的数据。
+     * captured_count >= 127 时 stack_space >= 3，PUSHRCHK 必已发射，
+     * 尾接槽位于其预留区内。
+     */
+    {
+        const uint32_t relocate_count =
+            _woort_captured_relocate_count(f->m_captured_count);
+
+        if (relocate_count > 0)
+        {
+            const int32_t tail_base =
+                _woort_captured_relocate_tail_base(f->m_captured_count);
+
+            for (uint32_t j = 0; j < relocate_count; ++j)
+            {
+                /* [SB + bc16(尾接槽)] = [SB + a8(窗口槽)] */
+                const woort_Bytecode mv = woort_OpCode_MOVST(
+                    (int8_t)(-(126 + (int32_t)j)),
+                    (int16_t)(tail_base - (int32_t)j));
+
+                if (!woort_vector_push_back(&c->m_committed_codes, 1, &mv))
+                    return false;
+            }
+        }
+    }
+
     for (uint32_t bi = 0; bi < block_count; ++bi)
     {
         woort_IRBlock* blk = (woort_IRBlock*)woort_vector_at(&f->m_blocks, bi);
@@ -2300,16 +2336,6 @@ void woort_IRCompiler_deinit(woort_IRCompiler* c)
 WOORT_NODISCARD bool woort_IRCompiler_add_function(
     woort_IRCompiler* c, uint32_t param_count, uint32_t captured_count, woort_IRFunction** out_f)
 {
-    /*
-     * 帧布局约束：捕获区在调用时解包到偏移 0..-(captured_count-1)，
-     * 而发射层固定使用 -126/-127/-128 作为 a8 临时槽（见 _get_fact_offset
-     * 与 _load_to_s8/_load_to_s16）。捕获数超过 126 会使捕获值落进
-     * 临时槽窗口（读会被临时槽写破坏），且更深的捕获偏移会被
-     * _get_fact_offset 错误平移到错误的槽位 —— 此处直接拒绝构造。
-     */
-    if (captured_count > 126)
-        return false;
-
     void* storage;
     if (!woort_linklist_emplace_back(&c->m_ir_functions, &storage))
         return false;
