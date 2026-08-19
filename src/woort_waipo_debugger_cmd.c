@@ -1086,8 +1086,7 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
 
         if (invoked_closure_instance != NULL
             && invoked_closure_instance == target
-            && invoked_closure_instance->m_gc_unit.m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY
-            && invoked_closure_instance->m_native_function != NULL)
+            && invoked_closure_instance->m_gc_unit.m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
         {
             if (invoked_closure_instance->m_script_function != NULL)
                 *out_next_ip = invoked_closure_instance->m_script_function;
