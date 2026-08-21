@@ -1,5 +1,7 @@
 #include "woort.h"
 
+#include "woort_dylib.h"
+
 /* Copy from woodyn. */
 #define WOODYN_WOORT_FUNCTION_LIST \
     WOODYN_WRAP(woort_version)                                              \
@@ -441,16 +443,19 @@ static const woort_ExternLibFunc _s_libwoort_woodyn_funcs[] = {
     WOORT_EXTERN_LIB_FUNC_END
 };
 
-
-void woort_woodyn_init(void)
+WOORT_NODISCARD bool woort_woodyn_init(void)
 {
     if (_s_libwoort_woodyn == NULL)
     {
+        if (!_woort_dylib_bootup())
+            return false;
+
         _s_libwoort_woodyn = woort_dylib_fake(
             "libwoort_woodyn",
             _s_libwoort_woodyn_funcs,
             NULL);
     }
+    return true;
 }
 
 void woort_woodyn_shutdown(void)
@@ -462,5 +467,7 @@ void woort_woodyn_shutdown(void)
             WOORT_DYLIB_UNREF_AND_BURY);
 
         _s_libwoort_woodyn = NULL;
+
+        _woort_dylib_shutdown();
     }
 }

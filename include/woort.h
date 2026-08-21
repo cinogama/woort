@@ -5119,7 +5119,7 @@ WOORT_NODISCARD WOORT_API woort_REPLPrinter_FlushResult woort_REPLPrinter_flush(
 
 /* ========== WooDyn supports ========== */
 
-WOORT_API void woort_woodyn_init(void);
+WOORT_NODISCARD WOORT_API bool woort_woodyn_init(void);
 
 /* ========== ANSI Escape Code Macros ========== */
 
