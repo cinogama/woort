@@ -432,8 +432,7 @@
     WOODYN_WRAP(woort_u8stridx)                                             \
     WOODYN_WRAP(woort_REPLPrinter_create)                                   \
     WOODYN_WRAP(woort_REPLPrinter_destroy)                                  \
-    WOODYN_WRAP(woort_REPLPrinter_flush)                                    \
-    WOODYN_WRAP(woort_woodyn_init)                                    
+    WOODYN_WRAP(woort_REPLPrinter_flush)
 
 static woort_Dylib* _s_libwoort_woodyn = NULL;
 static const woort_ExternLibFunc _s_libwoort_woodyn_funcs[] = {

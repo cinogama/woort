@@ -5117,10 +5117,6 @@ WOORT_API void woort_REPLPrinter_destroy(woort_REPLPrinter* printer);
 WOORT_NODISCARD WOORT_API woort_REPLPrinter_FlushResult woort_REPLPrinter_flush(
     woort_REPLPrinter* printer);
 
-/* ========== WooDyn supports ========== */
-
-WOORT_NODISCARD WOORT_API bool woort_woodyn_init(void);
-
 /* ========== ANSI Escape Code Macros ========== */
 
 /**
