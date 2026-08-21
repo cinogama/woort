@@ -360,6 +360,24 @@ typedef enum woort_DylibUnloadMethod
 typedef void (*woort_DylibEntryFunc)(woort_Dylib*);
 typedef void (*woort_DylibLeaveFunc)(void);
 
+typedef woort_Dylib* woort_WooDynDylibLoadFunc(
+    const char* libname,
+    const char* path,
+    const char* script_path,
+    bool panic_when_fail);
+typedef void* woort_WooDynDyFuncLoadFunc(
+    woort_Dylib* lib,
+    const char* funcname);
+typedef void woort_WooDynDylibUnloadFunc(
+    woort_Dylib* lib,
+    woort_DylibUnloadMethod method);
+
+typedef void (*woort_WooDynEntryFunc)(
+    woort_WooDynDylibLoadFunc dylib_load,
+    woort_WooDynDyFuncLoadFunc dyfunc_load,
+    woort_WooDynDylibUnloadFunc dylib_unload);
+typedef woort_DylibLeaveFunc woort_WooDynLeaveFunc;
+
 /**
  * @brief Entry in a fake-library function table.
  */

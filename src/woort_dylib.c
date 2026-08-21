@@ -238,6 +238,41 @@ static void _woort_dylib_close(woort_Dylib* dylib)
     free(dylib);
 }
 
+static void _woort_dylib_leave_callback(woort_Dylib* dylib)
+{
+    /* Invoke WooRT leave */
+    do
+    {
+        woort_DylibLeaveFunc const leave =
+            woort_dylib_load_func(dylib, "woort_lib_leave");
+
+        if (leave != NULL)
+            leave();
+
+    } while (0);
+
+    /* Invoke WooDyn entry */
+    do
+    {
+        woort_WooDynLeaveFunc const leave =
+            woort_dylib_load_func(dylib, "woodyn_woort_leave");
+
+        if (leave != NULL)
+            leave();
+
+    } while (0);
+
+    do
+    {
+        woort_WooDynLeaveFunc const leave =
+            woort_dylib_load_func(dylib, "woodyn_wo_leave");
+
+        if (leave != NULL)
+            leave();
+
+    } while (0);
+}
+
 static bool _woort_dylib_shutdown_foreach_callback(
     const void* key,
     void* value,
@@ -248,10 +283,7 @@ static bool _woort_dylib_shutdown_foreach_callback(
     woort_log("WOORT: Unloading library '%s' during shutdown.\n", name);
     woort_Dylib* const dylib = *(woort_Dylib**)value;
 
-    woort_DylibLeaveFunc const leave =
-        woort_dylib_load_func(dylib, "woort_lib_leave");
-    if (leave != NULL)
-        leave();
+    _woort_dylib_leave_callback(dylib);
 
     _woort_dylib_close(dylib);
 
@@ -296,11 +328,43 @@ static void _woort_dylib_registry_insert(woort_Dylib* dylib)
     (void)woort_hashmap_insert(
         &g_named_libs, (const void*)&dylib->m_name, &ptr);
 
-    woort_DylibEntryFunc const entry =
-        woort_dylib_load_func(dylib, "woort_lib_entry");
+    /* Invoke WooDyn entry */
+    do
+    {
+        woort_WooDynEntryFunc const entry =
+            woort_dylib_load_func(dylib, "woodyn_wo_entry");
 
-    if (entry != NULL)
-        entry(dylib);
+        if (entry != NULL)
+            entry(
+                &woort_dylib_load,
+                &woort_dylib_load_func,
+                &woort_dylib_unload);
+
+    } while (0);
+
+    do
+    {
+        woort_WooDynEntryFunc const entry =
+            woort_dylib_load_func(dylib, "woodyn_woort_entry");
+
+        if (entry != NULL)
+            entry(
+                &woort_dylib_load,
+                &woort_dylib_load_func,
+                &woort_dylib_unload);
+
+    } while (0);
+
+    /* Invoke WooRT entry */
+    do
+    {
+        woort_DylibEntryFunc const entry =
+            woort_dylib_load_func(dylib, "woort_lib_entry");
+
+        if (entry != NULL)
+            entry(dylib);
+
+    } while (0);
 }
 
 static void _woort_dylib_registry_remove(woort_Dylib* dylib)
@@ -695,14 +759,9 @@ void woort_dylib_unload(woort_Dylib* lib, woort_DylibUnloadMethod method)
         woort_recursive_mutex_lock(g_named_libs_mx);
 
         _woort_dylib_registry_remove(lib);
-        if (should_free)
-        {
-            woort_DylibLeaveFunc const leave =
-                woort_dylib_load_func(lib, "woort_lib_leave");
 
-            if (leave != NULL)
-                leave();
-        }
+        if (should_free)
+            _woort_dylib_leave_callback(lib);
 
         woort_recursive_mutex_unlock(g_named_libs_mx);
     }

@@ -19,13 +19,13 @@
 #include "woort_env.h"
 #include "woort_path.h"
 #include "woort_vfs.h"
-#include "woort_dylib.h"
 #include "woort_serialize.h"
 #include "woort_util.h"
 #include "woort_vm_debugger_api.h"
 #include "woort_setting.h"
 #include "woort_platform.h"
 #include "woort_jit.h"
+#include "woort_woodyn.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,6 +69,12 @@ WOORT_NODISCARD uint64_t woort_version_int(void)
 #undef woort_init
 void woort_init(int argc, char** argv)
 {
+    if (!woort_woodyn_init())
+    {
+        WOORT_DEBUG("Failed to bootup dylib manager.");
+        abort();
+    }
+
     _woort_env_bootup();
     _woort_path_bootup();
     _woort_vfs_bootup();
@@ -125,12 +131,6 @@ void woort_init(int argc, char** argv)
         abort();
     }
 
-    if (!_woort_dylib_bootup())
-    {
-        WOORT_DEBUG("Failed to bootup dylib manager.");
-        abort();
-    }
-
     if (!_woort_builtin_bootup(argc, argv))
     {
         WOORT_DEBUG("Failed to bootup builtin functions.");
@@ -176,12 +176,12 @@ void woort_shutdown(woort_ShutdownPostCallback do_after_shutdown, void* custom_d
     if (do_after_shutdown != NULL)
         do_after_shutdown(custom_data);
 
-    _woort_dylib_shutdown();
     woort_CodeEnv_shutdown();
     _woort_path_shutdown();
     _woort_vfs_shutdown();
     _woort_env_shutdown();
     woort_JIT_shutdown();
+    woort_woodyn_shutdown();
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_IRCompiler* woort_IRCompiler_create(void)
