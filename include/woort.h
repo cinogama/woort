@@ -1,7 +1,7 @@
 #pragma once
 
 /** @brief Woort version encoded as (major, minor, patch, tweak). */
-#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 6, 17)
+#define WOORT_VERSION WOORT_VERSION_WRAP(1, 0, 7, 0)
 
 #ifndef WOORT_MSVC_RC_INCLUDE
 
