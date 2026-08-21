@@ -26,6 +26,7 @@
 #include "woort_setting.h"
 #include "woort_platform.h"
 #include "woort_jit.h"
+#include "woort_woodyn.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -176,6 +177,7 @@ void woort_shutdown(woort_ShutdownPostCallback do_after_shutdown, void* custom_d
     if (do_after_shutdown != NULL)
         do_after_shutdown(custom_data);
 
+    woort_woodyn_shutdown();
     _woort_dylib_shutdown();
     woort_CodeEnv_shutdown();
     _woort_path_shutdown();
