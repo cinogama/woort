@@ -30,6 +30,7 @@
 
 static /* OPTIONAL */ woort_Dylib* g_builtin_lib = NULL;
 static woort_AtomicUInt64          g_random_state;
+static woort_Mutex* g_stdout_sync_mx = NULL;
 
 static int    g_cmdlines_argc = 0;
 static char** g_cmdlines_argv = NULL;
@@ -53,7 +54,7 @@ static woort_api woort_builtin_panic(void)
     return woort_ret_panic("%s", woort_string(0));
 }
 
-static woort_api woort_builtin_print(void)
+static bool woort_builtin_print_impl(void)
 {
     const woort_Int argn = woort_int(0);
     for (woort_Int i = 1; i <= argn; ++i)
@@ -73,7 +74,7 @@ static woort_api woort_builtin_print(void)
                     (woort_StackValue)i,
                     WOORT_SERIALIZE_FLAG_NONE);
             if (str == NULL)
-                return woort_ret_panic("Out of memory.");
+                return false;
             else
             {
                 fputs(str, stdout);
@@ -81,6 +82,35 @@ static woort_api woort_builtin_print(void)
             }
         }
     }
+    return true;
+}
+
+static woort_api woort_builtin_print(void)
+{
+    woort_mutex_lock(g_stdout_sync_mx);
+
+    const bool print_result = woort_builtin_print_impl();
+    fflush(stdout);
+
+    woort_mutex_unlock(g_stdout_sync_mx);
+
+    if (!print_result)
+        return woort_ret_panic("Out of memory.");
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_println(void)
+{
+    woort_mutex_lock(g_stdout_sync_mx);
+
+    const bool print_result = woort_builtin_print_impl();
+    putchar('\n');
+    fflush(stdout);
+
+    woort_mutex_unlock(g_stdout_sync_mx);
+
+    if (!print_result)
+        return woort_ret_panic("Out of memory.");
     return woort_ret_void();
 }
 
@@ -3942,7 +3972,12 @@ bool _woort_builtin_bootup(int argc, char** argv)
     g_cmdlines_argc = argc;
     g_cmdlines_argv = argv;
 
+    if (!woort_mutex_create(&g_stdout_sync_mx))
+        return false;
+
     g_builtin_lib = woort_dylib_fake("woolang", g_woolang_funcs, NULL);
+    if (g_builtin_lib == NULL)
+        return false;
 
     /* Initialize random seed with event-based entropy */
     {
@@ -3959,16 +3994,16 @@ bool _woort_builtin_bootup(int argc, char** argv)
         woort_atomic_init(&g_random_state, seed);
     }
 
-    return g_builtin_lib != NULL;
+    return true;
 }
 
 void _woort_builtin_shutdown(void)
 {
-    if (g_builtin_lib != NULL)
-    {
-        woort_dylib_unload(g_builtin_lib, WOORT_DYLIB_UNREF_AND_BURY);
-        g_builtin_lib = NULL;
-    }
+    woort_dylib_unload(g_builtin_lib, WOORT_DYLIB_UNREF_AND_BURY);
+    g_builtin_lib = NULL;
+
+    woort_mutex_destroy(g_stdout_sync_mx);
+    g_stdout_sync_mx = NULL;
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_get_builtin_lib(void)
