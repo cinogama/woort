@@ -3631,7 +3631,7 @@ static woort_api woort_builtin_debug_runtime_version(void)
     return woort_ret();
 }
 
-static woort_api woort_builtin_debug_print(void)
+static bool woort_builtin_debug_print_impl(void)
 {
     const woort_Int argn = woort_int(0);
     for (woort_Int i = 1; i <= argn; ++i)
@@ -3651,7 +3651,7 @@ static woort_api woort_builtin_debug_print(void)
                     (woort_StackValue)i,
                     WOORT_SERIALIZE_FLAG_NONE);
             if (str == NULL)
-                return woort_ret_panic("Out of memory.");
+                return false;
             else
             {
                 fputs(str, stdout);
@@ -3659,6 +3659,35 @@ static woort_api woort_builtin_debug_print(void)
             }
         }
     }
+    return true;
+}
+
+static woort_api woort_builtin_debug_print(void)
+{
+    woort_mutex_lock(g_stdout_sync_mx);
+
+    const bool print_result = woort_builtin_debug_print_impl();
+    fflush(stdout);
+
+    woort_mutex_unlock(g_stdout_sync_mx);
+
+    if (!print_result)
+        return woort_ret_panic("Out of memory.");
+    return woort_ret_void();
+}
+
+static woort_api woort_builtin_debug_println(void)
+{
+    woort_mutex_lock(g_stdout_sync_mx);
+
+    const bool print_result = woort_builtin_debug_print_impl();
+    putchar('\n');
+    fflush(stdout);
+
+    woort_mutex_unlock(g_stdout_sync_mx);
+
+    if (!print_result)
+        return woort_ret_panic("Out of memory.");
     return woort_ret_void();
 }
 
@@ -3724,6 +3753,7 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
 
     WOORT_BUILTIN_FUNC(panic),
     WOORT_BUILTIN_FUNC(print),
+    WOORT_BUILTIN_FUNC(println),
     WOORT_BUILTIN_FUNC(input_read_i),
     WOORT_BUILTIN_FUNC(input_read_r),
     WOORT_BUILTIN_FUNC(input_read_s),
@@ -3960,6 +3990,7 @@ static const woort_ExternLibFunc g_woolang_funcs[] = {
     WOORT_BUILTIN_FUNC(debug_trace_callstack),
     WOORT_BUILTIN_FUNC(debug_runtime_version),
     WOORT_BUILTIN_FUNC(debug_print),
+    WOORT_BUILTIN_FUNC(debug_println),
 
     WOORT_BUILTIN_FUNC(repl_print_normal),
     WOORT_BUILTIN_FUNC(repl_print_debug),
