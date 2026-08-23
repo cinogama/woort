@@ -30,7 +30,6 @@
 
 static /* OPTIONAL */ woort_Dylib* g_builtin_lib = NULL;
 static woort_AtomicUInt64          g_random_state;
-static woort_Mutex* g_stdout_sync_mx = NULL;
 
 static int    g_cmdlines_argc = 0;
 static char** g_cmdlines_argv = NULL;
@@ -73,6 +72,7 @@ static bool woort_builtin_print_impl(void)
                 woort_serialize_dynbox(
                     (woort_StackValue)i,
                     WOORT_SERIALIZE_FLAG_NONE);
+
             if (str == NULL)
                 return false;
             else
@@ -87,12 +87,7 @@ static bool woort_builtin_print_impl(void)
 
 static woort_api woort_builtin_print(void)
 {
-    woort_mutex_lock(g_stdout_sync_mx);
-
     const bool print_result = woort_builtin_print_impl();
-    fflush(stdout);
-
-    woort_mutex_unlock(g_stdout_sync_mx);
 
     if (!print_result)
         return woort_ret_panic("Out of memory.");
@@ -101,13 +96,8 @@ static woort_api woort_builtin_print(void)
 
 static woort_api woort_builtin_println(void)
 {
-    woort_mutex_lock(g_stdout_sync_mx);
-
     const bool print_result = woort_builtin_print_impl();
     putchar('\n');
-    fflush(stdout);
-
-    woort_mutex_unlock(g_stdout_sync_mx);
 
     if (!print_result)
         return woort_ret_panic("Out of memory.");
@@ -3646,17 +3636,8 @@ static bool woort_builtin_debug_print_impl(void)
         }
         else
         {
-            char* const str =
-                woort_serialize_dynbox(
-                    (woort_StackValue)i,
-                    WOORT_SERIALIZE_FLAG_NONE);
-            if (str == NULL)
-                return false;
-            else
-            {
-                fputs(str, stdout);
-                free(str);
-            }
+            _woort_WAIPO_print_value(
+                woort_internal_value((woort_StackValue)i)->m_dynamic, false);
         }
     }
     return true;
@@ -3664,30 +3645,17 @@ static bool woort_builtin_debug_print_impl(void)
 
 static woort_api woort_builtin_debug_print(void)
 {
-    woort_mutex_lock(g_stdout_sync_mx);
-
-    const bool print_result = woort_builtin_debug_print_impl();
-    fflush(stdout);
-
-    woort_mutex_unlock(g_stdout_sync_mx);
-
-    if (!print_result)
+    if (!woort_builtin_debug_print_impl())
         return woort_ret_panic("Out of memory.");
     return woort_ret_void();
 }
 
 static woort_api woort_builtin_debug_println(void)
 {
-    woort_mutex_lock(g_stdout_sync_mx);
-
-    const bool print_result = woort_builtin_debug_print_impl();
-    putchar('\n');
-    fflush(stdout);
-
-    woort_mutex_unlock(g_stdout_sync_mx);
-
-    if (!print_result)
+    if (!woort_builtin_debug_print_impl())
         return woort_ret_panic("Out of memory.");
+
+    putchar('\n');
     return woort_ret_void();
 }
 
@@ -4003,9 +3971,6 @@ bool _woort_builtin_bootup(int argc, char** argv)
     g_cmdlines_argc = argc;
     g_cmdlines_argv = argv;
 
-    if (!woort_mutex_create(&g_stdout_sync_mx))
-        return false;
-
     g_builtin_lib = woort_dylib_fake("woolang", g_woolang_funcs, NULL);
     if (g_builtin_lib == NULL)
         return false;
@@ -4032,9 +3997,6 @@ void _woort_builtin_shutdown(void)
 {
     woort_dylib_unload(g_builtin_lib, WOORT_DYLIB_UNREF_AND_BURY);
     g_builtin_lib = NULL;
-
-    woort_mutex_destroy(g_stdout_sync_mx);
-    g_stdout_sync_mx = NULL;
 }
 
 WOORT_NODISCARD /* OPTIONAL */ woort_Dylib* woort_get_builtin_lib(void)
