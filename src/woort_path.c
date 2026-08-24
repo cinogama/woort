@@ -39,6 +39,23 @@ void _woort_path_shutdown(void)
     g_exe_path_cache = NULL;
 }
 
+/* Copy a result string into the caller's buffer following the shared
+   bounded-fill contract: when buf is NULL nothing is written (length query);
+   otherwise at most bufsz content bytes are written and the NUL terminator
+   is appended only if the result fits with room to spare. */
+static void _woort_path_fill_result(char* buf, size_t bufsz, const char* src, size_t len)
+{
+    assert(buf != NULL || bufsz == 0);
+
+    if (buf == NULL)
+        return;
+
+    const size_t copy = (len < bufsz) ? len : bufsz;
+    memcpy(buf, src, copy);
+    if (len < bufsz)
+        buf[len] = '\0';
+}
+
 WOORT_NODISCARD static bool _woort_path_build_exe_cache(void)
 {
     char* full_path = NULL;
@@ -146,13 +163,7 @@ WOORT_NODISCARD size_t woort_exe_path(char* buf, size_t bufsz)
     if (g_exe_path_cache != NULL)
     {
         const size_t len = strlen(g_exe_path_cache);
-        if (bufsz != 0)
-        {
-            assert(buf != NULL);
-            const size_t copy = (len < bufsz) ? len : bufsz - 1;
-            memcpy(buf, g_exe_path_cache, copy);
-            buf[copy] = '\0';
-        }
+        _woort_path_fill_result(buf, bufsz, g_exe_path_cache, len);
         woort_rwspinlock_read_unlock(&g_exe_path_lock);
         return len;
     }
@@ -173,13 +184,7 @@ WOORT_NODISCARD size_t woort_exe_path(char* buf, size_t bufsz)
 
     {
         const size_t len = strlen(g_exe_path_cache);
-        if (bufsz != 0)
-        {
-            assert(buf != NULL);
-            const size_t copy = (len < bufsz) ? len : bufsz - 1;
-            memcpy(buf, g_exe_path_cache, copy);
-            buf[copy] = '\0';
-        }
+        _woort_path_fill_result(buf, bufsz, g_exe_path_cache, len);
         woort_rwspinlock_read_unlock(&g_exe_path_lock);
         return len;
     }
@@ -202,14 +207,7 @@ WOORT_NODISCARD size_t woort_work_path(char* buf, size_t bufsz)
 
         woort_normalize_path(u8);
 
-        if (bufsz != 0)
-        {
-            assert(buf != NULL);
-
-            size_t copy = (u8len < bufsz) ? u8len : bufsz - 1;
-            memcpy(buf, u8, copy);
-            buf[copy] = '\0';
-        }
+        _woort_path_fill_result(buf, bufsz, u8, u8len);
         free(u8);
         return u8len;
     }
@@ -220,16 +218,9 @@ WOORT_NODISCARD size_t woort_work_path(char* buf, size_t bufsz)
             return 0;
 
         woort_normalize_path(tmp);
-        size_t len = strlen(tmp);
+        const size_t len = strlen(tmp);
 
-        if (bufsz != 0)
-        {
-            assert(buf != NULL);
-
-            size_t copy = (len < bufsz) ? len : bufsz - 1;
-            memcpy(buf, tmp, copy);
-            buf[copy] = '\0';
-        }
+        _woort_path_fill_result(buf, bufsz, tmp, len);
         return len;
     }
 #else
@@ -265,9 +256,11 @@ WOORT_NODISCARD bool woort_set_work_path(const char* path)
 WOORT_NODISCARD size_t woort_get_file_loc(
     const char* path, char* buf, size_t bufsz)
 {
+    assert(buf != NULL || bufsz == 0);
+
     if (path == NULL)
     {
-        if (bufsz != 0)
+        if (buf != NULL && bufsz != 0)
             buf[0] = '\0';
         return 0;
     }
@@ -283,15 +276,26 @@ WOORT_NODISCARD size_t woort_get_file_loc(
 #endif
     const size_t result_len = (last != NULL) ? (size_t)(last - path) : 0;
 
-    if (bufsz != 0)
+    if (buf != NULL)
     {
-        assert(buf != NULL);
-
-        const size_t copy = (result_len < bufsz) ? result_len : bufsz - 1;
+        const size_t copy = (result_len < bufsz) ? result_len : bufsz;
         if (buf != path)
             memcpy(buf, path, copy);
-        buf[copy] = '\0';
-        woort_normalize_path(buf);
+
+        /* Normalize only the written prefix: a truncated result is not
+           NUL-terminated, so woort_normalize_path() cannot scan it safely. */
+#if defined(WOORT_PLATFORM_OS_WINDOWS)
+        for (size_t i = 0; i < copy; ++i)
+        {
+            if (buf[i] == '\\')
+                buf[i] = '/';
+        }
+        if (copy >= 2 && buf[1] == ':' && buf[0] >= 'a' && buf[0] <= 'z')
+            buf[0] = (char)(buf[0] - 'a' + 'A');
+#endif
+
+        if (result_len < bufsz)
+            buf[result_len] = '\0';
     }
 
     return result_len;

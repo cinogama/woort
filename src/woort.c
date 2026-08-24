@@ -2429,6 +2429,8 @@ WOORT_NODISCARD size_t woort_str_to_u16str(const char* str, /* OPTIONAL */ char1
 
 WOORT_NODISCARD size_t woort_strn_to_u16str(const char* str, size_t size, /* OPTIONAL */ char16_t* outbuf, size_t buflen)
 {
+    assert(outbuf != NULL || buflen == 0);
+
     size_t count = 0;
     const char* p = str;
     size_t remaining = size;
@@ -2439,7 +2441,7 @@ WOORT_NODISCARD size_t woort_strn_to_u16str(const char* str, size_t size, /* OPT
         size_t u16len = 0;
         const size_t u8forward = woort_u8combineu16(p, remaining, u16buf, &u16len);
 
-        if (buflen != 0 && count + u16len <= buflen)
+        if (outbuf != NULL && count + u16len <= buflen)
         {
             for (size_t i = 0; i < u16len; ++i)
                 outbuf[count + i] = u16buf[i];
@@ -2450,7 +2452,7 @@ WOORT_NODISCARD size_t woort_strn_to_u16str(const char* str, size_t size, /* OPT
         remaining -= u8forward;
     }
 
-    if (buflen != 0 && count < buflen)
+    if (outbuf != NULL && count < buflen)
         outbuf[count] = 0;
 
     return count;
@@ -2463,6 +2465,8 @@ WOORT_NODISCARD size_t woort_u16str_to_str(const char16_t* str, /* OPTIONAL */ c
 
 WOORT_NODISCARD size_t woort_u16strn_to_str(const char16_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen)
 {
+    assert(outbuf != NULL || buflen == 0);
+
     size_t count = 0;
     const char16_t* p = str;
     size_t remaining = size;
@@ -2473,7 +2477,7 @@ WOORT_NODISCARD size_t woort_u16strn_to_str(const char16_t* str, size_t size, /*
         size_t u8len = 0;
         const size_t u16forward = woort_u16exractu8(p, remaining, u8buf, &u8len);
 
-        if (buflen != 0 && count + u8len <= buflen)
+        if (outbuf != NULL && count + u8len <= buflen)
         {
             for (size_t i = 0; i < u8len; ++i)
                 outbuf[count + i] = u8buf[i];
@@ -2484,7 +2488,7 @@ WOORT_NODISCARD size_t woort_u16strn_to_str(const char16_t* str, size_t size, /*
         remaining -= u16forward;
     }
 
-    if (buflen != 0 && count < buflen)
+    if (outbuf != NULL && count < buflen)
         outbuf[count] = 0;
 
     return count;
@@ -2497,6 +2501,8 @@ WOORT_NODISCARD size_t woort_str_to_u32str(const char* str, /* OPTIONAL */ char3
 
 WOORT_NODISCARD size_t woort_strn_to_u32str(const char* str, size_t size, /* OPTIONAL */ char32_t* outbuf, size_t buflen)
 {
+    assert(outbuf != NULL || buflen == 0);
+
     size_t count = 0;
     const char* p = str;
     size_t remaining = size;
@@ -2506,7 +2512,7 @@ WOORT_NODISCARD size_t woort_strn_to_u32str(const char* str, size_t size, /* OPT
         char32_t c32;
         const size_t u8forward = woort_u8combineu32(p, remaining, &c32);
 
-        if (buflen != 0 && count < buflen)
+        if (outbuf != NULL && count < buflen)
             outbuf[count] = c32;
 
         ++count;
@@ -2514,7 +2520,7 @@ WOORT_NODISCARD size_t woort_strn_to_u32str(const char* str, size_t size, /* OPT
         remaining -= u8forward;
     }
 
-    if (buflen != 0 && count < buflen)
+    if (outbuf != NULL && count < buflen)
         outbuf[count] = 0;
 
     return count;
@@ -2529,6 +2535,8 @@ WOORT_NODISCARD size_t woort_u32str_to_str(
 WOORT_NODISCARD size_t woort_u32strn_to_str(
     const char32_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen)
 {
+    assert(outbuf != NULL || buflen == 0);
+
     size_t count = 0;
     const char32_t* p = str;
     size_t remaining = size;
@@ -2539,7 +2547,7 @@ WOORT_NODISCARD size_t woort_u32strn_to_str(
         size_t u8len = 0;
         woort_u32exractu8(*p, u8buf, &u8len);
 
-        if (buflen != 0 && count + u8len <= buflen)
+        if (outbuf != NULL && count + u8len <= buflen)
         {
             for (size_t i = 0; i < u8len; ++i)
                 outbuf[count + i] = u8buf[i];
@@ -2550,7 +2558,7 @@ WOORT_NODISCARD size_t woort_u32strn_to_str(
         --remaining;
     }
 
-    if (buflen != 0 && count < buflen)
+    if (outbuf != NULL && count < buflen)
         outbuf[count] = 0;
 
     return count;

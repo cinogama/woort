@@ -4298,14 +4298,16 @@ WOORT_API void woort_struct_set_bool(
  /**
    * @brief Get the directory containing the executable.
    *
-   * The result is cached after the first call. Fills @p buf following
-   * snprintf semantics:
+   * The result is cached after the first call. Fills @p buf following the
+   * bounded-fill contract (shared by every string-buffer API in this header):
    *  - Returns the path length EXCLUDING the NUL terminator.
-   *  - Success iff the returned value is less than @p bufsz.
-   *  - If @p bufsz is 0, @p buf may be NULL; nothing is written and only the
-   *    required length is returned.
-   *  - If @p bufsz is too small, the output is truncated (still NUL-terminated)
-   *    and the full required length is returned.
+   *  - If @p buf is NULL, nothing is written; @p bufsz must be 0 and only
+   *    the required length is returned.
+   *  - Otherwise at most @p bufsz bytes of the result are written. The NUL
+   *    terminator is appended iff @p bufsz is greater than the returned
+   *    length, so truncated output is NOT NUL-terminated.
+   *  - The output is complete and NUL-terminated iff the returned value is
+   *    less than @p bufsz.
    *  - Returns 0 on failure (unsupported platform or OS error).
    *
    * Typical usage:
@@ -4333,13 +4335,16 @@ WOORT_NODISCARD WOORT_API bool woort_set_exe_path(const char* path);
 /**
  * @brief Get the current working directory.
  *
- * Fills @p buf following snprintf semantics:
+ * Fills @p buf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
  *  - Returns the path length EXCLUDING the NUL terminator.
- *  - Success iff the returned value is less than @p bufsz.
- *  - If @p bufsz is 0, @p buf may be NULL; nothing is written and only the
- *    required length is returned.
- *  - If @p bufsz is too small, the output is truncated (still NUL-terminated)
- *    and the full required length is returned.
+ *  - If @p buf is NULL, nothing is written; @p bufsz must be 0 and only
+ *    the required length is returned.
+ *  - Otherwise at most @p bufsz bytes of the result are written. The NUL
+ *    terminator is appended iff @p bufsz is greater than the returned
+ *    length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p bufsz.
  *  - Returns 0 on failure (unsupported platform or OS error).
  *
  * Typical usage:
@@ -4364,13 +4369,16 @@ WOORT_NODISCARD WOORT_API bool woort_set_work_path(const char* path);
  * @brief Get the directory part of a file path.
  *
  * Fills @p buf with everything before the last directory separator
- * (after normalization), following snprintf semantics:
+ * (after normalization), following the bounded-fill contract (shared by
+ * every string-buffer API in this header):
  *  - Returns the directory length EXCLUDING the NUL terminator.
- *  - Success iff the returned value is less than @p bufsz.
- *  - If @p bufsz is 0, @p buf may be NULL; nothing is written and only the
- *    required length is returned.
- *  - If @p bufsz is too small, the output is truncated (still NUL-terminated)
- *    and the full required length is returned.
+ *  - If @p buf is NULL, nothing is written; @p bufsz must be 0 and only
+ *    the required length is returned.
+ *  - Otherwise at most @p bufsz bytes of the result are written. The NUL
+ *    terminator is appended iff @p bufsz is greater than the returned
+ *    length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p bufsz.
  *  - Returns 0 if @p path is NULL or contains no directory separator.
  *
  * @par Guarantee
@@ -4382,8 +4390,8 @@ WOORT_NODISCARD WOORT_API bool woort_set_work_path(const char* path);
  *  @endcode
  *
  * @param path  The file path to extract the directory from. May be NULL.
- * @param buf   Destination buffer. May be NULL iff @p bufsz is 0. May alias
- *              @p path for in-place operation.
+ * @param buf   Destination buffer. May be NULL (with @p bufsz 0) to query
+ *              the required length. May alias @p path for in-place operation.
  * @param bufsz Capacity of @p buf in bytes.
  * @return Directory length excluding NUL (always < @c strlen(path) for
  *         non-empty @p path); 0 for NULL @p path.
@@ -4831,126 +4839,318 @@ WOORT_NODISCARD WOORT_API bool woort_strn_get_char(
 
 /**
  * @brief Convert a UTF-8 string to a wide-character string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of wchar_t units in the conversion result,
+ *    EXCLUDING the NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen wchar_t units of the result are written.
+ *    The NUL terminator is appended iff @p buflen is greater than the
+ *    returned length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen. Truncation happens at code-point boundaries,
+ *    so possibly fewer than @p buflen units are written.
+ *
  * @param str    The UTF-8 input string.
- * @param outbuf Output buffer for the wide-character result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in wchar_t units (including space for null terminator).
- * @return The number of wchar_t units in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the wide-character result. May be NULL
+ *               (with @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in wchar_t units.
+ * @return The number of wchar_t units in the conversion result (excluding
+ *         NUL terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_str_to_wstr(
     const char* str, /* OPTIONAL */ wchar_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-8 string (with explicit length) to a wide-character string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of wchar_t units in the conversion result,
+ *    EXCLUDING the NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen wchar_t units of the result are written.
+ *    The NUL terminator is appended iff @p buflen is greater than the
+ *    returned length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen. Truncation happens at code-point boundaries,
+ *    so possibly fewer than @p buflen units are written.
+ *
  * @param str    The UTF-8 input string.
  * @param size   Length of the string in bytes.
- * @param outbuf Output buffer for the wide-character result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in wchar_t units (including space for null terminator).
- * @return The number of wchar_t units in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the wide-character result. May be NULL
+ *               (with @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in wchar_t units.
+ * @return The number of wchar_t units in the conversion result (excluding
+ *         NUL terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_strn_to_wstr(
     const char* str, size_t size, /* OPTIONAL */ wchar_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a wide-character string to a UTF-8 string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of bytes in the conversion result, EXCLUDING the
+ *    NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen bytes of the result are written. The NUL
+ *    terminator is appended iff @p buflen is greater than the returned
+ *    length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen. Truncation happens at code-point boundaries,
+ *    so possibly fewer than @p buflen bytes are written.
+ *
  * @param str    The wide-character input string.
- * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in bytes (including space for null terminator).
- * @return The number of bytes in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL (with
+ *               @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in bytes.
+ * @return The number of bytes in the conversion result (excluding NUL
+ *         terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_wstr_to_str(
     const wchar_t* str, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /**
  * @brief Convert a wide-character string (with explicit length) to a UTF-8 string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of bytes in the conversion result, EXCLUDING the
+ *    NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen bytes of the result are written. The NUL
+ *    terminator is appended iff @p buflen is greater than the returned
+ *    length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen. Truncation happens at code-point boundaries,
+ *    so possibly fewer than @p buflen bytes are written.
+ *
  * @param str    The wide-character input string.
  * @param size   Length of the string in wide characters.
- * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in bytes (including space for null terminator).
- * @return The number of bytes in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL (with
+ *               @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in bytes.
+ * @return The number of bytes in the conversion result (excluding NUL
+ *         terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_wstrn_to_str(
     const wchar_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-8 string to a UTF-16 string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of char16_t units in the conversion result,
+ *    EXCLUDING the NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen char16_t units of the result are written.
+ *    The NUL terminator is appended iff @p buflen is greater than the
+ *    returned length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen. Truncation happens at code-point boundaries
+ *    (surrogate pairs are never split), so possibly fewer than @p buflen
+ *    units are written.
+ *
  * @param str    The UTF-8 input string.
- * @param outbuf Output buffer for the UTF-16 result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in char16_t units (including space for null terminator).
- * @return The number of char16_t units in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the UTF-16 result. May be NULL (with
+ *               @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in char16_t units.
+ * @return The number of char16_t units in the conversion result (excluding
+ *         NUL terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_str_to_u16str(
     const char* str, /* OPTIONAL */ char16_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-8 string (with explicit length) to a UTF-16 string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of char16_t units in the conversion result,
+ *    EXCLUDING the NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen char16_t units of the result are written.
+ *    The NUL terminator is appended iff @p buflen is greater than the
+ *    returned length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen. Truncation happens at code-point boundaries
+ *    (surrogate pairs are never split), so possibly fewer than @p buflen
+ *    units are written.
+ *
  * @param str    The UTF-8 input string.
  * @param size   Length of the string in bytes.
- * @param outbuf Output buffer for the UTF-16 result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in char16_t units (including space for null terminator).
- * @return The number of char16_t units in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the UTF-16 result. May be NULL (with
+ *               @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in char16_t units.
+ * @return The number of char16_t units in the conversion result (excluding
+ *         NUL terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_strn_to_u16str(
     const char* str, size_t size, /* OPTIONAL */ char16_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-16 string to a UTF-8 string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of bytes in the conversion result, EXCLUDING the
+ *    NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen bytes of the result are written. The NUL
+ *    terminator is appended iff @p buflen is greater than the returned
+ *    length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen. Truncation happens at code-point boundaries,
+ *    so possibly fewer than @p buflen bytes are written.
+ *
  * @param str    The UTF-16 input string.
- * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in bytes (including space for null terminator).
- * @return The number of bytes in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL (with
+ *               @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in bytes.
+ * @return The number of bytes in the conversion result (excluding NUL
+ *         terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_u16str_to_str(
     const char16_t* str, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-16 string (with explicit length) to a UTF-8 string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of bytes in the conversion result, EXCLUDING the
+ *    NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen bytes of the result are written. The NUL
+ *    terminator is appended iff @p buflen is greater than the returned
+ *    length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen. Truncation happens at code-point boundaries,
+ *    so possibly fewer than @p buflen bytes are written.
+ *
  * @param str    The UTF-16 input string.
  * @param size   Length of the string in UTF-16 code units.
- * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in bytes (including space for null terminator).
- * @return The number of bytes in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL (with
+ *               @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in bytes.
+ * @return The number of bytes in the conversion result (excluding NUL
+ *         terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_u16strn_to_str(
     const char16_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-8 string to a UTF-32 string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of char32_t units in the conversion result,
+ *    EXCLUDING the NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen char32_t units of the result are written.
+ *    The NUL terminator is appended iff @p buflen is greater than the
+ *    returned length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen.
+ *
  * @param str    The UTF-8 input string.
- * @param outbuf Output buffer for the UTF-32 result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in char32_t units (including space for null terminator).
- * @return The number of char32_t units in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the UTF-32 result. May be NULL (with
+ *               @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in char32_t units.
+ * @return The number of char32_t units in the conversion result (excluding
+ *         NUL terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_str_to_u32str(
     const char* str, /* OPTIONAL */ char32_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-8 string (with explicit length) to a UTF-32 string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of char32_t units in the conversion result,
+ *    EXCLUDING the NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen char32_t units of the result are written.
+ *    The NUL terminator is appended iff @p buflen is greater than the
+ *    returned length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen.
+ *
  * @param str    The UTF-8 input string.
  * @param size   Length of the string in bytes.
- * @param outbuf Output buffer for the UTF-32 result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in char32_t units (including space for null terminator).
- * @return The number of char32_t units in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the UTF-32 result. May be NULL (with
+ *               @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in char32_t units.
+ * @return The number of char32_t units in the conversion result (excluding
+ *         NUL terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_strn_to_u32str(
     const char* str, size_t size, /* OPTIONAL */ char32_t* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-32 string to a UTF-8 string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of bytes in the conversion result, EXCLUDING the
+ *    NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen bytes of the result are written. The NUL
+ *    terminator is appended iff @p buflen is greater than the returned
+ *    length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen. Truncation happens at code-point boundaries,
+ *    so possibly fewer than @p buflen bytes are written.
+ *
  * @param str    The UTF-32 input string.
- * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in bytes (including space for null terminator).
- * @return The number of bytes in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL (with
+ *               @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in bytes.
+ * @return The number of bytes in the conversion result (excluding NUL
+ *         terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_u32str_to_str(
     const char32_t* str, /* OPTIONAL */ char* outbuf, size_t buflen);
 
 /**
  * @brief Convert a UTF-32 string (with explicit length) to a UTF-8 string.
+ *
+ * Fills @p outbuf following the bounded-fill contract (shared by every
+ * string-buffer API in this header):
+ *  - Returns the number of bytes in the conversion result, EXCLUDING the
+ *    NUL terminator.
+ *  - If @p outbuf is NULL, nothing is written; @p buflen must be 0 and
+ *    only the required length is returned.
+ *  - Otherwise at most @p buflen bytes of the result are written. The NUL
+ *    terminator is appended iff @p buflen is greater than the returned
+ *    length, so truncated output is NOT NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p buflen. Truncation happens at code-point boundaries,
+ *    so possibly fewer than @p buflen bytes are written.
+ *
  * @param str    The UTF-32 input string.
  * @param size   Length of the string in UTF-32 code units.
- * @param outbuf Output buffer for the UTF-8 result. May be NULL if buflen is 0.
- * @param buflen Size of outbuf in bytes (including space for null terminator).
- * @return The number of bytes in the conversion result (excluding null terminator).
+ * @param outbuf Output buffer for the UTF-8 result. May be NULL (with
+ *               @p buflen 0) to query the required length.
+ * @param buflen Capacity of @p outbuf in bytes.
+ * @return The number of bytes in the conversion result (excluding NUL
+ *         terminator).
  */
 WOORT_NODISCARD WOORT_API size_t woort_u32strn_to_str(
     const char32_t* str, size_t size, /* OPTIONAL */ char* outbuf, size_t buflen);
