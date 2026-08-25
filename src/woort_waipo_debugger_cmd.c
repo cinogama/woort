@@ -1069,25 +1069,25 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
             target = cenv->m_data_begin[WOORT_BYTECODE(ABC24, bc)].m_closure;
         }
 
-        woort_GCClosure* const invoked_closure_instance =
-            woort_mem_validate_addr_head(target->m_native_function);
-
-        /*
-        The minimum unit of memory allocation in Woomem is 8 bytes. We need to
-        verify the type of the unit here, and the type information happens to
-        fall within the first eight bytes; therefore, reading the first 8 bytes
-        of the unit is safe.
-        */
-
-        _Static_assert(
-            offsetof(woort_GCClosure, m_gc_unit)
-            + sizeof(invoked_closure_instance->m_gc_unit) <= 8,
-            "woort_GCUnit is too large/far to safely verify its type.");
+        // Assure invoking closure is valid.
+        const woort_GCClosure* const invoked_closure_instance =
+            woort_mem_validate_addr_head(target);
 
         if (invoked_closure_instance != NULL
             && invoked_closure_instance == target
             && invoked_closure_instance->m_gc_unit.m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
         {
+            /*
+            The minimum unit of memory allocation in Woomem is 8 bytes. We need to
+            verify the type of the unit here, and the type information happens to
+            fall within the first eight bytes; therefore, reading the first 8 bytes
+            of the unit is safe.
+            */
+            _Static_assert(
+                offsetof(woort_GCClosure, m_gc_unit)
+                + sizeof(invoked_closure_instance->m_gc_unit) <= 8,
+                "woort_GCUnit is too large/far to safely verify its type.");
+
             if (invoked_closure_instance->m_script_function != NULL)
                 *out_next_ip = invoked_closure_instance->m_script_function;
             else
