@@ -549,14 +549,14 @@ void woort_GC_foreach_root_vm(
     ctx.m_callback = callback;
     ctx.m_user_data = user_data;
 
-    woort_rwspinlock_write_lock(&g_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_read_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
             &g_gc_context.m_root_vms_to_mark,
             &_woort_GC_foreach_root_vm_callback_adapter,
             &ctx);
     }
-    woort_rwspinlock_write_unlock(&g_gc_context.m_root_vms_to_mark_mx);
+    woort_rwspinlock_read_unlock(&g_gc_context.m_root_vms_to_mark_mx);
 }
 
 void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)

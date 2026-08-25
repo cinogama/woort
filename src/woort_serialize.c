@@ -588,11 +588,14 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
 
         size_t gcstr_length;
 
-        if (!_woort_check_size_in_capacity_with_overflow_check(
-            _woort_validate_mem_ptr_and_get_capacity((void*)gcstr, _Alignof(woort_GCString)),
-            sizeof(woort_GCString),
-            (gcstr_length = gcstr->m_length),
-            sizeof(char)))
+        const size_t gcstr_capacity = _woort_validate_mem_ptr_and_get_capacity(
+            (void*)gcstr, _Alignof(woort_GCString));
+        if (gcstr_capacity < sizeof(woort_GCString)
+            || !_woort_check_size_in_capacity_with_overflow_check(
+                gcstr_capacity,
+                sizeof(woort_GCString),
+                (gcstr_length = gcstr->m_length),
+                sizeof(char)))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }
@@ -744,16 +747,17 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     {
         const woort_GCStruct* const gcstruct = val.m_struct;
 
+        size_t gcstruct_length;
         const size_t gcstruct_capacity =
             _woort_validate_mem_ptr_and_get_capacity(
                 (void*)gcstruct, _Alignof(woort_GCStruct));
 
-        size_t gcstruct_length;
-        if (!_woort_check_size_in_capacity_with_overflow_check(
-            gcstruct_capacity,
-            sizeof(woort_GCStruct),
-            (gcstruct_length = gcstruct->m_size),
-            sizeof(woort_Value)))
+        if (gcstruct_capacity < sizeof(woort_GCStruct)
+            || !_woort_check_size_in_capacity_with_overflow_check(
+                gcstruct_capacity,
+                sizeof(woort_GCStruct),
+                (gcstruct_length = gcstruct->m_size),
+                sizeof(woort_Value)))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }
@@ -815,11 +819,14 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     {
         const woort_GCClosure* const gcclosure = val.m_closure;
 
-        if (!_woort_check_size_in_capacity_with_overflow_check(
-            _woort_validate_mem_ptr_and_get_capacity((void*)gcclosure, _Alignof(woort_GCClosure)),
-            sizeof(woort_GCClosure),
-            gcclosure->m_size,
-            sizeof(woort_Value)))
+        const size_t gcclosure_capacity = _woort_validate_mem_ptr_and_get_capacity(
+            (void*)gcclosure, _Alignof(woort_GCClosure));
+        if (gcclosure_capacity < sizeof(woort_GCClosure)
+            || !_woort_check_size_in_capacity_with_overflow_check(
+                gcclosure_capacity,
+                sizeof(woort_GCClosure),
+                gcclosure->m_size,
+                sizeof(woort_Value)))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }

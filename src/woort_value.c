@@ -873,9 +873,13 @@ WOORT_NODISCARD bool woort_DynBox_debug_check_is_valid(
 
             if (p->m_proxy == &WOORT_EX_BOX_PROXY)
             {
-                // Recheck for ex box value to make sure safe to read.
+                /* Recheck for ex box value to make sure safe to read. */
+                /* 
+                TODO: Check ex value here is very ugly, consider move this function into the
+                    _woort_serialize_dynbox_to_buf_for_debug?
+                */
                 if ((intptr_t)p % _Alignof(woort_BoxedExValue) != 0
-                    || woort_mem_get_capacity_of_addr_head(p) > sizeof(woort_BoxedExValue))
+                    || woort_mem_get_capacity_of_addr_head(p) < sizeof(woort_BoxedExValue))
                     return false;
             }
         }
