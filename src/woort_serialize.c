@@ -512,11 +512,16 @@ WOORT_NODISCARD static size_t _woort_validate_mem_ptr_and_get_capacity(
         - (size_t)((char*)addr - (char*)data_head);
 }
 
-WOORT_NODISCARD static bool _woort_validate_mem_ptr_is_expected_size(
-    void* addr, size_t expected_size_in_byte, size_t expected_align_in_byte)
+WOORT_NODISCARD static bool _woort_check_size_in_capacity_with_overflow_check(
+    size_t capacity, size_t base_size, size_t count, size_t elem_size)
 {
-    const size_t capacity = _woort_validate_mem_ptr_and_get_capacity(addr, expected_align_in_byte);
-    return capacity != 0 && expected_size_in_byte <= capacity;
+    if (capacity < base_size
+        || (elem_size != 0 && SIZE_MAX / elem_size < count)
+        || (SIZE_MAX - base_size < count * elem_size)
+        || capacity < base_size + count * elem_size)
+        return false;
+
+    return true;
 }
 
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
@@ -581,14 +586,13 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     {
         const woort_GCString* const gcstr = val.m_string;
 
-        const size_t gcstr_unit_capacity =
-            _woort_validate_mem_ptr_and_get_capacity(
-                (void*)gcstr, _Alignof(woort_GCString));
-
         size_t gcstr_length;
 
-        if (gcstr_unit_capacity < sizeof(woort_GCString) ||
-            gcstr_unit_capacity < sizeof(woort_GCString) + (gcstr_length = gcstr->m_length))
+        if (!_woort_check_size_in_capacity_with_overflow_check(
+            _woort_validate_mem_ptr_and_get_capacity((void*)gcstr, _Alignof(woort_GCString)),
+            sizeof(woort_GCString),
+            (gcstr_length = gcstr->m_length),
+            sizeof(char)))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }
@@ -614,13 +618,16 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     {
         const woort_GCVec* const gcvec = val.m_vec;
 
-        if (sizeof(woort_GCVec) > _woort_validate_mem_ptr_and_get_capacity(
-            (void*)gcvec, _Alignof(woort_GCVec)))
+        if (!_woort_check_size_in_capacity_with_overflow_check(
+            _woort_validate_mem_ptr_and_get_capacity((void*)gcvec, _Alignof(woort_GCVec)),
+            sizeof(woort_GCVec),
+            0,
+            0))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }
 
-        size_t gcvec_length = gcvec->m_length;
+        const size_t gcvec_length = gcvec->m_length;
 
         if (gcvec_length == 0)
             return _woort_serialize_append_str(buf, "[]");
@@ -637,8 +644,11 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         }
 
         woort_DynBox* const gcvec_datas = gcvec->m_datas;
-        if (!_woort_validate_mem_ptr_is_expected_size(
-            gcvec_datas, sizeof(woort_DynBox) * gcvec_length, _Alignof(woort_DynBox)))
+        if (!_woort_check_size_in_capacity_with_overflow_check(
+            _woort_validate_mem_ptr_and_get_capacity(gcvec_datas, _Alignof(woort_DynBox)),
+            0,
+            gcvec_length,
+            sizeof(woort_DynBox)))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }
@@ -668,13 +678,16 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     {
         const woort_GCMap* const gcmap = val.m_map;
 
-        if (sizeof(woort_GCMap) > _woort_validate_mem_ptr_and_get_capacity(
-            (void*)gcmap, _Alignof(woort_GCMap)))
+        if (!_woort_check_size_in_capacity_with_overflow_check(
+            _woort_validate_mem_ptr_and_get_capacity((void*)gcmap, _Alignof(woort_GCMap)),
+            sizeof(woort_GCMap),
+            0,
+            0))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }
 
-        size_t gcmap_size = gcmap->m_size;
+        const size_t gcmap_size = gcmap->m_size;
 
         if (gcmap_size == 0)
             return _woort_serialize_append_str(buf, "{}");
@@ -691,8 +704,11 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         }
 
         woort_GCMap_Bucket* const gcmap_buckets = gcmap->m_buckets;
-        if (!_woort_validate_mem_ptr_is_expected_size(
-            gcmap_buckets, sizeof(woort_GCMap_Bucket) * gcmap_size, _Alignof(woort_GCMap_Bucket)))
+        if (!_woort_check_size_in_capacity_with_overflow_check(
+            _woort_validate_mem_ptr_and_get_capacity(gcmap_buckets, _Alignof(woort_GCMap_Bucket)),
+            0,
+            gcmap_size,
+            sizeof(woort_GCMap_Bucket)))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }
@@ -733,9 +749,11 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
                 (void*)gcstruct, _Alignof(woort_GCStruct));
 
         size_t gcstruct_length;
-        if (gcstruct_capacity < sizeof(woort_GCStruct)
-            || gcstruct_capacity < sizeof(woort_GCStruct) + sizeof(woort_Value) * (
-                gcstruct_length = gcstruct->m_size))
+        if (!_woort_check_size_in_capacity_with_overflow_check(
+            gcstruct_capacity,
+            sizeof(woort_GCStruct),
+            (gcstruct_length = gcstruct->m_size),
+            sizeof(woort_Value)))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }
@@ -757,7 +775,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
 
         if (!_woort_serialize_append_char(buf, '('))
             return false;
-        for (size_t i = 0; i < gcstruct->m_size; ++i)
+        for (size_t i = 0; i < gcstruct_length; ++i)
         {
             if (i > 0)
             {
@@ -780,8 +798,11 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     {
         const woort_GCHandle* const gchandle = val.m_gchandle;
 
-        if (sizeof(woort_GCHandle) > _woort_validate_mem_ptr_and_get_capacity(
-            (void*)gchandle, _Alignof(woort_GCHandle)))
+        if (!_woort_check_size_in_capacity_with_overflow_check(
+            _woort_validate_mem_ptr_and_get_capacity((void*)gchandle, _Alignof(woort_GCHandle)),
+            sizeof(woort_GCHandle),
+            0,
+            0))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }
@@ -794,12 +815,11 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     {
         const woort_GCClosure* const gcclosure = val.m_closure;
 
-        const size_t gcclosure_capacity =
-            _woort_validate_mem_ptr_and_get_capacity(
-                (void*)gcclosure, _Alignof(woort_GCClosure));
-
-        if (gcclosure_capacity < sizeof(woort_GCClosure)
-            || gcclosure_capacity < sizeof(woort_GCClosure) + sizeof(woort_Value) * gcclosure->m_size)
+        if (!_woort_check_size_in_capacity_with_overflow_check(
+            _woort_validate_mem_ptr_and_get_capacity((void*)gcclosure, _Alignof(woort_GCClosure)),
+            sizeof(woort_GCClosure),
+            gcclosure->m_size,
+            sizeof(woort_Value)))
         {
             return _woort_serialize_append_str(buf, "<bad>");
         }
