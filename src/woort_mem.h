@@ -56,6 +56,7 @@ void* woort_mem_reallocate(void* ptr, size_t size);
 
 void* woort_mem_validate_addr(void* ptr_may_invalid);
 void* woort_mem_validate_addr_head(void* ptr_may_invalid);
+size_t woort_mem_get_capacity_of_addr_head(void* ptr);
 
 void woort_mem_mark_unit_head(void* ptr_head_may_null);
 void woort_mem_mark_fuzzy_unit(void* ptr_may_invalid_or_null);

@@ -146,8 +146,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
 
     case WOORT_BOX_VALUE_TYPE_STRING:
     {
-        const woort_GCString* const str =
-            (const woort_GCString*)temp_val.m_gcinstance;
+        const woort_GCString* const str = temp_val.m_string;
         char* const escaped = woort_u8enstring(
             str->m_content, str->m_length, true);
         if (escaped == NULL)
@@ -160,8 +159,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
 
     case WOORT_BOX_VALUE_TYPE_VEC:
     {
-        const woort_GCVec* const vec =
-            (const woort_GCVec*)temp_val.m_gcinstance;
+        const woort_GCVec* const vec = temp_val.m_vec;
 
         if (vec->m_length == 0)
             return _woort_serialize_append_str(buf, "[]");
@@ -217,8 +215,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf(
 
     case WOORT_BOX_VALUE_TYPE_MAP:
     {
-        const woort_GCMap* const gcmap =
-            (const woort_GCMap*)temp_val.m_gcinstance;
+        const woort_GCMap* const gcmap = temp_val.m_map;
 
         if (gcmap->m_size == 0)
             return _woort_serialize_append_str(buf, "{}");
@@ -501,6 +498,27 @@ WOORT_NODISCARD static bool _woort_serialize_fuzzy_scalar(
     }
 }
 
+WOORT_NODISCARD static size_t _woort_validate_mem_ptr_and_get_capacity(
+    void* addr, size_t expected_align_in_byte)
+{
+    void* const data_head = woort_mem_validate_addr(addr);
+
+    if (data_head == NULL
+        || (intptr_t)addr < (intptr_t)data_head
+        || (intptr_t)addr % expected_align_in_byte != 0)
+        return 0;
+
+    return woort_mem_get_capacity_of_addr_head(data_head)
+        - (size_t)((char*)addr - (char*)data_head);
+}
+
+WOORT_NODISCARD static bool _woort_validate_mem_ptr_is_expected_size(
+    void* addr, size_t expected_size_in_byte, size_t expected_align_in_byte)
+{
+    const size_t capacity = _woort_validate_mem_ptr_and_get_capacity(addr, expected_align_in_byte);
+    return capacity != 0 && expected_size_in_byte <= capacity;
+}
+
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     woort_DynBox boxed,
     woort_Vector* buf,
@@ -561,10 +579,23 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
 
     case WOORT_BOX_VALUE_TYPE_STRING:
     {
-        const woort_GCString* const str =
-            (const woort_GCString*)val.m_gcinstance;
+        const woort_GCString* const gcstr = val.m_string;
+
+        const size_t gcstr_unit_capacity =
+            _woort_validate_mem_ptr_and_get_capacity(
+                (void*)gcstr, _Alignof(woort_GCString));
+
+        size_t gcstr_length;
+
+        if (gcstr_unit_capacity < sizeof(woort_GCString) ||
+            gcstr_unit_capacity < sizeof(woort_GCString) + (gcstr_length = gcstr->m_length))
+        {
+            return _woort_serialize_append_str(buf, "<bad>");
+        }
+
         char* const enstr = woort_u8enstring(
-            str->m_content, str->m_length, false);
+            gcstr->m_content, gcstr_length, false);
+
         if (enstr != NULL)
         {
             const bool ok = _woort_serialize_append_vfmt(
@@ -574,31 +605,48 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         }
         else
         {
-            return _woort_serialize_append_str(buf, "<error>");
+            return _woort_serialize_append_str(
+                buf, "<string: out of memory>");
         }
     }
 
     case WOORT_BOX_VALUE_TYPE_VEC:
     {
-        const woort_GCVec* const vec =
-            (const woort_GCVec*)val.m_gcinstance;
+        const woort_GCVec* const gcvec = val.m_vec;
 
-        if (vec->m_length == 0)
+        if (sizeof(woort_GCVec) > _woort_validate_mem_ptr_and_get_capacity(
+            (void*)gcvec, _Alignof(woort_GCVec)))
+        {
+            return _woort_serialize_append_str(buf, "<bad>");
+        }
+
+        size_t gcvec_length = gcvec->m_length;
+
+        if (gcvec_length == 0)
             return _woort_serialize_append_str(buf, "[]");
 
+        switch (woort_hashmap_insert(
+            visited_set, (void**)&gcvec, NULL))
         {
-            woort_hashmap_Result hr = woort_hashmap_insert(
-                visited_set, (void**)&vec, NULL);
+        case WOORT_HASHMAP_RESULT_ALREADY_EXIST:
+            return _woort_serialize_append_str(buf, "[...]");
+        case WOORT_HASHMAP_RESULT_OUT_OF_MEMORY:
+            return _woort_serialize_append_str(buf, "[<out of memory>]");
+        default:
+            break;
+        }
 
-            if (hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
-                return _woort_serialize_append_str(buf, "[...]");
-            if (hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
-                return _woort_serialize_append_str(buf, "[<error>]");
+        woort_DynBox* const gcvec_datas = gcvec->m_datas;
+        if (!_woort_validate_mem_ptr_is_expected_size(
+            gcvec_datas, sizeof(woort_DynBox) * gcvec_length, _Alignof(woort_DynBox)))
+        {
+            return _woort_serialize_append_str(buf, "<bad>");
         }
 
         if (!_woort_serialize_append_char(buf, '['))
             return false;
-        for (size_t i = 0; i < vec->m_length; ++i)
+
+        for (size_t i = 0; i < gcvec_length; ++i)
         {
             if (i > 0)
             {
@@ -606,40 +654,56 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
                     return false;
             }
             if (!_woort_serialize_dynbox_to_buf_for_debug(
-                vec->m_datas[i], buf, visited_set, depth + 1, false))
+                gcvec_datas[i], buf, visited_set, depth + 1, false))
             {
                 return false;
             }
         }
 
-        (void)woort_hashmap_remove(visited_set, (void**)&vec);
+        (void)woort_hashmap_remove(visited_set, (void**)&gcvec);
         return _woort_serialize_append_char(buf, ']');
     }
 
     case WOORT_BOX_VALUE_TYPE_MAP:
     {
-        const woort_GCMap* const gcmap =
-            (const woort_GCMap*)val.m_gcinstance;
+        const woort_GCMap* const gcmap = val.m_map;
 
-        if (gcmap->m_size == 0)
+        if (sizeof(woort_GCMap) > _woort_validate_mem_ptr_and_get_capacity(
+            (void*)gcmap, _Alignof(woort_GCMap)))
+        {
+            return _woort_serialize_append_str(buf, "<bad>");
+        }
+
+        size_t gcmap_size = gcmap->m_size;
+
+        if (gcmap_size == 0)
             return _woort_serialize_append_str(buf, "{}");
 
+        switch (woort_hashmap_insert(
+            visited_set, (void**)&gcmap, NULL))
         {
-            woort_hashmap_Result hr = woort_hashmap_insert(
-                visited_set, (void**)&gcmap, NULL);
+        case WOORT_HASHMAP_RESULT_ALREADY_EXIST:
+            return _woort_serialize_append_str(buf, "{...}");
+        case WOORT_HASHMAP_RESULT_OUT_OF_MEMORY:
+            return _woort_serialize_append_str(buf, "{<out of memory>}");
+        default:
+            break;
+        }
 
-            if (hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
-                return _woort_serialize_append_str(buf, "{...}");
-            if (hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
-                return _woort_serialize_append_str(buf, "{<error>}");
+        woort_GCMap_Bucket* const gcmap_buckets = gcmap->m_buckets;
+        if (!_woort_validate_mem_ptr_is_expected_size(
+            gcmap_buckets, sizeof(woort_GCMap_Bucket) * gcmap_size, _Alignof(woort_GCMap_Bucket)))
+        {
+            return _woort_serialize_append_str(buf, "<bad>");
         }
 
         if (!_woort_serialize_append_char(buf, '{'))
             return false;
-        for (size_t i = 0; i < gcmap->m_size; ++i)
+
+        for (size_t i = 0; i < gcmap_size; ++i)
         {
             const woort_GCMap_Bucket* const bucket =
-                &gcmap->m_buckets[i];
+                &gcmap_buckets[i];
 
             if (i > 0)
             {
@@ -662,26 +726,38 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
 
     case WOORT_BOX_VALUE_TYPE_STRUCT:
     {
-        const woort_GCStruct* const pStruct =
-            (const woort_GCStruct*)val.m_gcinstance;
+        const woort_GCStruct* const gcstruct = val.m_struct;
 
-        if (pStruct->m_size == 0)
+        const size_t gcstruct_capacity =
+            _woort_validate_mem_ptr_and_get_capacity(
+                (void*)gcstruct, _Alignof(woort_GCStruct));
+
+        size_t gcstruct_length;
+        if (gcstruct_capacity < sizeof(woort_GCStruct)
+            || gcstruct_capacity < sizeof(woort_GCStruct) + sizeof(woort_Value) * (
+                gcstruct_length = gcstruct->m_size))
+        {
+            return _woort_serialize_append_str(buf, "<bad>");
+        }
+
+        if (gcstruct_length == 0)
             return _woort_serialize_append_str(buf, "()");
 
+        switch (woort_hashmap_insert(
+            visited_set, (void**)&gcstruct, NULL))
         {
-            woort_hashmap_Result hr = woort_hashmap_insert(
-                visited_set, (void**)&pStruct, NULL);
-
-            if (hr == WOORT_HASHMAP_RESULT_ALREADY_EXIST)
-                return _woort_serialize_append_str(buf, "(...)");
-            if (hr == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
-                return _woort_serialize_append_str(buf,
-                    "(struct, but out of memory)");
+        case WOORT_HASHMAP_RESULT_ALREADY_EXIST:
+            return _woort_serialize_append_str(buf, "(...)");
+        case WOORT_HASHMAP_RESULT_OUT_OF_MEMORY:
+            return _woort_serialize_append_str(buf,
+                "(<out of memory>)");
+        default:
+            break;
         }
 
         if (!_woort_serialize_append_char(buf, '('))
             return false;
-        for (size_t i = 0; i < pStruct->m_size; ++i)
+        for (size_t i = 0; i < gcstruct->m_size; ++i)
         {
             if (i > 0)
             {
@@ -689,38 +765,53 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
                     return false;
             }
             if (!_woort_serialize_dynbox_to_buf_for_debug(
-                *(woort_DynBox*)&pStruct->m_datas[i],
+                *(woort_DynBox*)&gcstruct->m_datas[i],
                 buf, visited_set, depth + 1, true))
             {
                 return false;
             }
         }
 
-        (void)woort_hashmap_remove(visited_set, (void**)&pStruct);
+        (void)woort_hashmap_remove(visited_set, (void**)&gcstruct);
         return _woort_serialize_append_char(buf, ')');
     }
 
     case WOORT_BOX_VALUE_TYPE_GCHANDLE:
     {
-        const woort_GCHandle* const handle =
-            (const woort_GCHandle*)val.m_gcinstance;
+        const woort_GCHandle* const gchandle = val.m_gchandle;
+
+        if (sizeof(woort_GCHandle) > _woort_validate_mem_ptr_and_get_capacity(
+            (void*)gchandle, _Alignof(woort_GCHandle)))
+        {
+            return _woort_serialize_append_str(buf, "<bad>");
+        }
+
         return _woort_serialize_append_vfmt(
-            buf, "<gchandle %p>", (const void*)handle);
+            buf, "<gchandle %p>", (const void*)gchandle);
     }
 
     case WOORT_BOX_VALUE_TYPE_CLOSURE:
     {
-        const woort_GCClosure* const closure =
-            (const woort_GCClosure*)val.m_gcinstance;
+        const woort_GCClosure* const gcclosure = val.m_closure;
 
-        if (closure->m_script_function != NULL)
+        const size_t gcclosure_capacity =
+            _woort_validate_mem_ptr_and_get_capacity(
+                (void*)gcclosure, _Alignof(woort_GCClosure));
+
+        if (gcclosure_capacity < sizeof(woort_GCClosure)
+            || gcclosure_capacity < sizeof(woort_GCClosure) + sizeof(woort_Value) * gcclosure->m_size)
+        {
+            return _woort_serialize_append_str(buf, "<bad>");
+        }
+
+        if (gcclosure->m_script_function != NULL)
         {
             woort_CodeEnv* cenv = NULL;
-            if (woort_CodeEnv_find(closure->m_script_function, &cenv)
+            if (woort_CodeEnv_find(gcclosure->m_script_function, &cenv)
                 && cenv != NULL)
             {
                 const uint32_t offset = (uint32_t)(
-                    closure->m_script_function - cenv->m_code_begin);
+                    gcclosure->m_script_function - cenv->m_code_begin);
                 const char* const name =
                     woort_CodeEnv_find_function_name_by_offset(cenv, offset);
                 if (name != NULL)
@@ -729,20 +820,20 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
                 else
                     return _woort_serialize_append_vfmt(
                         buf, "<function %p>",
-                        (const void*)closure->m_script_function);
+                        (const void*)gcclosure->m_script_function);
             }
             else
             {
                 return _woort_serialize_append_vfmt(
                     buf, "<function %p>",
-                    (const void*)closure->m_script_function);
+                    (const void*)gcclosure->m_script_function);
             }
         }
         else
         {
             return _woort_serialize_append_vfmt(
                 buf, "<native %p>",
-                (const void*)(uintptr_t)closure->m_native_function);
+                (const void*)(uintptr_t)gcclosure->m_native_function);
         }
     }
 
@@ -841,7 +932,7 @@ WOORT_NODISCARD bool _woort_serialize_vec_impl(
  * 内部反序列化：字符串 -> DynBox
  * ======================================================================== */
 
-const char* _woort_deserialize_skip_whitespace(const char* p)
+WOORT_NODISCARD const char* _woort_deserialize_skip_whitespace(const char* p)
 {
     while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
         ++p;

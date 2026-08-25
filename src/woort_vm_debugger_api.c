@@ -22,6 +22,8 @@ static /* OPTIONAL */ woort_VMRuntime_Debugger* g_debugger;
 static woort_RWSpinlock g_debugger_rwspin;
 static woort_Mutex* g_debugger_execute_mx;
 
+static void woort_VMRuntime_Debugger_cancel_all_vm(void);
+
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_bootup(void)
 {
     if (!woort_mutex_create(&g_debugger_execute_mx))
@@ -142,14 +144,36 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request)
         woort_VMRuntime* const running_vm = woort_VMRuntime_swap(NULL);
         assert(running_vm != NULL);
         {
-            woort_mutex_lock(g_debugger_execute_mx);
+            bool mutex_taked_and_exec_debugger = false;
+            if (trap_by_request)
+            {
+                if (woort_mutex_trylock(g_debugger_execute_mx))
+                {
+                    mutex_taked_and_exec_debugger = true;
+
+                    /* Debugger request will be handled by this VM, clear other vm's request. */
+                    woort_VMRuntime_Debugger_cancel_all_vm();
+                }
+                /* 
+                else: Failed to acquire the lock, indicating that another VM has already 
+                    preempted the debugger, skip. 
+                */
+            }
+            else
+            {
+                mutex_taked_and_exec_debugger = true;
+                woort_mutex_lock(g_debugger_execute_mx);
+            }
+
+            if (mutex_taked_and_exec_debugger)
             {
                 current_debugger->m_break_callback(
                     running_vm,
                     current_debugger->m_debugger_context,
                     trap_by_request);
+
+                woort_mutex_unlock(g_debugger_execute_mx);
             }
-            woort_mutex_unlock(g_debugger_execute_mx);
         }
         (void)woort_VMRuntime_swap(running_vm);
 
@@ -160,7 +184,32 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request)
     return false;
 }
 
+static bool _woort_VMRuntime_Debugger_breakdown_vm(woort_VMRuntime* vm, void* user_data)
+{
+    (void)user_data;
+    (void)woort_VMRuntime_request_set(
+        vm,
+        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+
+    return true;
+}
+
+static bool _woort_VMRuntime_Debugger_cancel_vm(woort_VMRuntime* vm, void* user_data)
+{
+    (void)user_data;
+    (void)woort_VMRuntime_request_accept(
+        vm,
+        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+
+    return true;
+}
+
 void woort_VMRuntime_Debugger_breakdown_all_vm(void)
 {
-    _woort_GC_debug_callback_all_vm();
+    woort_GC_foreach_root_vm(_woort_VMRuntime_Debugger_breakdown_vm, NULL);
+}
+
+static void woort_VMRuntime_Debugger_cancel_all_vm(void)
+{
+    woort_GC_foreach_root_vm(_woort_VMRuntime_Debugger_cancel_vm, NULL);
 }

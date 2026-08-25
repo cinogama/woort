@@ -406,36 +406,6 @@ static bool _woort_GC_shutdown_dump_vm_trace_callback(
     return true;
 }
 
-static bool _woort_GC_debug_callback_vm_walk(
-    const void* key,
-    void* value,
-    /* OPTIONAL */ void* user_data)
-{
-    (void)value;
-    (void)user_data;
-
-    woort_VMRuntime* const vm =
-        *(woort_VMRuntime* const*)key;
-
-    (void)woort_VMRuntime_request_set(
-        vm,
-        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
-
-    return true;
-}
-
-void _woort_GC_debug_callback_all_vm(void)
-{
-    woort_rwspinlock_read_lock(&g_gc_context.m_root_vms_to_mark_mx);
-    {
-        (void)woort_hashmap_foreach(
-            &g_gc_context.m_root_vms_to_mark,
-            &_woort_GC_debug_callback_vm_walk,
-            NULL);
-    }
-    woort_rwspinlock_read_unlock(&g_gc_context.m_root_vms_to_mark_mx);
-}
-
 void woort_GC_shutdown(void)
 {
     /*

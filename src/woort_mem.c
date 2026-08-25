@@ -217,6 +217,11 @@ void* woort_mem_validate_addr_head(void* ptr_may_invalid)
     return NULL;
 }
 
+size_t woort_mem_get_capacity_of_addr_head(void* ptr)
+{
+    return woort_mem_unit_get_available_size((woort_mem_UnitHead*)ptr - 1);
+}
+
 void woort_mem_mark_unit_head(void* ptr_head_may_null)
 {
     if (ptr_head_may_null != NULL)

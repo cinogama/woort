@@ -22,5 +22,4 @@ WOORT_NODISCARD woort_DebuggerAttachResult woort_VMRuntime_Debugger_attach(
     /* OPTIONAL */ woort_VMRuntime_DebuggerContextDestroyCallback destroy_callback);
 
 void woort_VMRuntime_Debugger_detach(void);
-
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request);

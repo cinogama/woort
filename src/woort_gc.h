@@ -16,8 +16,6 @@ woort_gc.h
 WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size);
 void woort_GC_shutdown(void);
 
-void _woort_GC_debug_callback_all_vm(void);
-
 WOORT_NODISCARD bool woort_GC_register_root_vm(
     struct woort_VMRuntime* vmruntime);
 void woort_GC_unregister_root_vm(

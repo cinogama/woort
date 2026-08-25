@@ -859,8 +859,9 @@ WOORT_NODISCARD bool woort_DynBox_debug_check_is_valid(
     {
         /* Check pointer is valid? */
         woort_GCUnit* const p = _woort_boxed_to_gcunit(may_not_a_valid_box.m_boxed);
-        if (p != NULL
-            && (woort_mem_validate_addr(p) != p
+        if (p != NULL)
+        {
+            if ((woort_mem_validate_addr(p) != p
                 || (p->m_proxy != &WOORT_EX_BOX_PROXY
                     && p->m_proxy != &WOORT_GCSTRING_UNIT_PROXY
                     && p->m_proxy != &WOORT_GCVEC_UNIT_PROXY
@@ -868,8 +869,15 @@ WOORT_NODISCARD bool woort_DynBox_debug_check_is_valid(
                     && p->m_proxy != &WOORT_GCSTRUCT_UNIT_PROXY
                     && p->m_proxy != &WOORT_GCHANDLE_UNIT_PROXY
                     && p->m_proxy != &WOORT_GCCLOSURE_UNIT_PROXY)))
-        {
-            return false;
+                return false;
+
+            if (p->m_proxy == &WOORT_EX_BOX_PROXY)
+            {
+                // Recheck for ex box value to make sure safe to read.
+                if ((intptr_t)p % _Alignof(woort_BoxedExValue) != 0
+                    || woort_mem_get_capacity_of_addr_head(p) > sizeof(woort_BoxedExValue))
+                    return false;
+            }
         }
     }
     return true;

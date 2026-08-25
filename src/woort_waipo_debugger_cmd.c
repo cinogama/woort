@@ -1071,7 +1071,7 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
 
         // Assure invoking closure is valid.
         const woort_GCClosure* const invoked_closure_instance =
-            woort_mem_validate_addr_head(target);
+            woort_mem_validate_addr_head((void*)target);
 
         if (invoked_closure_instance != NULL
             && invoked_closure_instance == target
