@@ -31,6 +31,8 @@ typedef struct woort_GCContext
 
     woort_HashMap /* struct woort_VMRuntime* */ m_root_vms_to_mark;
     woort_HashMap /* struct woort_VMRuntime* */ m_not_been_marked_weak_vm;
+
+    woort_AtomicFlag m_raise_debug_request_in_next_round_gc_flag;
 } woort_GCContext;
 
 static woort_GCContext g_gc_context;
@@ -58,13 +60,18 @@ static void _woort_GC_destroyer_callback(void* unit)
 static bool _woort_GC_walk_through_to_start_gc_vm_mark(
     const void* key,
     void* value,
-    void* user_data)
+    void* pmark_debug_request)
 {
-    (void)user_data;
     (void)value;
 
     woort_VMRuntime* const vm_to_request_gc_mark =
         *(woort_VMRuntime* const*)key;
+
+    const bool mark_debug_request = *(const bool*)pmark_debug_request;
+    if (mark_debug_request)
+        (void)woort_VMRuntime_request_set(
+            vm_to_request_gc_mark,
+            WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
 
     const bool r = woort_VMRuntime_request_set(
         vm_to_request_gc_mark,
@@ -206,12 +213,17 @@ static void _woort_GC_start_callback(void)
 {
     _woort_GC_stage_switch_sync();
 
+    const bool mark_all_vm_debug_break_down =
+        !woort_atomic_flag_test_and_set_explicit(
+            &g_gc_context.m_raise_debug_request_in_next_round_gc_flag,
+            WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
+
     woort_rwspinlock_read_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
             &g_gc_context.m_root_vms_to_mark,
             &_woort_GC_walk_through_to_start_gc_vm_mark,
-            NULL);
+            &mark_all_vm_debug_break_down);
 
         (void)woort_hashmap_foreach(
             &g_gc_context.m_root_vms_to_mark,
@@ -333,6 +345,10 @@ WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
         0,
         woort_util_ptr_hash,
         woort_util_ptr_equal);
+
+    /* Mark flag dirty. */
+    (void)woort_atomic_flag_test_and_set(
+        &g_gc_context.m_raise_debug_request_in_next_round_gc_flag);
 
     return true;
 }
