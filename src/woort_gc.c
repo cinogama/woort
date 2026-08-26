@@ -772,3 +772,10 @@ void woort_GC_suspend_all_vm_to_do_sth(
 
     (void)woort_VMRuntime_swap(last);
 }
+
+void woort_GC_raise_debug_request_in_next_round(void)
+{
+    woort_atomic_flag_clear_explicit(
+        &g_gc_context.m_raise_debug_request_in_next_round_gc_flag,
+        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
+}

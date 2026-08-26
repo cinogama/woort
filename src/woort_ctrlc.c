@@ -35,11 +35,6 @@ static void _woort_ctrlc_signal_handler(int sig)
         break;
     }
 
-    /*
-    FIXME: 在此处请求所有虚拟机进入中断检查是不合时宜的，需要修复。
-        信号回调函数无法确定在哪个线程的哪个时机介入，完全可能发生
-        root-vm 锁的错误上锁顺序问题。
-    */
     woort_VMRuntime_Debugger_breakdown_all_vm();
 
     /*

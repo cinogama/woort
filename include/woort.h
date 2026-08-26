@@ -4747,10 +4747,14 @@ WOORT_NODISCARD WOORT_API woort_DebuggerAttachResult woort_WAIPO_Debugger_attach
 /**
  * @brief Breakdown all VMs by sending a debug callback request.
  *
- * Iterates over all registered root VMs and sets the
- * WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK flag on each one.
- * When a VM reaches its next checkpoint, it will invoke the currently
- * attached debugger callback (if any).
+ * Does not walk the root-VM registry on the calling thread (which would be
+ * unsafe from a signal handler due to root-VM lock ordering); instead it
+ * raises a "debug request in the next GC round" flag and asynchronously
+ * triggers a GC.  At the start of the next GC round, the GC start callback
+ * walks all registered root VMs and sets the
+ * WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK flag on each one.  When a VM
+ * reaches its next checkpoint, it will invoke the currently attached
+ * debugger callback (if any).
  */
 WOORT_API void woort_VMRuntime_Debugger_breakdown_all_vm(void);
 

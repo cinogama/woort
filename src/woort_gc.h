@@ -31,10 +31,10 @@ WOORT_NODISCARD bool _woort_GC_Debug_current_thread_in_scope(void);
 void woort_GC_foreach_root_vm(
     woort_GC_ForeachRootVMCallback callback,
     void* user_data);
-
 void woort_GC_suspend_all_vm_to_do_sth(
     woort_GC_SuspendVMJobCallback callback,
     void* user_data);
+void woort_GC_raise_debug_request_in_next_round(void);
 
 static inline void woort_GC_mixed_write_barrier_gcaddr(
     void** modified_unit_addr, void* src_unit)

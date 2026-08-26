@@ -206,7 +206,8 @@ static bool _woort_VMRuntime_Debugger_cancel_vm(woort_VMRuntime* vm, void* user_
 
 void woort_VMRuntime_Debugger_breakdown_all_vm(void)
 {
-    woort_GC_foreach_root_vm(_woort_VMRuntime_Debugger_breakdown_vm, NULL);
+    woort_GC_raise_debug_request_in_next_round();
+    woort_mem_trigger_gc(true);
 }
 
 static void woort_VMRuntime_Debugger_cancel_all_vm(void)
