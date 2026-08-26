@@ -1053,7 +1053,7 @@ WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
     case WOORT_OPCODE_CALLNJIT:
     {
         (void)woort_VMRuntime_request_set(
-            vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
         *out_next_ip = ip + 1;
         return true;
     }
@@ -1759,6 +1759,64 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_delete(
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
+typedef struct _woort_WAIPO_SwitchVMContext
+{
+    long m_id;
+    bool m_found;
+
+} _woort_WAIPO_SwitchVMContext;
+
+static bool _woort_WAIPO_count_vm_to_break(
+    woort_VMRuntime* vm, void* user_data)
+{
+    _woort_WAIPO_SwitchVMContext* const ctx = 
+        (_woort_WAIPO_SwitchVMContext*)user_data;
+
+    if (ctx->m_id < 0)
+        return false;
+
+    if (ctx->m_id-- == 0)
+    {
+        ctx->m_found = true;
+
+        /* Let other vm breakdown. */
+        (void)woort_VMRuntime_request_set(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
+
+        return false;
+    }
+    return true;
+}
+
+/* ====================================================================
+ * vm command
+ * ==================================================================== */
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_vm(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    if (arg_count < 2)
+    {
+        (void)printf("Usage: vm <id>\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const long id = strtol(args[1], NULL, 10);
+
+    _woort_WAIPO_SwitchVMContext ctx = {
+        .m_id = id,
+        .m_found = false,
+    };
+
+    woort_GC_foreach_root_vm(&_woort_WAIPO_list_vm_callback, &ctx);
+
+
+
+}
+
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "help",      "?",    &_woort_WAIPO_cmd_help },
     { "continue",  "c",    &_woort_WAIPO_cmd_continue },
@@ -1777,6 +1835,7 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "print",     "p",    &_woort_WAIPO_cmd_print },
     { "break",     "b",    &_woort_WAIPO_cmd_break },
     { "delete",    "d",    &_woort_WAIPO_cmd_delete },
+    { "vm",        NULL,   &_woort_WAIPO_cmd_delete },
 };
 
 static const size_t _woort_WAIPO_command_table_size =

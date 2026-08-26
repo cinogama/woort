@@ -3,6 +3,7 @@
 #include "woort_spin.h"
 #include "woort_gc.h"
 #include "woort_jit.h"
+#include "woort_threads.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -189,7 +190,7 @@ static bool _woort_VMRuntime_Debugger_breakdown_vm(woort_VMRuntime* vm, void* us
     (void)user_data;
     (void)woort_VMRuntime_request_set(
         vm,
-        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
 
     return true;
 }
@@ -199,7 +200,7 @@ static bool _woort_VMRuntime_Debugger_cancel_vm(woort_VMRuntime* vm, void* user_
     (void)user_data;
     (void)woort_VMRuntime_request_accept(
         vm,
-        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
 
     return true;
 }

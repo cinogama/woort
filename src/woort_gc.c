@@ -71,7 +71,7 @@ static bool _woort_GC_walk_through_to_start_gc_vm_mark(
     if (mark_debug_request)
         (void)woort_VMRuntime_request_set(
             vm_to_request_gc_mark,
-            WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+            WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
 
     const bool r = woort_VMRuntime_request_set(
         vm_to_request_gc_mark,

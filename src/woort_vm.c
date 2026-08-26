@@ -3878,14 +3878,18 @@ _label_continue_execution:
                 /* Just ignore. */
             }
             else if (request_mask
-                & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK)
+                & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK)
             {
                 if (woort_VMRuntime_Debugger_try_trap(true))
                 {
                     (void)woort_VMRuntime_request_accept(
                         vm,
-                        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+                        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
                 }
+                /*
+                else: Possibly due to memory visibility issues? Not attached to a
+                    debugger; retry at the next checkpoint.
+                */
             }
             else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK)
@@ -4036,12 +4040,12 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
             /* Just ignore. */
         }
         else if (request_mask
-            & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK)
+            & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK)
         {
             if (woort_VMRuntime_Debugger_try_trap(true))
             {
                 (void)woort_VMRuntime_request_accept(
-                    vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+                    vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
             }
             /*
             else: Possibly due to memory visibility issues? Not attached to a

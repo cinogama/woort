@@ -90,7 +90,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
     WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE = 1 << 4,
 
     /*
-    DEBUG_CALLBACK
+    DEBUG_BREAK
     Requests the VM to invoke the debug callback; the debug callback
     function and its context must have been set previously and not yet
     cleared.
@@ -104,7 +104,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
         * Interpreter runtime:
             Runs the debug-callback mechanism.
     */
-    WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK = 1 << 5,
+    WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK = 1 << 5,
 
     /*
     YIELD

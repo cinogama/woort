@@ -240,7 +240,7 @@ WOORT_NODISCARD bool woort_raise_panic_v(
                                 (void)woort_VMRuntime_request_accept(
                                     panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_ABORT);
                                 (void)woort_VMRuntime_request_set(
-                                    panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_CALLBACK);
+                                    panic_vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
 
                                 switch (woort_WAIPO_Debugger_attach())
                                 {
