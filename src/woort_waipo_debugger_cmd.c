@@ -1881,7 +1881,8 @@ void woort_WAIPO_Debugger_process(
         (void)printf("Note: You can input '?' for more informations.\n");
     }
 
-    debugger_instance->m_last_command[0] = '\0';
+    /* Keep m_last_command across breakdowns: an empty input line repeats
+     * the last command even after step/next re-entered the debugger. */
     debugger_instance->m_current_frame_depth = 0;
 
     for (;;)
@@ -1913,10 +1914,24 @@ void woort_WAIPO_Debugger_process(
                 continue;
         }
 
-        (void)strncpy(debugger_instance->m_last_command, tokens[0],
-            sizeof(debugger_instance->m_last_command) - 1);
-        debugger_instance->m_last_command[
-            sizeof(debugger_instance->m_last_command) - 1] = '\0';
+        /* Remember the whole command line, not just the command name. */
+        size_t last_pos = 0;
+        for (size_t i = 0; i < token_count; ++i)
+        {
+            if (i > 0
+                && last_pos + 1 < sizeof(debugger_instance->m_last_command))
+            {
+                debugger_instance->m_last_command[last_pos++] = ' ';
+            }
+
+            for (const char* q = tokens[i]; *q != '\0'; ++q)
+            {
+                if (last_pos + 1 >= sizeof(debugger_instance->m_last_command))
+                    break;
+                debugger_instance->m_last_command[last_pos++] = *q;
+            }
+        }
+        debugger_instance->m_last_command[last_pos] = '\0';
 
         woort_WAIPO_CommandHandler handler =
             _woort_WAIPO_find_command(tokens[0]);

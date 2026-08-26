@@ -36,7 +36,9 @@ typedef struct woort_WAIPO_Debugger
         m_focusing_vms;
 
     bool m_first_breakdown;
-    char m_last_command[256];
+    /* Full command line (with args) of the last executed command, so an
+     * empty input line can repeat it. Sized to hold any stdin line. */
+    char m_last_command[4096];
 
     size_t m_current_frame_depth;
 
