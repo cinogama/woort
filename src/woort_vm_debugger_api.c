@@ -22,13 +22,18 @@ typedef struct woort_VMRuntime_Debugger
 static /* OPTIONAL */ woort_VMRuntime_Debugger* g_debugger;
 static woort_RWSpinlock g_debugger_rwspin;
 static woort_Mutex* g_debugger_execute_mx;
-
-static void woort_VMRuntime_Debugger_cancel_all_vm(void);
+static woort_Mutex* g_debugger_external_race_mx;
 
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_bootup(void)
 {
     if (!woort_mutex_create(&g_debugger_execute_mx))
         return false;
+
+    if (!woort_mutex_create(&g_debugger_external_race_mx))
+    {
+        woort_mutex_destroy(g_debugger_execute_mx);
+        return false;
+    }
 
     g_debugger = NULL;
     woort_rwspinlock_init(&g_debugger_rwspin);
@@ -40,8 +45,10 @@ void woort_VMRuntime_Debugger_shutdown(void)
     woort_VMRuntime_Debugger_detach();
     woort_rwspinlock_deinit(&g_debugger_rwspin);
     woort_mutex_destroy(g_debugger_execute_mx);
+    woort_mutex_destroy(g_debugger_external_race_mx);
 
     g_debugger_execute_mx = NULL;
+    g_debugger_external_race_mx = NULL;
 }
 
 static void _woort_VMRuntime_Debugger_release_impl(woort_VMRuntime_Debugger* debugger)
@@ -145,36 +152,14 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request)
         woort_VMRuntime* const running_vm = woort_VMRuntime_swap(NULL);
         assert(running_vm != NULL);
         {
-            bool mutex_taked_and_exec_debugger = false;
-            if (trap_by_request)
-            {
-                if (woort_mutex_trylock(g_debugger_execute_mx))
-                {
-                    mutex_taked_and_exec_debugger = true;
-
-                    /* Debugger request will be handled by this VM, clear other vm's request. */
-                    woort_VMRuntime_Debugger_cancel_all_vm();
-                }
-                /* 
-                else: Failed to acquire the lock, indicating that another VM has already 
-                    preempted the debugger, skip. 
-                */
-            }
-            else
-            {
-                mutex_taked_and_exec_debugger = true;
-                woort_mutex_lock(g_debugger_execute_mx);
-            }
-
-            if (mutex_taked_and_exec_debugger)
+            woort_mutex_lock(g_debugger_execute_mx);
             {
                 current_debugger->m_break_callback(
                     running_vm,
                     current_debugger->m_debugger_context,
                     trap_by_request);
-
-                woort_mutex_unlock(g_debugger_execute_mx);
             }
+            woort_mutex_unlock(g_debugger_execute_mx);
         }
         (void)woort_VMRuntime_swap(running_vm);
 
@@ -185,22 +170,13 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request)
     return false;
 }
 
-static bool _woort_VMRuntime_Debugger_breakdown_vm(woort_VMRuntime* vm, void* user_data)
-{
-    (void)user_data;
-    (void)woort_VMRuntime_request_set(
-        vm,
-        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
-
-    return true;
-}
-
-static bool _woort_VMRuntime_Debugger_cancel_vm(woort_VMRuntime* vm, void* user_data)
+static bool _woort_VMRuntime_Debugger_reset_vm_external_debug_break_request(
+    woort_VMRuntime* vm, void* user_data)
 {
     (void)user_data;
     (void)woort_VMRuntime_request_accept(
         vm,
-        WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
+        WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK);
 
     return true;
 }
@@ -211,7 +187,39 @@ void woort_VMRuntime_Debugger_breakdown_all_vm(void)
     woort_mem_trigger_gc(true);
 }
 
-static void woort_VMRuntime_Debugger_cancel_all_vm(void)
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_handle_external_debug_break_race(
+    woort_VMRuntime* vm)
 {
-    woort_GC_foreach_root_vm(_woort_VMRuntime_Debugger_cancel_vm, NULL);
+    bool race_succeed = false;
+    woort_mutex_lock(g_debugger_external_race_mx);
+    {
+        if (woort_VMRuntime_request_accept(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK))
+        {
+            /* Success, clean other VM's request. */
+            woort_GC_foreach_root_vm(
+                _woort_VMRuntime_Debugger_reset_vm_external_debug_break_request, NULL);
+
+            /* Check whether a debugger is already in operation. */
+            if (woort_mutex_trylock(g_debugger_execute_mx))
+            {
+                /*
+                NOTE: The approach of using the lock status of g_debugger_execute_mx
+                    to infer whether the debugger is active is not particularly precise;
+                    nevertheless, external debugging requests do not demand stringent
+                    conditions.
+                */
+                woort_mutex_unlock(g_debugger_execute_mx);
+                race_succeed = true;
+            }
+        }
+        else
+        {
+            /*  Another VM has reached, failed */
+            (void)woort_VMRuntime_request_accept(
+                vm, WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK);
+        }
+    }
+    woort_mutex_unlock(g_debugger_external_race_mx);
+    return race_succeed;
 }

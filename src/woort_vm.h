@@ -202,6 +202,24 @@ typedef enum woort_VMRuntime_CheckRequestMask
     */
     WOORT_VMRUNTIME_CHECK_REQUEST_RESUME = 1 << 11,
 
+    /*
+    EXTERNAL_DEBUG_BREAK
+    Unlike WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK, this request is 
+    specifically used to indicate a debug break initiated from an external 
+    source. When an external debug request is issued, this request is 
+    sent to all VMs. Only one VM will successfully enter the debugger 
+    through a competitive confirmation mechanism; that VM executes the 
+    debug break just as if it had received WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK. 
+    The other VMs that lose the competition will have nothing happen.
+
+        * JIT runtime:
+            Cannot be handled in JIT; after a forward-sync it is thrown
+            up to the interpreter via WOORT_VM_CALL_STATUS_RESYNC.
+        * Interpreter runtime:
+            Runs the external-debug-callback mechanism.
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK = 1 << 12,
+
 }woort_VMRuntime_CheckRequestMask;
 
 struct woort_VMRuntime

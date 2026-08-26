@@ -3880,6 +3880,7 @@ _label_continue_execution:
             else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK)
             {
+            _label_vm_normal_debug_break_request_handler:
                 if (woort_VMRuntime_Debugger_try_trap(true))
                 {
                     (void)woort_VMRuntime_request_accept(
@@ -3938,6 +3939,12 @@ _label_continue_execution:
                     }
                     (void)woort_VMRuntime_swap(last);
                 }
+            }
+            else if (request_mask
+                & WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK)
+            {
+                if (woort_VMRuntime_Debugger_handle_external_debug_break_race(vm))
+                    goto _label_vm_normal_debug_break_request_handler;
             }
             else
             {
@@ -4042,15 +4049,7 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
         else if (request_mask
             & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK)
         {
-            if (woort_VMRuntime_Debugger_try_trap(true))
-            {
-                (void)woort_VMRuntime_request_accept(
-                    vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
-            }
-            /*
-            else: Possibly due to memory visibility issues? Not attached to a
-                debugger; retry at the next checkpoint.
-            */
+            return WOORT_VM_CALL_STATUS_RESYNC;
         }
         else if (request_mask
             & WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK)
@@ -4078,6 +4077,11 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
         }
         else if (request_mask
             & WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND)
+        {
+            return WOORT_VM_CALL_STATUS_RESYNC;
+        }
+        else if (request_mask
+            & WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK)
         {
             return WOORT_VM_CALL_STATUS_RESYNC;
         }
