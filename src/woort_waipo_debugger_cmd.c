@@ -71,6 +71,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "next        n                       Step over to next source line, not entering callees.\n"
         "return      r                       Return to caller frame.\n"
         "print       p       <varname>       Print variable value by name.\n"
+        "vm                  [id]            List all VM(s), or switch to VM by id.\n"
         "\n");
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -222,6 +223,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_list_codeenv(
 typedef struct _woort_WAIPO_ListVMContext
 {
     size_t m_index;
+    /* OPTIONAL */ const woort_VMRuntime* m_current;
 } _woort_WAIPO_ListVMContext;
 
 static bool _woort_WAIPO_list_vm_callback(
@@ -238,7 +240,8 @@ static bool _woort_WAIPO_list_vm_callback(
         : 0.0;
 
     (void)printf(
-        "[%zu] VMRuntime(%p)  ip=%p  sp=%p  stack=[%p-%p]  usage=%.1f%%\n",
+        "%c[%zu] VMRuntime(%p)  ip=%p  sp=%p  stack=[%p-%p]  usage=%.1f%%\n",
+        vm == ctx->m_current ? '*' : ' ',
         ctx->m_index,
         (void*)vm,
         (const void*)vm->m_ip,
@@ -258,10 +261,10 @@ static woort_WAIPO_CommandResult _woort_WAIPO_list_vm(
     woort_VMRuntime* vm)
 {
     (void)dbg;
-    (void)vm;
 
     _woort_WAIPO_ListVMContext ctx;
     ctx.m_index = 0;
+    ctx.m_current = vm;
 
     woort_GC_foreach_root_vm(&_woort_WAIPO_list_vm_callback, &ctx);
 
@@ -1762,7 +1765,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_delete(
 typedef struct _woort_WAIPO_SwitchVMContext
 {
     long m_id;
-    bool m_found;
+    /* OPTIONAL */ woort_VMRuntime* m_target;
 
 } _woort_WAIPO_SwitchVMContext;
 
@@ -1777,9 +1780,9 @@ static bool _woort_WAIPO_count_vm_to_break(
 
     if (ctx->m_id-- == 0)
     {
-        ctx->m_found = true;
+        ctx->m_target = vm;
 
-        /* Let other vm breakdown. */
+        /* Let the target vm breakdown at its next request checkpoint. */
         (void)woort_VMRuntime_request_set(
             vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
 
@@ -1798,9 +1801,13 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_vm(
     char** args,
     size_t arg_count)
 {
+    /* 'vm' with no argument lists all VMs (ids come from this listing). */
     if (arg_count < 2)
+        return _woort_WAIPO_list_vm(dbg, vm);
+
+    if (!_woort_WAIPO_is_numeric(args[1]))
     {
-        (void)printf("Usage: vm <id>\n");
+        (void)printf("Invalid VM id: %s\n", args[1]);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
@@ -1808,13 +1815,32 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_vm(
 
     _woort_WAIPO_SwitchVMContext ctx = {
         .m_id = id,
-        .m_found = false,
+        .m_target = NULL,
     };
 
-    woort_GC_foreach_root_vm(&_woort_WAIPO_list_vm_callback, &ctx);
+    woort_GC_foreach_root_vm(&_woort_WAIPO_count_vm_to_break, &ctx);
 
+    if (ctx.m_target == NULL)
+    {
+        (void)printf("No such VM: %ld\n", id);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
 
+    if (ctx.m_target == vm)
+    {
+        (void)printf("Already debugging VM %ld.\n", id);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
 
+    (void)printf("Switching to VM %ld...\n", id);
+
+    /*
+     * Release the current VM and let it resume; the target VM holds a
+     * pending DEBUG_BREAK request and traps into the debugger on its own.
+     */
+    _woort_WAIPO_Debugger_out_of_focus(dbg, vm);
+
+    return WOORT_WAIPO_CMD_CONTINUE;
 }
 
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
@@ -1835,7 +1861,7 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "print",     "p",    &_woort_WAIPO_cmd_print },
     { "break",     "b",    &_woort_WAIPO_cmd_break },
     { "delete",    "d",    &_woort_WAIPO_cmd_delete },
-    { "vm",        NULL,   &_woort_WAIPO_cmd_delete },
+    { "vm",        NULL,   &_woort_WAIPO_cmd_vm },
 };
 
 static const size_t _woort_WAIPO_command_table_size =
