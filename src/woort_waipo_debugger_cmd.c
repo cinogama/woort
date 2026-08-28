@@ -71,6 +71,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "next        n                       Step over to next source line, not entering callees.\n"
         "return      r                       Return to caller frame.\n"
         "print       p       <varname>       Print variable value by name.\n"
+        "global      g       <index>         Print const/static slot value by global index.\n"
         "vm                  [id]            List all VM(s), or switch to VM by id.\n"
         "\n");
 
@@ -1410,6 +1411,110 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
 }
 
 /* ====================================================================
+ * global / g command
+ * ==================================================================== */
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_global(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    if (arg_count < 2 || !_woort_WAIPO_is_numeric(args[1]))
+    {
+        (void)printf("Usage: global <index>\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const long index = strtol(args[1], NULL, 10);
+    if (index < 0)
+    {
+        (void)printf("Invalid index: %s\n", args[1]);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    /*
+     * 定位当前选中的调用栈帧。
+     */
+    woort_VMRuntime_TraceCallstack trace;
+    if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
+    {
+        (void)printf("No callstack at current frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (trace.m_code_addr == NULL)
+    {
+        (void)printf("No code address for current frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    woort_CodeEnv* cenv = NULL;
+    if (!woort_CodeEnv_find(trace.m_code_addr, &cenv) || cenv == NULL)
+    {
+        (void)printf("Cannot locate CodeEnv for current frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const size_t global_index = (size_t)index;
+    if (global_index >= cenv->m_data_count)
+    {
+        (void)printf("Index %zu out of range [0, %zu).\n",
+            global_index, cenv->m_data_count);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    /*
+     * m_data_begin 前 m_const_records.m_size 个槽位为常量区，其余为静态区。
+     */
+    const size_t const_count = cenv->m_const_records.m_size;
+
+    if (global_index < const_count)
+    {
+        const woort_ConstRecord* record =
+            (const woort_ConstRecord*)woort_vector_at(
+                (woort_Vector*)&cenv->m_const_records, global_index);
+
+        if (record->m_func_name != NULL)
+            (void)printf("[const]  %s@G[%zu] = ",
+                record->m_func_name, global_index);
+        else
+            (void)printf("[const]  G[%zu] = ", global_index);
+    }
+    else
+    {
+        /* Resolve the static variable name from debug info when available. */
+        const size_t static_idx = global_index - const_count;
+        const char* var_name = NULL;
+
+        for (size_t i = 0;
+            i < cenv->m_pdb.m_static_var_debug_info.m_size; ++i)
+        {
+            const woort_StaticVarDebugInfo* info =
+                (const woort_StaticVarDebugInfo*)woort_vector_at(
+                    (woort_Vector*)&cenv->m_pdb.m_static_var_debug_info, i);
+
+            if ((size_t)info->m_static_idx == static_idx)
+            {
+                var_name = info->m_name;
+                break;
+            }
+        }
+
+        if (var_name != NULL)
+            (void)printf("[static] %s@G[%zu] = ",
+                var_name, global_index);
+        else
+            (void)printf("[static] G[%zu] = ", global_index);
+    }
+
+    _woort_WAIPO_print_value(cenv->m_data_begin[global_index].m_dynamic, true);
+    printf("\n");
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
+/* ====================================================================
  * break / b command
  * ==================================================================== */
 
@@ -1859,6 +1964,7 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "next",      "n",    &_woort_WAIPO_cmd_next },
     { "return",    "r",    &_woort_WAIPO_cmd_return },
     { "print",     "p",    &_woort_WAIPO_cmd_print },
+    { "global",    "g",    &_woort_WAIPO_cmd_global },
     { "break",     "b",    &_woort_WAIPO_cmd_break },
     { "delete",    "d",    &_woort_WAIPO_cmd_delete },
     { "vm",        NULL,   &_woort_WAIPO_cmd_vm },
