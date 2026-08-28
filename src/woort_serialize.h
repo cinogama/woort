@@ -45,6 +45,12 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     bool is_fuzzy);
 
 /*
+ * 将 DynBox 以调试友好的格式序列化并打印到 stdout。
+ * 供内建 print 函数与调试器前端共用。
+ */
+void _woort_serialize_dynbox_print_for_debug(woort_DynBox box, bool is_fuzzy);
+
+/*
 内部 impl：将 GCMap 序列化为字符串，写入 *dst。
 src_val->m_map 作为源。
 */

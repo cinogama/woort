@@ -4779,6 +4779,531 @@ WOORT_API void woort_ctrlc_setup(void);
  */
 WOORT_API void woort_ctrlc_teardown(void);
 
+/* ========== Debugger Session API (programmatic / IDE frontend) ========== */
+
+/*
+ * The Debugger Session is a programmatic frontend on top of the same
+ * debugger machinery that powers the interactive WAIPO CLI.  It is meant
+ * for IDE debug adapters (e.g. a DAP server embedding woort through FFI)
+ * and follows a pure pull model: no callbacks are invoked back into the
+ * host.  Instead, the host:
+ *
+ *   1. attaches a session (woort_Debugger_attach), ideally before any VM
+ *      starts running;
+ *   2. installs breakpoints (set_source_breakpoint / set_function_breakpoint);
+ *   3. runs the program on another thread of its own (e.g. a worker);
+ *   4. blocks in woort_Debugger_wait_for_break until a VM stops;
+ *   5. inspects the stopped VM through the query functions below;
+ *   6. resumes with continue / step_in / step_over / step_out /
+ *      step_instruction, then goes back to 4.
+ *
+ * While a stop is active the stopped VM is frozen inside its dispatch
+ * loop; all query functions are safe to call from any thread.  Only one
+ * VM can be stopped at a time - a second VM reaching a stop while another
+ * one is being inspected simply blocks until the current stop is resumed,
+ * after which its own stop event becomes visible.
+ *
+ * The session is mutually exclusive with the interactive WAIPO frontend:
+ * attaching one returns WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED for
+ * the other.
+ */
+
+/**
+ * @brief Timeout value for woort_Debugger_wait_for_break meaning "wait forever".
+ */
+#define WOORT_DEBUGGER_WAIT_INFINITE UINT32_MAX
+
+/** @brief Capacity of woort_DebuggerFrame::m_function_name and DebuggerPanicInfo names. */
+#define WOORT_DEBUGGER_MAX_NAME 128
+
+/** @brief Capacity of woort_DebuggerFrame::m_file_or_lib_name and DebuggerPanicInfo paths. */
+#define WOORT_DEBUGGER_MAX_PATH 512
+
+/**
+ * @brief Stable per-process identity of a VM.
+ *
+ * Assigned at woort_VMRuntime_create time, never reused within a process.
+ * Ids of destroyed VMs are never recycled; a stale id simply fails lookup.
+ */
+typedef uint64_t woort_DebuggerVmId;
+
+/**
+ * @brief Why a VM entered the debugger.
+ */
+typedef enum woort_DebuggerStopReason {
+    WOORT_DEBUGGER_STOP_REASON_BREAKPOINT,  /**< a user breakpoint was hit          */
+    WOORT_DEBUGGER_STOP_REASON_STEP,        /**< a step/next/return operation ended */
+    WOORT_DEBUGGER_STOP_REASON_INTERRUPT,   /**< an interrupt (pause) request       */
+    WOORT_DEBUGGER_STOP_REASON_PANIC,       /**< a runtime panic occurred           */
+
+} woort_DebuggerStopReason;
+
+/**
+ * @brief Description of an active (or just engaged) debugger stop.
+ */
+typedef struct woort_DebuggerBreakEvent {
+    woort_DebuggerVmId       m_vm;      /**< the VM that stopped            */
+    woort_DebuggerStopReason m_reason;  /**< why it stopped                 */
+
+} woort_DebuggerBreakEvent;
+
+/**
+ * @brief Summary of one registered root VM.
+ */
+typedef struct woort_DebuggerVmInfo {
+    woort_DebuggerVmId m_id;         /**< stable VM identity                    */
+    bool               m_is_stopped; /**< true if this VM is the current stop   */
+
+} woort_DebuggerVmInfo;
+
+/**
+ * @brief Opaque breakpoint handle returned by the breakpoint setters.
+ *
+ * Ids are unique per session and monotonically increasing starting at 1.
+ */
+typedef uint64_t woort_DebuggerBreakpointId;
+
+/**
+ * @brief One call-stack frame of the stopped VM.
+ *
+ * All strings are copied into fixed-size buffers and truncated if needed.
+ * Line/column fields share the srcloc debug-info basis (first line/column
+ * is 0) and are meaningful only while m_has_location is true.
+ */
+typedef struct woort_DebuggerFrame {
+    bool    m_is_script;                    /**< false for native/dylib frames     */
+    bool    m_has_location;                 /**< false when no debug info exists   */
+    char    m_function_name[WOORT_DEBUGGER_MAX_NAME];
+    char    m_file_or_lib_name[WOORT_DEBUGGER_MAX_PATH];
+    uint32_t m_line;                        /**< 0-based begin line                */
+    uint32_t m_column;                      /**< 0-based begin column              */
+    uint32_t m_end_line;                    /**< 0-based end line                  */
+    uint32_t m_end_column;                  /**< 0-based end column                */
+
+} woort_DebuggerFrame;
+
+/**
+ * @brief Name of a local or static variable (fixed-size, truncated copy).
+ */
+typedef struct woort_DebuggerVariableInfo {
+    char m_name[96];
+
+} woort_DebuggerVariableInfo;
+
+/**
+ * @brief Where a by-name variable lookup resolved.
+ */
+typedef enum woort_DebuggerVariableKind {
+    WOORT_DEBUGGER_VARIABLE_NOT_FOUND = 0,  /**< no such variable in the frame  */
+    WOORT_DEBUGGER_VARIABLE_LOCAL,          /**< a local of the selected frame  */
+    WOORT_DEBUGGER_VARIABLE_STATIC,         /**< a static of the frame's env    */
+
+} woort_DebuggerVariableKind;
+
+/**
+ * @brief Information about the most recent panic captured by the session.
+ */
+typedef struct woort_DebuggerPanicInfo {
+    woort_DebuggerVmId m_vm;                       /**< panicking VM                  */
+    int                m_reason;                   /**< woort_PanicReason code        */
+    int                m_line;                     /**< source line, 1-based or 0     */
+    char               m_function_name[WOORT_DEBUGGER_MAX_NAME];
+    char               m_file[WOORT_DEBUGGER_MAX_PATH];
+    char               m_message[512];
+
+} woort_DebuggerPanicInfo;
+
+/**
+ * @brief Attach the programmatic debugger session.
+ *
+ * Registers a debugger frontend with the VM runtime and installs a panic
+ * handler (see woort_set_panic_callback) that routes runtime panics of any
+ * VM into debugger stops with WOORT_DEBUGGER_STOP_REASON_PANIC.  A
+ * previously installed panic handler is remembered and restored by
+ * woort_Debugger_detach; while the session is attached it owns the panic
+ * callback.  Attaching also forces every existing CodeEnv back to the
+ * interpreter (JIT is disabled), like any other debugger attach.
+ *
+ * Only one debugger (session or WAIPO) can be attached at a time.
+ *
+ * The session should be attached before VMs start running whenever
+ * possible.  Detaching marks the session as terminated; the small session
+ * bookkeeping structure is retained until process shutdown.
+ *
+ * @return WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS on a new attachment,
+ *         WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED if any debugger is
+ *         already attached, WOORT_DEBUGGER_ATTACH_RESULT_FAILED on error.
+ */
+WOORT_NODISCARD WOORT_API woort_DebuggerAttachResult woort_Debugger_attach(void);
+
+/**
+ * @brief Detach the programmatic debugger session.
+ *
+ * If a VM is currently stopped it is force-continued first.  All pending
+ * interrupts are cancelled, breakpoints remain recorded but their traps
+ * are removed from the code, and the previous panic handler (if any) is
+ * restored.  Safe to call from any thread; a no-op returning false when
+ * no session is attached.
+ *
+ * @return true if a session was detached, false if none was attached.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_detach(void);
+
+/**
+ * @brief Whether a debugger session is currently attached.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_is_attached(void);
+
+/**
+ * @brief Wait until a VM stops in the debugger.
+ *
+ * Level-triggered: if a stop is already active its event is returned
+ * immediately and repeated calls keep returning the same event until the
+ * stop is resumed.  When several VMs reach stops, they are delivered one
+ * at a time: the next stop becomes visible right after the current one
+ * is resumed.
+ *
+ * @param timeout_ms  How long to wait.  0 polls once;
+ *                    WOORT_DEBUGGER_WAIT_INFINITE waits forever.
+ * @param out_event   Receives the active stop event.
+ * @return true if a stop event was returned; false on timeout, when no
+ *         session is attached, or when the session was detached while
+ *         waiting.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_wait_for_break(
+    uint32_t timeout_ms,
+    woort_DebuggerBreakEvent* out_event);
+
+/**
+ * @brief Non-blocking snapshot of the active stop.
+ *
+ * @param out_event  Receives the active stop event.
+ * @return true if a VM is currently stopped, false otherwise.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_get_current_break(
+    woort_DebuggerBreakEvent* out_event);
+
+/**
+ * @brief Request every root VM to break into the debugger at its next
+ *        checkpoint.
+ *
+ * Unlike woort_VMRuntime_Debugger_breakdown_all_vm (which is safe from
+ * signal handlers but routes through the next GC round), this walks the
+ * root-VM registry directly and takes effect immediately.  Do not call
+ * from signal handlers.  Stopping VMs surface one at a time through
+ * woort_Debugger_wait_for_break.
+ */
+WOORT_API void woort_Debugger_interrupt_all(void);
+
+/**
+ * @brief Request one VM (by id) to break into the debugger.
+ *
+ * @param vm  Id of the target VM, as listed by woort_Debugger_get_vm_info.
+ * @return true if the VM was found and the request was issued; false when
+ *         no VM with this id exists (or it is already the current stop).
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_interrupt_vm(woort_DebuggerVmId vm);
+
+/**
+ * @brief Number of currently registered root VMs.
+ */
+WOORT_NODISCARD WOORT_API size_t woort_Debugger_get_vm_count(void);
+
+/**
+ * @brief Stable identity of the calling thread's current VM.
+ *
+ * @param out_vm_id  Receives the woort_DebuggerVmId of the VM swapped in
+ *                   on the calling thread. Ids are assigned from a
+ *                   monotonic counter starting at 0, so 0 is a valid
+ *                   identity and must not be used as a sentinel.  Lets
+ *                   an in-process host (e.g. a Woolang-level debug
+ *                   frontend) recognize its own VMs and exclude them
+ *                   from interrupts and thread listings.
+ * @return true when a VM is current on the calling thread (the id was
+ *         written to @p out_vm_id); false otherwise.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_current_vm_id(
+    woort_DebuggerVmId* out_vm_id);
+
+/**
+ * @brief Query one registered root VM by index.
+ *
+ * @param index     Index in [0, woort_Debugger_get_vm_count()).
+ * @param out_info  Receives the VM summary.
+ * @return true on success; false when the index is out of range.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_get_vm_info(
+    size_t index,
+    woort_DebuggerVmInfo* out_info);
+
+/**
+ * @brief Set a breakpoint at a source line.
+ *
+ * The location is resolved against every registered CodeEnv; each env
+ * containing code for that file+line gets a trap.  When no env matches
+ * yet, the breakpoint stays pending and is (re-)resolved automatically
+ * whenever a stop engages or woort_Debugger_refresh_breakpoints is
+ * called.  Breakpoints apply to all VMs.  While any VM is stepping,
+ * breakpoint hits of other VMs are suppressed (they stop once the
+ * stepping VM stops or resumes - engine-level behavior shared with the
+ * interactive WAIPO frontend).
+ *
+ * @param filepath  Source path exactly as recorded in debug info
+ *                  (usually the compile-time path, possibly virtual
+ *                  "woovf://..." URIs).
+ * @param line      0-based line number (first line = 0), same basis as
+ *                  the srcloc debug info.
+ * @param out_id    Receives the new breakpoint id.
+ * @return true on success (including pending resolution); false on
+ *         invalid arguments or out-of-memory.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_set_source_breakpoint(
+    const char* filepath,
+    uint32_t line,
+    /* OPTIONAL */ woort_DebuggerBreakpointId* out_id);
+
+/**
+ * @brief Set a breakpoint at the entry of every function whose name
+ *        matches exactly.
+ *
+ * Matching runs across all registered CodeEnvs; see
+ * woort_Debugger_set_source_breakpoint for pending/resolution semantics.
+ *
+ * @param function_name  Exact function name.
+ * @param out_id         Receives the new breakpoint id.
+ * @return true on success; false on invalid arguments or out-of-memory.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_set_function_breakpoint(
+    const char* function_name,
+    /* OPTIONAL */ woort_DebuggerBreakpointId* out_id);
+
+/**
+ * @brief Remove a breakpoint (releases all traps it placed).
+ *
+ * @param id  Breakpoint id returned by a setter.
+ * @return true if the breakpoint existed.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_remove_breakpoint(woort_DebuggerBreakpointId id);
+
+/**
+ * @brief Remove every breakpoint.
+ */
+WOORT_API void woort_Debugger_clear_breakpoints(void);
+
+/**
+ * @brief Re-resolve all pending breakpoints against the currently
+ *        registered CodeEnvs.
+ *
+ * Also called internally whenever a stop engages.  Calling this after
+ * loading new code (e.g. after compiling further modules) makes their
+ * breakpoints effective.
+ */
+WOORT_API void woort_Debugger_refresh_breakpoints(void);
+
+/**
+ * @brief Query the resolution state of a breakpoint.
+ *
+ * @param id           Breakpoint id.
+ * @param out_resolved Receives whether at least one trap is placed.
+ * @param out_line     Receives the actual resolved 0-based line.
+ * @return true if the breakpoint exists.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_query_breakpoint(
+    woort_DebuggerBreakpointId id,
+    bool* out_resolved,
+    /* OPTIONAL */ uint32_t* out_line);
+
+/**
+ * @brief Call-stack depth of the stopped VM.
+ *
+ * @param vm  Id of the stopped VM (the one from the active break event).
+ * @return Frame count, or 0 if the VM is not the currently stopped one.
+ */
+WOORT_NODISCARD WOORT_API size_t woort_Debugger_get_stack_depth(
+    woort_DebuggerVmId vm);
+
+/**
+ * @brief Query one call-stack frame of the stopped VM.
+ *
+ * @param vm         Id of the stopped VM.
+ * @param depth      Frame index; 0 is the innermost frame.
+ * @param out_frame  Receives the frame description.
+ * @return true on success; false if the VM is not stopped or the depth is
+ *         out of range.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_get_stack_frame(
+    woort_DebuggerVmId vm,
+    size_t depth,
+    woort_DebuggerFrame* out_frame);
+
+/**
+ * @brief Number of named local variables visible in one frame.
+ *
+ * Locals are resolved from debug info recorded at compile time (names of
+ * parameters and variables of the function owning the frame).
+ *
+ * @param vm     Id of the stopped VM.
+ * @param depth  Frame index.
+ * @return Local count, or 0 if the frame cannot be resolved.
+ */
+WOORT_NODISCARD WOORT_API size_t woort_Debugger_get_local_count(
+    woort_DebuggerVmId vm,
+    size_t depth);
+
+/**
+ * @brief Name of one local variable.
+ *
+ * @param vm        Id of the stopped VM.
+ * @param depth     Frame index.
+ * @param index     Local index in [0, woort_Debugger_get_local_count()).
+ * @param out_info  Receives the variable name.
+ * @return true on success.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_get_local_info(
+    woort_DebuggerVmId vm,
+    size_t depth,
+    size_t index,
+    woort_DebuggerVariableInfo* out_info);
+
+/**
+ * @brief Serialized value of one local variable.
+ *
+ * The value is rendered with the same fuzzy formatting the WAIPO `print`
+ * command uses (stack slots may contain raw untagged values; those are
+ * displayed with their alternative interpretation).
+ *
+ * @param vm     Id of the stopped VM.
+ * @param depth  Frame index.
+ * @param index  Local index.
+ * @return A NUL-terminated UTF-8 string to be released with woort_free,
+ *         or NULL on failure.
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_Debugger_get_local_value(
+    woort_DebuggerVmId vm,
+    size_t depth,
+    size_t index);
+
+/**
+ * @brief Number of named static variables of the CodeEnv owning one frame.
+ *
+ * @param vm     Id of the stopped VM.
+ * @param depth  Frame index.
+ * @return Static count, or 0 if the frame cannot be resolved.
+ */
+WOORT_NODISCARD WOORT_API size_t woort_Debugger_get_static_count(
+    woort_DebuggerVmId vm,
+    size_t depth);
+
+/**
+ * @brief Name of one static variable.  Unnamed slots receive a synthesized
+ *        "<static#N>" name.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_get_static_info(
+    woort_DebuggerVmId vm,
+    size_t depth,
+    size_t index,
+    woort_DebuggerVariableInfo* out_info);
+
+/**
+ * @brief Serialized value of one static variable (see get_local_value).
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_Debugger_get_static_value(
+    woort_DebuggerVmId vm,
+    size_t depth,
+    size_t index);
+
+/**
+ * @brief Look up a variable by name and render its value.
+ *
+ * Searches the locals of the frame first, then the statics of the frame's
+ * CodeEnv.  This is the identifier-level equivalent of the WAIPO `print`
+ * command and the natural backend for DAP watch/evaluate requests that
+ * are simple identifiers.
+ *
+ * @param vm        Id of the stopped VM.
+ * @param depth     Frame index.
+ * @param name      Variable name.
+ * @param out_kind  If not NULL, receives where the name resolved.
+ * @return A NUL-terminated UTF-8 string to be released with woort_free,
+ *         or NULL when the name was not found.
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_Debugger_get_variable_value_by_name(
+    woort_DebuggerVmId vm,
+    size_t depth,
+    const char* name,
+    /* OPTIONAL */ woort_DebuggerVariableKind* out_kind);
+
+/**
+ * @brief Resume the stopped VM.
+ *
+ * Cancels pending interrupt requests of the resumed VM, discards the
+ * panic record, and releases any stepping state.  The next stop (of this
+ * or another VM) surfaces through woort_Debugger_wait_for_break.
+ *
+ * @return true if a stop was resumed; false when no VM is stopped.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_continue(void);
+
+/**
+ * @brief Resume and stop again at the next bytecode instruction.
+ *
+ * @return true if the step was armed and the VM resumed; false when no VM
+ *         is stopped or the next instruction could not be determined
+ *         (the VM remains stopped in that case, as with the WAIPO `si`
+ *         command's failure path).
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_step_instruction(void);
+
+/**
+ * @brief Resume and stop at the next source line (step into).
+ *
+ * @return true if the step was armed; false when no VM is stopped or
+ *         stepping could not be armed (the VM remains stopped).
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_step_in(void);
+
+/**
+ * @brief Resume and stop at the next source line of the current frame,
+ *        skipping callees (step over).
+ *
+ * @return true if the step was armed; false when no VM is stopped or
+ *         stepping could not be armed (the VM remains stopped).
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_step_over(void);
+
+/**
+ * @brief Resume and stop when the current frame returns (step out).
+ *
+ * @return true if the step was armed; false when no VM is stopped or
+ *         stepping could not be armed (the VM remains stopped).
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_step_out(void);
+
+/**
+ * @brief Information about the most recent panic captured by the session.
+ *
+ * The record survives until the panicking VM is resumed; newer panics
+ * overwrite older ones.
+ *
+ * @param out_info  Receives the panic description.
+ * @return true if a panic has been captured since the last resume.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_get_last_panic(
+    woort_DebuggerPanicInfo* out_info);
+
+/**
+ * @brief Ask every VM to terminate, ending the debugged program.
+ *
+ * Walks the root-VM registry and requests TERMINATE on each VM; running VMs
+ * abort at their next request checkpoint. The currently stopped VM is parked
+ * inside the session stop hook and cannot observe the request until it is
+ * released, so it is resumed as well (flags first, release second).
+ *
+ * @return true if a debugger session is attached and the termination pass
+ *         was issued; false when no session is attached.
+ */
+WOORT_NODISCARD WOORT_API bool woort_Debugger_terminate_all(void);
+
 /**
  * @brief Action returned by a panic handler to control what happens next.
  */

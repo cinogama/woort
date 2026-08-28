@@ -393,6 +393,38 @@
     WOODYN_WRAP(woort_VMRuntime_Debugger_breakdown_all_vm)                  \
     WOODYN_WRAP(woort_ctrlc_setup)                                          \
     WOODYN_WRAP(woort_ctrlc_teardown)                                       \
+    WOODYN_WRAP(woort_Debugger_attach)                                      \
+    WOODYN_WRAP(woort_Debugger_detach)                                      \
+    WOODYN_WRAP(woort_Debugger_is_attached)                                 \
+    WOODYN_WRAP(woort_Debugger_wait_for_break)                              \
+    WOODYN_WRAP(woort_Debugger_get_current_break)                           \
+    WOODYN_WRAP(woort_Debugger_interrupt_all)                               \
+    WOODYN_WRAP(woort_Debugger_interrupt_vm)                                \
+    WOODYN_WRAP(woort_Debugger_get_vm_count)                                \
+    WOODYN_WRAP(woort_Debugger_get_vm_info)                                 \
+    WOODYN_WRAP(woort_Debugger_current_vm_id)                               \
+    WOODYN_WRAP(woort_Debugger_set_source_breakpoint)                       \
+    WOODYN_WRAP(woort_Debugger_set_function_breakpoint)                     \
+    WOODYN_WRAP(woort_Debugger_remove_breakpoint)                           \
+    WOODYN_WRAP(woort_Debugger_clear_breakpoints)                           \
+    WOODYN_WRAP(woort_Debugger_refresh_breakpoints)                         \
+    WOODYN_WRAP(woort_Debugger_query_breakpoint)                            \
+    WOODYN_WRAP(woort_Debugger_get_stack_depth)                             \
+    WOODYN_WRAP(woort_Debugger_get_stack_frame)                             \
+    WOODYN_WRAP(woort_Debugger_get_local_count)                             \
+    WOODYN_WRAP(woort_Debugger_get_local_info)                              \
+    WOODYN_WRAP(woort_Debugger_get_local_value)                             \
+    WOODYN_WRAP(woort_Debugger_get_static_count)                            \
+    WOODYN_WRAP(woort_Debugger_get_static_info)                             \
+    WOODYN_WRAP(woort_Debugger_get_static_value)                            \
+    WOODYN_WRAP(woort_Debugger_get_variable_value_by_name)                  \
+    WOODYN_WRAP(woort_Debugger_continue)                                    \
+    WOODYN_WRAP(woort_Debugger_step_instruction)                            \
+    WOODYN_WRAP(woort_Debugger_step_in)                                     \
+    WOODYN_WRAP(woort_Debugger_step_over)                                   \
+    WOODYN_WRAP(woort_Debugger_step_out)                                    \
+    WOODYN_WRAP(woort_Debugger_get_last_panic)                              \
+    WOODYN_WRAP(woort_Debugger_terminate_all)                               \
     WOODYN_WRAP(woort_set_panic_callback)                                   \
     WOODYN_WRAP(woort_str_get_char)                                         \
     WOODYN_WRAP(woort_strn_get_char)                                        \

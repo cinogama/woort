@@ -4,6 +4,7 @@
 #include "woort_gc.h"
 #include "woort_jit.h"
 #include "woort_threads.h"
+#include "woort_debugger_session.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -26,8 +27,14 @@ static woort_Mutex* g_debugger_external_race_mx;
 
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_bootup(void)
 {
-    if (!woort_mutex_create(&g_debugger_execute_mx))
+    if (!_woort_Debugger_session_bootup())
         return false;
+
+    if (!woort_mutex_create(&g_debugger_execute_mx))
+    {
+        _woort_Debugger_session_shutdown();
+        return false;
+    }
 
     if (!woort_mutex_create(&g_debugger_external_race_mx))
     {
@@ -42,6 +49,7 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_bootup(void)
 
 void woort_VMRuntime_Debugger_shutdown(void)
 {
+    _woort_Debugger_session_shutdown();
     woort_VMRuntime_Debugger_detach();
     woort_rwspinlock_deinit(&g_debugger_rwspin);
     woort_mutex_destroy(g_debugger_execute_mx);

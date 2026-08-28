@@ -270,6 +270,14 @@ struct woort_VMRuntime
 
     bool                        m_is_weak;
 
+    /*
+     * Stable per-process identity, assigned from a global counter at
+     * creation time and never reused.  Exposed through the debugger
+     * session API (woort_DebuggerVmId) so that external frontends can
+     * refer to VMs without holding raw woort_VMRuntime pointers.
+     */
+    uint64_t                    m_serial;
+
     int8_t                      m_hangup_c;
     woort_Mutex*                m_hangup_mx;
     woort_ConditionVariable*    m_hangup_cv;
