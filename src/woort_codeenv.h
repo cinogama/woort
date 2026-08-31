@@ -38,13 +38,18 @@ typedef struct woort_FunctionBoundary
  * @brief Debug information for a local variable, mapping name to stack offset.
  *
  * Resolved during woort_IRCompiler_finish() from the compile-time
- * woort_IRFunction_record_local_var() records.
+ * woort_IRFunction_record_local_var() records. The containing function is
+ * not stored per entry: entries are filed into the per-function bucket of
+ * woort_CodeEnv_PDB::m_local_var_debug_info, keyed by the function's
+ * woort_FunctionBoundary.
+ *
+ * m_name is never NULL: records with a NULL name (contract violation) or
+ * whose name fails to intern are dropped instead of being archived.
  */
 typedef struct woort_LocalVarDebugInfo
 {
-    /* OPTIONAL */ const char* m_name; /**< @brief Variable name (interned into CodeEnv string pool). */
-    uint32_t m_function_offset;        /**< @brief Bytecode offset of the containing function. */
-    int32_t m_stack_offset;            /**< @brief Stack offset of the variable within its function frame. */
+    const char* m_name;     /**< @brief Variable name (interned into CodeEnv string pool). Never NULL. */
+    int32_t m_stack_offset; /**< @brief Stack offset of the variable within its function frame. */
 
 } woort_LocalVarDebugInfo;
 
@@ -53,11 +58,14 @@ typedef struct woort_LocalVarDebugInfo
  *
  * Resolved during woort_IRCompiler_finish() from the compile-time
  * woort_IRCompiler_record_static_var() records.
+ *
+ * m_name is never NULL: entries with a NULL name (contract violation) or
+ * whose name fails to intern are dropped instead of being archived.
  */
 typedef struct woort_StaticVarDebugInfo
 {
-    /* OPTIONAL */ const char* m_name; /**< @brief Variable name (interned into CodeEnv string pool). */
-    woort_IRStaticIndex m_static_idx;  /**< @brief Index into the static data area. */
+    const char* m_name; /**< @brief Variable name (interned into CodeEnv string pool). Never NULL. */
+    woort_IRStaticIndex m_static_idx; /**< @brief Index into the static data area. */
 
 } woort_StaticVarDebugInfo;
 
@@ -84,11 +92,17 @@ typedef struct woort_CodeEnv_PDB
     woort_StringPool m_srcloc_string_pool;
 
     /*
-     * 局部变量调试信息（名称 -> 栈偏移量）。
+     * 局部变量调试信息（函数 -> 该函数内的局部变量列表）。
+     * key: const woort_FunctionBoundary*，指向 m_function_boundaries 中的
+     *      条目。边界表在 set_source_maps() 阶段先于本表填充完成，之后不再
+     *      变动，因此 key 指针在 CodeEnv 生命周期内稳定。
+     * value: woort_Vector（woort_LocalVarDebugInfo），该函数的局部变量列表。
+     *      条目与函数的关联仅由 key 承载，条目自身不存函数信息。
      * m_name 指针指向 m_srcloc_string_pool 中的字符串。
-     * CodeEnv 拥有所有权，GC destroy 时释放。
+     * CodeEnv 拥有所有权（含各桶 vector），GC destroy 时释放。
      */
-    woort_Vector /* woort_LocalVarDebugInfo */ m_local_var_debug_info;
+    woort_HashMap /* const woort_FunctionBoundary* -> woort_Vector(woort_LocalVarDebugInfo) */
+        m_local_var_debug_info;
 
     /*
      * 静态变量调试信息（名称 -> 静态存储索引）。
@@ -255,12 +269,14 @@ WOORT_NODISCARD bool woort_CodeEnv_set_source_maps(
  * 将编译器收集的调试信息（局部变量 + 静态变量）转移到 CodeEnv。
  * CodeEnv 会复制所有名称字符串到其字符串池，拥有完全的所有权。
  *
- * local_var_debug: woort_Vector<woort_LocalVarDebugInfo>
+ * function_source_map: 与 woort_CodeEnv_set_source_maps() 相同的输入，
+ *   且必须在其成功调用之后调用——边界表与该输入按下标一一对应，
+ *   每个函数的局部变量直接归档到对应边界的桶里（无条目被丢弃）。
  * static_var_debug: woort_Vector<woort_StaticVarDebugInfo>
  */
 void woort_CodeEnv_set_debug_info(
     woort_CodeEnv* env,
-    const woort_Vector* local_var_debug,
+    const woort_Vector* function_source_map,
     const woort_Vector* static_var_debug);
 
 /*
@@ -303,3 +319,23 @@ woort_Opcode_Global woort_CodeEnv_cidx_for_script_function(
     const woort_Bytecode* script_function);
 
 void woort_CodeEnv_dejit(woort_CodeEnv* cenv);
+
+WOORT_NODISCARD
+/* OPTIONAL */ const woort_FunctionBoundary* woort_CodeEnv_find_function_boundary_by_offset(
+    const woort_CodeEnv* env,
+    uint32_t bytecode_offset);
+
+/*
+ * 查询指定函数的局部变量调试信息。
+ *
+ * boundary 必须来自同一 CodeEnv 的 m_function_boundaries
+ * （例如 woort_CodeEnv_find_function_boundary_by_offset 的返回值）。
+ *
+ * @param out_locals 可选输出：指向该函数局部变量 vector
+ *        （woort_LocalVarDebugInfo）的指针。PDB 拥有所有权，调用方只读。
+ * @return 该函数在调试信息表中有桶（有条目）时返回 true。
+ */
+WOORT_NODISCARD bool woort_CodeEnv_find_local_vars_by_boundary(
+    const woort_CodeEnv* env,
+    const woort_FunctionBoundary* boundary,
+    /* OPTIONAL */ const woort_Vector/* woort_LocalVarDebugInfo */** out_locals);

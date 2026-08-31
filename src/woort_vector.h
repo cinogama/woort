@@ -30,8 +30,8 @@ WOORT_NODISCARD bool woort_vector_push_back(woort_Vector* vector, size_t count, 
 WOORT_NODISCARD bool woort_vector_insert(woort_Vector* vector, size_t place, const void* element);
 void woort_vector_clear(woort_Vector* vector);
 
-WOORT_NODISCARD bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element);
-WOORT_NODISCARD void* woort_vector_at(woort_Vector* vector, size_t index);
+WOORT_NODISCARD bool woort_vector_index(const woort_Vector* vector, size_t index, void** out_element);
+WOORT_NODISCARD void* woort_vector_at(const woort_Vector* vector, size_t index);
 
 WOORT_NODISCARD bool woort_vector_erase_at(woort_Vector* vector, size_t index);
 

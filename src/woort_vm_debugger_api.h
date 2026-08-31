@@ -22,6 +22,13 @@ WOORT_NODISCARD woort_DebuggerAttachResult woort_VMRuntime_Debugger_attach(
     /* OPTIONAL */ woort_VMRuntime_DebuggerContextDestroyCallback destroy_callback);
 
 void woort_VMRuntime_Debugger_detach(void);
+
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request);
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_handle_external_debug_break_race(
-    woort_VMRuntime* vm);
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_handle_external_debug_break_race(woort_VMRuntime* vm);
+
+typedef void(*woort_VMRuntime_Debugger_VerifyVmDoCallback)(woort_VMRuntime*, void*);
+
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_verify_vm_and_do_in_lock(
+    woort_VMRuntime* vm_may_invalid,
+    woort_VMRuntime_Debugger_VerifyVmDoCallback callback,
+    void* userdata);

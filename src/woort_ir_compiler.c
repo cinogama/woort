@@ -2410,15 +2410,6 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
      * 编译完成后统一转移到 CodeEnv。
      */
 
-     /* 计算函数数量 */
-    uint32_t func_count = 0;
-    for (woort_IRFunction* f = woort_linklist_iter(&c->m_ir_functions);
-        f != NULL;
-        f = woort_linklist_next(f))
-    {
-        func_count++;
-    }
-
     /* 为每个函数分配临时的映射条目收集器 */
     woort_Vector /* woort_Function_SourceMap */ function_source_map;
     woort_vector_init(&function_source_map, sizeof(woort_Function_SourceMap));
@@ -2506,42 +2497,13 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
     {
 
         /*
-         * 构建局部变量和静态变量调试信息，转移到 CodeEnv。
+         * 构建静态变量调试信息，连同各函数的局部变量记录
+         * （经 function_source_map）一并转移到 CodeEnv。
          */
-
-        /* 局部变量调试信息 */
-        woort_Vector /* woort_LocalVarDebugInfo */ local_debug;
-        woort_vector_init(&local_debug, sizeof(woort_LocalVarDebugInfo));
 
         woort_Vector /* woort_StaticVarDebugInfo */ static_debug;
         woort_vector_init(&static_debug, sizeof(woort_StaticVarDebugInfo));
 
-        for (uint32_t i = 0; i < func_count; ++i)
-        {
-            const woort_Function_SourceMap* fsm =
-                (const woort_Function_SourceMap*)woort_vector_at(
-                    (woort_Vector*)&function_source_map, i);
-            const woort_IRFunction* f = fsm->m_ir_function;
-
-            for (size_t j = 0; j < f->m_local_var_records.m_size; ++j)
-            {
-                const woort_LocalVarRecord* rec =
-                    (const woort_LocalVarRecord*)woort_vector_at(
-                        (woort_Vector*)&f->m_local_var_records, j);
-
-                woort_LocalVarDebugInfo info;
-                info.m_name = rec->m_name;
-                info.m_function_offset = (uint32_t)f->m_code_offset;
-                info.m_stack_offset = rec->m_ir_value->m_assigned_stack_offset;
-
-                if (!woort_vector_push_back(&local_debug, 1, &info))
-                {
-                    /* OOM: 丢失部分调试信息，不影响正确性 */
-                }
-            }
-        }
-
-        /* 静态变量调试信息 */
         for (size_t j = 0; j < c->m_static_var_records.m_size; ++j)
         {
             const woort_StaticVarRecord* rec =
@@ -2560,10 +2522,9 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
 
         woort_CodeEnv_set_debug_info(
             *out_cenv,
-            &local_debug,
+            &function_source_map,
             &static_debug);
 
-        woort_vector_deinit(&local_debug);
         woort_vector_deinit(&static_debug);
     }
 

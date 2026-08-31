@@ -25,7 +25,7 @@ static void _woort_ctrlc_signal_handler(int sig)
         "CTRL+C: Trying to breakdown all virtual-machine by default debuggee "
         "immediately.\n");
 
-    switch (woort_WAIPO_Debugger_attach())
+    switch (woort_WAIPO_Debugger_attach(NULL, NULL))
     {
     case WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS:
     case WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED:
@@ -35,7 +35,7 @@ static void _woort_ctrlc_signal_handler(int sig)
         break;
     }
 
-    woort_VMRuntime_Debugger_breakdown_all_vm();
+    woort_VMRuntime_Debugger_try_breakdown_any_vm();
 
     /*
      * Track consecutive Ctrl+C presses within a 2-second window.

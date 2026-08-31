@@ -836,12 +836,12 @@ WOORT_API void woort_VMRuntime_trace_begin(
 /**
  * @brief Advance the trace iterator to the next callstack frame.
  * @param modify_trace_iter  The trace iterator to advance. Must not be NULL.
- * @param[out] out_result  Pointer to receive the trace callstack info. Must not be NULL.
+ * @param[out] out_result  Pointer to receive the trace callstack info, can be NULL.
  * @return true if a frame was retrieved, false if iteration is complete.
  */
 WOORT_NODISCARD WOORT_API bool woort_VMRuntime_trace_next(
     woort_VMRuntime_TraceCallstack_Iter* modify_trace_iter,
-    woort_VMRuntime_TraceCallstack* out_result);
+    /* OPTIONAL */ woort_VMRuntime_TraceCallstack* out_result);
 
 /**
  * @brief Log a trace callstack entry.
@@ -971,6 +971,44 @@ WOORT_NODISCARD WOORT_API bool woort_CodeEnv_find_offset_by_srcloc(
     const char* filepath,
     uint32_t line,
     uint32_t* out_bytecode_offset);
+
+/**
+ * @brief Callback invoked for each bytecode offset matching a source line.
+ *
+ * @param bytecode_offset Bytecode offset relative to m_code_begin.
+ * @param user_data       Opaque data passed to the foreach function.
+ * @return false to stop the iteration early, true to continue.
+ */
+typedef bool (*woort_CodeEnv_OffsetCallback)(
+    uint32_t bytecode_offset,
+    void* user_data);
+
+/**
+ * @brief Enumerate every bytecode offset associated with a source line.
+ *
+ * A single source line can compile to multiple instructions (e.g. a 'for'
+ * header emits separate code for the initializer, the condition and the
+ * increment). Every entry whose source location covers the given line is
+ * visited in ascending bytecode offset order. If no entry covers the line,
+ * the function falls back to the nearest line that has entries (preferring
+ * lines at or after the requested one), mirroring
+ * woort_CodeEnv_find_offset_by_srcloc.
+ *
+ * filepath can be any string pointer (internally compared using strcmp).
+ *
+ * @param env       The code environment. Must not be NULL.
+ * @param filepath  The source file path to look up.
+ * @param line      The source line number.
+ * @param callback  Invoked for each matching bytecode offset. Must not be NULL.
+ * @param user_data Opaque data passed to the callback. May be NULL.
+ * @return true if at least one matching entry was visited.
+ */
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_foreach_offset_by_srcloc(
+    const woort_CodeEnv* env,
+    const char* filepath,
+    uint32_t line,
+    woort_CodeEnv_OffsetCallback callback,
+    void* user_data);
 
 /**
  * @brief Look up the function name for a given bytecode offset.
@@ -4721,42 +4759,512 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_Dylib* woort_get_builtin_lib(void
  * @brief Result of an attempt to attach a debugger.
  */
 typedef enum woort_DebuggerAttachResult {
+    WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS,           /* the debugger was attached      */
     WOORT_DEBUGGER_ATTACH_RESULT_FAILED,            /* OOM or other failure          */
     WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED,  /* a debugger was already attached */
-    WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS,           /* the debugger was attached      */
 
 } woort_DebuggerAttachResult;
+
+/**
+ * @brief What the engine should do with a VM after a trap callback returns.
+ *
+ * Returned by woort_WAIPO_Debugger_TrapCallback.  CONTINUE releases the VM
+ * back to normal execution; every other value makes the engine arm the
+ * matching one-shot step breakpoint and let the VM run until it traps again.
+ */
+typedef enum woort_WAIPO_TrapEndBehavior
+{
+    WOORT_WAIPO_TRAP_CONTINUE,  /* resume normal execution                       */
+    WOORT_WAIPO_TRAP_STEPIR,    /* stop again after one IR instruction           */
+    WOORT_WAIPO_TRAP_STEPIN,    /* stop at the next source line, entering calls  */
+    WOORT_WAIPO_TRAP_STEPOVER,  /* stop at the next source line in the current
+                                   frame, skipping over calls                   */
+    WOORT_WAIPO_TRAP_STEPOUT,   /* stop when the current function returns        */
+
+}woort_WAIPO_TrapEndBehavior;
+
+/**
+ * @brief Opaque handle to a WAIPO (Watch And Inspect Program Operation)
+ * debugger session.
+ *
+ * The instance is owned by the runtime and stays valid while the debugger
+ * remains attached; it is released automatically when the debugger is closed
+ * or replaced by a new attach.  A handle can be obtained via the
+ * out_debugger parameter of woort_WAIPO_Debugger_attach(), and the
+ * same handle is passed back to every woort_WAIPO_Debugger_TrapCallback
+ * invocation to identify the session.
+ */
+typedef struct woort_WAIPO_Debugger woort_WAIPO_Debugger;
+
+/**
+ * @brief Handler invoked whenever the attached WAIPO debugger stops a VM.
+ *
+ * The debugger engine decides on its own when to stop a VM (a user
+ * breakpoint was hit, a step/next/return operation finished, or a
+ * debug-break request arrived, e.g. via CTRL+C or panic); this callback only
+ * handles the resulting stop.  Passing NULL to woort_WAIPO_Debugger_attach()
+ * selects the default handler, an interactive command-line REPL.
+ *
+ * @param debugger_instance The debugger session that trapped.
+ * @param vm                The VM runtime that hit the trap.
+ */
+typedef woort_WAIPO_TrapEndBehavior(*woort_WAIPO_Debugger_TrapCallback)(
+    woort_WAIPO_Debugger*, woort_VMRuntime*);
 
 /**
  * @brief Attach a WAIPO (Watch And Inspect Program Operation) debugger to the VM.
  *
  * Allocates a debugger instance and registers it with the current VM runtime.
- * The debugger will be notified of VM events such as breakpoints and step
- * operations.
+ * The engine itself decides when to stop a VM: on user breakpoints, on
+ * finished step operations (step/next/return) and on debug-break requests
+ * (e.g. CTRL+C or panic).  Whenever a VM actually traps, breakdown_callback
+ * is invoked to handle the stop; the engine-side breakpoint and step
+ * bookkeeping always runs regardless of the callback.
  *
  * If a debugger is already attached, the new instance is released (its
  * destroy callback, if any, is invoked) and WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED
  * is returned; the previously-attached debugger remains active.
  *
+ * @param breakdown_callback  OPTIONAL custom handler invoked whenever a VM
+ *                            traps; NULL selects the interactive
+ *                            command-line REPL.
  * @return WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS on a new attachment,
  *         WOORT_DEBUGGER_ATTACH_RESULT_ALREADY_ATTACHED if one was already attached,
  *         WOORT_DEBUGGER_ATTACH_RESULT_FAILED on out-of-memory.
  */
-WOORT_NODISCARD WOORT_API woort_DebuggerAttachResult woort_WAIPO_Debugger_attach(void);
+WOORT_NODISCARD WOORT_API woort_DebuggerAttachResult woort_WAIPO_Debugger_attach(
+    /* OPTIONAL */ woort_WAIPO_Debugger_TrapCallback breakdown_callback,
+    /* OPTIONAL */ woort_WAIPO_Debugger** out_debugger);
 
 /**
- * @brief Breakdown all VMs by sending a debug callback request.
+ * @brief Where a variable's value slot lives.
  *
- * Does not walk the root-VM registry on the calling thread (which would be
- * unsafe from a signal handler due to root-VM lock ordering); instead it
- * raises a "debug request in the next GC round" flag and asynchronously
- * triggers a GC.  At the start of the next GC round, the GC start callback
- * walks all registered root VMs and sets the
- * WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK flag on each one.  When a VM
- * reaches its next checkpoint, it will invoke the currently attached
- * debugger callback (if any).
+ * Which member applies depends on VariableInfo.m_is_local: frame locals use
+ * the stack offset, CodeEnv statics use the data-area index.
  */
-WOORT_API void woort_VMRuntime_Debugger_breakdown_all_vm(void);
+typedef union woort_WAIPO_Debugger_VariableLocation
+{
+    /** @brief Local: stack slot offset relative to the owning frame's base pointer. */
+    int32_t         m_stack_frame_bp_offset;
+    /** @brief Static: index into the CodeEnv data area (m_data_begin: constants first, then statics). */
+    uint32_t        m_static_constant_index;
+
+}woort_WAIPO_Debugger_VariableLocation;
+
+/**
+ * @brief Description of one variable visible to the debugger.
+ *
+ * Filled by woort_WAIPO_Debugger_do_query_local() and
+ * woort_WAIPO_Debugger_do_get_variable_by_name().  m_value points at the
+ * live value slot, in the stopped VM's stack (local) or in the CodeEnv's
+ * data area (static), and stays valid only while the debugger keeps the VM
+ * stopped (see the do_ series note).
+ */
+typedef struct woort_WAIPO_Debugger_VariableInfo
+{
+    /** @brief Variable name. */
+    const char*     m_name;
+    /** @brief true for a frame local, false for a CodeEnv static. */
+    bool            m_is_local;
+    /** @brief Where the value slot is stored (member selection depends on m_is_local). */
+    woort_WAIPO_Debugger_VariableLocation
+                    m_location;
+    /** @brief The live value slot; valid only while the VM stays stopped. */
+    woort_Value*    m_value;
+
+} woort_WAIPO_Debugger_VariableInfo;
+
+/**
+ * @brief Stable identifier of a user breakpoint.
+ *
+ * Assigned at creation (1-based, ever increasing) and never reused, so
+ * deleting other breakpoints never renumbers a surviving one.
+ */
+typedef uint64_t woort_WAIPO_Debugger_BreakpointId;
+
+/**
+ * @brief Identifies a frame of the stopped VM's callstack.
+ *
+ * 0 is the innermost (top) frame; larger ids walk outwards towards the
+ * outermost caller.
+ */
+typedef uint64_t woort_WAIPO_Debugger_FrameId;
+
+/**
+ * @brief User-breakpoint descriptor filled by the breakpoint query interfaces.
+ */
+typedef struct woort_WAIPO_Debugger_BreakpointInfo
+{
+    /** @brief Stable breakpoint identifier. */
+    woort_WAIPO_Debugger_BreakpointId   m_id;
+    /* OPTIONAL */ const char*          m_filename; /**< @brief Source file path (source
+                                                         breakpoint) or function name
+                                                         (function breakpoint); points into
+                                                         the breakpoint's own record and
+                                                         stays valid until the breakpoint
+                                                         is deleted or the debugger
+                                                         detached. */
+    /* 0-based source line; SIZE_MAX = no line info (function breakpoint) */
+    size_t                              m_line;
+
+}woort_WAIPO_Debugger_BreakpointInfo;
+
+/**
+ * @brief Invoked by woort_WAIPO_Debugger_do_get_variable_by_name() for every
+ *        variable matching the requested name.
+ * @return false to stop the enumeration early.
+ */
+typedef bool (*woort_WAIPO_Debugger_QueryVariableCallback)(
+    const woort_WAIPO_Debugger_VariableInfo*, void*);
+
+/**
+ * @brief Invoked by woort_WAIPO_Debugger_query_breakpoints() for every user
+ *        breakpoint, in creation order.
+ * @return false to stop the enumeration early.
+ *
+ * @note Runs on the caller's thread while the breakpoint collection is
+ *       read-locked, and that lock is not recursive: while inside the
+ *       callback, the calling thread must not call any other breakpoint
+ *       interface (set / delete / clear / query / get_breakpoint_info,
+ *       directly or indirectly).  A write interface would wait forever for
+ *       the caller's own read lock to release (guaranteed deadlock); a read
+ *       interface can also deadlock whenever another thread is concurrently
+ *       waiting to write.  Perform any other breakpoint work only before or
+ *       after the enumeration returns.
+ */
+typedef bool (*woort_WAIPO_Debugger_QueryBreakpointCallback)(
+    const woort_WAIPO_Debugger_BreakpointInfo*, void*);
+
+/*
+ * The do_ series inspects the debugger's current stop state: the VM the
+ * debugger has stopped and the callstack frame currently selected for
+ * inspection.  That state only exists while the debugger is responding to a
+ * trap, so every do_ interface may ONLY be used inside the
+ * woort_WAIPO_Debugger_TrapCallback invocation (directly or indirectly);
+ * outside that window using them is invalid.
+ */
+
+/**
+ * @brief Get the VM the debugger is currently stopped on.
+ *
+ * @note do_ series: only valid during a debugger-response callback.
+ *
+ * @param debugger  The debugger session. Must not be NULL.
+ * @return The trapped VM, or NULL when the debugger is not handling a stop.
+ */
+WOORT_NODISCARD WOORT_API woort_VMRuntime* woort_WAIPO_Debugger_do_get_current_vm(
+    woort_WAIPO_Debugger* debugger);
+
+/**
+ * @brief Get the callstack frame currently selected for inspection.
+ *
+ * @note do_ series: only valid during a debugger-response callback.
+ *
+ * @param debugger  The debugger session. Must not be NULL.
+ * @return The selected frame id (0 = innermost frame).
+ */
+WOORT_NODISCARD WOORT_API
+woort_WAIPO_Debugger_FrameId woort_WAIPO_Debugger_do_get_current_frame(
+    woort_WAIPO_Debugger* debugger);
+
+/**
+ * @brief Select the callstack frame inspected by the other do_ queries.
+ *
+ * @note do_ series: only valid during a debugger-response callback.
+ *
+ * @param debugger       The debugger session. Must not be NULL.
+ * @param frame_id       Frame to select (0 = innermost frame, growing
+ *                       outwards towards the outermost caller).
+ * @param[out] out_tracestack  OPTIONAL trace info of the selected frame.
+ * @return true on success, false when the stopped VM has no such frame.
+ */
+WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_do_switch_trace_frame(
+    woort_WAIPO_Debugger* debugger,
+    woort_WAIPO_Debugger_FrameId frame_id,
+    /* OPTIONAL */ woort_VMRuntime_TraceCallstack* out_tracestack);
+
+/**
+ * @brief Get the number of local variables visible in the selected frame.
+ *
+ * @note do_ series: only valid during a debugger-response callback.
+ *
+ * @param debugger  The debugger session. Must not be NULL.
+ * @return The local count, or 0 when the frame's function has no debug info.
+ */
+WOORT_NODISCARD WOORT_API size_t woort_WAIPO_Debugger_do_get_local_count(
+    woort_WAIPO_Debugger* debugger);
+
+/**
+ * @brief Query one local variable of the selected frame by index.
+ *
+ * @note do_ series: only valid during a debugger-response callback.
+ *
+ * @param debugger            The debugger session. Must not be NULL.
+ * @param index               Local index, in [0, do_get_local_count()).
+ * @param[out] out_local_info  Receives the variable description. Must not be
+ *                             NULL.
+ * @return true on success, false when the frame has no debug info or
+ *         @p index is out of range.
+ */
+WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_do_query_local(
+    woort_WAIPO_Debugger* debugger,
+    size_t index,
+    woort_WAIPO_Debugger_VariableInfo* out_local_info);
+
+/**
+ * @brief Find variables by name in the selected frame.
+ *
+ * Searches the selected frame's locals, then the CodeEnv's static variables;
+ * a name may match more than once and every match is reported through
+ * @p callback, which stops the enumeration by returning false.
+ *
+ * @note do_ series: only valid during a debugger-response callback.
+ *
+ * @param debugger  The debugger session. Must not be NULL.
+ * @param name      Variable name to look for. Must not be NULL.
+ * @param callback  Invoked per matching variable. Must not be NULL.
+ * @param userdata  Opaque data passed to the callback. May be NULL.
+ * @return true when the enumeration ran to the end (even with no match),
+ *         false when the callback aborted it early.
+ */
+WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_do_get_variable_by_name(
+    woort_WAIPO_Debugger* debugger,
+    const char* name,
+    woort_WAIPO_Debugger_QueryVariableCallback callback,
+    void* userdata);
+
+/* ============================================= */
+
+/**
+ * @brief Set a user breakpoint on a source line.
+ *
+ * Searches every loaded CodeEnv for code belonging to @p path at @p line; a
+ * line compiling to multiple instructions (e.g. a 'for' header) is covered
+ * completely as a single breakpoint.  Unlike the do_ series, this may be
+ * called at any time while the debugger is attached.
+ *
+ * @param debugger      The debugger session. Must not be NULL.
+ * @param path          Source file path. Must not be NULL.
+ * @param line          Source line number (0-based).
+ * @param[out] out_id   OPTIONAL receives the new stable breakpoint id.
+ * @return true on success, false when no loaded code matches the line.
+ */
+WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_set_source_breakpoint(
+    woort_WAIPO_Debugger* debugger,
+    const char* path,
+    uint32_t line,
+    /* OPTIONAL */ woort_WAIPO_Debugger_BreakpointId* out_id);
+
+/**
+ * @brief Set a user breakpoint at function entries.
+ *
+ * Every loaded function whose name contains @p function_name as a substring
+ * is trapped at its entry, and all matches share one breakpoint id.  Unlike
+ * the do_ series, this may be called at any time while the debugger is
+ * attached.
+ *
+ * @param debugger       The debugger session. Must not be NULL.
+ * @param function_name  Substring matched against function names. Must not
+ *                       be NULL.
+ * @param[out] out_id    OPTIONAL receives the new stable breakpoint id.
+ * @return true on success, false when no function name matches.
+ */
+WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_set_function_breakpoint(
+    woort_WAIPO_Debugger* debugger,
+    const char* function_name,
+    /* OPTIONAL */ woort_WAIPO_Debugger_BreakpointId* out_id);
+
+/**
+ * @brief Enumerate the current user breakpoints in creation order.
+ *
+ * @note The callback runs under the breakpoint collection's read lock; per
+ *       the note on woort_WAIPO_Debugger_QueryBreakpointCallback, no
+ *       breakpoint interface may be called from inside the callback on the
+ *       calling thread.
+ *
+ * @param debugger  The debugger session. Must not be NULL.
+ * @param callback  Invoked once per breakpoint. Must not be NULL.
+ * @param userdata  Opaque data passed to the callback. May be NULL.
+ * @return true when the enumeration ran to the end, false when the callback
+ *         aborted it early.
+ */
+WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_query_breakpoints(
+    woort_WAIPO_Debugger* debugger,
+    woort_WAIPO_Debugger_QueryBreakpointCallback callback,
+    void* userdata);
+
+/**
+ * @brief Look up one user breakpoint by its stable id.
+ *
+ * @param debugger           The debugger session. Must not be NULL.
+ * @param breakpoint_id      Stable id of the breakpoint to look up.
+ * @param[out] out_breakinfo  Receives the breakpoint description. Must not
+ *                            be NULL.
+ * @return true when found, false when no breakpoint carries
+ *         @p breakpoint_id.
+ */
+WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_get_breakpoint_info(
+    woort_WAIPO_Debugger* debugger,
+    woort_WAIPO_Debugger_BreakpointId breakpoint_id,
+    woort_WAIPO_Debugger_BreakpointInfo* out_breakinfo);
+
+/**
+ * @brief Remove one user breakpoint by its stable id.
+ *
+ * Cancels every trap address the breakpoint holds; addresses shared with
+ * other breakpoints keep trapping for those.  Remaining breakpoints keep
+ * their ids: ids are never reused, even after deletion.  Unlike the do_
+ * series, this may be called at any time while the debugger is attached.
+ *
+ * @param debugger        The debugger session. Must not be NULL.
+ * @param breakpoint_id   Stable id of the breakpoint to remove.
+ * @return true when the breakpoint was found and removed, false when no
+ *         breakpoint carries @p breakpoint_id.
+ */
+WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_delete_breakpoint(
+    woort_WAIPO_Debugger* debugger,
+    woort_WAIPO_Debugger_BreakpointId breakpoint_id);
+
+/**
+ * @brief Remove every user breakpoint.
+ *
+ * Equivalent to deleting each breakpoint one by one.  The id allocator is
+ * not reset, so breakpoints set afterwards never reuse ids of deleted ones.
+ * Unlike the do_ series, this may be called at any time while the debugger
+ * is attached.
+ *
+ * @param debugger  The debugger session. Must not be NULL.
+ */
+WOORT_NODISCARD WOORT_API void woort_WAIPO_Debugger_clear_breakpoint(
+    woort_WAIPO_Debugger* debugger);
+
+/**
+ * @brief Query the VMs that are currently alive (registered as GC roots).
+ *
+ * Walks the root VMs known to the GC at the moment of the call and copies up
+ * to vms_buffer_count of them into out_vms.  Works whether or not a debugger
+ * is attached.
+ *
+ * The returned VMs must not be operated on directly: their pointers may be
+ * freed at any moment.  Pass them only to the other debugger interfaces,
+ * which validate the VM, for queries and other debug operations.
+ *
+ * @param out_vms           OPTIONAL buffer receiving the live VMs; NULL to
+ *                          only obtain the count, in which case
+ *                          vms_buffer_count must be 0.
+ * @param vms_buffer_count  Number of entries out_vms can hold; must be 0
+ *                          when out_vms is NULL.
+ * @return The number of live VMs observed during the call, which may exceed
+ *         vms_buffer_count when the buffer is too small.
+ */
+WOORT_NODISCARD WOORT_API size_t woort_VMRuntime_Debugger_query_vms(
+    /* OPTIONAL */ woort_VMRuntime** out_vms,
+    size_t vms_buffer_count);
+
+/**
+ * @brief Request that one of the running VMs stops in the attached debugger.
+ *
+ * Best-effort and fully asynchronous: the call only arms a one-shot flag and
+ * wakes the background GC thread, returning without waiting for the GC round
+ * to happen (the CTRL+C handler relies on this).  At the start of that round
+ * every registered root VM receives a
+ * WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK request; the first VM to
+ * reach a checkpoint wins the race, gets the other VMs' requests cancelled
+ * and traps into the debugger, so at most one VM stops per call.  With no
+ * debugger attached the requests are consumed and every VM keeps running.
+ */
+WOORT_API void woort_VMRuntime_Debugger_try_breakdown_any_vm(void);
+
+/**
+ * @brief Request that one specific VM stops in the attached debugger.
+ *
+ * Unlike try_breakdown_any_vm, where the running VMs race for the stop, the
+ * target is chosen by the caller: typically a pointer previously returned by
+ * woort_VMRuntime_Debugger_query_vms, which may have been freed since.  The
+ * pointer is therefore validated against the registered root VMs under the
+ * GC root lock, and a stale pointer is safely rejected with false (that
+ * locking also makes this call, unlike try_breakdown_any_vm, unsafe to use
+ * from a signal handler).  A live VM gets a direct debug-break request and
+ * traps into the debugger at its next checkpoint; with no debugger attached
+ * the request stays armed and is retried at each further checkpoint until a
+ * debugger takes it.
+ *
+ * @param vm_may_invalid  VM to stop; typically obtained from
+ *                        woort_VMRuntime_Debugger_query_vms and may be stale,
+ *                        in which case the call is a no-op.
+ * @return true when the VM is still a registered root VM and the debug-break
+ *         request was armed for it, false when the pointer denotes no live
+ *         VM.
+ */
+WOORT_NODISCARD WOORT_API bool woort_VMRuntime_Debugger_try_breakdown_vm(
+    woort_VMRuntime* vm_may_invalid);
+
+/**
+ * @brief Request that every registered root VM terminates.
+ *
+ * Asynchronous and best-effort: each live VM merely receives a terminate
+ * request and stops at its next checkpoint; the call returns without waiting
+ * for any VM to actually finish.
+ */
+WOORT_API void woort_VMRuntime_Debugger_terminate_all_vm(void);
+
+/**
+ * @brief Request that one specific VM terminates.
+ *
+ * The target is chosen by the caller, typically a pointer previously returned
+ * by woort_VMRuntime_Debugger_query_vms, which may have been freed since.  The
+ * pointer is validated against the registered root VMs under the GC root
+ * lock, and a stale pointer is safely rejected with false (that locking also
+ * makes this call unsafe to use from a signal handler).  Like
+ * woort_VMRuntime_Debugger_terminate_all_vm, the call is asynchronous and
+ * best-effort: a live VM merely receives a terminate request and stops at its
+ * next checkpoint, and the call returns without waiting for the VM to
+ * actually finish.
+ *
+ * @param vm_may_invalid  VM to terminate; typically obtained from
+ *                        woort_VMRuntime_Debugger_query_vms and may be stale,
+ *                        in which case the call is a no-op.
+ * @return true when the VM is still a registered root VM and the terminate
+ *         request was armed for it, false when the pointer denotes no live
+ *         VM.
+ */
+WOORT_NODISCARD WOORT_API bool woort_VMRuntime_Debugger_try_terminate_vm(
+    woort_VMRuntime* vm_may_invalid);
+
+/**
+ * @brief Serialize a script value into its human-readable debug form.
+ *
+ * Produces the same rendering the debugger `print` command uses for a
+ * variable: nested vectors/maps/structs are expanded (with cycle detection),
+ * and a slot whose raw bits are not a well-formed dynamic box falls back to
+ * the raw integer/float interpretation.  Safe to call from a debugger trap
+ * callback on values obtained there (e.g. VariableInfo.m_value).
+ *
+ * Fills @p out_value_content following the bounded-fill contract (shared by
+ * every string-buffer API in this header):
+ *  - Returns the content length EXCLUDING the NUL terminator.
+ *  - If @p out_value_content is NULL, nothing is written;
+ *    @p value_content_buf_len must be 0 and only the required length is
+ *    returned.
+ *  - Otherwise at most @p value_content_buf_len bytes of the result are
+ *    written.  The NUL terminator is appended iff @p value_content_buf_len is
+ *    greater than the returned length, so truncated output is NOT
+ *    NUL-terminated.
+ *  - The output is complete and NUL-terminated iff the returned value is
+ *    less than @p value_content_buf_len.
+ *  - Returns 0 on failure (NULL @p value or out of memory).
+ *
+ * @param value                     Script value to serialize.  Must not be
+ *                                  NULL.
+ * @param out_value_content         OPTIONAL buffer receiving the description;
+ *                                  NULL to only query the required length.
+ * @param value_content_buf_len     Size of out_value_content; must be 0 when
+ *                                  out_value_content is NULL.
+ */
+WOORT_NODISCARD WOORT_API size_t woort_VMRuntime_Debugger_serialize_value(
+    woort_Value* value,
+    char* out_value_content,
+    size_t value_content_buf_len);
 
 /* ========== Ctrl+C Signal Handling ========== */
 
@@ -5170,7 +5678,7 @@ WOORT_NODISCARD WOORT_API size_t woort_u32strn_to_str(
  * malloc-allocated buffers that MUST be released with woort_free().
  */
 
-/** @brief Maximum byte length of a single UTF-8 code point. */
+ /** @brief Maximum byte length of a single UTF-8 code point. */
 #define WOORT_UTF8MAXLEN 6
 /** @brief Maximum unit length of a single UTF-16 code point. */
 #define WOORT_UTF16MAXLEN 2

@@ -18,12 +18,12 @@
  * 二进制序列化 / 反序列化
  * ========================================================================
  *
- *  整体字节布局（version 7；与 v6 同字段、同顺序、同编码，仅版本号变更，
- *  并修正 struct 成员索引回退 bug——对状态正常的 CodeEnv 产生相同字节）：
+ *  整体字节布局（version 8；与 v7 唯一差异：局部变量调试条目的
+ *  u32 function_offset 改为 u32 fb_index——所属函数在函数边界表中的下标）：
  *
  *    header (32 字节)
  *      u32 magic           0x54524f57 ("WORT")
- *      u32 version         7
+ *      u32 version         8
  *      u64 code_size       字节码字数（woort_Bytecode 个数）
  *      u64 data_count      m_data_begin 总槽位
  *      u64 const_count     常量池槽位数（前 const_count 个）
@@ -66,7 +66,8 @@
  *    u64 lv_count          局部变量调试信息条目数
  *    per entry:
  *      u32 name_off / u32 name_len
- *      u32 function_offset / u32 stack_offset
+ *      u32 fb_index / u32 stack_offset
+ *                          （fb_index：所属函数在函数边界表中的下标）
  *
  *    u64 sv_count          静态变量调试信息条目数
  *    per entry:
@@ -80,7 +81,7 @@
   * 二进制格式版本号与魔数。
   */
 #define WOORT_CODEENV_BINARY_MAGIC   0x54524f57u  /* "WORT" */
-#define WOORT_CODEENV_BINARY_VERSION 7u
+#define WOORT_CODEENV_BINARY_VERSION 8u
 
   /* 字符串引用的 NULL 哨兵。序列化时写入此 offset 表示"无字符串"。 */
 #define WOORT_STRREF_NULL UINT32_MAX
@@ -538,8 +539,9 @@ static bool _find_const_index_for_value(
 /* ================================================================
  * 第六部分：HashMap foreach 回调上下文与回调（save 侧）
  *
- *  woort_HashMap 没有迭代器，必须用 foreach 模式。这里为三处使用
- *  （extern 常量名收集、extern 常量写入、trap 写入）定义统一的 ctx。
+ *  woort_HashMap 没有迭代器，必须用 foreach 模式。这里为各处使用
+ *  （extern 常量名收集、extern 常量写入、trap 写入、局部变量调试信息）
+ *  定义统一的 ctx。
  * ================================================================ */
 
  /* 收集 extern 常量名到字符串池（collect 阶段）。 */
@@ -555,6 +557,77 @@ static bool _strpool_collect_key_cb(const void* key, void* value, void* user_dat
     const char* name = *(const char**)key;
     *ctx->m_ok = *ctx->m_ok
         && _bin_strpool_insert(ctx->m_sp, name, strlen(name), NULL);
+    return true;  /* 继续遍历；失败由 m_ok 在调用方检查 */
+}
+
+/* 收集局部变量调试信息名称到字符串池（collect 阶段，逐函数桶遍历）。 */
+static bool _strpool_collect_local_var_names_cb(
+    const void* key, void* value, void* user_data)
+{
+    (void)key;
+    struct _StrpoolCollectCtx* ctx = (struct _StrpoolCollectCtx*)user_data;
+    const woort_Vector* bucket = (const woort_Vector*)value;
+
+    for (size_t i = 0; i < bucket->m_size; ++i)
+    {
+        const woort_LocalVarDebugInfo* info =
+            (const woort_LocalVarDebugInfo*)woort_vector_at(
+                (woort_Vector*)bucket, i);
+        *ctx->m_ok = *ctx->m_ok
+            && _bin_strpool_insert(ctx->m_sp, info->m_name, strlen(info->m_name), NULL);
+    }
+
+    return true;  /* 继续遍历；失败由 m_ok 在调用方检查 */
+}
+
+/* 统计局部变量调试信息总条目数（跨函数桶求和，emit 前先写 count 用）。 */
+struct _LocalVarCountCtx {
+    size_t* m_total;
+};
+
+static bool _local_var_count_cb(const void* key, void* value, void* user_data)
+{
+    (void)key;
+    const woort_Vector* bucket = (const woort_Vector*)value;
+    struct _LocalVarCountCtx* ctx = (struct _LocalVarCountCtx*)user_data;
+    *ctx->m_total += bucket->m_size;
+    return true;
+}
+
+/* 写入单个函数桶内的局部变量调试信息条目（emit 阶段）。 */
+struct _WriteLocalVarCtx {
+    _CodeEnvBinStrPool* m_sp;
+    _BinWriter* m_w;
+    const woort_Vector* m_boundaries;
+    bool* m_ok;
+};
+
+static bool _write_local_var_cb(const void* key, void* value, void* user_data)
+{
+    struct _WriteLocalVarCtx* ctx = (struct _WriteLocalVarCtx*)user_data;
+    const woort_FunctionBoundary* const boundary =
+        *(const woort_FunctionBoundary* const*)key;
+    const woort_Vector* bucket = (const woort_Vector*)value;
+
+    /* key 指向边界表内部，按下标差换算所属函数的边界索引。 */
+    const uint32_t fb_index = (uint32_t)(boundary
+        - (const woort_FunctionBoundary*)ctx->m_boundaries->m_data);
+
+    for (size_t i = 0; *ctx->m_ok && i < bucket->m_size; ++i)
+    {
+        const woort_LocalVarDebugInfo* info =
+            (const woort_LocalVarDebugInfo*)woort_vector_at(
+                (woort_Vector*)bucket, i);
+
+        uint32_t name_off, name_len = (uint32_t)strlen(info->m_name);
+        *ctx->m_ok = *ctx->m_ok
+            && _bin_strpool_insert(ctx->m_sp, info->m_name, name_len, &name_off);
+        *ctx->m_ok = *ctx->m_ok && _bin_write_u32(ctx->m_w, name_off);
+        *ctx->m_ok = *ctx->m_ok && _bin_write_u32(ctx->m_w, name_len);
+        *ctx->m_ok = *ctx->m_ok && _bin_write_u32(ctx->m_w, fb_index);
+        *ctx->m_ok = *ctx->m_ok && _bin_write_u32(ctx->m_w, (uint32_t)info->m_stack_offset);
+    }
+
     return true;  /* 继续遍历；失败由 m_ok 在调用方检查 */
 }
 
@@ -725,13 +798,13 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
                 entry->m_location.m_filepath, strlen(entry->m_location.m_filepath), NULL);
     }
 
-    /* 局部变量调试信息名称 */
-    for (size_t i = 0; ok && i < code_env->m_pdb.m_local_var_debug_info.m_size; ++i)
+    /* 局部变量调试信息名称（按函数分桶存储，逐桶收集） */
+    if (ok)
     {
-        const woort_LocalVarDebugInfo* info = (const woort_LocalVarDebugInfo*)woort_vector_at(
-            &code_env->m_pdb.m_local_var_debug_info, i);
-        if (info->m_name != NULL)
-            ok = ok && _bin_strpool_insert(&strpool, info->m_name, strlen(info->m_name), NULL);
+        struct _StrpoolCollectCtx ctx = { &strpool, &ok };
+        (void)woort_hashmap_foreach(
+            &code_env->m_pdb.m_local_var_debug_info,
+            &_strpool_collect_local_var_names_cb, &ctx);
     }
 
     /* 静态变量调试信息名称 */
@@ -739,8 +812,7 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     {
         const woort_StaticVarDebugInfo* info = (const woort_StaticVarDebugInfo*)woort_vector_at(
             &code_env->m_pdb.m_static_var_debug_info, i);
-        if (info->m_name != NULL)
-            ok = ok && _bin_strpool_insert(&strpool, info->m_name, strlen(info->m_name), NULL);
+        ok = ok && _bin_strpool_insert(&strpool, info->m_name, strlen(info->m_name), NULL);
     }
 
     /*
@@ -1004,23 +1076,23 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
     /* 写入局部变量调试信息。 */
     if (ok)
     {
-        ok = ok && _bin_write_u64(&w, (uint64_t)code_env->m_pdb.m_local_var_debug_info.m_size);
-        for (size_t i = 0; ok && i < code_env->m_pdb.m_local_var_debug_info.m_size; ++i)
-        {
-            const woort_LocalVarDebugInfo* info = (const woort_LocalVarDebugInfo*)woort_vector_at(
-                &code_env->m_pdb.m_local_var_debug_info, i);
+        /*
+         * 调试信息按函数分桶存储，序列化格式仍是平铺条目：
+         * 先求总条目数写出，再逐桶写出（字段与顺序和旧版格式一致）。
+         */
+        size_t local_var_total = 0;
+        struct _LocalVarCountCtx cctx = { &local_var_total };
+        (void)woort_hashmap_foreach(
+            &code_env->m_pdb.m_local_var_debug_info,
+            &_local_var_count_cb, &cctx);
 
-            uint32_t name_off = WOORT_STRREF_NULL, name_len = 0;
-            if (info->m_name != NULL)
-            {
-                name_len = (uint32_t)strlen(info->m_name);
-                ok = ok && _bin_strpool_insert(&strpool, info->m_name, name_len, &name_off);
-            }
-            ok = ok && _bin_write_u32(&w, name_off);
-            ok = ok && _bin_write_u32(&w, name_len);
-            ok = ok && _bin_write_u32(&w, info->m_function_offset);
-            ok = ok && _bin_write_u32(&w, (uint32_t)info->m_stack_offset);
-        }
+        ok = ok && _bin_write_u64(&w, (uint64_t)local_var_total);
+
+        struct _WriteLocalVarCtx ctx = {
+            &strpool, &w, &code_env->m_function_boundaries, &ok };
+        (void)woort_hashmap_foreach(
+            &code_env->m_pdb.m_local_var_debug_info,
+            &_write_local_var_cb, &ctx);
     }
 
     /* 写入静态变量调试信息。 */
@@ -1032,12 +1104,8 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
             const woort_StaticVarDebugInfo* info = (const woort_StaticVarDebugInfo*)woort_vector_at(
                 &code_env->m_pdb.m_static_var_debug_info, i);
 
-            uint32_t name_off = WOORT_STRREF_NULL, name_len = 0;
-            if (info->m_name != NULL)
-            {
-                name_len = (uint32_t)strlen(info->m_name);
-                ok = ok && _bin_strpool_insert(&strpool, info->m_name, name_len, &name_off);
-            }
+            uint32_t name_off, name_len = (uint32_t)strlen(info->m_name);
+            ok = ok && _bin_strpool_insert(&strpool, info->m_name, name_len, &name_off);
             ok = ok && _bin_write_u32(&w, name_off);
             ok = ok && _bin_write_u32(&w, name_len);
             ok = ok && _bin_write_u32(&w, (uint32_t)info->m_static_idx);
@@ -1813,25 +1881,59 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
         for (uint64_t li = 0; li < lv_count; ++li)
         {
             woort_LocalVarDebugInfo info;
+            uint32_t fb_index;
             bool oom = false;
             if (!_restore_read_str_ref(&r, &str_tracker, strpool_data, &info.m_name, &oom)
-                || !_bin_read_u32(&r, &info.m_function_offset)
+                || !_bin_read_u32(&r, &fb_index)
                 || !_bin_read_u32(&r, (uint32_t*)&info.m_stack_offset))
             {
                 result = oom ? WOORT_CODEENV_RESTORE_FAIL_ALLOC
                     : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                 goto _restore_fail;
             }
-            if (info.m_name != NULL)
+
+            /*
+             * fb_index 是所属函数在边界表中的下标（边界表先于本段恢复完成），
+             * 越界即数据损坏。
+             */
+            if (fb_index >= cenv->m_function_boundaries.m_size)
             {
-                info.m_name = woort_StringPool_intern(&cenv->m_pdb.m_srcloc_string_pool, info.m_name);
-                if (info.m_name == NULL)
-                {
-                    result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
-                    goto _restore_fail;
-                }
+                result = WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET;
+                goto _restore_fail;
             }
-            if (!woort_vector_push_back(&cenv->m_pdb.m_local_var_debug_info, 1, &info))
+            const woort_FunctionBoundary* boundary =
+                (const woort_FunctionBoundary*)woort_vector_at(
+                    &cenv->m_function_boundaries, fb_index);
+
+            /*
+             * NULL 哨兵仅见于旧版产物中的无名条目：丢弃该条目，不入桶。
+             */
+            if (info.m_name == NULL)
+                continue;
+
+            /* intern 到 CodeEnv 字符串池做生命周期管理。 */
+            info.m_name = woort_StringPool_intern(&cenv->m_pdb.m_srcloc_string_pool, info.m_name);
+            if (info.m_name == NULL)
+            {
+                result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                goto _restore_fail;
+            }
+
+            woort_Vector* bucket = NULL;
+            const woort_hashmap_Result emplace_result =
+                woort_hashmap_get_or_emplace(
+                    &cenv->m_pdb.m_local_var_debug_info,
+                    &boundary,
+                    (void**)&bucket);
+            if (emplace_result == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
+            {
+                result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                goto _restore_fail;
+            }
+            if (emplace_result == WOORT_HASHMAP_RESULT_OK)
+                woort_vector_init(bucket, sizeof(woort_LocalVarDebugInfo));
+
+            if (!woort_vector_push_back(bucket, 1, &info))
             {
                 result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
                 goto _restore_fail;
@@ -1860,14 +1962,17 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     : WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA;
                 goto _restore_fail;
             }
-            if (info.m_name != NULL)
+            /*
+             * NULL 哨兵仅见于旧版产物中的无名条目：丢弃该条目，不入表。
+             */
+            if (info.m_name == NULL)
+                continue;
+
+            info.m_name = woort_StringPool_intern(&cenv->m_pdb.m_srcloc_string_pool, info.m_name);
+            if (info.m_name == NULL)
             {
-                info.m_name = woort_StringPool_intern(&cenv->m_pdb.m_srcloc_string_pool, info.m_name);
-                if (info.m_name == NULL)
-                {
-                    result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
-                    goto _restore_fail;
-                }
+                result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
+                goto _restore_fail;
             }
             if (!woort_vector_push_back(&cenv->m_pdb.m_static_var_debug_info, 1, &info))
             {

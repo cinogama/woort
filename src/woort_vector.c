@@ -83,7 +83,7 @@ void woort_vector_clear(woort_Vector* vector)
 {
     vector->m_size = 0;
 }
-WOORT_NODISCARD bool woort_vector_index(woort_Vector* vector, size_t index, void** out_element)
+WOORT_NODISCARD bool woort_vector_index(const woort_Vector* vector, size_t index, void** out_element)
 {
     if (index >= vector->m_size)
         return false;
@@ -91,7 +91,7 @@ WOORT_NODISCARD bool woort_vector_index(woort_Vector* vector, size_t index, void
     *out_element = vector->m_data + index * vector->m_element_size;
     return true;
 }
-WOORT_NODISCARD void* woort_vector_at(woort_Vector* vector, size_t index)
+WOORT_NODISCARD void* woort_vector_at(const woort_Vector* vector, size_t index)
 {
     void* result;
     if (!woort_vector_index(vector, index, &result))

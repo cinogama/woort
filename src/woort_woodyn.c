@@ -56,6 +56,7 @@
     WOODYN_WRAP(woort_CodeEnv_unlock)                                       \
     WOODYN_WRAP(woort_CodeEnv_find_srcloc_by_offset)                        \
     WOODYN_WRAP(woort_CodeEnv_find_offset_by_srcloc)                        \
+    WOODYN_WRAP(woort_CodeEnv_foreach_offset_by_srcloc)                     \
     WOODYN_WRAP(woort_CodeEnv_find_function_name_by_offset)                 \
     WOODYN_WRAP(woort_CodeEnv_set_trap)                                     \
     WOODYN_WRAP(woort_CodeEnv_clear_trap)                                   \
@@ -390,7 +391,24 @@
     WOODYN_WRAP(woort_dylib_keep)                                           \
     WOODYN_WRAP(woort_get_builtin_lib)                                      \
     WOODYN_WRAP(woort_WAIPO_Debugger_attach)                                \
-    WOODYN_WRAP(woort_VMRuntime_Debugger_breakdown_all_vm)                  \
+    WOODYN_WRAP(woort_WAIPO_Debugger_do_get_current_vm)                     \
+    WOODYN_WRAP(woort_WAIPO_Debugger_do_get_current_frame)                  \
+    WOODYN_WRAP(woort_WAIPO_Debugger_do_switch_trace_frame)                 \
+    WOODYN_WRAP(woort_WAIPO_Debugger_do_get_local_count)                    \
+    WOODYN_WRAP(woort_WAIPO_Debugger_do_query_local)                        \
+    WOODYN_WRAP(woort_WAIPO_Debugger_do_get_variable_by_name)               \
+    WOODYN_WRAP(woort_WAIPO_Debugger_set_source_breakpoint)                 \
+    WOODYN_WRAP(woort_WAIPO_Debugger_set_function_breakpoint)               \
+    WOODYN_WRAP(woort_WAIPO_Debugger_query_breakpoints)                     \
+    WOODYN_WRAP(woort_WAIPO_Debugger_get_breakpoint_info)                   \
+    WOODYN_WRAP(woort_WAIPO_Debugger_delete_breakpoint)                     \
+    WOODYN_WRAP(woort_WAIPO_Debugger_clear_breakpoint)                      \
+    WOODYN_WRAP(woort_VMRuntime_Debugger_query_vms)                         \
+    WOODYN_WRAP(woort_VMRuntime_Debugger_try_breakdown_any_vm)              \
+    WOODYN_WRAP(woort_VMRuntime_Debugger_try_breakdown_vm)                  \
+    WOODYN_WRAP(woort_VMRuntime_Debugger_terminate_all_vm)                  \
+    WOODYN_WRAP(woort_VMRuntime_Debugger_try_terminate_vm)                  \
+    WOODYN_WRAP(woort_VMRuntime_Debugger_serialize_value)                   \
     WOODYN_WRAP(woort_ctrlc_setup)                                          \
     WOODYN_WRAP(woort_ctrlc_teardown)                                       \
     WOODYN_WRAP(woort_set_panic_callback)                                   \

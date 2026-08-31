@@ -3757,6 +3757,10 @@ _label_continue_execution:
             WOORT_VM_SYNC_STATE_WITH_ENV();
             if (woort_VMRuntime_Debugger_try_trap(false))
             {
+                /* Check for TERMINATE request raised by debugger. */
+                if (woort_VMRuntime_request_check(vm, WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE))
+                    WOORT_VM_CHECKPOINT();
+
                 c = woort_CodeEnv_raw_trap(rt_env, rt_ip);
                 goto _label_vm_dispatch_reentry_for_debug_trap;
             }
@@ -4367,19 +4371,26 @@ WOORT_NODISCARD static bool _woort_VMRuntime_trace_addr(
 
 WOORT_NODISCARD bool woort_VMRuntime_trace_next(
     woort_VMRuntime_TraceCallstack_Iter* modify_trace_iter,
-    woort_VMRuntime_TraceCallstack* out_result)
+    /* OPTIONAL */ woort_VMRuntime_TraceCallstack* out_result)
 {
     bool traced = false;
 
-    out_result->m_code_addr = NULL;
-    out_result->m_callstack_depth = modify_trace_iter->m_next_tracing_depth++;
-    if (out_result->m_callstack_depth == 0)
+    ++modify_trace_iter->m_next_tracing_depth;
+
+    if (out_result != NULL)
     {
-        out_result->m_code_addr = modify_trace_iter->m_vm->m_ip;
+        out_result->m_code_addr = NULL;
+        out_result->m_callstack_depth = modify_trace_iter->m_next_tracing_depth - 1;
+    }
 
-        (void)_woort_VMRuntime_trace_addr(
-            modify_trace_iter->m_vm->m_ip, 0, out_result);
-
+    if (modify_trace_iter->m_next_tracing_depth == 1)
+    {
+        if (out_result != NULL)
+        {
+            out_result->m_code_addr = modify_trace_iter->m_vm->m_ip;
+            (void)_woort_VMRuntime_trace_addr(
+                modify_trace_iter->m_vm->m_ip, 0, out_result);
+        }
         traced = true;
     }
     else
@@ -4398,25 +4409,25 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
                     modify_trace_iter->m_next_tracing_offset_of_base;
 
                 if (sb_addr[2].m_ret_addr == NULL
+                    /* Might be broken stack? */
+                    || SIZE_MAX - sb_addr[1].m_ret_bp.m_bp_offset < 2
                     || (size_t)2 + sb_addr[1].m_ret_bp.m_bp_offset >= modify_trace_iter->m_next_tracing_offset_of_base)
                 {
                     /* Trace end. */
                     break;
                 }
 
-                out_result->m_code_addr =
-                    (const woort_Bytecode*)sb_addr[2].m_ret_addr;
-
                 /* Should be CALLWAY & BPOFFSET. */
                 modify_trace_iter->m_next_tracing_offset_of_base -=
                     2 + sb_addr[1].m_ret_bp.m_bp_offset;
 
-                if (!_woort_VMRuntime_trace_addr(
-                    sb_addr[2].m_ret_addr, -1, out_result))
+                if (out_result != NULL)
                 {
-                    /* Failed to trace the function, this is not a valid function address. */
-                    /* TODO: Trying to find next valid call stack place ? */
-                    break;
+                    out_result->m_code_addr =
+                        (const woort_Bytecode*)sb_addr[2].m_ret_addr;
+
+                    (void)_woort_VMRuntime_trace_addr(
+                        sb_addr[2].m_ret_addr, -1, out_result);
                 }
 
                 traced = true;
@@ -4428,8 +4439,10 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
                 WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING);
         }
     }
-    out_result->m_callstack_offset_of_base =
-        modify_trace_iter->m_next_tracing_offset_of_base;
+
+    if (out_result != NULL)
+        out_result->m_callstack_offset_of_base = modify_trace_iter->m_next_tracing_offset_of_base;
+
     return traced;
 }
 

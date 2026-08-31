@@ -168,3 +168,28 @@ WOORT_NODISCARD bool woort_SourceMap_find_by_line(
     const char* filepath,
     uint32_t line,
     uint32_t* out_bytecode_offset);
+
+/*
+ * 枚举回调：每个匹配条目的字节码偏移。
+ * 返回 false 终止迭代。
+ */
+typedef bool (*woort_SourceMap_OffsetCallback)(
+    uint32_t bytecode_offset,
+    void* user_data);
+
+/*
+ * 根据源码位置（文件路径 + 行号）枚举所有关联的字节码偏移。
+ * 一行源码可能对应多条指令（如 for 头部会分别生成初始化、条件、增量代码），
+ * 每个源码位置覆盖该行的条目都会按字节码偏移升序回调。
+ * 若没有条目覆盖该行，回退到最近的有条目的行（优先取 >= line 的最小行，
+ * 否则取 < line 的最大行，与 find_by_line 一致），回调覆盖回退行的全部条目。
+ * filepath 必须是 intern 过的指针（使用指针比较）。
+ * 回调返回 false 时提前终止迭代。
+ * 返回 true 表示至少回调了一个条目。
+ */
+WOORT_NODISCARD bool woort_SourceMap_foreach_by_line(
+    const woort_SourceMap* map,
+    const char* filepath,
+    uint32_t line,
+    woort_SourceMap_OffsetCallback callback,
+    void* user_data);

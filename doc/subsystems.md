@@ -194,11 +194,24 @@ typedef enum woort_DebuggerAttachResult {
     WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS,           /* 新挂载成功                */
 } woort_DebuggerAttachResult;
 
-woort_DebuggerAttachResult woort_WAIPO_Debugger_attach(void);  /* 挂载调试器到当前 VM */
-void woort_VMRuntime_Debugger_breakdown_all_vm(void);          /* 向所有 root VM 发调试回调请求 */
+typedef struct woort_WAIPO_Debugger woort_WAIPO_Debugger;  /* 不透明调试器句柄 */
+
+typedef void (*woort_WAIPO_Debugger_TrapCallback)(woort_WAIPO_Debugger*, woort_VMRuntime*);
+
+woort_DebuggerAttachResult woort_WAIPO_Debugger_attach(
+    /* OPTIONAL */ woort_WAIPO_Debugger_TrapCallback breakdown_callback,  /* NULL = 命令行 REPL */
+    /* OPTIONAL */ woort_WAIPO_Debugger** out_debugger_handle);           /* 取回调试器实例 */
+
+void woort_VMRuntime_Debugger_try_breakdown_any_vm(void);  /* 请求任一运行中的 VM 中断进调试器 */
+
+size_t woort_WAIPO_Debugger_query_vms(
+    /* OPTIONAL */ woort_VMRuntime** out_vms,  /* NULL = 只取数量（此时 count 须为 0） */
+    size_t vms_buffer_count);                  /* 返回当前时刻的存活 VM 数量 */
 ```
 
-挂载后，VM 在检查点（断点命中、回跳、native-call 返回等）会调用调试器回调。`breakdown_all_vm` 设置 `DEBUG_CALLBACK` 请求位，使所有 VM 在下一个检查点进入调试器。若已有调试器挂载，`attach` 会释放新实例并返回 `ALREADY_ATTACHED`，原调试器保持不变。
+* `attach`：引擎侧逻辑（断点命中、step/next/return 完成、调试中断请求）始终由内部回调执行，与传入的回调无关；VM 真正停下（陷阱）时才调用陷阱回调——`breakdown_callback` 非 NULL 时用之，否则进入内置命令行 REPL。`out_debugger_handle` 用于取回调试器实例，例如在自定义回调里驱动会话。若已有调试器挂载，`attach` 会释放新实例并返回 `ALREADY_ATTACHED`，原调试器保持不变。
+* `query_vms`：遍历 GC 的 root VM 集合（`woort_GC_foreach_root_vm`），向 `out_vms` 最多写入 `vms_buffer_count` 个 VM，返回遍历到的存活 VM 总数（可能大于缓冲区容量，调用方可据此重试更大的缓冲）。无论是否挂载调试器均可调用。
+* `try_breakdown_any_vm`：异步且尽力而为。布防一次性标志并唤醒后台 GC 线程后立即返回（可用于信号处理函数）；GC 开始时向所有 root VM 设置 `WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK`，最先到达检查点的 VM 赢得 race、取消其余 VM 的请求并中断进调试器——每次调用**至多一个** VM 停下。无调试器挂载时请求被消费，VM 照常运行。
 
 ### Ctrl+C 信号处理
 
@@ -209,7 +222,7 @@ void woort_ctrlc_teardown(void);  /* 恢复默认 SIGINT 处置 */
 
 `ctrlc_setup` 的行为：
 
-1. 首次 SIGINT：自动挂载 WAIPO 调试器，并向所有 root VM 请求调试回调；
+1. 首次 SIGINT：自动挂载 WAIPO 调试器（默认命令行 REPL），并请求任一运行中的 VM 中断进调试器；
 2. 2 秒内连续 SIGINT 计数；
 3. 累计 4 次 → 调用 `abort()`。
 
@@ -235,12 +248,14 @@ IR 层可用 `woort_IR_debugtrap(f)` 发射 `DEBUGTRAP` 指令（见 [ir.md](./i
 
 ### 分层结构
 
-* **`src/woort_vm_debugger_api.h`**：底层 VM 调试回调管道。`woort_VMRuntime_Debugger_attach(callback, context, destroy_callback)` 注册通用回调，VM 在检查点调用。
-* **`src/woort_waipo_debugger.h`**：WAIPO 交互式调试器，建立在上面之上。维护三类断点：
+* **`src/woort_vm_debugger_api.h`**：底层 VM 调试回调管道。`woort_VMRuntime_Debugger_attach(callback, context, destroy_callback)` 注册通用回调（调试器对象带引用计数，回调在全局执行互斥下运行，同一时刻只有一个调试器回调在执行），VM 在检查点调用；`try_breakdown_any_vm` 的 GC 传播与 `EXTERNAL_DEBUG_BREAK` race 仲裁也在这里实现。
+* **`src/woort_waipo_debugger.h/.c`**：WAIPO 调试器本体（引擎与状态）。断点集中在 `woort_WAIPO_BreakpointCollection`：
   * `m_breakpoints`：普通断点（ip → 计数）；
   * `m_debug_breakpoints`：无条件断点（无视 focus，总中断）；
-  * `m_user_breakpoints`：用户设置的断点（用于列表/删除）。
-  支持单步（step）、源码单步（step source）、next（step over）、step out（run until return）、focus 切换等。
+  * `m_user_breakpoints`：用户通过 break 命令设置的断点（一条源码行可对应多个指令地址，用于列表/删除）。每个断点带创建时分配的稳定编号（`m_id`，由 `m_next_breakpoint_id` 单调递增供给、永不复用），删除某个断点不会使其余断点编号移位，`delete` 命令按编号查找。
+
+  另有 `m_focusing_vms`（各受关注 VM 的局部上下文：单步断点、步进目标源码位置等）与 `m_trap_callback`（陷阱回调）。支持单步（step）、源码单步（step source）、next（step over）、step out（run until return）、focus 切换等。
+* **`src/woort_waipo_debugger_cmd.c`**：命令行交互层——命令解析、命令表、REPL 循环与 printf 输出，只做 CLI 交互/展示，不含调试状态逻辑。
 
 ---
 

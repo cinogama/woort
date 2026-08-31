@@ -30,8 +30,8 @@
 static struct _woort_CodeEnv_GlobalCtx
 {
     woort_RWSpinlock    m_codeenvs_lock;
-    woort_OrderMap/* const woort_Bytecode*, woort_CodeEnv* */ 
-                        *m_codeenvs;
+    woort_OrderMap/* const woort_Bytecode*, woort_CodeEnv* */
+        * m_codeenvs;
     woort_GCUnitProxy   m_env_proxy;
     woort_GCUnitProxy   m_code_proxy;
 
@@ -129,10 +129,22 @@ void woort_CodeEnv_PDB_init(woort_CodeEnv_PDB* pdb)
     pdb->m_source_map.m_entry_count = 0;
     woort_StringPool_init(&pdb->m_srcloc_string_pool);
 
-    woort_vector_init(&pdb->m_local_var_debug_info,
-        sizeof(woort_LocalVarDebugInfo));
+    woort_hashmap_init(&pdb->m_local_var_debug_info,
+        sizeof(const woort_FunctionBoundary*),
+        sizeof(woort_Vector),
+        &woort_util_ptr_hash,
+        &woort_util_ptr_equal);
     woort_vector_init(&pdb->m_static_var_debug_info,
         sizeof(woort_StaticVarDebugInfo));
+}
+
+static bool _local_var_bucket_deinit_cb(
+    const void* key, void* value, void* user_data)
+{
+    (void)key;
+    (void)user_data;
+    woort_vector_deinit((woort_Vector*)value);
+    return true;
 }
 
 void woort_CodeEnv_PDB_deinit(woort_CodeEnv_PDB* pdb)
@@ -142,7 +154,11 @@ void woort_CodeEnv_PDB_deinit(woort_CodeEnv_PDB* pdb)
     pdb->m_source_map.m_entry_count = 0;
     woort_StringPool_deinit(&pdb->m_srcloc_string_pool);
 
-    woort_vector_deinit(&pdb->m_local_var_debug_info);
+    (void)woort_hashmap_foreach(
+        &pdb->m_local_var_debug_info,
+        &_local_var_bucket_deinit_cb,
+        NULL);
+    woort_hashmap_deinit(&pdb->m_local_var_debug_info);
     woort_vector_deinit(&pdb->m_static_var_debug_info);
 }
 
@@ -645,6 +661,7 @@ WOORT_NODISCARD bool woort_CodeEnv_set_source_maps(
         const woort_Function_SourceMap* fsm =
             (const woort_Function_SourceMap*)woort_vector_at(
                 (woort_Vector*)function_source_map, i);
+
         total_entries += (uint32_t)fsm->m_entries.m_size;
     }
 
@@ -746,34 +763,69 @@ build_function_boundaries:
 
 void woort_CodeEnv_set_debug_info(
     woort_CodeEnv* env,
-    const woort_Vector* local_var_debug,
+    const woort_Vector* function_source_map,
     const woort_Vector* static_var_debug)
 {
-    const uint32_t local_count = (uint32_t)local_var_debug->m_size;
+    const uint32_t func_count = (uint32_t)function_source_map->m_size;
     const uint32_t static_count = (uint32_t)static_var_debug->m_size;
 
     /*
      * 转移局部变量调试信息。
-     * 将名称字符串 intern 到 CodeEnv 的字符串池中。
+     * 边界表由先行的 set_source_maps() 按同一 function_source_map 顺序
+     * 构建，按下标平行遍历即得每个函数的 boundary，无需任何查找。
      */
-    for (uint32_t i = 0; i < local_count; ++i)
+    assert(env->m_function_boundaries.m_size == function_source_map->m_size);
+
+    for (uint32_t i = 0; i < func_count; ++i)
     {
-        const woort_LocalVarDebugInfo* src =
-            (const woort_LocalVarDebugInfo*)woort_vector_at(
-                (woort_Vector*)local_var_debug, i);
+        const woort_Function_SourceMap* fsm =
+            (const woort_Function_SourceMap*)woort_vector_at(
+                (woort_Vector*)function_source_map, i);
+        const woort_IRFunction* f = fsm->m_ir_function;
+        const woort_FunctionBoundary* boundary =
+            (const woort_FunctionBoundary*)woort_vector_at(
+                &env->m_function_boundaries, i);
 
-        woort_LocalVarDebugInfo info = *src;
+        if (f->m_local_var_records.m_size == 0)
+            continue;
 
-        if (src->m_name != NULL)
+        woort_Vector* bucket = NULL;
+        const woort_hashmap_Result emplace_result =
+            woort_hashmap_get_or_emplace(
+                &env->m_pdb.m_local_var_debug_info,
+                &boundary,
+                (void**)&bucket);
+
+        /* 忽略 OOM —— 调试信息丢失不影响正确性 */
+        if (emplace_result == WOORT_HASHMAP_RESULT_OUT_OF_MEMORY)
+            continue;
+
+        /* 新桶需初始化；已存在的桶直接返回其现有 vector */
+        if (emplace_result == WOORT_HASHMAP_RESULT_OK)
+            woort_vector_init(bucket, sizeof(woort_LocalVarDebugInfo));
+
+        for (size_t j = 0; j < f->m_local_var_records.m_size; ++j)
         {
-            const char* interned = woort_StringPool_intern(
-                &env->m_pdb.m_srcloc_string_pool,
-                src->m_name);
-            info.m_name = interned;
-        }
+            const woort_LocalVarRecord* rec =
+                (const woort_LocalVarRecord*)woort_vector_at(
+                    (woort_Vector*)&f->m_local_var_records, j);
 
-        /* 忽略 push_back 失败 —— 调试信息丢失不影响正确性 */
-        (void)woort_vector_push_back(&env->m_pdb.m_local_var_debug_info, 1, &info);
+            woort_LocalVarDebugInfo info;
+            info.m_stack_offset = rec->m_ir_value->m_assigned_stack_offset;
+            info.m_name = woort_StringPool_intern(
+                &env->m_pdb.m_srcloc_string_pool,
+                rec->m_name);
+
+            /*
+             * 名称为 NULL（记录违约——intern(NULL) 原样返回 NULL）或 intern OOM：
+             * 丢弃该条目，不归档无名条目。
+             */
+            if (info.m_name == NULL)
+                continue;
+
+            /* 忽略 push_back 失败 —— 调试信息丢失不影响正确性 */
+            (void)woort_vector_push_back(bucket, 1, &info);
+        }
     }
 
     /*
@@ -787,14 +839,13 @@ void woort_CodeEnv_set_debug_info(
                 (woort_Vector*)static_var_debug, i);
 
         woort_StaticVarDebugInfo info = *src;
+        info.m_name = woort_StringPool_intern(
+            &env->m_pdb.m_srcloc_string_pool,
+            src->m_name);
 
-        if (src->m_name != NULL)
-        {
-            const char* interned = woort_StringPool_intern(
-                &env->m_pdb.m_srcloc_string_pool,
-                src->m_name);
-            info.m_name = interned;
-        }
+        /* 名称为 NULL（来源违约）或 intern OOM：丢弃该条目，不归档无名条目。 */
+        if (info.m_name == NULL)
+            continue;
 
         /* 忽略 push_back 失败 —— 调试信息丢失不影响正确性 */
         (void)woort_vector_push_back(&env->m_pdb.m_static_var_debug_info, 1, &info);
@@ -810,7 +861,8 @@ WOORT_NODISCARD bool woort_CodeEnv_find_srcloc_by_offset(
         &env->m_pdb.m_source_map, bytecode_offset, out_location);
 }
 
-WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_offset(
+WOORT_NODISCARD
+/* OPTIONAL */ const woort_FunctionBoundary* woort_CodeEnv_find_function_boundary_by_offset(
     const woort_CodeEnv* env,
     uint32_t bytecode_offset)
 {
@@ -851,7 +903,39 @@ WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_o
     if (bytecode_offset >= found->m_offset_begin + found->m_code_length)
         return NULL;
 
-    return found->m_name;
+    return found;
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_find_local_vars_by_boundary(
+    const woort_CodeEnv* env,
+    const woort_FunctionBoundary* boundary,
+    /* OPTIONAL */ const woort_Vector/* woort_LocalVarDebugInfo */** out_locals)
+{
+    woort_Vector* bucket = NULL;
+
+    if (!woort_hashmap_find(
+        (woort_HashMap*)&env->m_pdb.m_local_var_debug_info,
+        &boundary,
+        (void**)&bucket))
+        return false;
+
+    if (out_locals != NULL)
+        *out_locals = bucket;
+
+    return true;
+}
+
+WOORT_NODISCARD /* OPTIONAL */ const char* woort_CodeEnv_find_function_name_by_offset(
+    const woort_CodeEnv* env,
+    uint32_t bytecode_offset)
+{
+    const woort_FunctionBoundary* const found_boundary =
+        woort_CodeEnv_find_function_boundary_by_offset(env, bytecode_offset);
+
+    if (found_boundary == NULL)
+        return NULL;
+
+    return found_boundary->m_name;
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
@@ -884,6 +968,37 @@ WOORT_NODISCARD bool woort_CodeEnv_find_offset_by_srcloc(
 
     return woort_SourceMap_find_by_line(
         &env->m_pdb.m_source_map, interned_path, line, out_bytecode_offset);
+}
+
+WOORT_NODISCARD bool woort_CodeEnv_foreach_offset_by_srcloc(
+    const woort_CodeEnv* env,
+    const char* filepath,
+    uint32_t line,
+    woort_CodeEnv_OffsetCallback callback,
+    void* user_data)
+{
+    /*
+     * 与 woort_CodeEnv_find_offset_by_srcloc 相同：
+     * 先将外部 filepath 转换为字符串池中的 intern 指针（只读查找，
+     * 不使用 woort_StringPool_intern 以免修改池），池中无此路径则无匹配。
+     */
+    assert(filepath != NULL);
+
+    const char* interned_path = NULL;
+    void* value_addr;
+    if (woort_hashmap_find(
+        &((woort_CodeEnv*)env)->m_pdb.m_srcloc_string_pool.m_map,
+        &filepath, &value_addr))
+    {
+        interned_path = *(const char**)value_addr;
+    }
+    else
+    {
+        return false; /* 池中无此路径，不可能有匹配 */
+    }
+
+    return woort_SourceMap_foreach_by_line(
+        &env->m_pdb.m_source_map, interned_path, line, callback, user_data);
 }
 
 WOORT_NODISCARD bool woort_CodeEnv_register_extern_constant(
@@ -1023,7 +1138,7 @@ woort_Opcode_Global woort_CodeEnv_cidx_for_script_function(
             return (woort_Opcode_Global)i;
         }
     }
-    
+
     /* Unreachable */
     abort();
 }

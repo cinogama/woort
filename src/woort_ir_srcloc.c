@@ -240,3 +240,95 @@ WOORT_NODISCARD bool woort_SourceMap_find_by_line(
 
     return false;
 }
+
+/* 条目是否覆盖指定行（含跨行语句） */
+WOORT_NODISCARD static bool _woort_SourceMap_entry_covers_line(
+    const woort_SourceMap_Entry* entry, uint32_t line)
+{
+    return entry->m_location.m_begin_line <= line
+        && line <= entry->m_location.m_end_line;
+}
+
+/* 按字节码偏移升序回调所有覆盖指定行的条目 */
+WOORT_NODISCARD static bool _woort_SourceMap_visit_covering(
+    const woort_SourceMap* map,
+    const char* filepath,
+    uint32_t line,
+    woort_SourceMap_OffsetCallback callback,
+    void* user_data)
+{
+    bool visited = false;
+
+    for (uint32_t i = 0; i < map->m_entry_count; ++i)
+    {
+        const woort_SourceMap_Entry* entry = &map->m_entries[i];
+
+        /* 使用指针比较（intern 语义） */
+        if (entry->m_location.m_filepath != filepath)
+            continue;
+
+        if (!_woort_SourceMap_entry_covers_line(entry, line))
+            continue;
+
+        visited = true;
+
+        if (!callback(entry->m_bytecode_offset, user_data))
+            break;
+    }
+
+    return visited;
+}
+
+WOORT_NODISCARD bool woort_SourceMap_foreach_by_line(
+    const woort_SourceMap* map,
+    const char* filepath,
+    uint32_t line,
+    woort_SourceMap_OffsetCallback callback,
+    void* user_data)
+{
+    if (map == NULL || map->m_entries == NULL || map->m_entry_count == 0)
+        return false;
+    if (callback == NULL)
+        return false;
+
+    if (_woort_SourceMap_visit_covering(map, filepath, line, callback, user_data))
+        return true;
+
+    /*
+     * 没有条目覆盖该行：回退到最近的有条目的行，
+     * 优先取 >= line 的最小行，否则取 < line 的最大行。
+     */
+    uint32_t best_ge_line = UINT32_MAX;
+    uint32_t best_le_line = 0;
+    bool found_any = false;
+
+    for (uint32_t i = 0; i < map->m_entry_count; ++i)
+    {
+        const woort_SourceMap_Entry* entry = &map->m_entries[i];
+
+        /* 使用指针比较（intern 语义） */
+        if (entry->m_location.m_filepath != filepath)
+            continue;
+
+        found_any = true;
+
+        if (entry->m_location.m_begin_line >= line)
+        {
+            if (entry->m_location.m_begin_line < best_ge_line)
+                best_ge_line = entry->m_location.m_begin_line;
+        }
+        else if (entry->m_location.m_begin_line > best_le_line)
+        {
+            best_le_line = entry->m_location.m_begin_line;
+        }
+    }
+
+    if (best_ge_line != UINT32_MAX)
+        line = best_ge_line;
+    else if (found_any)
+        line = best_le_line;
+    else
+        return false; /* 该文件无任何条目 */
+
+    return _woort_SourceMap_visit_covering(map, filepath, line, callback, user_data);
+}
