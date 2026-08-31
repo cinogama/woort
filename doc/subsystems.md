@@ -235,10 +235,12 @@ IR 层可用 `woort_IR_debugtrap(f)` 发射 `DEBUGTRAP` 指令（见 [ir.md](./i
 
 ### 分层结构
 
-* **`src/woort_vm_debugger_api.h`**：底层 VM 调试回调管道。`woort_VMRuntime_Debugger_attach(callback, context, destroy_callback)` 注册通用回调，VM 在检查点调用（`g_debugger_execute_mx` 串行化，同一时刻至多一个 VM 处于回调中）。
-* **`src/woort_debug_engine.h/.c`**：调试器**引擎**，与任何前端解耦（前端单向依赖它）。维护断点集合（`m_breakpoints`：ip → 计数；`m_debug_breakpoints`：无条件断点）与逐 VM 的单步上下文（step / step source / next / step out / focus），并提供统一的停驻判定 `_woort_DebugEngine_should_stop`（输出停因分类）与下一步地址计算 `_woort_DebugEngine_get_next_ip`。引擎被两种前端共享。
-* **`src/woort_debugger_session.h`**：**程序化调试会话**，即 `woort.h` 公开的 `woort_Debugger_*` API。挂在回调管道层之上：VM 陷入时在条件变量上停驻（park），宿主线程以纯拉取方式交互——`wait_for_break` 等事件、栈帧/局部/静态变量查询、`continue`/`step_*` 恢复——不产生任何 C→宿主回调，适合经 FFI（koffi 等）嵌入的 IDE 调试适配器（wooly）。附带：按 `file:line` / 函数名（精确）设置跨 CodeEnv 断点（未解析时挂起、自动重解）、`interrupt_all`/`interrupt_vm`（直接遍历 root-VM 注册表，比走 GC 轮次的 `breakdown_all_vm` 即时）、panic 路由（attach 期间独占 panic 回调，panic → `reason=PANIC` 停止，恢复时按约定重置 ABORT 使调用以 `ABORTED` 结束）、恢复时清除残留调试请求位与待发 GC 广播。VM 以创建时分配的单调 `m_serial` 标识（`woort_DebuggerVmId`）。会话对象有意不在 detach 时释放（防悬垂，进程内有限泄漏）。
-* **`src/woort_waipo_debugger_cmd.c`**：WAIPO **交互式 REPL 前端**，现在构建于公开的 `woort_Debugger_*` API 之上（与会话层之外的其他宿主同构）：`woort_WAIPO_Debugger_attach` = 挂载会话 + 启动独立 REPL 线程；`list codeenv`、`dis`、`global`、`vm` 明细与 `quit` 为无公开等价物的运行时内视命令，经 `_woort_Debugger_session_take_stopped_vm` 走内部通道。
+* **`src/woort_vm_debugger_api.h`**：底层 VM 调试回调管道。`woort_VMRuntime_Debugger_attach(callback, context, destroy_callback)` 注册通用回调，VM 在检查点调用。
+* **`src/woort_waipo_debugger.h`**：WAIPO 交互式调试器，建立在上面之上。维护三类断点：
+  * `m_breakpoints`：普通断点（ip → 计数）；
+  * `m_debug_breakpoints`：无条件断点（无视 focus，总中断）；
+  * `m_user_breakpoints`：用户设置的断点（用于列表/删除）。
+  支持单步（step）、源码单步（step source）、next（step over）、step out（run until return）、focus 切换等。
 
 ---
 

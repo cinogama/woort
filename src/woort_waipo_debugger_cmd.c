@@ -1,5 +1,4 @@
-#include "woort.h"
-#include "woort_debugger_session.h"
+#include "woort_waipo_debugger.h"
 #include "woort_gc.h"
 #include "woort_codeenv.h"
 #include "woort_disassembly.h"
@@ -8,8 +7,6 @@
 #include "woort_gc_closure.h"
 #include "woort_gc_struct.h"
 #include "woort_gc_gchandle.h"
-#include "woort_gc_units.h"
-#include "woort_threads.h"
 #include "woort_vector.h"
 #include "woort_value.h"
 #include "woort_serialize.h"
@@ -20,65 +17,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <inttypes.h>
 
-/*
- * WAIPO (Watch And Inspect Program Operation) interactive frontend.
- *
- * Since the debugger-session rework this REPL is a plain consumer of the
- * public woort_Debugger_* API - the same interface an IDE debug adapter
- * (wooly) uses.  woort_WAIPO_Debugger_attach attaches a session and spawns
- * a dedicated REPL thread whose loop is the CLI twin of a DAP message
- * loop:
- *
- *     wait_for_break -> print stop location -> stdin command loop
- *                    -> continue/step -> back to wait_for_break
- *
- * A handful of commands are runtime-introspection helpers with no public
- * API equivalent (`list codeenv`, `dis`, `global`, the detailed `vm`
- * listing, `quit`); those reach into runtime internals through the
- * in-tree escape hatch _woort_Debugger_session_take_stopped_vm and are
- * marked below.
- */
-
-/* ====================================================================
- * Frontend state
- * ==================================================================== */
-
-typedef struct woort_WAIPO_FrontendBreakpoint
-{
-    woort_DebuggerBreakpointId m_id;
-    bool m_is_function_bp;
-    char m_file[WOORT_DEBUGGER_MAX_PATH];
-    uint32_t m_line; /* 1-based request line (source breakpoints) */
-    char m_function_name[WOORT_DEBUGGER_MAX_NAME];
-
-} woort_WAIPO_FrontendBreakpoint;
-
-typedef struct woort_WAIPO_Frontend
-{
-    woort_DebuggerVmId m_current_vm;
-
-    size_t m_current_frame_depth;
-    bool m_first_breakdown;
-    /* Full command line (with args) of the last executed command, so an
-     * empty input line can repeat it. Sized to hold any stdin line. */
-    char m_last_command[4096];
-
-    /* woort_WAIPO_FrontendBreakpoint; mirrors the breakpoints this
-       frontend created, numbered 1..N for `break` listing and delete. */
-    woort_Vector m_breakpoints;
-
-} woort_WAIPO_Frontend;
-
-typedef enum woort_WAIPO_CommandResult
-{
-    WOORT_WAIPO_CMD_NEED_NEXT,
-    WOORT_WAIPO_CMD_CONTINUE,
-} woort_WAIPO_CommandResult;
-
 typedef woort_WAIPO_CommandResult(*woort_WAIPO_CommandHandler)(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count);
 
@@ -89,69 +33,14 @@ typedef struct woort_WAIPO_CommandEntry
     woort_WAIPO_CommandHandler m_handler;
 } woort_WAIPO_CommandEntry;
 
-/* ====================================================================
- * Shared helpers
- * ==================================================================== */
-
-WOORT_NODISCARD static bool _woort_WAIPO_is_numeric(const char* s)
-{
-    if (s == NULL || *s == '\0')
-        return false;
-
-    for (const char* p = s; *p != '\0'; ++p)
-    {
-        if (*p < '0' || *p > '9')
-            return false;
-    }
-    return true;
-}
-
-/*
- * Walk the internal callstack of the (stopped) VM to a given depth.
- * In-tree escape used by `dis` / `global`, which need the raw frame ip.
- */
-WOORT_NODISCARD static bool _woort_WAIPO_trace_stopped_vm_to_depth(
-    size_t target_depth,
-    /* OPTIONAL */ woort_VMRuntime_TraceCallstack* out_trace)
-{
-    woort_VMRuntime* vm = NULL;
-    if (!_woort_Debugger_session_take_stopped_vm(&vm) || vm == NULL)
-        return false;
-
-    woort_VMRuntime_TraceCallstack_Iter trace_iter;
-    woort_VMRuntime_TraceCallstack trace;
-
-    woort_VMRuntime_trace_begin(vm, &trace_iter);
-
-    size_t depth = 0;
-    while (woort_VMRuntime_trace_next(&trace_iter, &trace))
-    {
-        if (depth == target_depth)
-        {
-            if (out_trace != NULL)
-                *out_trace = trace;
-            return true;
-        }
-        ++depth;
-    }
-
-    return false;
-}
-
-/* ====================================================================
- * Next-ip computation for the stepping machinery (engine support)
- * ==================================================================== */
-
-/* ====================================================================
- * help / continue / quit / exit / clear
- * ==================================================================== */
-
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    (void)frontend;
+    (void)dbg;
+    (void)vm;
     (void)args;
     (void)arg_count;
 
@@ -169,7 +58,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "clear       cls                     Clean the screen.\n"
         "backtrace   bt      [depth]         Print callstack backtrace (default 32).\n"
         "break       b       [line]          Set or list breakpoints.\n"
-        "                    [func]          Break at function entry (exact name).\n"
+        "                    [func]          Break at function entry.\n"
         "                    [file:line]     Break at specific file:line.\n"
         "delete      d       <num>           Delete breakpoint by number.\n"
         "frame       f       <frameid>       Switch to a call frame.\n"
@@ -190,45 +79,55 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_continue(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
     (void)args;
     (void)arg_count;
 
-    if (!woort_Debugger_continue())
-    {
-        (void)printf(WOORT_ANSI_HIR "No VM is stopped.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    (void)frontend;
     (void)printf("Continue running...\n");
+
+    _woort_WAIPO_Debugger_out_of_focus(dbg, vm);
 
     return WOORT_WAIPO_CMD_CONTINUE;
 }
 
+static bool _woort_WAIPO_quit_terminate_vm_callback(
+    woort_VMRuntime* vm, void* user_data)
+{
+    (void)user_data;
+    (void)woort_VMRuntime_request_set(
+        vm, WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE);
+    return true;
+}
+
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_quit(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    (void)frontend;
+    (void)dbg;
+    (void)vm;
     (void)args;
     (void)arg_count;
 
-    (void)woort_Debugger_terminate_all();
+    woort_GC_foreach_root_vm(
+        &_woort_WAIPO_quit_terminate_vm_callback, NULL);
 
     return WOORT_WAIPO_CMD_CONTINUE;
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_exit(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    (void)frontend;
+    (void)dbg;
+    (void)vm;
     (void)args;
     (void)arg_count;
 
@@ -237,12 +136,35 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_exit(
     return WOORT_WAIPO_CMD_CONTINUE;
 }
 
-static woort_WAIPO_CommandResult _woort_WAIPO_cmd_clear(
-    woort_WAIPO_Frontend* frontend,
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_backtrace(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    (void)frontend;
+    (void)dbg;
+
+    size_t max_depth = 32;
+    if (arg_count >= 2)
+    {
+        const long val = strtol(args[1], NULL, 10);
+        if (val > 0)
+            max_depth = (size_t)val;
+    }
+
+    woort_VMRuntime_print_backtrace(vm, max_depth);
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_clear(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    (void)dbg;
+    (void)vm;
     (void)args;
     (void)arg_count;
 
@@ -254,10 +176,6 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_clear(
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
-
-/* ====================================================================
- * list codeenv / list vm   (runtime introspection, in-tree internals)
- * ==================================================================== */
 
 typedef struct _woort_WAIPO_ListCodeEnvContext
 {
@@ -286,9 +204,11 @@ static bool _woort_WAIPO_list_codeenv_callback(
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_list_codeenv(
-    woort_WAIPO_Frontend* frontend)
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm)
 {
-    (void)frontend;
+    (void)dbg;
+    (void)vm;
 
     _woort_WAIPO_ListCodeEnvContext ctx;
     ctx.m_index = 0;
@@ -304,7 +224,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_list_codeenv(
 typedef struct _woort_WAIPO_ListVMContext
 {
     size_t m_index;
-    woort_DebuggerVmId m_stopped_vm;
+    /* OPTIONAL */ const woort_VMRuntime* m_current;
 } _woort_WAIPO_ListVMContext;
 
 static bool _woort_WAIPO_list_vm_callback(
@@ -321,9 +241,9 @@ static bool _woort_WAIPO_list_vm_callback(
         : 0.0;
 
     (void)printf(
-        "%c[%" PRIu64 "] VMRuntime(%p)  ip=%p  sp=%p  stack=[%p-%p]  usage=%.1f%%\n",
-        vm->m_serial == ctx->m_stopped_vm ? '*' : ' ',
-        (uint64_t)vm->m_serial,
+        "%c[%zu] VMRuntime(%p)  ip=%p  sp=%p  stack=[%p-%p]  usage=%.1f%%\n",
+        vm == ctx->m_current ? '*' : ' ',
+        ctx->m_index,
         (void*)vm,
         (const void*)vm->m_ip,
         (void*)vm->m_sp,
@@ -338,11 +258,14 @@ static bool _woort_WAIPO_list_vm_callback(
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_list_vm(
-    woort_WAIPO_Frontend* frontend)
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm)
 {
+    (void)dbg;
+
     _woort_WAIPO_ListVMContext ctx;
     ctx.m_index = 0;
-    ctx.m_stopped_vm = frontend->m_current_vm;
+    ctx.m_current = vm;
 
     woort_GC_foreach_root_vm(&_woort_WAIPO_list_vm_callback, &ctx);
 
@@ -353,7 +276,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_list_vm(
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_list(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
@@ -364,149 +288,53 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_list(
     }
 
     if (strcmp(args[1], "codeenv") == 0)
-        return _woort_WAIPO_list_codeenv(frontend);
+        return _woort_WAIPO_list_codeenv(dbg, vm);
 
     if (strcmp(args[1], "vm") == 0)
-        return _woort_WAIPO_list_vm(frontend);
+        return _woort_WAIPO_list_vm(dbg, vm);
 
     (void)printf("Unknown list target: '%s'. Available: codeenv, vm\n", args[1]);
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
-/* ====================================================================
- * backtrace / frame
- * ==================================================================== */
-
-static woort_WAIPO_CommandResult _woort_WAIPO_cmd_backtrace(
-    woort_WAIPO_Frontend* frontend,
-    char** args,
-    size_t arg_count)
+WOORT_NODISCARD static bool _woort_WAIPO_trace_to_depth(
+    woort_VMRuntime* vm,
+    size_t target_depth,
+    /* OPTIONAL */ woort_VMRuntime_TraceCallstack* out_trace)
 {
-    size_t max_depth = 32;
-    if (arg_count >= 2)
+    woort_VMRuntime_TraceCallstack_Iter trace_iter;
+    woort_VMRuntime_TraceCallstack trace;
+
+    woort_VMRuntime_trace_begin(vm, &trace_iter);
+
+    size_t depth = 0;
+    while (woort_VMRuntime_trace_next(&trace_iter, &trace))
     {
-        const long val = strtol(args[1], NULL, 10);
-        if (val > 0)
-            max_depth = (size_t)val;
+        if (depth == target_depth)
+        {
+            if (out_trace != NULL)
+                *out_trace = trace;
+            return true;
+        }
+        ++depth;
     }
 
-    const size_t depth =
-        woort_Debugger_get_stack_depth(frontend->m_current_vm);
-
-    (void)printf("Backtrace:\n");
-
-    size_t printed = 0;
-    for (size_t i = 0; i < depth; ++i)
-    {
-        if (printed >= max_depth)
-        {
-            (void)printf("    ...\n");
-            break;
-        }
-
-        woort_DebuggerFrame frame;
-        if (!woort_Debugger_get_stack_frame(
-            frontend->m_current_vm, i, &frame))
-        {
-            break;
-        }
-
-        const char* const func =
-            frame.m_function_name[0] != '\0'
-            ? frame.m_function_name : NULL;
-        const char* const file =
-            frame.m_file_or_lib_name[0] != '\0'
-            ? frame.m_file_or_lib_name : NULL;
-
-        if (func != NULL && file != NULL)
-        {
-            if (frame.m_has_location)
-                (void)printf("    at %s (%s:%u:%u)\n",
-                    func, file, frame.m_line + 1, frame.m_column + 1);
-            else
-                (void)printf("    at %s (%s)\n", func, file);
-        }
-        else if (func != NULL)
-        {
-            (void)printf("    at %s\n", func);
-        }
-        else if (file != NULL)
-        {
-            if (frame.m_has_location)
-                (void)printf("    at <unknown> (%s:%u:%u)\n",
-                    file, frame.m_line + 1, frame.m_column + 1);
-            else
-                (void)printf("    at <unknown> (%s)\n", file);
-        }
-        else
-        {
-            (void)printf("    at <unknown>\n");
-        }
-
-        ++printed;
-    }
-
-    return WOORT_WAIPO_CMD_NEED_NEXT;
+    return false;
 }
 
-static woort_WAIPO_CommandResult _woort_WAIPO_cmd_frame(
-    woort_WAIPO_Frontend* frontend,
-    char** args,
-    size_t arg_count)
+WOORT_NODISCARD static bool _woort_WAIPO_is_numeric(const char* s)
 {
-    if (arg_count < 2)
+    if (s == NULL || *s == '\0')
+        return false;
+
+    for (const char* p = s; *p != '\0'; ++p)
     {
-        (void)printf("Usage: frame <frameid>\n");
-        return WOORT_WAIPO_CMD_NEED_NEXT;
+        if (*p < '0' || *p > '9')
+            return false;
     }
-
-    const long frame_id = strtol(args[1], NULL, 10);
-    if (frame_id < 0)
-    {
-        (void)printf("Invalid frame id.\n");
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    woort_DebuggerFrame frame;
-    if (!woort_Debugger_get_stack_frame(
-        frontend->m_current_vm, (size_t)frame_id, &frame))
-    {
-        (void)printf("No such frame.\n");
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    frontend->m_current_frame_depth = (size_t)frame_id;
-
-    (void)printf("Now at: frame %zu", (size_t)frame_id);
-
-    if (frame.m_function_name[0] != '\0')
-    {
-        (void)printf("  %s", frame.m_function_name);
-
-        if (frame.m_file_or_lib_name[0] != '\0')
-        {
-            if (frame.m_has_location)
-                (void)printf(" (%s:%u:%u)",
-                    frame.m_file_or_lib_name,
-                    frame.m_line + 1, frame.m_column + 1);
-            else
-                (void)printf(" (%s)", frame.m_file_or_lib_name);
-        }
-    }
-    else
-    {
-        (void)printf("  <unknown>");
-    }
-
-    (void)printf("\n");
-
-    return WOORT_WAIPO_CMD_NEED_NEXT;
+    return true;
 }
-
-/* ====================================================================
- * source
- * ==================================================================== */
 
 #define WOORT_WAIPO_DOT "\xe2\x97\x8f"
 
@@ -571,7 +399,7 @@ static void _woort_WAIPO_emit_source_line(
 }
 
 static void _woort_WAIPO_print_source_file(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
     const char* filepath,
     bool has_highlight,
     size_t highlight_begin_line,
@@ -581,38 +409,34 @@ static void _woort_WAIPO_print_source_file(
     size_t from_line,
     size_t to_line)
 {
-    /* Collect the (resolved) lines this frontend's breakpoints sit on
-       for the requested file. */
+    /* 预收集当前文件上有用户断点的行号 */
     woort_Vector bp_lines;
     woort_vector_init(&bp_lines, sizeof(size_t));
     {
-        for (size_t i = 0; i < frontend->m_breakpoints.m_size; ++i)
+        size_t i;
+        for (i = 0; i < dbg->m_breakpoint_collection.m_user_breakpoints.m_size; ++i)
         {
-            const woort_WAIPO_FrontendBreakpoint* fb =
-                (const woort_WAIPO_FrontendBreakpoint*)woort_vector_at(
-                &frontend->m_breakpoints, i);
+            const woort_WAIPO_UserBreakpoint* ub =
+                (const woort_WAIPO_UserBreakpoint*)woort_vector_at(
+                    &dbg->m_breakpoint_collection.m_user_breakpoints, i);
 
-            if (fb->m_is_function_bp)
-                continue;
-            if (strcmp(fb->m_file, filepath) != 0)
+            woort_CodeEnv* cenv;
+            if (!woort_CodeEnv_find(ub->m_ip, &cenv))
                 continue;
 
-            /* Query reports the resolved line, or the requested line for a
-               still-pending source breakpoint; either way it is 1-based,
-               while the emit path compares 0-based lines.  Copy through a
-               real size_t so push_back does not read past a uint32_t. */
-            bool resolved = false;
-            uint32_t marked_line = 0;
-            if (woort_Debugger_query_breakpoint(
-                fb->m_id, &resolved, &marked_line)
-                && marked_line != 0)
+            const uint32_t offset = (uint32_t)(ub->m_ip - cenv->m_code_begin);
+            woort_SourceLocation loc;
+            if (!woort_CodeEnv_find_srcloc_by_offset(cenv, offset, &loc))
+                continue;
+
+            if (loc.m_filepath != NULL
+                && strcmp(loc.m_filepath, filepath) == 0)
             {
-                const size_t marked_line0 = (size_t)marked_line - 1;
-                (void)woort_vector_push_back(&bp_lines, 1, &marked_line0);
+                const size_t line = loc.m_begin_line;
+                (void)woort_vector_push_back(&bp_lines, 1, &line);
             }
         }
     }
-
     woort_VFile* f = NULL;
     if (!woort_vfile_open(filepath, &f) || f == NULL)
     {
@@ -713,33 +537,86 @@ static void _woort_WAIPO_print_source_file(
 
 #undef WOORT_WAIPO_DOT
 
-static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
-    woort_WAIPO_Frontend* frontend,
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_frame(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    woort_DebuggerFrame frame;
-    if (!woort_Debugger_get_stack_frame(
-        frontend->m_current_vm, frontend->m_current_frame_depth, &frame))
+    if (arg_count < 2)
+    {
+        (void)printf("Usage: frame <frameid>\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const long frame_id = strtol(args[1], NULL, 10);
+    if (frame_id < 0)
+    {
+        (void)printf("Invalid frame id.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    woort_VMRuntime_TraceCallstack trace;
+    if (!_woort_WAIPO_trace_to_depth(vm, (size_t)frame_id, &trace))
+    {
+        (void)printf("No such frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    dbg->m_current_frame_depth = (size_t)frame_id;
+
+    (void)printf("Now at: frame %zu", (size_t)frame_id);
+
+    if (trace.m_function_name != NULL)
+    {
+        (void)printf("  %s", trace.m_function_name);
+
+        if (trace.m_file_or_lib_name != NULL)
+        {
+            if (trace.m_has_location)
+                (void)printf(" (%s:%zu:%zu)",
+                    trace.m_file_or_lib_name,
+                    trace.m_location_begin[0] + 1,
+                    trace.m_location_begin[1] + 1);
+            else
+                (void)printf(" (%s)", trace.m_file_or_lib_name);
+        }
+    }
+    else
+    {
+        (void)printf("  <unknown>");
+    }
+
+    (void)printf("\n");
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    woort_VMRuntime_TraceCallstack trace;
+    if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
     {
         (void)printf("No callstack.\n");
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    if (!frame.m_has_location || frame.m_file_or_lib_name[0] == '\0')
+    if (!trace.m_has_location || trace.m_file_or_lib_name == NULL)
     {
         (void)printf("No source location available for current frame.\n");
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
     size_t display_range = 5;
-    const char* target_file = frame.m_file_or_lib_name;
-    /* The public API shares the srcloc basis (first line = 0),
-       same as the source printer. */
-    const size_t highlight_begin = frame.m_line;
-    const size_t highlight_end = frame.m_end_line;
-    const size_t highlight_begin_col = frame.m_column;
-    const size_t highlight_end_col = frame.m_end_column;
+    const char* target_file = trace.m_file_or_lib_name;
+    const size_t highlight_begin = trace.m_location_begin[0];
+    const size_t highlight_end = trace.m_location_end[0];
+    const size_t highlight_begin_col = trace.m_location_begin[1];
+    const size_t highlight_end_col = trace.m_location_end[1];
     bool has_highlight = true;
     bool show_full = false;
 
@@ -752,10 +629,8 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
         else
         {
             target_file = args[1];
-            if (strcmp(args[1], frame.m_file_or_lib_name) == 0)
-            {
+            if (strcmp(args[1], trace.m_file_or_lib_name) == 0)
                 has_highlight = true;
-            }
             else
             {
                 has_highlight = false;
@@ -767,7 +642,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
     if (show_full)
     {
         _woort_WAIPO_print_source_file(
-            frontend,
+            dbg,
             target_file,
             false,
             0,
@@ -785,7 +660,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
         const size_t to_line = highlight_end + display_range / 2;
 
         _woort_WAIPO_print_source_file(
-            frontend,
+            dbg,
             target_file,
             has_highlight,
             highlight_begin,
@@ -798,10 +673,6 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
-
-/* ====================================================================
- * dis   (runtime introspection, in-tree internals)
- * ==================================================================== */
 
 static void _woort_WAIPO_dump_disassembly_range(
     const woort_CodeEnv* cenv,
@@ -865,7 +736,7 @@ static bool _woort_WAIPO_dis_search_func_callback(
     {
         const woort_FunctionBoundary* boundary =
             (const woort_FunctionBoundary*)woort_vector_at(
-            (woort_Vector*)&cenv->m_function_boundaries, i);
+                (woort_Vector*)&cenv->m_function_boundaries, i);
 
         if (boundary->m_name == NULL)
             continue;
@@ -897,33 +768,23 @@ static bool _woort_WAIPO_dis_search_func_callback(
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
     woort_VMRuntime_TraceCallstack trace;
-    if (!_woort_WAIPO_trace_stopped_vm_to_depth(
-        frontend->m_current_frame_depth, &trace))
+    if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
     {
         (void)printf(WOORT_ANSI_HIR "No callstack.\n" WOORT_ANSI_RST);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    const char* const sign = frontend->m_current_frame_depth == 0 ? "=>" : "\\>";
+    const char* const sign = dbg->m_current_frame_depth == 0 ? "=>" : "\\>";
 
     const woort_Bytecode* frame_ip = trace.m_code_addr;
     if (frame_ip == NULL)
-    {
-        woort_VMRuntime* vm = NULL;
-        if (_woort_Debugger_session_take_stopped_vm(&vm) && vm != NULL)
-            frame_ip = vm->m_ip;
-    }
-
-    if (frame_ip == NULL)
-    {
-        (void)printf(WOORT_ANSI_HIR "No code address for current frame.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
+        frame_ip = vm->m_ip;
 
     woort_CodeEnv* cenv;
     if (!woort_CodeEnv_find(frame_ip, &cenv))
@@ -946,7 +807,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
             {
                 const woort_FunctionBoundary* boundary =
                     (const woort_FunctionBoundary*)woort_vector_at(
-                    (woort_Vector*)&cenv->m_function_boundaries, i);
+                        (woort_Vector*)&cenv->m_function_boundaries, i);
 
                 if (boundary->m_name != NULL
                     && strcmp(boundary->m_name, func_name) == 0)
@@ -1025,96 +886,396 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
-/* ====================================================================
- * stepir / step / next / return
- * ==================================================================== */
+static int _woort_WAIPO_empty_cb(const char* fmt, ...)
+{
+    (void)fmt;
+    return 0;
+}
 
-static woort_WAIPO_CommandResult _woort_WAIPO_cmd_stepir(
-    woort_WAIPO_Frontend* frontend,
+WOORT_NODISCARD bool _woort_WAIPO_get_next_ip(
+    const woort_Bytecode* ip,
+    woort_CodeEnv* cenv,
+    const woort_Value* sb,
+    woort_VMRuntime* vm,
+    /* OPTIONAL */ const woort_Bytecode** out_next_ip)
+{
+    if (ip == NULL || cenv == NULL || sb == NULL || out_next_ip == NULL)
+        return false;
+
+    if (ip < cenv->m_code_begin || ip >= cenv->m_code_end)
+        return false;
+
+    const woort_Bytecode bc = woort_CodeEnv_raw_trap(cenv, ip);
+    const uint8_t op6 = (uint8_t)WOORT_BYTECODE(OP6, bc);
+    const uint8_t m2 = (uint8_t)WOORT_BYTECODE(M2, bc);
+
+    switch ((woort_Opcode)op6)
+    {
+    case WOORT_OPCODE_JFWD:
+    case WOORT_OPCODE_JBCK:
+    {
+        *out_next_ip = cenv->m_code_begin + WOORT_BYTECODE(MABC26, bc);
+        return true;
+    }
+
+    case WOORT_OPCODE_JFWDCND:
+    {
+        const int8_t a_offset = (int8_t)WOORT_BYTECODE(A8, bc);
+        switch (m2)
+        {
+        case 0: /* JFWDNZ */
+            if (sb[a_offset].m_integer != 0)
+            {
+                *out_next_ip = ip + (int16_t)WOORT_BYTECODE(BC16, bc);
+                return true;
+            }
+            break;
+        case 1: /* JFWDZ */
+            if (sb[a_offset].m_integer == 0)
+            {
+                *out_next_ip = ip + (int16_t)WOORT_BYTECODE(BC16, bc);
+                return true;
+            }
+            break;
+        case 2: /* JFWDEQ */
+        {
+            const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+            if (sb[a_offset].m_integer == sb[b_offset].m_integer)
+            {
+                *out_next_ip = ip + (int8_t)WOORT_BYTECODE(C8, bc);
+                return true;
+            }
+            break;
+        }
+        case 3: /* JFWDNEQ */
+        {
+            const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+            if (sb[a_offset].m_integer != sb[b_offset].m_integer)
+            {
+                *out_next_ip = ip + (int8_t)WOORT_BYTECODE(C8, bc);
+                return true;
+            }
+            break;
+        }
+        }
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    case WOORT_OPCODE_JBCKCND:
+    {
+        const int8_t a_offset = (int8_t)WOORT_BYTECODE(A8, bc);
+        switch (m2)
+        {
+        case 0: /* JBCKNZ */
+            if (sb[a_offset].m_integer != 0)
+            {
+                *out_next_ip = ip - (int16_t)WOORT_BYTECODE(BC16, bc);
+                return true;
+            }
+            break;
+        case 1: /* JBCKZ */
+            if (sb[a_offset].m_integer == 0)
+            {
+                *out_next_ip = ip - (int16_t)WOORT_BYTECODE(BC16, bc);
+                return true;
+            }
+            break;
+        case 2: /* JBCKEQ */
+        {
+            const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+            if (sb[a_offset].m_integer == sb[b_offset].m_integer)
+            {
+                *out_next_ip = ip - (int8_t)WOORT_BYTECODE(C8, bc);
+                return true;
+            }
+            break;
+        }
+        case 3: /* JBCKNEQ */
+        {
+            const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+            if (sb[a_offset].m_integer != sb[b_offset].m_integer)
+            {
+                *out_next_ip = ip - (int8_t)WOORT_BYTECODE(C8, bc);
+                return true;
+            }
+            break;
+        }
+        }
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    case WOORT_OPCODE_JFDCMP:
+    {
+        const int8_t a_offset = (int8_t)WOORT_BYTECODE(A8, bc);
+        const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+        bool taken = false;
+        switch (m2)
+        {
+        case 0: taken = (sb[a_offset].m_integer < sb[b_offset].m_integer); break;
+        case 1: taken = (sb[a_offset].m_integer > sb[b_offset].m_integer); break;
+        case 2: taken = (sb[a_offset].m_integer <= sb[b_offset].m_integer); break;
+        case 3: taken = (sb[a_offset].m_integer >= sb[b_offset].m_integer); break;
+        }
+        if (taken)
+        {
+            *out_next_ip = ip + (int8_t)WOORT_BYTECODE(C8, bc);
+            return true;
+        }
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    case WOORT_OPCODE_JBCKCMP:
+    {
+        const int8_t a_offset = (int8_t)WOORT_BYTECODE(A8, bc);
+        const int8_t b_offset = (int8_t)WOORT_BYTECODE(B8, bc);
+        bool taken = false;
+        switch (m2)
+        {
+        case 0: taken = (sb[a_offset].m_integer < sb[b_offset].m_integer); break;
+        case 1: taken = (sb[a_offset].m_integer > sb[b_offset].m_integer); break;
+        case 2: taken = (sb[a_offset].m_integer <= sb[b_offset].m_integer); break;
+        case 3: taken = (sb[a_offset].m_integer >= sb[b_offset].m_integer); break;
+        }
+        if (taken)
+        {
+            *out_next_ip = ip - (int8_t)WOORT_BYTECODE(C8, bc);
+            return true;
+        }
+        *out_next_ip = ip + 1;
+        return true;
+    }
+
+    case WOORT_OPCODE_CALLNWO:
+    {
+        *out_next_ip = cenv->m_data_begin[WOORT_BYTECODE(MABC26, bc)].m_script_function;
+        return true;
+    }
+    case WOORT_OPCODE_CALLNFP:
+    case WOORT_OPCODE_CALLNJIT:
+    {
+        (void)woort_VMRuntime_request_set(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
+        *out_next_ip = ip + 1;
+        return true;
+    }
+    case WOORT_OPCODE_CALL:
+    {
+        const woort_GCClosure* target;
+        if (m2 == 0) /* CALLS */
+        {
+            target = sb[(int16_t)WOORT_BYTECODE(BC16, bc)].m_closure;
+        }
+        else /* m2 == 1, CALLC */
+        {
+            target = cenv->m_data_begin[WOORT_BYTECODE(ABC24, bc)].m_closure;
+        }
+
+        // Assure invoking closure is valid.
+        const woort_GCClosure* const invoked_closure_instance =
+            woort_mem_validate_addr_head((void*)target);
+
+        if (invoked_closure_instance != NULL
+            && invoked_closure_instance == target
+            && invoked_closure_instance->m_gc_unit.m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
+        {
+            /*
+            The minimum unit of memory allocation in Woomem is 8 bytes. We need to
+            verify the type of the unit here, and the type information happens to
+            fall within the first eight bytes; therefore, reading the first 8 bytes
+            of the unit is safe.
+            */
+            _Static_assert(
+                offsetof(woort_GCClosure, m_gc_unit)
+                + sizeof(invoked_closure_instance->m_gc_unit) <= 8,
+                "woort_GCUnit is too large/far to safely verify its type.");
+
+            if (invoked_closure_instance->m_script_function != NULL)
+                *out_next_ip = invoked_closure_instance->m_script_function;
+            else
+                *out_next_ip = ip + 1;
+
+            return true;
+        }
+        else
+            /* Bad closure instance */
+            return false;
+    }
+    case WOORT_OPCODE_RET:
+    {
+        if (m2 == 3)
+        {
+            /* Is POPRS. not ret. */
+            goto label_fall_to_default;
+        }
+
+        const woort_Value* trace_sb = sb;
+        while (trace_sb[1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE)
+        {
+            trace_sb = trace_sb + 2 + trace_sb[1].m_ret_bp.m_bp_offset;
+            if (vm->m_stack_end - trace_sb < 3)
+                return false;
+        }
+        *out_next_ip = (const woort_Bytecode*)trace_sb[2].m_ret_addr;
+        return true;
+    }
+    case WOORT_OPCODE_JIFINITED:
+    {
+        woort_AtomicInt64* const flag = &cenv->m_data_begin[ip[1]].m_atomic_i64;
+        const int64_t flag_stat = woort_atomic_load_explicit(
+            (woort_AtomicInt64*)flag,
+            WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+
+        if (flag_stat == 2)
+            *out_next_ip = cenv->m_code_begin + WOORT_BYTECODE(MABC26, bc);
+        else
+            *out_next_ip = ip + 2;
+
+        return true;
+    }
+    case WOORT_OPCODE_TRAP:
+    {
+        if (m2 != 0)
+            return false;
+        *out_next_ip = ip + 1;
+        return true;
+    }
+    default:
+    {
+    label_fall_to_default:
+        *out_next_ip = woort_disassembly(ip, &_woort_WAIPO_empty_cb);
+        return true;
+    }
+    }
+}
+
+typedef bool (*_woort_WAIPO_SetBreakFunc)(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    const woort_Bytecode* ip);
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_step_common(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
-    size_t arg_count)
+    size_t arg_count,
+    _woort_WAIPO_SetBreakFunc set_break,
+    const char* message)
 {
     (void)args;
     (void)arg_count;
 
-    if (!woort_Debugger_step_instruction())
+    woort_CodeEnv* cenv;
+    if (!woort_CodeEnv_find(vm->m_ip, &cenv))
+    {
+        (void)printf(WOORT_ANSI_HIR "Cannot locate CodeEnv for current IP.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const woort_Bytecode* next_ip;
+    if (!_woort_WAIPO_get_next_ip(vm->m_ip, cenv, vm->m_sb, vm, &next_ip))
     {
         (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    (void)frontend;
-    (void)printf("Stepping to next instruction...\n");
+    if (!_woort_WAIPO_Debugger_focus_on(dbg, vm))
+    {
+        (void)printf(WOORT_ANSI_HIR "Failed to focus on VM.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (!set_break(dbg, vm, next_ip))
+    {
+        (void)printf(WOORT_ANSI_HIR "Failed to set step breakpoint.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    (void)printf(WOORT_ANSI_HIG "%s" WOORT_ANSI_RST, message);
 
     return WOORT_WAIPO_CMD_CONTINUE;
+}
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_stepir(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    return _woort_WAIPO_cmd_step_common(
+        dbg, vm, args, arg_count,
+        _woort_WAIPO_Debugger_set_step_break,
+        "Stepping to next instruction...\n");
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_step(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    (void)args;
-    (void)arg_count;
-
-    if (!woort_Debugger_step_in())
-    {
-        (void)printf(WOORT_ANSI_HIR "Failed to arm source step.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    (void)frontend;
-    (void)printf("Stepping to next source line...\n");
-
-    return WOORT_WAIPO_CMD_CONTINUE;
+    return _woort_WAIPO_cmd_step_common(
+        dbg, vm, args, arg_count,
+        _woort_WAIPO_Debugger_set_step_source_break,
+        "Stepping to next source line...\n");
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_next(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    (void)args;
-    (void)arg_count;
-
-    if (!woort_Debugger_step_over())
-    {
-        (void)printf(WOORT_ANSI_HIR "Failed to arm source step-over.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    (void)frontend;
-    (void)printf("Stepping over to next source line...\n");
-
-    return WOORT_WAIPO_CMD_CONTINUE;
+    return _woort_WAIPO_cmd_step_common(
+        dbg, vm, args, arg_count,
+        _woort_WAIPO_Debugger_set_next_source_break,
+        "Stepping over to next source line...\n");
 }
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_return(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    (void)args;
-    (void)arg_count;
-
-    if (!woort_Debugger_step_out())
-    {
-        (void)printf(WOORT_ANSI_HIR "Failed to arm step-out.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
-
-    (void)frontend;
-    (void)printf("Returning to caller...\n");
-
-    return WOORT_WAIPO_CMD_CONTINUE;
+    return _woort_WAIPO_cmd_step_common(
+        dbg, vm, args, arg_count,
+        _woort_WAIPO_Debugger_set_return_break,
+        "Returning to caller...\n");
 }
 
 /* ====================================================================
- * print / global
+ * print / p command
  * ==================================================================== */
 
+void _woort_WAIPO_print_value(woort_DynBox boxed, bool is_fuzzy)
+{
+    woort_Vector buf;
+    woort_vector_init(&buf, sizeof(char));
+
+    woort_HashMap visited_set;
+    woort_hashmap_init(
+        &visited_set,
+        sizeof(const woort_GCUnit*),
+        0,
+        woort_util_ptr_hash,
+        woort_util_ptr_equal);
+
+    if (_woort_serialize_dynbox_to_buf_for_debug(
+        boxed, &buf, &visited_set, 0, is_fuzzy))
+    {
+        (void)printf("%.*s", (int)buf.m_size, (const char*)buf.m_data);
+    }
+
+    woort_vector_deinit(&buf);
+    woort_hashmap_deinit(&visited_set);
+}
+
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
@@ -1126,37 +1287,136 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_print(
 
     const char* const var_name = args[1];
 
-    woort_DebuggerVariableKind kind = WOORT_DEBUGGER_VARIABLE_NOT_FOUND;
-    char* const value = woort_Debugger_get_variable_value_by_name(
-        frontend->m_current_vm, frontend->m_current_frame_depth,
-        var_name, &kind);
-
-    if (value == NULL)
+    /*
+     * 定位当前选中的调用栈帧。
+     */
+    woort_VMRuntime_TraceCallstack trace;
+    if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
     {
-        (void)printf("No variable named '%s' in current frame.\n", var_name);
+        (void)printf("No callstack at current frame.\n");
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    switch (kind)
+    if (trace.m_code_addr == NULL)
     {
-    case WOORT_DEBUGGER_VARIABLE_LOCAL:
-        (void)printf("[local]  %s = %s\n", var_name, value);
-        break;
-    case WOORT_DEBUGGER_VARIABLE_STATIC:
-        (void)printf("[static] %s = %s\n", var_name, value);
-        break;
-    default:
-        (void)printf("%s = %s\n", var_name, value);
-        break;
+        (void)printf("No code address for current frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    woort_free(value);
+    /*
+     * 获取当前帧的 CodeEnv 和 SB 偏移。
+     */
+    woort_CodeEnv* cenv = NULL;
+    if (!woort_CodeEnv_find(trace.m_code_addr, &cenv) || cenv == NULL)
+    {
+        (void)printf("Cannot locate CodeEnv for current frame.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    woort_Value* const frame_sb =
+        vm->m_stack_end - trace.m_callstack_offset_of_base;
+
+    /*
+     * 获取当前帧所在函数的字节码范围。
+     */
+    const uint32_t frame_ip_offset =
+        (uint32_t)(trace.m_code_addr - cenv->m_code_begin);
+
+    uint32_t func_begin = 0;
+    uint32_t func_end = (uint32_t)(cenv->m_code_end - cenv->m_code_begin);
+    {
+        size_t j;
+        for (j = 0; j < cenv->m_function_boundaries.m_size; ++j)
+        {
+            const woort_FunctionBoundary* boundary =
+                (const woort_FunctionBoundary*)woort_vector_at(
+                    (woort_Vector*)&cenv->m_function_boundaries, j);
+
+            if (frame_ip_offset >= boundary->m_offset_begin
+                && frame_ip_offset < boundary->m_offset_begin + boundary->m_code_length)
+            {
+                func_begin = boundary->m_offset_begin;
+                func_end = boundary->m_offset_begin + boundary->m_code_length;
+                break;
+            }
+        }
+    }
+
+    /*
+     * 搜索当前 CodeEnv 中的局部变量（仅限当前函数范围内声明的）。
+     */
+    size_t i;
+    size_t found_count = 0;
+    for (i = 0; i < cenv->m_pdb.m_local_var_debug_info.m_size; ++i)
+    {
+        const woort_LocalVarDebugInfo* info =
+            (const woort_LocalVarDebugInfo*)woort_vector_at(
+                (woort_Vector*)&cenv->m_pdb.m_local_var_debug_info, i);
+
+        if (info->m_name == NULL)
+            continue;
+        if (strcmp(info->m_name, var_name) != 0)
+            continue;
+
+        /*
+         * 仅当变量在当前函数范围内时显示。
+         */
+        if (info->m_function_offset < func_begin
+            || info->m_function_offset >= func_end)
+            continue;
+
+        (void)printf(
+            "[local]  %s@[SB%+d] = ",
+            info->m_name,
+            info->m_stack_offset);
+
+        _woort_WAIPO_print_value(frame_sb[info->m_stack_offset].m_dynamic, true);
+        printf("\n");
+
+        ++found_count;
+    }
+
+    /*
+     * 搜索当前 CodeEnv 中的静态变量。
+     */
+    for (i = 0; i < cenv->m_pdb.m_static_var_debug_info.m_size; ++i)
+    {
+        const woort_StaticVarDebugInfo* info =
+            (const woort_StaticVarDebugInfo*)woort_vector_at(
+                (woort_Vector*)&cenv->m_pdb.m_static_var_debug_info, i);
+
+        if (info->m_name == NULL)
+            continue;
+        if (strcmp(info->m_name, var_name) != 0)
+            continue;
+
+        const size_t global_index =
+            cenv->m_const_records.m_size + (size_t)info->m_static_idx;
+
+        (void)printf(
+            "[static] %s@G[%zu] = ",
+            info->m_name,
+            global_index);
+
+        _woort_WAIPO_print_value(cenv->m_data_begin[global_index].m_dynamic, true);
+        printf("\n");
+
+        ++found_count;
+    }
+
+    if (found_count == 0)
+        (void)printf("No variable named '%s' in current frame.\n", var_name);
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
+/* ====================================================================
+ * global / g command
+ * ==================================================================== */
+
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_global(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
@@ -1173,9 +1433,11 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_global(
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
+    /*
+     * 定位当前选中的调用栈帧。
+     */
     woort_VMRuntime_TraceCallstack trace;
-    if (!_woort_WAIPO_trace_stopped_vm_to_depth(
-        frontend->m_current_frame_depth, &trace))
+    if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
     {
         (void)printf("No callstack at current frame.\n");
         return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -1211,7 +1473,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_global(
     {
         const woort_ConstRecord* record =
             (const woort_ConstRecord*)woort_vector_at(
-            (woort_Vector*)&cenv->m_const_records, global_index);
+                (woort_Vector*)&cenv->m_const_records, global_index);
 
         if (record->m_func_name != NULL)
             (void)printf("[const]  %s@G[%zu] = ",
@@ -1226,12 +1488,11 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_global(
         const char* var_name = NULL;
 
         for (size_t i = 0;
-            i < cenv->m_pdb.m_static_var_debug_info.m_size;
-            ++i)
+            i < cenv->m_pdb.m_static_var_debug_info.m_size; ++i)
         {
             const woort_StaticVarDebugInfo* info =
                 (const woort_StaticVarDebugInfo*)woort_vector_at(
-                (woort_Vector*)&cenv->m_pdb.m_static_var_debug_info, i);
+                    (woort_Vector*)&cenv->m_pdb.m_static_var_debug_info, i);
 
             if ((size_t)info->m_static_idx == static_idx)
             {
@@ -1247,74 +1508,202 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_global(
             (void)printf("[static] G[%zu] = ", global_index);
     }
 
-    _woort_serialize_dynbox_print_for_debug(cenv->m_data_begin[global_index].m_dynamic, true);
+    _woort_WAIPO_print_value(cenv->m_data_begin[global_index].m_dynamic, true);
     printf("\n");
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
 /* ====================================================================
- * break / delete
+ * break / b command
  * ==================================================================== */
 
-static bool _woort_WAIPO_add_frontend_breakpoint(
-    woort_WAIPO_Frontend* frontend,
-    const woort_WAIPO_FrontendBreakpoint* record)
+typedef struct _woort_WAIPO_BreakByFileLineContext
 {
-    woort_WAIPO_FrontendBreakpoint* emplaced = NULL;
+    const char* m_filepath;
+    uint32_t m_line;
+    size_t m_found_count;
+    woort_WAIPO_Debugger* m_dbg;
+    woort_CodeEnv* m_cenv;
+    uint32_t m_offset;
+} _woort_WAIPO_BreakByFileLineContext;
+
+static bool _woort_WAIPO_break_by_file_line_callback(
+    woort_CodeEnv* cenv, void* user_data)
+{
+    _woort_WAIPO_BreakByFileLineContext* ctx =
+        (_woort_WAIPO_BreakByFileLineContext*)user_data;
+
+    uint32_t offset;
+    if (woort_CodeEnv_find_offset_by_srcloc(cenv, ctx->m_filepath, ctx->m_line, &offset))
+    {
+        ctx->m_cenv = cenv;
+        ctx->m_offset = offset;
+        ++ctx->m_found_count;
+    }
+    return true;
+}
+
+WOORT_NODISCARD static bool _woort_WAIPO_add_user_breakpoint(
+    woort_WAIPO_Debugger* dbg,
+    const woort_Bytecode* ip,
+    const char* desc_fmt,
+    ...);
+
+typedef struct _woort_WAIPO_BreakByFuncContext
+{
+    const char* m_funcname;
+    size_t m_found_count;
+    woort_WAIPO_Debugger* m_dbg;
+} _woort_WAIPO_BreakByFuncContext;
+
+static bool _woort_WAIPO_break_by_func_callback(
+    woort_CodeEnv* cenv, void* user_data)
+{
+    _woort_WAIPO_BreakByFuncContext* ctx =
+        (_woort_WAIPO_BreakByFuncContext*)user_data;
+
+    const size_t boundary_count = cenv->m_function_boundaries.m_size;
+    size_t i;
+    for (i = 0; i < boundary_count; ++i)
+    {
+        const woort_FunctionBoundary* boundary =
+            (const woort_FunctionBoundary*)woort_vector_at(
+                (woort_Vector*)&cenv->m_function_boundaries, i);
+
+        if (boundary->m_name == NULL)
+            continue;
+        if (strstr(boundary->m_name, ctx->m_funcname) == NULL)
+            continue;
+
+        const woort_Bytecode* target_ip =
+            cenv->m_code_begin + boundary->m_offset_begin;
+
+        if (!_woort_WAIPO_add_user_breakpoint(
+            ctx->m_dbg, target_ip, "%s", boundary->m_name))
+        {
+            (void)printf("Failed to set breakpoint.\n");
+            return false;
+        }
+
+        (void)printf("Breakpoint %zu at %s\n",
+            ctx->m_dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
+            boundary->m_name);
+
+        ++ctx->m_found_count;
+    }
+    return true;
+}
+
+WOORT_NODISCARD static bool _woort_WAIPO_add_user_breakpoint(
+    woort_WAIPO_Debugger* dbg,
+    const woort_Bytecode* ip,
+    const char* desc_fmt,
+    ...)
+{
+    woort_WAIPO_UserBreakpoint ub;
+    ub.m_ip = ip;
+
+    if (desc_fmt != NULL)
+    {
+        va_list args;
+        va_start(args, desc_fmt);
+        (void)vsnprintf(ub.m_desc, sizeof(ub.m_desc), desc_fmt, args);
+        va_end(args);
+    }
+    else
+    {
+        ub.m_desc[0] = '\0';
+    }
+
+    woort_WAIPO_UserBreakpoint* emplaced;
     if (!woort_vector_emplace_back(
-        &frontend->m_breakpoints, 1, (void**)&emplaced))
+        &dbg->m_breakpoint_collection.m_user_breakpoints, 1,
+        (void**)&emplaced))
     {
         return false;
     }
 
-    *emplaced = *record;
+    *emplaced = ub;
+
+    if (!_woort_WAIPO_BreakpointCollection_break_at(
+        &dbg->m_breakpoint_collection, ip))
+    {
+        (void)woort_vector_erase_at(
+            &dbg->m_breakpoint_collection.m_user_breakpoints,
+            dbg->m_breakpoint_collection.m_user_breakpoints.m_size - 1);
+        return false;
+    }
+
     return true;
 }
 
+WOORT_NODISCARD static woort_WAIPO_CommandResult _woort_WAIPO_break_at_file_line(
+    woort_WAIPO_Debugger* dbg,
+    const char* filepath,
+    uint32_t line)
+{
+    _woort_WAIPO_BreakByFileLineContext ctx;
+    ctx.m_filepath = filepath;
+    ctx.m_line = line;
+    ctx.m_found_count = 0;
+    ctx.m_dbg = dbg;
+    ctx.m_cenv = NULL;
+    ctx.m_offset = 0;
+
+    woort_CodeEnv_foreach(&_woort_WAIPO_break_by_file_line_callback, &ctx);
+
+    if (ctx.m_found_count == 0)
+    {
+        (void)printf("No code at %s:%u\n", filepath, line);
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    const woort_Bytecode* target_ip =
+        ctx.m_cenv->m_code_begin + ctx.m_offset;
+
+    if (!_woort_WAIPO_add_user_breakpoint(
+        dbg, target_ip, "%s:%u", filepath, line))
+    {
+        (void)printf("Failed to set breakpoint.\n");
+        return WOORT_WAIPO_CMD_NEED_NEXT;
+    }
+
+    if (ctx.m_found_count > 1)
+        (void)printf("(breakpoint set at first of %zu matches)\n",
+            ctx.m_found_count);
+
+    (void)printf("Breakpoint %zu at %s:%u\n",
+        dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
+        filepath, line);
+
+    return WOORT_WAIPO_CMD_NEED_NEXT;
+}
+
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    /* Bare `break`: list this frontend's breakpoints with resolution state. */
     if (arg_count < 2)
     {
-        if (frontend->m_breakpoints.m_size == 0)
+        if (dbg->m_breakpoint_collection.m_user_breakpoints.m_size == 0)
         {
             (void)printf("No breakpoints.\n");
-            return WOORT_WAIPO_CMD_NEED_NEXT;
         }
-
-        (void)printf("Num  What\n");
-        for (size_t i = 0; i < frontend->m_breakpoints.m_size; ++i)
+        else
         {
-            const woort_WAIPO_FrontendBreakpoint* fb =
-                (const woort_WAIPO_FrontendBreakpoint*)woort_vector_at(
-                &frontend->m_breakpoints, i);
+            (void)printf("Num  What\n");
+            size_t i;
+            for (i = 0; i < dbg->m_breakpoint_collection.m_user_breakpoints.m_size; ++i)
+            {
+                const woort_WAIPO_UserBreakpoint* ub =
+                    (const woort_WAIPO_UserBreakpoint*)woort_vector_at(
+                        &dbg->m_breakpoint_collection.m_user_breakpoints, i);
 
-            bool resolved = false;
-            uint32_t resolved_line = 0;
-            (void)woort_Debugger_query_breakpoint(
-                fb->m_id, &resolved, &resolved_line);
-
-            if (fb->m_is_function_bp)
-            {
-                (void)printf("%-4zu func %s%s\n",
-                    i + 1,
-                    fb->m_function_name,
-                    resolved ? "" : "  [pending]");
-            }
-            else if (resolved && resolved_line + 1 != fb->m_line)
-            {
-                (void)printf("%-4zu %s:%u -> line %u\n",
-                    i + 1, fb->m_file, fb->m_line, resolved_line + 1);
-            }
-            else
-            {
-                (void)printf("%-4zu %s:%u%s\n",
-                    i + 1, fb->m_file, fb->m_line,
-                    resolved ? "" : "  [pending]");
+                const char* desc = ub->m_desc[0] != '\0' ? ub->m_desc : "<unknown>";
+                (void)printf("%-4zu %s\n", i + 1, desc);
             }
         }
         return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -1322,7 +1711,6 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
 
     const char* arg = args[1];
 
-    /* break <line>: use the selected frame's file. */
     if (_woort_WAIPO_is_numeric(arg))
     {
         const uint32_t line = (uint32_t)strtoul(arg, NULL, 10);
@@ -1332,47 +1720,56 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
             return WOORT_WAIPO_CMD_NEED_NEXT;
         }
 
-        woort_DebuggerFrame frame;
-        if (!woort_Debugger_get_stack_frame(
-            frontend->m_current_vm, frontend->m_current_frame_depth,
-            &frame)
-            || frame.m_file_or_lib_name[0] == '\0')
+        woort_VMRuntime_TraceCallstack trace;
+        if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
         {
-            (void)printf(
-                "Current frame has no source location. "
-                "Use 'break <file>:<line>' to specify file.\n");
+            (void)printf("No callstack. Use 'break <file>:<line>' to specify file.\n");
             return WOORT_WAIPO_CMD_NEED_NEXT;
         }
 
-        woort_WAIPO_FrontendBreakpoint record;
-        memset(&record, 0, sizeof(record));
-        record.m_is_function_bp = false;
-        record.m_line = line;
-        (void)snprintf(record.m_file, sizeof(record.m_file), "%s",
-            frame.m_file_or_lib_name);
+        if (trace.m_code_addr == NULL || trace.m_file_or_lib_name == NULL)
+        {
+            (void)printf("Current frame has no source location.\n");
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
 
-        if (!woort_Debugger_set_source_breakpoint(
-            record.m_file, line - 1, &record.m_id)
-            || !_woort_WAIPO_add_frontend_breakpoint(frontend, &record))
+        woort_CodeEnv* cenv;
+        if (!woort_CodeEnv_find(trace.m_code_addr, &cenv))
+        {
+            (void)printf("Cannot locate CodeEnv for current frame.\n");
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+
+        uint32_t offset;
+        if (!woort_CodeEnv_find_offset_by_srcloc(
+            cenv, trace.m_file_or_lib_name, line - 1, &offset))
+        {
+            (void)printf("Line %u not found in '%s'.\n",
+                line, trace.m_file_or_lib_name);
+            return WOORT_WAIPO_CMD_NEED_NEXT;
+        }
+
+        const woort_Bytecode* target_ip = cenv->m_code_begin + offset;
+
+        if (!_woort_WAIPO_add_user_breakpoint(
+            dbg, target_ip, "%s:%u",
+            trace.m_file_or_lib_name, line))
         {
             (void)printf("Failed to set breakpoint.\n");
             return WOORT_WAIPO_CMD_NEED_NEXT;
         }
 
-        bool resolved = false;
-        (void)woort_Debugger_query_breakpoint(record.m_id, &resolved, NULL);
+        (void)printf("Breakpoint %zu at %s:%u\n",
+            dbg->m_breakpoint_collection.m_user_breakpoints.m_size,
+            trace.m_file_or_lib_name, line);
 
-        (void)printf("Breakpoint %zu at %s:%u%s\n",
-            frontend->m_breakpoints.m_size,
-            record.m_file, line,
-            resolved ? "" : "  [pending]");
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    /* break <file>:<line> */
     const char* colon = strchr(arg, ':');
     if (colon != NULL)
     {
+        const char* file_end = colon;
         const char* line_str = colon + 1;
 
         if (_woort_WAIPO_is_numeric(line_str))
@@ -1381,107 +1778,65 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_break(
             if (line == 0)
                 line = 1;
 
-            char filepath[WOORT_DEBUGGER_MAX_PATH];
-            const size_t file_len = (size_t)(colon - arg);
+            const size_t file_len = (size_t)(file_end - arg);
+            char filepath[512];
             const size_t copy_len = file_len < sizeof(filepath) - 1
                 ? file_len : sizeof(filepath) - 1;
             (void)memcpy(filepath, arg, copy_len);
             filepath[copy_len] = '\0';
 
-            woort_WAIPO_FrontendBreakpoint record;
-            memset(&record, 0, sizeof(record));
-            record.m_is_function_bp = false;
-            record.m_line = line;
-            (void)snprintf(record.m_file, sizeof(record.m_file), "%s",
-                filepath);
-
-            if (!woort_Debugger_set_source_breakpoint(
-                filepath, line - 1, &record.m_id)
-                || !_woort_WAIPO_add_frontend_breakpoint(frontend, &record))
-            {
-                (void)printf("Failed to set breakpoint.\n");
-                return WOORT_WAIPO_CMD_NEED_NEXT;
-            }
-
-            bool resolved = false;
-            (void)woort_Debugger_query_breakpoint(record.m_id, &resolved, NULL);
-
-            (void)printf("Breakpoint %zu at %s:%u%s\n",
-                frontend->m_breakpoints.m_size,
-                filepath, line,
-                resolved ? "" : "  [pending]");
-            return WOORT_WAIPO_CMD_NEED_NEXT;
+            return _woort_WAIPO_break_at_file_line(dbg, filepath, line);
         }
     }
 
-    /* break <file> <line> */
-    if (arg_count >= 3 && _woort_WAIPO_is_numeric(args[2]))
+    /* Check for 'break <file> <line>' two-arg format */
+    if (arg_count >= 3)
     {
-        uint32_t line = (uint32_t)strtoul(args[2], NULL, 10);
-        if (line == 0)
-            line = 1;
-
-        woort_WAIPO_FrontendBreakpoint record;
-        memset(&record, 0, sizeof(record));
-        record.m_is_function_bp = false;
-        record.m_line = line;
-        (void)snprintf(record.m_file, sizeof(record.m_file), "%s", arg);
-
-        if (!woort_Debugger_set_source_breakpoint(
-            arg, line - 1, &record.m_id)
-            || !_woort_WAIPO_add_frontend_breakpoint(frontend, &record))
+        if (_woort_WAIPO_is_numeric(args[2]))
         {
-            (void)printf("Failed to set breakpoint.\n");
-            return WOORT_WAIPO_CMD_NEED_NEXT;
+            uint32_t line = (uint32_t)strtoul(args[2], NULL, 10);
+            if (line == 0)
+                line = 1;
+
+            return _woort_WAIPO_break_at_file_line(dbg, arg, line);
         }
-
-        bool resolved = false;
-        (void)woort_Debugger_query_breakpoint(record.m_id, &resolved, NULL);
-
-        (void)printf("Breakpoint %zu at %s:%u%s\n",
-            frontend->m_breakpoints.m_size,
-            arg, line,
-            resolved ? "" : "  [pending]");
-        return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    /* break <funcname>: exact match against function boundaries. */
+    /* Treat as function name */
     {
-        woort_WAIPO_FrontendBreakpoint record;
-        memset(&record, 0, sizeof(record));
-        record.m_is_function_bp = true;
-        (void)snprintf(record.m_function_name,
-            sizeof(record.m_function_name), "%s", arg);
+        _woort_WAIPO_BreakByFuncContext ctx;
+        ctx.m_funcname = arg;
+        ctx.m_found_count = 0;
+        ctx.m_dbg = dbg;
 
-        if (!woort_Debugger_set_function_breakpoint(
-            arg, &record.m_id)
-            || !_woort_WAIPO_add_frontend_breakpoint(frontend, &record))
+        woort_CodeEnv_foreach(&_woort_WAIPO_break_by_func_callback, &ctx);
+
+        if (ctx.m_found_count == 0)
         {
-            (void)printf("Failed to set breakpoint.\n");
+            (void)printf("Function '%s' not found.\n", arg);
             return WOORT_WAIPO_CMD_NEED_NEXT;
         }
 
-        bool resolved = false;
-        (void)woort_Debugger_query_breakpoint(record.m_id, &resolved, NULL);
+        if (ctx.m_found_count > 1)
+            (void)printf("(set %zu breakpoints)\n",
+                ctx.m_found_count);
 
-        if (!resolved)
-        {
-            (void)printf("Function '%s' not found (breakpoint pending).\n",
-                arg);
-            return WOORT_WAIPO_CMD_NEED_NEXT;
-        }
-
-        (void)printf("Breakpoint %zu at function %s\n",
-            frontend->m_breakpoints.m_size, arg);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 }
 
+/* ====================================================================
+ * delete / d command
+ * ==================================================================== */
+
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_delete(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
+    (void)vm;
+
     if (arg_count < 2)
     {
         (void)printf("Usage: delete <breakpoint_num>\n");
@@ -1489,7 +1844,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_delete(
     }
 
     const long num = strtol(args[1], NULL, 10);
-    if (num <= 0 || (size_t)num > frontend->m_breakpoints.m_size)
+    if (num <= 0 || (size_t)num > dbg->m_breakpoint_collection.m_user_breakpoints.m_size)
     {
         (void)printf("Invalid breakpoint number: %s\n", args[1]);
         return WOORT_WAIPO_CMD_NEED_NEXT;
@@ -1497,30 +1852,63 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_delete(
 
     const size_t idx = (size_t)(num - 1);
 
-    const woort_WAIPO_FrontendBreakpoint* fb =
-        (const woort_WAIPO_FrontendBreakpoint*)woort_vector_at(
-        &frontend->m_breakpoints, idx);
+    woort_WAIPO_UserBreakpoint* ub =
+        (woort_WAIPO_UserBreakpoint*)woort_vector_at(
+            &dbg->m_breakpoint_collection.m_user_breakpoints, idx);
 
-    (void)woort_Debugger_remove_breakpoint(fb->m_id);
-    (void)woort_vector_erase_at(&frontend->m_breakpoints, idx);
+    _woort_WAIPO_BreakpointCollection_cancel_break_at(
+        &dbg->m_breakpoint_collection, ub->m_ip);
+
+    (void)woort_vector_erase_at(
+        &dbg->m_breakpoint_collection.m_user_breakpoints, idx);
 
     (void)printf("Breakpoint %zu deleted.\n", (size_t)num);
 
     return WOORT_WAIPO_CMD_NEED_NEXT;
 }
 
+typedef struct _woort_WAIPO_SwitchVMContext
+{
+    long m_id;
+    /* OPTIONAL */ woort_VMRuntime* m_target;
+
+} _woort_WAIPO_SwitchVMContext;
+
+static bool _woort_WAIPO_count_vm_to_break(
+    woort_VMRuntime* vm, void* user_data)
+{
+    _woort_WAIPO_SwitchVMContext* const ctx = 
+        (_woort_WAIPO_SwitchVMContext*)user_data;
+
+    if (ctx->m_id < 0)
+        return false;
+
+    if (ctx->m_id-- == 0)
+    {
+        ctx->m_target = vm;
+
+        /* Let the target vm breakdown at its next request checkpoint. */
+        (void)woort_VMRuntime_request_set(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
+
+        return false;
+    }
+    return true;
+}
+
 /* ====================================================================
- * vm
+ * vm command
  * ==================================================================== */
 
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_vm(
-    woort_WAIPO_Frontend* frontend,
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    /* 'vm' with no argument lists all VMs; ids are stable serials. */
+    /* 'vm' with no argument lists all VMs (ids come from this listing). */
     if (arg_count < 2)
-        return _woort_WAIPO_list_vm(frontend);
+        return _woort_WAIPO_list_vm(dbg, vm);
 
     if (!_woort_WAIPO_is_numeric(args[1]))
     {
@@ -1528,39 +1916,37 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_vm(
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    const woort_DebuggerVmId id =
-        (woort_DebuggerVmId)strtoull(args[1], NULL, 10);
+    const long id = strtol(args[1], NULL, 10);
 
-    if (id == frontend->m_current_vm)
+    _woort_WAIPO_SwitchVMContext ctx = {
+        .m_id = id,
+        .m_target = NULL,
+    };
+
+    woort_GC_foreach_root_vm(&_woort_WAIPO_count_vm_to_break, &ctx);
+
+    if (ctx.m_target == NULL)
     {
-        (void)printf("Already debugging VM %" PRIu64 ".\n", id);
+        (void)printf("No such VM: %ld\n", id);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    if (!woort_Debugger_interrupt_vm(id))
+    if (ctx.m_target == vm)
     {
-        (void)printf("No such VM: %" PRIu64 "\n", id);
+        (void)printf("Already debugging VM %ld.\n", id);
         return WOORT_WAIPO_CMD_NEED_NEXT;
     }
 
-    (void)printf("Switching to VM %" PRIu64 "...\n", id);
+    (void)printf("Switching to VM %ld...\n", id);
 
     /*
      * Release the current VM and let it resume; the target VM holds a
      * pending DEBUG_BREAK request and traps into the debugger on its own.
      */
-    if (!woort_Debugger_continue())
-    {
-        (void)printf(WOORT_ANSI_HIR "Failed to resume current VM.\n" WOORT_ANSI_RST);
-        return WOORT_WAIPO_CMD_NEED_NEXT;
-    }
+    _woort_WAIPO_Debugger_out_of_focus(dbg, vm);
 
     return WOORT_WAIPO_CMD_CONTINUE;
 }
-
-/* ====================================================================
- * Command table / prompt loop
- * ==================================================================== */
 
 static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "help",      "?",    &_woort_WAIPO_cmd_help },
@@ -1628,104 +2014,68 @@ static size_t _woort_WAIPO_split_line(
     return count;
 }
 
-static void _woort_WAIPO_print_stop_header(
-    woort_WAIPO_Frontend* frontend,
-    const woort_DebuggerBreakEvent* event)
+void woort_WAIPO_Debugger_process(
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm)
 {
-    woort_DebuggerFrame frame;
-    const bool has_frame = woort_Debugger_get_stack_frame(
-        event->m_vm, 0, &frame);
+    {
+        woort_VMRuntime_TraceCallstack_Iter trace_iter;
+        woort_VMRuntime_TraceCallstack trace;
 
-    (void)printf("\nBreakdown VM#%" PRIu64 " by ", (uint64_t)event->m_vm);
-    switch (event->m_reason)
-    {
-    case WOORT_DEBUGGER_STOP_REASON_BREAKPOINT:
-        (void)printf("breakpoint");
-        break;
-    case WOORT_DEBUGGER_STOP_REASON_STEP:
-        (void)printf("step");
-        break;
-    case WOORT_DEBUGGER_STOP_REASON_INTERRUPT:
-        (void)printf("interrupt");
-        break;
-    case WOORT_DEBUGGER_STOP_REASON_PANIC:
-    {
-        (void)printf("panic");
-        woort_DebuggerPanicInfo panic;
-        if (woort_Debugger_get_last_panic(&panic))
+        woort_VMRuntime_trace_begin(vm, &trace_iter);
+        if (woort_VMRuntime_trace_next(&trace_iter, &trace))
         {
-            (void)printf(": %s", panic.m_message);
-        }
-        break;
-    }
-    default:
-        (void)printf("unknown cause");
-        break;
-    }
-    (void)printf(", at:\n");
+            /* Reset frame depth. */
+            debugger_instance->m_current_frame_depth = 0;
 
-    if (has_frame)
-    {
-        if (frame.m_function_name[0] != '\0'
-            && frame.m_file_or_lib_name[0] != '\0')
-        {
-            if (frame.m_has_location)
-                (void)printf("    %s (%s:%u:%u)",
-                    frame.m_function_name,
-                    frame.m_file_or_lib_name,
-                    frame.m_line + 1,
-                    frame.m_column);
+            (void)printf("Breakdown VM(%p) at:\n", (void*)vm);
+
+            if (trace.m_function_name != NULL && trace.m_file_or_lib_name != NULL)
+            {
+                if (trace.m_has_location)
+                    (void)printf("    %s (%s:%zu:%zu)",
+                        trace.m_function_name,
+                        trace.m_file_or_lib_name,
+                        trace.m_location_begin[0] + 1,
+                        trace.m_location_begin[1] + 1);
+                else
+                    (void)printf("    %s (%s)",
+                        trace.m_function_name,
+                        trace.m_file_or_lib_name);
+            }
+            else if (trace.m_function_name != NULL)
+            {
+                (void)printf("    %s",
+                    trace.m_function_name);
+            }
             else
-                (void)printf("    %s (%s)",
-                    frame.m_function_name,
-                    frame.m_file_or_lib_name);
-        }
-        else if (frame.m_function_name[0] != '\0')
-        {
-            (void)printf("    %s", frame.m_function_name);
-        }
-        else
-        {
-            (void)printf("    <unknown>");
-        }
-    }
-    else
-    {
-        (void)printf("    <unknown>");
-    }
+            {
+                (void)printf("    <unknown>");
+            }
 
-    /* In-tree escape: raw bytecode offset of the stop. */
-    woort_VMRuntime* vm = NULL;
-    if (_woort_Debugger_session_take_stopped_vm(&vm) && vm != NULL)
-    {
-        woort_CodeEnv* cenv = NULL;
-        if (woort_CodeEnv_find(vm->m_ip, &cenv))
-        {
-            const uint32_t code_offset =
-                (uint32_t)(vm->m_ip - cenv->m_code_begin);
-            (void)printf("\nBytecode offset = %04u", code_offset);
+            woort_CodeEnv* cenv;
+            if (woort_CodeEnv_find(vm->m_ip, &cenv))
+            {
+                const uint32_t code_offset =
+                    (uint32_t)(vm->m_ip - cenv->m_code_begin);
+                (void)printf("\nBytecode offset = %04u", code_offset);
+            }
+
+            (void)printf("\n");
+
+            _woort_WAIPO_cmd_source(debugger_instance, vm, NULL, 0);
         }
     }
 
-    (void)printf("\n");
-
-    (void)_woort_WAIPO_cmd_source(frontend, NULL, 0);
-
-    if (frontend->m_first_breakdown)
+    if (debugger_instance->m_first_breakdown)
     {
-        frontend->m_first_breakdown = false;
+        debugger_instance->m_first_breakdown = false;
         (void)printf("Note: You can input '?' for more informations.\n");
     }
-}
 
-/*
- * One prompt session for the current stop.  Returns when a resume-class
- * command was issued (the outer loop then waits for the next stop) or on
- * stdin EOF (in which case the VM is resumed like the pre-session WAIPO
- * REPL did).
- */
-static void _woort_WAIPO_prompt_loop(woort_WAIPO_Frontend* frontend)
-{
+    /* Keep m_last_command across breakdowns: an empty input line repeats
+     * the last command even after step/next re-entered the debugger. */
+    debugger_instance->m_current_frame_depth = 0;
+
     for (;;)
     {
         (void)printf("> ");
@@ -1733,11 +2083,7 @@ static void _woort_WAIPO_prompt_loop(woort_WAIPO_Frontend* frontend)
 
         char line_buf[4096];
         if (fgets(line_buf, sizeof(line_buf), stdin) == NULL)
-        {
-            /* EOF: resume like the old REPL's break-out path. */
-            (void)woort_Debugger_continue();
             break;
-        }
 
         char* tokens[128];
         size_t token_count = _woort_WAIPO_split_line(
@@ -1745,10 +2091,10 @@ static void _woort_WAIPO_prompt_loop(woort_WAIPO_Frontend* frontend)
 
         if (token_count == 0)
         {
-            if (frontend->m_last_command[0] == '\0')
+            if (debugger_instance->m_last_command[0] == '\0')
                 continue;
 
-            (void)strncpy(line_buf, frontend->m_last_command,
+            (void)strncpy(line_buf, debugger_instance->m_last_command,
                 sizeof(line_buf) - 1);
             line_buf[sizeof(line_buf) - 1] = '\0';
 
@@ -1764,19 +2110,19 @@ static void _woort_WAIPO_prompt_loop(woort_WAIPO_Frontend* frontend)
         for (size_t i = 0; i < token_count; ++i)
         {
             if (i > 0
-                && last_pos + 1 < sizeof(frontend->m_last_command))
+                && last_pos + 1 < sizeof(debugger_instance->m_last_command))
             {
-                frontend->m_last_command[last_pos++] = ' ';
+                debugger_instance->m_last_command[last_pos++] = ' ';
             }
 
             for (const char* q = tokens[i]; *q != '\0'; ++q)
             {
-                if (last_pos + 1 >= sizeof(frontend->m_last_command))
+                if (last_pos + 1 >= sizeof(debugger_instance->m_last_command))
                     break;
-                frontend->m_last_command[last_pos++] = *q;
+                debugger_instance->m_last_command[last_pos++] = *q;
             }
         }
-        frontend->m_last_command[last_pos] = '\0';
+        debugger_instance->m_last_command[last_pos] = '\0';
 
         woort_WAIPO_CommandHandler handler =
             _woort_WAIPO_find_command(tokens[0]);
@@ -1788,73 +2134,10 @@ static void _woort_WAIPO_prompt_loop(woort_WAIPO_Frontend* frontend)
             continue;
         }
 
-        const woort_WAIPO_CommandResult result =
-            handler(frontend, tokens, token_count);
+        woort_WAIPO_CommandResult result =
+            handler(debugger_instance, vm, tokens, token_count);
 
         if (result == WOORT_WAIPO_CMD_CONTINUE)
             break;
     }
-}
-
-static void _woort_WAIPO_frontend_thread_job(void* user_data)
-{
-    woort_WAIPO_Frontend* const frontend =
-        (woort_WAIPO_Frontend*)user_data;
-
-    for (;;)
-    {
-        woort_DebuggerBreakEvent event;
-        if (!woort_Debugger_wait_for_break(
-            WOORT_DEBUGGER_WAIT_INFINITE, &event))
-        {
-            /* Session detached; this thread owns the frontend, release it. */
-            break;
-        }
-
-        frontend->m_current_vm = event.m_vm;
-        frontend->m_current_frame_depth = 0;
-
-        _woort_WAIPO_print_stop_header(frontend, &event);
-        _woort_WAIPO_prompt_loop(frontend);
-    }
-
-    woort_vector_deinit(&frontend->m_breakpoints);
-    free(frontend);
-}
-
-WOORT_NODISCARD woort_DebuggerAttachResult woort_WAIPO_Debugger_attach(void)
-{
-    const woort_DebuggerAttachResult session_result =
-        woort_Debugger_attach();
-
-    if (session_result != WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS)
-        return session_result;
-
-    woort_WAIPO_Frontend* const frontend =
-        (woort_WAIPO_Frontend*)calloc(1, sizeof(woort_WAIPO_Frontend));
-
-    if (frontend == NULL)
-    {
-        (void)woort_Debugger_detach();
-        return WOORT_DEBUGGER_ATTACH_RESULT_FAILED;
-    }
-
-    frontend->m_current_vm = 0;
-    frontend->m_current_frame_depth = 0;
-    frontend->m_first_breakdown = true;
-    frontend->m_last_command[0] = '\0';
-    woort_vector_init(&frontend->m_breakpoints,
-        sizeof(woort_WAIPO_FrontendBreakpoint));
-
-    woort_Thread* /* never joined, freed by the OS at exit */ thread = NULL;
-    if (!woort_thread_start(
-        &_woort_WAIPO_frontend_thread_job, frontend, &thread))
-    {
-        woort_vector_deinit(&frontend->m_breakpoints);
-        free(frontend);
-        (void)woort_Debugger_detach();
-        return WOORT_DEBUGGER_ATTACH_RESULT_FAILED;
-    }
-
-    return WOORT_DEBUGGER_ATTACH_RESULT_SUCCESS;
 }

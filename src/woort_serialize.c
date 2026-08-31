@@ -524,29 +524,6 @@ WOORT_NODISCARD static bool _woort_check_size_in_capacity_with_overflow_check(
     return true;
 }
 
-void _woort_serialize_dynbox_print_for_debug(woort_DynBox box, bool is_fuzzy)
-{
-    woort_Vector buf;
-    woort_vector_init(&buf, sizeof(char));
-
-    woort_HashMap visited_set;
-    woort_hashmap_init(
-        &visited_set,
-        sizeof(const woort_GCUnit*),
-        0,
-        woort_util_ptr_hash,
-        woort_util_ptr_equal);
-
-    if (_woort_serialize_dynbox_to_buf_for_debug(
-        box, &buf, &visited_set, 0, is_fuzzy))
-    {
-        (void)printf("%.*s", (int)buf.m_size, (const char*)buf.m_data);
-    }
-
-    woort_vector_deinit(&buf);
-    woort_hashmap_deinit(&visited_set);
-}
-
 WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
     woort_DynBox boxed,
     woort_Vector* buf,

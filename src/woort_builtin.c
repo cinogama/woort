@@ -12,7 +12,7 @@
 #include "woort_gc_struct.h"
 #include "woort_gc_gchandle.h"
 #include "woort_gc.h"
-#include "woort_serialize.h"
+#include "woort_waipo_debugger.h"
 #include "woort_repl_printer.h"
 
 #include <stdio.h>
@@ -3636,7 +3636,7 @@ static bool woort_builtin_debug_print_impl(void)
         }
         else
         {
-            _woort_serialize_dynbox_print_for_debug(
+            _woort_WAIPO_print_value(
                 woort_internal_value((woort_StackValue)i)->m_dynamic, false);
         }
     }

@@ -1,7 +1,6 @@
 #include "woort.h"
 
 #include "woort_vm.h"
-#include "woort_atomic.h"
 #include "woort_threads.h"
 #include "woort_value.h"
 #include "woort_log.h"
@@ -21,9 +20,6 @@
 #include "woort_dylib.h"
 
 #include "woort_mem.h"
-
-/* Serial numbers start at 1 so that 0 can act as the "none" sentinel. */
-static woort_AtomicUInt64 _woort_vm_serial_counter;
 
 #include <assert.h>
 #include <stdint.h>
@@ -106,9 +102,6 @@ WOORT_NODISCARD bool woort_VMRuntime_create(woort_VMRuntime** out_vm)
     vm->m_hangup_c = 0;
     vm->m_is_weak = false;
     vm->m_jit_call_depth = 0;
-    vm->m_serial = woort_atomic_fetch_add_explicit(
-        &_woort_vm_serial_counter, 1,
-        WOORT_ATOMIC_MEMORY_ORDER_RELAXED) + 1;
 
     if (!woort_mutex_create(&vm->m_hangup_mx))
         vm->m_hangup_mx = NULL;
@@ -3764,10 +3757,6 @@ _label_continue_execution:
             WOORT_VM_SYNC_STATE_WITH_ENV();
             if (woort_VMRuntime_Debugger_try_trap(false))
             {
-                /* Check for TERMINATE request raised by debugger. */
-                if (woort_VMRuntime_request_check(vm, WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE))
-                    WOORT_VM_CHECKPOINT();
-
                 c = woort_CodeEnv_raw_trap(rt_env, rt_ip);
                 goto _label_vm_dispatch_reentry_for_debug_trap;
             }
