@@ -307,72 +307,6 @@ WOORT_NODISCARD static bool _woort_WAIPO_is_numeric(const char* s)
 
 #define WOORT_WAIPO_DOT "\xe2\x97\x8f"
 
-/*
- * 显示一行源码前检查该行关联的字节码是否已陷入断点（真实 TRAP 状态）：
- * 使用与 break 命令设断相同的正向映射（行 -> 该行全部关联指令地址，
- * 含无覆盖行回退最近有条目行），任一地址被调试断点（m_debug_breakpoints
- * 表）持有即视为该行有断点；刻意只查调试断点，用户断点与步进断点
- * （m_breakpoints 表）不计入。
- */
-typedef struct _woort_WAIPO_LineTrapCheckContext
-{
-    woort_WAIPO_BreakpointCollection* m_collection;
-    const char* m_filepath;
-    uint32_t m_line;
-    woort_CodeEnv* m_cenv;
-    bool m_trapped;
-} _woort_WAIPO_LineTrapCheckContext;
-
-static bool _woort_WAIPO_line_trap_check_offset_callback(
-    uint32_t bytecode_offset, void* user_data)
-{
-    _woort_WAIPO_LineTrapCheckContext* ctx =
-        (_woort_WAIPO_LineTrapCheckContext*)user_data;
-
-    const woort_Bytecode* ip = ctx->m_cenv->m_code_begin + bytecode_offset;
-
-    if (_woort_WAIPO_BreakpointCollection_contains_debug_break_at(
-            ctx->m_collection, ip))
-    {
-        ctx->m_trapped = true;
-        return false; /* 已命中，终止迭代 */
-    }
-
-    return true;
-}
-
-static bool _woort_WAIPO_line_trap_check_cenv_callback(
-    woort_CodeEnv* cenv, void* user_data)
-{
-    _woort_WAIPO_LineTrapCheckContext* ctx =
-        (_woort_WAIPO_LineTrapCheckContext*)user_data;
-
-    ctx->m_cenv = cenv;
-
-    (void)woort_CodeEnv_foreach_offset_by_srcloc(
-        cenv, ctx->m_filepath, ctx->m_line,
-        &_woort_WAIPO_line_trap_check_offset_callback, ctx);
-
-    return !ctx->m_trapped; /* 已命中即不再遍历其余 CodeEnv */
-}
-
-static bool _woort_WAIPO_source_line_is_trapped(
-    woort_WAIPO_Debugger* dbg,
-    const char* filepath,
-    size_t line)
-{
-    _woort_WAIPO_LineTrapCheckContext ctx;
-    ctx.m_collection = &dbg->m_breakpoint_collection;
-    ctx.m_filepath = filepath;
-    ctx.m_line = (uint32_t)line;
-    ctx.m_cenv = NULL;
-    ctx.m_trapped = false;
-
-    woort_CodeEnv_foreach(&_woort_WAIPO_line_trap_check_cenv_callback, &ctx);
-
-    return ctx.m_trapped;
-}
-
 static void _woort_WAIPO_emit_source_line(
     const char* line_buf,
     size_t current_line,
@@ -420,6 +354,20 @@ static void _woort_WAIPO_emit_source_line(
             line_buf);
 }
 
+/*
+ * 查询行号是否落在断点行集合中（元素为 srcloc 起始行，0 起始）。
+ */
+WOORT_NODISCARD static bool _woort_WAIPO_bp_lines_contains(
+    const woort_Vector* bp_lines, size_t line)
+{
+    for (size_t i = 0; i < bp_lines->m_size; ++i)
+    {
+        if (*(const size_t*)woort_vector_at(bp_lines, i) == line)
+            return true;
+    }
+    return false;
+}
+
 static void _woort_WAIPO_print_source_file(
     woort_WAIPO_Debugger* dbg,
     const char* filepath,
@@ -437,6 +385,44 @@ static void _woort_WAIPO_print_source_file(
         (void)printf("Cannot open source: '%s'.\n", filepath);
         return;
     }
+
+    woort_Vector /* size_t */ bp_lines;
+    woort_vector_init(&bp_lines, sizeof(size_t));
+
+    woort_Vector /* const woort_Bytecode* */ bp_ips;
+    woort_vector_init(&bp_ips, sizeof(const woort_Bytecode*));
+    /* Collecet breakpoints in this file. */
+    _woort_WAIPO_BreakpointCollection_collect_debug_breakpoints(
+        &dbg->m_breakpoint_collection, &bp_ips);
+
+    /*
+     * 将每个断点地址反查回源码位置，文件与当前展示文件一致时
+     * 记录其起始行（srcloc 行号，0 起始），供逐行输出时标记断点。
+     */
+    for (size_t i = 0; i < bp_ips.m_size; ++i)
+    {
+        const woort_Bytecode* const ip =
+            *(const woort_Bytecode* const*)woort_vector_at(&bp_ips, i);
+
+        woort_CodeEnv* bp_cenv = NULL;
+        if (!woort_CodeEnv_find(ip, &bp_cenv) || bp_cenv == NULL)
+            continue;
+
+        woort_SourceLocation bp_loc;
+        if (!woort_CodeEnv_find_srcloc_by_offset(
+                bp_cenv, (uint32_t)(ip - bp_cenv->m_code_begin), &bp_loc))
+            continue;
+
+        if (bp_loc.m_filepath == NULL
+            || strcmp(bp_loc.m_filepath, filepath) != 0)
+            continue;
+
+        const size_t begin_line = (size_t)bp_loc.m_begin_line;
+        if (!_woort_WAIPO_bp_lines_contains(&bp_lines, begin_line))
+            (void)woort_vector_push_back(&bp_lines, 1, &begin_line);
+    }
+
+    woort_vector_deinit(&bp_ips);
 
     (void)printf("%s from line %zu to ", filepath, from_line + 1);
     if (to_line == SIZE_MAX)
@@ -463,14 +449,16 @@ static void _woort_WAIPO_print_source_file(
             if (current_line >= from_line
                 && (to_line == SIZE_MAX || current_line <= to_line))
             {
-                const bool has_bp = _woort_WAIPO_source_line_is_trapped(
-                    dbg, filepath, current_line);
+                const bool has_bp = _woort_WAIPO_bp_lines_contains(
+                    &bp_lines, current_line);
 
                 _woort_WAIPO_emit_source_line(
                     line_buf, current_line,
                     has_highlight,
-                    highlight_begin_line, highlight_end_line,
-                    highlight_begin_col, highlight_end_col,
+                    highlight_begin_line,
+                    highlight_end_line,
+                    highlight_begin_col, 
+                    highlight_end_col,
                     has_bp);
             }
 
@@ -490,14 +478,16 @@ static void _woort_WAIPO_print_source_file(
             if (current_line >= from_line
                 && (to_line == SIZE_MAX || current_line <= to_line))
             {
-                const bool has_bp = _woort_WAIPO_source_line_is_trapped(
-                    dbg, filepath, current_line);
+                const bool has_bp = _woort_WAIPO_bp_lines_contains(
+                    &bp_lines, current_line);
 
                 _woort_WAIPO_emit_source_line(
                     line_buf, current_line,
                     has_highlight,
-                    highlight_begin_line, highlight_end_line,
-                    highlight_begin_col, highlight_end_col,
+                    highlight_begin_line, 
+                    highlight_end_line,
+                    highlight_begin_col, 
+                    highlight_end_col,
                     has_bp);
             }
 
@@ -520,18 +510,21 @@ static void _woort_WAIPO_print_source_file(
         if (current_line >= from_line
             && (to_line == SIZE_MAX || current_line <= to_line))
         {
-            const bool has_bp = _woort_WAIPO_source_line_is_trapped(
-                dbg, filepath, current_line);
+            const bool has_bp = _woort_WAIPO_bp_lines_contains(
+                &bp_lines, current_line);
 
             _woort_WAIPO_emit_source_line(
                 line_buf, current_line,
                 has_highlight,
-                highlight_begin_line, highlight_end_line,
-                highlight_begin_col, highlight_end_col,
+                highlight_begin_line,
+                highlight_end_line,
+                highlight_begin_col,
+                highlight_end_col,
                 has_bp);
         }
     }
 
+    woort_vector_deinit(&bp_lines);
     woort_vfile_close(f);
     (void)printf("\n");
 }

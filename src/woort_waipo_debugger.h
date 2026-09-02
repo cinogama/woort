@@ -70,6 +70,14 @@ WOORT_NODISCARD bool _woort_WAIPO_BreakpointCollection_contains_debug_break_at(
     woort_WAIPO_BreakpointCollection* collection, const woort_Bytecode* ip);
 
 /*
+ * 收集 m_debug_breakpoints 中全部无条件断点的指令地址，追加到 modify_break_ips
+ * （元素类型 const woort_Bytecode*，由调用方初始化/释放），结果不含重复地址。
+ */
+void _woort_WAIPO_BreakpointCollection_collect_debug_breakpoints(
+    woort_WAIPO_BreakpointCollection* collection,
+    woort_Vector /* const woort_Bytecode* */* modify_break_ips);
+
+/*
  * 沿调用栈向内走到第 target_depth 层（0 为栈顶），成功时通过 out_trace
  * 返回该帧信息。
  */

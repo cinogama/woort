@@ -479,6 +479,35 @@ WOORT_NODISCARD static bool _woort_WAIPO_BreakpointCollection_query_breakpoints(
     return !canceled;
 }
 
+static bool _woort_WAIPO_collect_debug_break_ip_callback(
+    const void* key, void* value, void* user_data)
+{
+    (void)value; /* 持有计数不导出，仅需地址 */
+
+    woort_Vector /* const woort_Bytecode* */* const ips =
+        (woort_Vector*)user_data;
+
+    const woort_Bytecode* const ip = *(const woort_Bytecode* const*)key;
+    return woort_vector_push_back(ips, 1, &ip);
+}
+
+/*
+ * 收集 m_debug_breakpoints 中全部无条件断点的指令地址，追加到
+ * modify_break_ips（元素类型 const woort_Bytecode*，由调用方初始化/释放）。
+ * 哈希表键唯一，结果不含重复地址；仅内存不足时会截断。
+ */
+void _woort_WAIPO_BreakpointCollection_collect_debug_breakpoints(
+    woort_WAIPO_BreakpointCollection* collection,
+    woort_Vector /* const woort_Bytecode* */* modify_break_ips)
+{
+    woort_rwspinlock_read_lock(&collection->m_rwspin);
+    (void)woort_hashmap_foreach(
+        &collection->m_debug_breakpoints,
+        &_woort_WAIPO_collect_debug_break_ip_callback,
+        modify_break_ips);
+    woort_rwspinlock_read_unlock(&collection->m_rwspin);
+}
+
 typedef struct _woort_WAIPO_CollectBreakIpsContext
 {
     woort_CodeEnv* m_cenv;
@@ -527,7 +556,7 @@ typedef struct woort_WAIPO_VMLocalContext
 {
     woort_WAIPO_BreakpointCollection* m_breakpoint_collection;
 
-    /* 与 m_debug_breakpoints 不同，m_step_breakpoints 的断点仅限当前虚拟机关注时生效 */
+    /* m_step_breakpoints 用于进一步筛选是否是当前 VM 的步进断点 */
     /* OPTIONAL */ const woort_Bytecode* m_step_breakpoints[2];
 
     /* 源码行级步进状态 */
