@@ -1157,8 +1157,7 @@ static bool _woort_WAIPO_list_breakpoint_callback(
 
     /* 表头随首条输出打印，空表由命令体提示 */
     if (ctx->m_count == 0)
-        (void)printf("Num  What\n");
-    ++ctx->m_count;
+        (void)printf("Id   Desc\n");
 
     if (info->m_filename == NULL)
         (void)printf("%-4" PRIu64 " <unknown>\n", info->m_id);
@@ -1168,6 +1167,7 @@ static bool _woort_WAIPO_list_breakpoint_callback(
     else
         (void)printf("%-4" PRIu64 " %s\n", info->m_id, info->m_filename);
 
+    ++ctx->m_count;
     return true;
 }
 
