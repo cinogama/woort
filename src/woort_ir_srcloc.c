@@ -13,9 +13,9 @@
 #include <string.h>
 #include <assert.h>
 
-/* ========================================================================
- * woort_SourceLocation
- * ======================================================================== */
+ /* ========================================================================
+  * woort_SourceLocation
+  * ======================================================================== */
 
 WOORT_NODISCARD bool woort_SourceLocation_equal(
     const woort_SourceLocation* a,
@@ -127,7 +127,7 @@ void woort_SourceLocationStack_pop(woort_SourceLocationStack* stack)
 }
 
 WOORT_NODISCARD /* OPTIONAL */ const woort_SourceLocation*
-    woort_SourceLocationStack_top(const woort_SourceLocationStack* stack)
+woort_SourceLocationStack_top(const woort_SourceLocationStack* stack)
 {
     if (stack->m_stack.m_size == 0)
         return NULL;
@@ -241,14 +241,6 @@ WOORT_NODISCARD bool woort_SourceMap_find_by_line(
     return false;
 }
 
-/* 条目是否覆盖指定行（含跨行语句） */
-WOORT_NODISCARD static bool _woort_SourceMap_entry_covers_line(
-    const woort_SourceMap_Entry* entry, uint32_t line)
-{
-    return entry->m_location.m_begin_line <= line
-        && line <= entry->m_location.m_end_line;
-}
-
 /* 按字节码偏移升序回调所有覆盖指定行的条目 */
 WOORT_NODISCARD static bool _woort_SourceMap_visit_covering(
     const woort_SourceMap* map,
@@ -267,7 +259,7 @@ WOORT_NODISCARD static bool _woort_SourceMap_visit_covering(
         if (entry->m_location.m_filepath != filepath)
             continue;
 
-        if (!_woort_SourceMap_entry_covers_line(entry, line))
+        if (entry->m_location.m_begin_line == line)
             continue;
 
         visited = true;
