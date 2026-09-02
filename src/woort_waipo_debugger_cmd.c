@@ -305,7 +305,7 @@ WOORT_NODISCARD static bool _woort_WAIPO_is_numeric(const char* s)
     return true;
 }
 
-#define WOORT_WAIPO_DOT "\xe2\x97\x8f"
+#define WOORT_WAIPO_DOT "@"
 
 static void _woort_WAIPO_emit_source_line(
     const char* line_buf,
@@ -332,7 +332,7 @@ static void _woort_WAIPO_emit_source_line(
             col_end = highlight_end_col;
 
         if (has_bp)
-            (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
+            (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST " %5zu | %.*s" WOORT_ANSI_INV "%.*s" WOORT_ANSI_RST "%.*s \n",
                 current_line + 1,
                 (int)col_start, line_buf,
                 (int)(col_end - col_start), line_buf + col_start,
@@ -345,7 +345,7 @@ static void _woort_WAIPO_emit_source_line(
                 (int)(line_len - col_end), line_buf + col_end);
     }
     else if (has_bp)
-        (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST "%5zu | %s\n",
+        (void)printf(WOORT_ANSI_HIR WOORT_WAIPO_DOT WOORT_ANSI_RST " %5zu | %s\n",
             current_line + 1,
             line_buf);
     else

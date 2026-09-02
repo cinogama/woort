@@ -259,7 +259,7 @@ WOORT_NODISCARD static bool _woort_SourceMap_visit_covering(
         if (entry->m_location.m_filepath != filepath)
             continue;
 
-        if (entry->m_location.m_begin_line == line)
+        if (entry->m_location.m_begin_line != line)
             continue;
 
         visited = true;
