@@ -151,8 +151,11 @@ WOORT_NODISCARD bool woort_SourceMap_find_by_offset(
     uint32_t bytecode_offset,
     woort_SourceLocation* out_location)
 {
-    if (map == NULL || map->m_entries == NULL || map->m_entry_count == 0)
+    assert(map != NULL);
+    if (map->m_entry_count == 0)
         return false;
+
+    assert(map->m_entries != NULL);
 
     /*
      * 二分查找：找到 m_bytecode_offset <= bytecode_offset 的最大条目。
@@ -184,8 +187,11 @@ WOORT_NODISCARD bool woort_SourceMap_find_by_line(
     uint32_t line,
     uint32_t* out_bytecode_offset)
 {
-    if (map == NULL || map->m_entries == NULL || map->m_entry_count == 0)
+    assert(map != NULL);
+    if (map->m_entry_count == 0)
         return false;
+
+    assert(map->m_entries != NULL);
 
     /*
      * 线性扫描，找到文件路径匹配且 m_begin_line >= line 的最小条目。
@@ -278,10 +284,11 @@ WOORT_NODISCARD bool woort_SourceMap_foreach_by_line(
     woort_SourceMap_OffsetCallback callback,
     void* user_data)
 {
-    if (map == NULL || map->m_entries == NULL || map->m_entry_count == 0)
+    assert(map != NULL && callback != NULL);
+    if (map->m_entry_count == 0)
         return false;
-    if (callback == NULL)
-        return false;
+
+    assert(map->m_entries != NULL);
 
     if (_woort_SourceMap_visit_covering(map, filepath, line, callback, user_data))
         return true;
