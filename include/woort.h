@@ -5354,7 +5354,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */  woort_PanicHandlerFunction woort_set_p
 /* ========== String / Unicode Conversion API ========== */
 
 /**
- * @brief Get the Unicode code point at a byte index in a UTF-8 string.
+ * @brief Get the Unicode code point at a character index in a UTF-8 string.
  * @param str    The UTF-8 string.
  * @param index  Byte offset into the string.
  * @param out_ch Receives the Unicode code point on success.
@@ -5364,7 +5364,8 @@ WOORT_NODISCARD WOORT_API bool woort_str_get_char(
     const char* str, size_t index, char32_t* out_ch);
 
 /**
- * @brief Get the Unicode code point at a byte index in a UTF-8 string with explicit length.
+ * @brief Get the Unicode code point at a character index in a UTF-8 string 
+        with explicit length.
  * @param str    The UTF-8 string.
  * @param size   Length of the string in bytes.
  * @param index  Byte offset into the string.
@@ -5741,16 +5742,48 @@ WOORT_NODISCARD WOORT_API const char* woort_u8substrn(
 WOORT_NODISCARD WOORT_API size_t woort_u8combineu32(
     const char* u8charp, size_t bytelen, char32_t* out_c32);
 
-/** @brief Encode a code point as UTF-8 into @p out_c8 (max WOORT_UTF8MAXLEN bytes). */
+/**
+ * @brief Encode a Unicode code point as UTF-8.
+ *
+ * Writes at most WOORT_UTF8MAXLEN bytes into @p out_c8 and stores the number
+ * of bytes written (1-4) in @p out_u8len. Code points above U+10FFFF are not
+ * representable and are replaced with U+FFFD (REPLACEMENT CHARACTER).
+ * @param ch32      The code point to encode.
+ * @param out_c8    Output buffer of at least WOORT_UTF8MAXLEN bytes.
+ * @param out_u8len Receives the number of bytes written.
+ */
 WOORT_API void woort_u32exractu8(
     char32_t ch32, char out_c8[WOORT_UTF8MAXLEN], size_t* out_u8len);
 
-/** @brief Decode the UTF-8 character at @p u8charp into UTF-16 (1 or 2 units). */
+/**
+ * @brief Decode the UTF-8 character at @p u8charp into UTF-16.
+ *
+ * A supplementary code point (above U+FFFF) is emitted as a surrogate pair
+ * of 2 units; every other code point fits in a single unit.
+ * @param u8charp    Pointer to the first byte of the UTF-8 character.
+ * @param bytelen    Number of bytes available at @p u8charp.
+ * @param out_c16    Output buffer of at least WOORT_UTF16MAXLEN units.
+ * @param out_u16len Receives the number of UTF-16 units written (1 or 2).
+ * @return The byte length of the decoded character, or 0 if @p bytelen is 0
+ *         (in which case @p out_u16len is set to 0).
+ */
 WOORT_NODISCARD WOORT_API size_t woort_u8combineu16(
     const char* u8charp, size_t bytelen,
     char16_t out_c16[WOORT_UTF16MAXLEN], size_t* out_u16len);
 
-/** @brief Encode a UTF-16 unit sequence as UTF-8. Returns the number of UTF-16 units consumed (1 or 2). */
+/**
+ * @brief Encode the UTF-16 character at @p u16charp as UTF-8.
+ *
+ * A well-formed high+low surrogate pair is combined into a single
+ * supplementary code point; any other unit (including an unpaired surrogate)
+ * is encoded on its own.
+ * @param u16charp  Pointer to the first UTF-16 unit of the character.
+ * @param charcount Number of units available at @p u16charp.
+ * @param out_c8    Output buffer of at least WOORT_UTF8MAXLEN bytes.
+ * @param out_u8len Receives the number of bytes written (1-4).
+ * @return The number of UTF-16 units consumed: 2 when a surrogate pair was
+ *         combined, 1 otherwise, or 0 if @p charcount is 0.
+ */
 WOORT_NODISCARD WOORT_API size_t woort_u16exractu8(
     const char16_t* u16charp, size_t charcount,
     char out_c8[WOORT_UTF8MAXLEN], size_t* out_u8len);
@@ -5765,7 +5798,8 @@ WOORT_NODISCARD WOORT_API bool woort_u16losurrogate(char16_t ch);
  * @brief Escape a UTF-8 string into a quoted Woolang string literal.
  *
  * The returned buffer is malloc-allocated and must be freed with woort_free().
- * @param force_unicode  If non-zero, always emit \uXXXX escapes for non-ASCII.
+ * @param force_unicode  If non-zero, always emit \uXXXX escapes for non-print 
+        character.
  * @return NUL-terminated quoted string literal, or NULL on allocation failure.
  */
 WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u8enstring(
