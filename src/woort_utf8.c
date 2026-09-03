@@ -29,7 +29,10 @@ WOORT_NODISCARD size_t woort_u8charnlen(const char* u8charp, size_t bytelen)
                     return 1;
             }
         }
-        return 1;
+
+        /* All five lead-marker bits are set: 0xFC-0xFD introduce a 6-byte
+         * sequence; 0xFE-0xFF (7/8-byte forms) stay invalid single bytes. */
+        return u8ch <= (uint8_t)(0b11111101u) ? WOORT_UTF8MAXLEN : 1;
     }
     return 0;
 }
@@ -155,13 +158,32 @@ void woort_u32exractu8(char32_t ch32, char out_c8[WOORT_UTF8MAXLEN], size_t* out
         out_c8[2] = (char)(0x80 | (ch32 & 0x3F));
         *out_u8len = 3;
     }
-    else if (ch32 <= 0x10FFFF)
+    else if (ch32 <= 0x1FFFFF)
     {
         out_c8[0] = (char)(0xF0 | (ch32 >> 18));
         out_c8[1] = (char)(0x80 | ((ch32 >> 12) & 0x3F));
         out_c8[2] = (char)(0x80 | ((ch32 >> 6) & 0x3F));
         out_c8[3] = (char)(0x80 | (ch32 & 0x3F));
         *out_u8len = 4;
+    }
+    else if (ch32 <= 0x3FFFFFF)
+    {
+        out_c8[0] = (char)(0xF8 | (ch32 >> 24));
+        out_c8[1] = (char)(0x80 | ((ch32 >> 18) & 0x3F));
+        out_c8[2] = (char)(0x80 | ((ch32 >> 12) & 0x3F));
+        out_c8[3] = (char)(0x80 | ((ch32 >> 6) & 0x3F));
+        out_c8[4] = (char)(0x80 | (ch32 & 0x3F));
+        *out_u8len = 5;
+    }
+    else if (ch32 <= 0x7FFFFFFF)
+    {
+        out_c8[0] = (char)(0xFC | (ch32 >> 30));
+        out_c8[1] = (char)(0x80 | ((ch32 >> 24) & 0x3F));
+        out_c8[2] = (char)(0x80 | ((ch32 >> 18) & 0x3F));
+        out_c8[3] = (char)(0x80 | ((ch32 >> 12) & 0x3F));
+        out_c8[4] = (char)(0x80 | ((ch32 >> 6) & 0x3F));
+        out_c8[5] = (char)(0x80 | (ch32 & 0x3F));
+        *out_u8len = 6;
     }
     else
     {
@@ -497,7 +519,7 @@ WOORT_NODISCARD char32_t* woort_u8strtou32(woort_string_t u8str, size_t bytelen,
 
 WOORT_NODISCARD char* woort_u32strtou8(const char32_t* u32charp, size_t u32len, size_t* out_len)
 {
-    char* result = (char*)malloc(u32len * 4 + 1);
+    char* result = (char*)malloc(u32len * WOORT_UTF8MAXLEN + 1);
     if (!result) return NULL;
 
     size_t result_len = 0;

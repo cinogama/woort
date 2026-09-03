@@ -5742,8 +5742,10 @@ WOORT_NODISCARD WOORT_API size_t woort_u8combineu32(
  * @brief Encode a Unicode code point as UTF-8.
  *
  * Writes at most WOORT_UTF8MAXLEN bytes into @p out_c8 and stores the number
- * of bytes written (1-4) in @p out_u8len. Code points above U+10FFFF are not
- * representable and are replaced with U+FFFD (REPLACEMENT CHARACTER).
+ * of bytes written (1-6) in @p out_u8len. The full WOORT_UTF8MAXLEN range is
+ * covered: code points up to U+7FFFFFFF encode as extended (5/6-byte) UTF-8,
+ * mirroring what woort_u8combineu32 decodes. Code points above U+7FFFFFFF
+ * are not representable and are replaced with U+FFFD (REPLACEMENT CHARACTER).
  * @param ch32      The code point to encode.
  * @param out_c8    Output buffer of at least WOORT_UTF8MAXLEN bytes.
  * @param out_u8len Receives the number of bytes written.
