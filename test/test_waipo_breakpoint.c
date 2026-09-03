@@ -17,6 +17,8 @@
  *     v = ADDI(30, 12); ret v
  */
 
+#ifdef WOORT_STATIC_LIB
+
 /* 混含内部头（woort_waipo_debugger.h 等）需要完整版 woort_Value，
    与库内编译单元一致地声明 WOORT_IMPL；静态库下 WOORT_API 为空，链接不受影响 */
 #define WOORT_IMPL 1
@@ -366,3 +368,11 @@ int main(int argc, char** argv)
     printf("\n");
     return 1;
 }
+
+#else
+int main(int argc, char** argv)
+{
+    (void)argc;
+    (void)argv;
+}
+#endif

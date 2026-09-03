@@ -4,6 +4,8 @@ project ("woort")
 
 option(WOORT_BUILD_FOR_ASAN_TEST "Build woort for code asan test." OFF)
 option(WOORT_BUILD_WITH_ASMJIT "Build woort with asmjit support." ON)
+option(WOORT_BUILD_TEST_CASES "Build test cases" OFF)
+
 set(WOORT_SPECIFY_PLATFORM_TYPE "" CACHE STRING 
     "Specify the platform type for unknown platform, can be '', 'WOORT_PLATFORM_32' or 'WOORT_PLATFORM_64'")
 
@@ -63,5 +65,7 @@ endif()
 
 add_subdirectory ("src")
 
-enable_testing()
-add_subdirectory ("test")
+if (WOORT_BUILD_TEST_CASES)
+    enable_testing()
+    add_subdirectory("test")
+endif()

@@ -26,7 +26,7 @@ winserver22:
   tags:
     - winserver22
   script:
-    - cmake -B build -G "Visual Studio 18 2026" -A x64
+    - cmake -B build -G "Visual Studio 18 2026" -A x64 -DWOORT_BUILD_TEST_CASES=ON
     - cmake --build build --config %CONFIG%
     - ctest --test-dir build -C %CONFIG% --output-on-failure
   parallel:
@@ -41,7 +41,7 @@ mac-arm64:
   tags:
     - mac-arm64
   script:
-    - cmake -B build -DCMAKE_BUILD_TYPE=$CONFIG -DCMAKE_OSX_ARCHITECTURES=arm64
+    - cmake -B build -DCMAKE_BUILD_TYPE=$CONFIG -DCMAKE_OSX_ARCHITECTURES=arm64 -DWOORT_BUILD_TEST_CASES=ON
     - cmake --build build -j$(sysctl -n hw.ncpu)
     - ctest --test-dir build --output-on-failure
   parallel:
@@ -56,7 +56,7 @@ ubuntu22_arm64:
   tags:
     - ubuntu22_arm64
   script:
-    - cmake -B build -DCMAKE_BUILD_TYPE=$CONFIG
+    - cmake -B build -DCMAKE_BUILD_TYPE=$CONFIG -DWOORT_BUILD_TEST_CASES=ON
     - cmake --build build -j$(nproc)
     - ctest --test-dir build --output-on-failure
   parallel:
@@ -71,7 +71,7 @@ ubuntu20:
   tags:
     - ubuntu20
   script:
-    - cmake -B build -DCMAKE_BUILD_TYPE=$CONFIG
+    - cmake -B build -DCMAKE_BUILD_TYPE=$CONFIG -DWOORT_BUILD_TEST_CASES=ON
     - cmake --build build -j$(nproc)
     - ctest --test-dir build --output-on-failure
   parallel:
