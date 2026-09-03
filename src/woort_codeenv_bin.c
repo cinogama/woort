@@ -2018,8 +2018,6 @@ WOORT_NODISCARD const char* woort_CodeEnv_restore_failed_desc(
         return "Failed to restore binary: invalid code size.";
     case WOORT_CODEENV_RESTORE_FAIL_CREATE_CODEENV:
         return "Failed to restore binary: internal creation failure.";
-    case WOORT_CODEENV_RESTORE_FAIL_INVALID_STRPOOL:
-        return "Failed to restore binary: invalid string pool.";
     case WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA:
         return "Failed to restore binary: truncated data.";
     case WOORT_CODEENV_RESTORE_FAIL_INVALID_CONST_TYPE:

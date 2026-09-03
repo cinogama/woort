@@ -350,7 +350,7 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_terminate_vm(
 
 WOORT_NODISCARD size_t woort_VMRuntime_Debugger_serialize_value(
     woort_Value* value,
-    char* out_value_content,
+    /* OPTIONAL */ char* out_value_content,
     size_t value_content_buf_len)
 {
     assert(value != NULL);

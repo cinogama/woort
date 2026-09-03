@@ -236,7 +236,8 @@ typedef enum woort_VmCallStatus
      *
      * The VM will also be marked as aborted and will refuse to execute
      * any further operations.
-     * ABORTED is only returned when interpreted execution receives an interrupt request.
+     * 
+     * You can get error describe message by `woort_VMRuntime_get_runtime_error_msg`.
      */
     WOORT_VM_CALL_STATUS_ABORTED,
 
@@ -502,8 +503,8 @@ WOORT_API void woort_VMRuntime_destroy(
  * this VM. If this function is called recklessly, the VM's GC objects
  * may be collected unexpectedly.
  *
- * Must be called while the target VM is the current thread's active VM
- * (i.e. within the VM's GC guard scope).
+ * When calling this function, for safety reasons, the current VM is briefly
+ * switched via woort_vm_swap.
  *
  * @param vm  The VM handle to weaken. Must not be NULL.
  */
@@ -577,7 +578,7 @@ typedef enum woort_GCAllocate_Flag
  * @brief Allocate GC-managed memory of a given size.
  * @param sz         Size in bytes to allocate.
  * @param attribute  Allocation flags (see woort_GCAllocate_Flag).
- * @return Pointer to the allocated and initialized GC unit.
+ * @return Pointer to the allocated GC unit.
  */
 WOORT_NODISCARD WOORT_API void* woort_GC_allocate(size_t sz, int attribute);
 
@@ -585,8 +586,9 @@ WOORT_NODISCARD WOORT_API void* woort_GC_allocate(size_t sz, int attribute);
  * @brief Allocate GC-managed memory and register it as a GC root.
  *
  * The allocated memory acts as a root, keeping itself and all objects
- * reachable from it alive. Use woort_GC_unregister_root() to remove
- * it from the root set when no longer needed.
+ * reachable(if WOORT_GCALLOCATE_FLAG_AUTO_MARK) from it alive. Use 
+ * woort_GC_unregister_root() to remove it from the root set when no 
+ * longer needed.
  *
  * @param sz         Size in bytes to allocate.
  * @param attribute  Allocation flags (see woort_GCAllocate_Flag).
@@ -680,7 +682,7 @@ WOORT_API void woort_GCPin_set(woort_GCPin* pin, size_t idx, woort_StackValue va
 WOORT_API void woort_GCPin_get(woort_StackValue dst, woort_GCPin* pin, size_t idx);
 
 /**
- * @brief Set a value in the GC pin, creating a deep duplicate of boxed values.
+ * @brief Set a value in the GC pin, creating a shallow duplicate of boxed values.
  *
  * Unlike woort_GCPin_set, which stores a reference, this creates an
  * independent copy of boxed values (vec/map/struct). Requires an active
@@ -688,7 +690,7 @@ WOORT_API void woort_GCPin_get(woort_StackValue dst, woort_GCPin* pin, size_t id
  *
  * @param pin  The GC pin. Must not be NULL.
  * @param idx  Index within the pin. Must be < count from create.
- * @param val  The StackValue whose boxed content (if any) to deep-copy.
+ * @param val  The StackValue whose boxed content (if any) to shallow-copy.
  */
 WOORT_API void woort_GCPin_set_dup_boxed(woort_GCPin* pin, size_t idx, woort_StackValue val);
 
@@ -740,12 +742,12 @@ WOORT_API void woort_GCPin_get_internal_without_barrier(
  * @brief Same as woort_GCPin_set_dup_boxed, but takes a raw woort_Value pointer.
  *
  * Does not require an active VM, but still requires a GC scope. When no
- * VM is running, call woort_GC_sync_marking_lock() first. Creates a deep
+ * VM is running, call woort_GC_sync_marking_lock() first. Creates a shallow
  * duplicate of boxed values (vec/map/struct) so the pin owns an independent copy.
  *
  * @param pin  The GC pin. Must not be NULL.
  * @param idx  Index within the pin. Must be < count from create.
- * @param val  Pointer to the woort_Value whose boxed content to deep-copy. Must not be NULL.
+ * @param val  Pointer to the woort_Value whose boxed content to shallow-copy. Must not be NULL.
  */
 WOORT_API void woort_GCPin_set_dup_boxed_internal(
     woort_GCPin* pin, size_t idx, const woort_Value* val);
@@ -885,13 +887,12 @@ typedef enum woort_CodeEnv_RestoreResult
     /* Structural errors */
     WOORT_CODEENV_RESTORE_FAIL_INVALID_CODE_SIZE = 5,  /* Code size exceeds available data */
     WOORT_CODEENV_RESTORE_FAIL_CREATE_CODEENV = 6,  /* Failed to create CodeEnv */
-    WOORT_CODEENV_RESTORE_FAIL_INVALID_STRPOOL = 7,  /* String pool size invalid */
 
     /* Constant data errors */
-    WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA = 8,  /* Data truncated / unterminated */
-    WOORT_CODEENV_RESTORE_FAIL_INVALID_CONST_TYPE = 9,  /* Unknown constant type tag */
-    WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET = 10, /* Invalid offset into pool */
-    WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE = 11, /* Cannot resolve external function/library */
+    WOORT_CODEENV_RESTORE_FAIL_TRUNCATED_DATA = 7,  /* Data truncated / unterminated */
+    WOORT_CODEENV_RESTORE_FAIL_INVALID_CONST_TYPE = 8,  /* Unknown constant type tag */
+    WOORT_CODEENV_RESTORE_FAIL_INVALID_OFFSET = 9, /* Invalid offset into pool */
+    WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE = 10, /* Cannot resolve external function/library */
 }woort_CodeEnv_RestoreResult;
 
 /**
@@ -908,7 +909,10 @@ WOORT_NODISCARD WOORT_API const char* woort_CodeEnv_restore_failed_desc(
     woort_CodeEnv_RestoreResult rt);
 
 /**
- * @brief Release a CodeEnv and free all associated resources.
+ * @brief Release a hold on a codeenv; 
+ *      if this codeenv is no longer marked (woort_GC_mark_droped_env_manually), 
+ *      the GC will take care of releasing it.
+ * 
  * @param code_env  The CodeEnv to destroy. Must not be NULL.
  */
 WOORT_API void woort_CodeEnv_drop(
@@ -941,7 +945,7 @@ WOORT_API void woort_CodeEnv_unlock(
     woort_CodeEnv* code_env);
 
 /**
- * @brief Look up the source location closest to a given bytecode offset.
+ * @brief Look up the source location by given bytecode offset.
  *
  * bytecode_offset is relative to m_code_begin.
  *
@@ -988,8 +992,8 @@ typedef bool (*woort_CodeEnv_OffsetCallback)(
  *
  * A single source line can compile to multiple instructions (e.g. a 'for'
  * header emits separate code for the initializer, the condition and the
- * increment). Every entry whose source location covers the given line is
- * visited in ascending bytecode offset order. If no entry covers the line,
+ * increment). Every entry whose source location matchs the given line is
+ * visited in ascending bytecode offset order. If no entry matchs the line,
  * the function falls back to the nearest line that has entries (preferring
  * lines at or after the requested one), mirroring
  * woort_CodeEnv_find_offset_by_srcloc.
@@ -1217,7 +1221,9 @@ WOORT_NODISCARD WOORT_API woort_IRStaticIndex woort_IRCompiler_add_static(
 /**
  * @brief Finalize compilation and produce a CodeEnv.
  *
- * After this call the compiler is consumed and must not be used again.
+ * Once this function is called, the woort_IRCompiler will become a read-only object, 
+ * and no new functions, instructions, constants, or static variables can be added to 
+ * it.
  *
  * @param c              The compiler. Must not be NULL.
  * @param[out] out_cenv  Pointer to receive the compiled CodeEnv. Must not be NULL.
@@ -1239,7 +1245,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_IRValue* woort_IRFunction_new_vre
  * @brief Get the virtual register for a function parameter (pre-allocated at SB+3+idx).
  * @param f         The IR function. Must not be NULL.
  * @param param_idx Zero-based parameter index.
- * @return The IR value handle for the parameter, or NULL if out of range.
+ * @return The IR value handle for the parameter, or NULL on out-of-memory.
  */
 WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_IRValue* woort_IRFunction_get_argument(
     woort_IRFunction* f,
@@ -1354,8 +1360,8 @@ WOORT_API void woort_IRCompiler_record_static_var(
 
 /**
  * @name IR Instruction Emission
- * @brief All woort_IR_* functions append an IROp to the linear instruction list of @p f.
- * @return true on success, false on out-of-memory.
+ * @brief woort_IR_* functions will append an IROp to the linear instruction list of @p f.
+ * @return true on success, false on out-of-memory or invalid arguments.
  * @{
  */
 
@@ -1468,7 +1474,7 @@ WOORT_NODISCARD WOORT_API bool woort_IR_RTOS(
 /**@{*/
 
 /**
- * @brief Call a Woolang function (native, without overflow check).
+ * @brief Call a woolang function (NEAR).
  * @param f       The IR function being compiled.
  * @param target  Constant pool index of the callee.
  * @param argc    Number of arguments already pushed onto the stack.
@@ -1481,7 +1487,7 @@ WOORT_NODISCARD WOORT_API bool woort_IR_CALLNWO(
     /* OPTIONAL */ woort_IRValue* dst);
 
 /**
- * @brief Call a Woolang function (with frame pointer setup).
+ * @brief Call a native function.
  * @param f       The IR function being compiled.
  * @param target  Constant pool index of the callee.
  * @param argc    Number of arguments already pushed onto the stack.
@@ -1538,7 +1544,7 @@ WOORT_NODISCARD WOORT_API bool woort_IR_MKCLOSURE(
     woort_IRConstantIndex func_idx);
 
 /**
- * @brief Create a vector: dst = new Vec(capacity = elem_count).
+ * @brief Create a vector: dst = new Vec, and emplace elements.
  * @param f          The IR function being compiled.
  * @param dst        Destination register for the new vector.
  * @param elem_count Number of elements already pushed onto the stack.
@@ -1549,7 +1555,7 @@ WOORT_NODISCARD WOORT_API bool woort_IR_MKVEC(
     uint32_t elem_count);
 
 /**
- * @brief Create a map: dst = new Map(capacity = kvpair_count).
+ * @brief Create a map: dst = new Map, and emplace key-value pairs.
  * @param f            The IR function being compiled.
  * @param dst          Destination register for the new map.
  * @param kvpair_count Number of key-value pairs already pushed onto the stack.
@@ -1942,7 +1948,7 @@ WOORT_NODISCARD WOORT_API bool woort_IR_LDIDVEC(
     const woort_IRValue* container,
     const woort_IRValue* idx);
 
-/** @brief Load vector element by integer index (unchecked): dst = container[idx]. */
+/** @brief Load vector element by integer index (bounds-checked): dst = container[idx]. */
 WOORT_NODISCARD WOORT_API bool woort_IR_LDIDVECX(
     woort_IRFunction* f,
     woort_IRValue* dst,
@@ -2716,7 +2722,7 @@ WOORT_API void woort_CodeEnv_set_const_script_closure(
  * @param func_name Function name recorded for serialization.
  *
  * @note This creates a GCClosure wrapping the native function. The closure
- *       can be called from script code via CALLNFP/CALLNWO.
+ *       can be called from script code via CALL.
  *
  * @note lib_name/func_name correspond to woort_CodeEnv_set_const_record().
  *       When both are given, woort_CodeEnv_save_binary() uses them to
@@ -2737,8 +2743,7 @@ WOORT_NODISCARD WOORT_API bool woort_CodeEnv_set_const_extern_closure(
  * @param cidx      The constant pool index (must be allocated before finish).
  * @param val       The integer value to box.
  *
- * @note A DynBox object is allocated on the GC heap and the constant holds
- *       a reference to this box. Use woort_unbox_int() to retrieve the value.
+ * @note Use woort_unbox_int() to retrieve the value.
  */
 WOORT_API void woort_CodeEnv_set_const_box_int(
     woort_CodeEnv* code_env,
@@ -2751,8 +2756,7 @@ WOORT_API void woort_CodeEnv_set_const_box_int(
  * @param cidx      The constant pool index (must be allocated before finish).
  * @param val       The real value to box.
  *
- * @note A DynBox object is allocated on the GC heap and the constant holds
- *       a reference to this box. Use woort_unbox_real() to retrieve the value.
+ * @note Use woort_unbox_real() to retrieve the value.
  */
 WOORT_API void woort_CodeEnv_set_const_box_real(
     woort_CodeEnv* code_env,
@@ -2765,8 +2769,7 @@ WOORT_API void woort_CodeEnv_set_const_box_real(
  * @param cidx      The constant pool index (must be allocated before finish).
  * @param val       The boolean value to box.
  *
- * @note A DynBox object is allocated on the GC heap and the constant holds
- *       a reference to this box. Use woort_unbox_bool() to retrieve the value.
+ * @note Use woort_unbox_bool() to retrieve the value.
  */
 WOORT_API void woort_CodeEnv_set_const_box_bool(
     woort_CodeEnv* code_env,
@@ -2917,7 +2920,7 @@ WOORT_API void woort_pop(size_t count);
 
 /**
  * @brief Get a direct pointer to a value on the VM evaluation stack.
- * @param src  Stack slot index (positive for absolute, negative for frame-relative).
+ * @param src  Stack slot index.
  * @return Pointer to the woort_Value at the given stack slot.
  * @note This is an internal API. The returned pointer is valid until the
  *       stack is resized or the VM enters a GC checkpoint.
@@ -2950,9 +2953,6 @@ WOORT_API void woort_import_value(
  *       silently falls back to interpreting the bytecode, and the call
  *       proceeds normally.
  *
- * This is the preferred entry point and supersedes the deprecated
- * woort_bootup_codeenv().
- *
  * @param dst   Stack slot for the return value, or WOORT_IGNORE to discard.
  * @param cenv  The code environment holding the compiled bytecode. Must not be NULL.
  * @param jit   If true, JIT-compile the code environment before invocation.
@@ -2971,7 +2971,14 @@ WOORT_NODISCARD WOORT_API woort_VmCallStatus woort_invoke(
     woort_StackValue dst, woort_StackValue f);
 
 /**
- * @brief Spawn a new coroutine from a function value.
+ * @brief Start a call on the current virtual machine; the call may yield.
+ * 
+ * Note: Once a call is initiated via spawn, unless it returns NORMAL (or 
+ *      woort_resume returns NORMAL), the VM will remain in an unfinished
+ *      call state until the call completes. During this period, no other 
+ *      call operations should be performed on this VM, nor should you attempt
+ *      to directly return to the upper call stack to resume execution.
+ * 
  * @param dst  Stack slot for the return value, or WOORT_IGNORE to discard.
  * @param f    Stack slot holding the callable value.
  * @return The call status (NORMAL, YIELD or ABORTED).
@@ -3062,6 +3069,7 @@ WOORT_API void woort_set_bool(
 WOORT_API void woort_set_string(
     woort_StackValue dst, woort_U8CString src);
 
+/** @brief Set a stack slot to a string built from a printf-style @p fmt and arguments. */
 WOORT_API void woort_set_string_fmt(
     woort_StackValue dst, woort_U8CString fmt, ...);
 
@@ -3082,7 +3090,7 @@ WOORT_API void woort_set_vec(
 WOORT_API void woort_set_map(
     woort_StackValue dst);
 
-/** @brief Set a stack slot to an empty struct with the given capacity. */
+/** @brief Set a stack slot to an struct with @p cap fields. */
 WOORT_API void woort_set_struct(
     woort_StackValue dst, size_t cap);
 
@@ -3183,6 +3191,7 @@ WOORT_API void woort_set_union_bool(
 WOORT_API void woort_set_union_string(
     woort_StackValue dst, woort_Int id, woort_U8CString src);
 
+/** @brief Set union to a string variant built from a printf-style @p fmt and arguments. */
 WOORT_API void woort_set_union_string_fmt(
     woort_StackValue dst, woort_Int id, woort_U8CString fmt, ...);
 
@@ -3628,24 +3637,22 @@ WOORT_API void woort_set_union_box_bool(
 /** @} */ /* end Return Result::Err Macros */
 
 /**
- * @brief Trigger a panic indicating the current Native-call has encountered a completely unexpected situation
- *        severe enough that continuing execution may lead to a crash. Panic blocks the current thread and awaits
- *        further instructions from the user, which may include:
- *          1) abort the entire program,
- *          2) treat as Abort, or
- *          3) attach a debugger and break immediately at the current location.
+ * @brief Trigger a panic and enter the panic callback handling flow. Users can 
+ *      register a custom panic callback function via `woort_set_panic_callback`.
  *
  * @param fmt  Printf-style format string for the panic message.
  * @param ...  Arguments for the format string.
  *
- * @note Regardless of the user's choice, WooRT makes no guarantees about any program behavior after a panic occurs.
- *       The program may crash even after the user makes a selection.
+ * @note Regardless of the user's choice, WooRT makes no guarantees about any 
+ *      program behavior after a panic occurs.
+ *      The program may crash even after the user makes a selection.
  */
 WOORT_NODISCARD WOORT_API woort_api woort_ret_panic(const char* fmt, ...);
 
 /**
- * @brief Request to pause VM execution, preserving the state after the current Native-function call completes.
- *        Expects to be resumed later via woort_resume, continuing from the preserved state.
+ * @brief Request to pause VM execution, preserving the state after the current
+ *      Native-function call completes. Expects to be resumed later via woort_resume, 
+ *      continuing from the preserved state.
  */
 WOORT_NODISCARD WOORT_API woort_api woort_ret_yield(void);
 
@@ -4093,7 +4100,7 @@ WOORT_NODISCARD WOORT_API bool woort_map_contains_string(
 /**
  * @brief Retrieve the key-value pair at the given iterator index.
  *
- * Returns false if the index is out of range or the slot is empty (tombstone).
+ * Returns false if the index is out of range.
  * On success, writes key to out_key_boxed and value to out_val_boxed.
  *
  * @param src            Stack slot holding the map.
@@ -4144,7 +4151,7 @@ typedef enum woort_SerializeFlag
  *
  * @param src    Source stack slot holding the boxed value.
  * @param flags  Bitmask of woort_SerializeFlag values.
- * @return NUL-terminated string on success, NULL on failure (unsupported type, cycle, OOM).
+ * @return NUL-terminated string on success, NULL on failure.
  */
 WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_serialize_dynbox(
     woort_StackValue src, uint32_t flags);
@@ -4156,7 +4163,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_serialize_dynbox(
  *
  * @param src    Source stack slot holding the map.
  * @param flags  Bitmask of woort_SerializeFlag values.
- * @return NUL-terminated string on success, NULL on failure (cycle, OOM).
+ * @return NUL-terminated string on success, NULL on failure.
  */
 WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_serialize_map(
     woort_StackValue src, uint32_t flags);
@@ -4168,7 +4175,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_serialize_map(
  *
  * @param src    Source stack slot holding the vec.
  * @param flags  Bitmask of woort_SerializeFlag values.
- * @return NUL-terminated string on success, NULL on failure (cycle, OOM).
+ * @return NUL-terminated string on success, NULL on failure.
  */
 WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_serialize_vec(
     woort_StackValue src, uint32_t flags);
@@ -4598,8 +4605,7 @@ WOORT_NODISCARD WOORT_API bool woort_vfile_open(
  * freeing it.  The caller must keep @p buf alive for the lifetime of
  * the VFile and call woort_vfile_close() when done.
  *
- * @param buf       Pointer to the buffer (may be NULL, yielding a
- *                  zero-length file).
+ * @param buf       Pointer to the buffer (may be NULL if buflen == 0).
  * @param buflen    Number of bytes in the buffer.
  * @param out_file  Receives the new VFile handle.
  * @return true on success.
@@ -4613,13 +4619,13 @@ WOORT_NODISCARD WOORT_API bool woort_vfile_open_reader(
  * @brief Read up to @p size bytes from a streaming file handle.
  *
  * @param file    The file handle.
- * @param buffer  Destination buffer (may be NULL to skip/advance).
+ * @param buffer  Destination buffer.
  * @param size    Maximum number of bytes to read.
  * @return The actual number of bytes read.
  */
 WOORT_NODISCARD WOORT_API size_t woort_vfile_read(
     woort_VFile* file,
-    /* OPTIONAL */ void* buffer,
+    void* buffer,
     size_t size);
 
 /**
@@ -4694,7 +4700,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_Dylib* woort_dylib_fake(
  *   4. The given path exactly as-is
  *   5. OS default library search path (only if script_path is NULL)
  *
- * A platform-specific extension (.dll/.so/.dylib) is appended in steps 1-3.
+ * A platform-specific extension is appended in steps 1-3.
  *
  * @param libname          Unique name under which to register the library.
  * @param path             Library file path or base name.
@@ -4771,8 +4777,8 @@ WOORT_API void woort_dylib_keep(woort_Dylib* lib);
  * @brief Get the handle of the built-in "woolang" fake library.
  *
  * This library is automatically registered during woort_init() and contains
- * the core runtime native functions (return_it_self, bad_function, panic,
- * print).  The returned handle is valid until woort_shutdown() is called.
+ * the core runtime native functions.  The returned handle is valid until 
+ * woort_shutdown() is called.
  *
  * @return The library handle, or NULL if woort_init has not been called.
  */
@@ -4811,13 +4817,6 @@ typedef enum woort_WAIPO_TrapEndBehavior
 /**
  * @brief Opaque handle to a WAIPO (Watch And Inspect Program Operation)
  * debugger session.
- *
- * The instance is owned by the runtime and stays valid while the debugger
- * remains attached; it is released automatically when the debugger is closed
- * or replaced by a new attach.  A handle can be obtained via the
- * out_debugger parameter of woort_WAIPO_Debugger_attach(), and the
- * same handle is passed back to every woort_WAIPO_Debugger_TrapCallback
- * invocation to identify the session.
  */
 typedef struct woort_WAIPO_Debugger woort_WAIPO_Debugger;
 
@@ -4837,9 +4836,9 @@ typedef woort_WAIPO_TrapEndBehavior(*woort_WAIPO_Debugger_TrapCallback)(
     woort_WAIPO_Debugger*, woort_VMRuntime*);
 
 /**
- * @brief Attach a WAIPO (Watch And Inspect Program Operation) debugger to the VM.
+ * @brief Attach a WAIPO (Watch And Inspect Program Operation) debugger to woort.
  *
- * Allocates a debugger instance and registers it with the current VM runtime.
+ * Allocates a debugger instance and registers it into whole woort.
  * The engine itself decides when to stop a VM: on user breakpoints, on
  * finished step operations (step/next/return) and on debug-break requests
  * (e.g. CTRL+C or panic).  Whenever a VM actually traps, breakdown_callback
@@ -4926,9 +4925,8 @@ typedef struct woort_WAIPO_Debugger_BreakpointInfo
                                                          breakpoint) or function name
                                                          (function breakpoint); points into
                                                          the breakpoint's own record and
-                                                         stays valid until the breakpoint
-                                                         is deleted or the debugger
-                                                         detached. */
+                                                         stays valid until any breakpoint
+                                                         is modified. */
     /* 0-based source line; SIZE_MAX = no line info (function breakpoint) */
     size_t                              m_line;
 
@@ -5277,7 +5275,7 @@ WOORT_NODISCARD WOORT_API bool woort_VMRuntime_Debugger_try_terminate_vm(
  *    NUL-terminated.
  *  - The output is complete and NUL-terminated iff the returned value is
  *    less than @p value_content_buf_len.
- *  - Returns 0 on failure (NULL @p value or out of memory).
+ *  - Returns 0 on failure (Out of memory).
  *
  * @param value                     Script value to serialize.  Must not be
  *                                  NULL.
@@ -5288,7 +5286,7 @@ WOORT_NODISCARD WOORT_API bool woort_VMRuntime_Debugger_try_terminate_vm(
  */
 WOORT_NODISCARD WOORT_API size_t woort_VMRuntime_Debugger_serialize_value(
     woort_Value* value,
-    char* out_value_content,
+    /* OPTIONAL */ char* out_value_content,
     size_t value_content_buf_len);
 
 /* ========== Ctrl+C Signal Handling ========== */
@@ -5298,7 +5296,7 @@ WOORT_NODISCARD WOORT_API size_t woort_VMRuntime_Debugger_serialize_value(
  *
  * On the first SIGINT the WAIPO debugger is attached and every registered
  * root VM receives a debug-callback request.  Consecutive SIGINT within a
- * 2‑second window are counted; after 4 hits the process logs a message and
+ * 2‑second window are counted; after 5 hits the process logs a message and
  * calls abort().
  *
  * Call once during program startup (after woort_init) to enable interactive
@@ -5354,7 +5352,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */  woort_PanicHandlerFunction woort_set_p
 /* ========== String / Unicode Conversion API ========== */
 
 /**
- * @brief Get the Unicode code point at a byte index in a UTF-8 string.
+ * @brief Get the Unicode code point at a character index in a UTF-8 string.
  * @param str    The UTF-8 string.
  * @param index  Byte offset into the string.
  * @param out_ch Receives the Unicode code point on success.
@@ -5364,7 +5362,8 @@ WOORT_NODISCARD WOORT_API bool woort_str_get_char(
     const char* str, size_t index, char32_t* out_ch);
 
 /**
- * @brief Get the Unicode code point at a byte index in a UTF-8 string with explicit length.
+ * @brief Get the Unicode code point at a character index in a UTF-8 string 
+        with explicit length.
  * @param str    The UTF-8 string.
  * @param size   Length of the string in bytes.
  * @param index  Byte offset into the string.
@@ -5741,16 +5740,50 @@ WOORT_NODISCARD WOORT_API const char* woort_u8substrn(
 WOORT_NODISCARD WOORT_API size_t woort_u8combineu32(
     const char* u8charp, size_t bytelen, char32_t* out_c32);
 
-/** @brief Encode a code point as UTF-8 into @p out_c8 (max WOORT_UTF8MAXLEN bytes). */
+/**
+ * @brief Encode a Unicode code point as UTF-8.
+ *
+ * Writes at most WOORT_UTF8MAXLEN bytes into @p out_c8 and stores the number
+ * of bytes written (1-6) in @p out_u8len. The full WOORT_UTF8MAXLEN range is
+ * covered: code points up to U+7FFFFFFF encode as extended (5/6-byte) UTF-8,
+ * mirroring what woort_u8combineu32 decodes. Code points above U+7FFFFFFF
+ * are not representable and are replaced with U+FFFD (REPLACEMENT CHARACTER).
+ * @param ch32      The code point to encode.
+ * @param out_c8    Output buffer of at least WOORT_UTF8MAXLEN bytes.
+ * @param out_u8len Receives the number of bytes written.
+ */
 WOORT_API void woort_u32exractu8(
     char32_t ch32, char out_c8[WOORT_UTF8MAXLEN], size_t* out_u8len);
 
-/** @brief Decode the UTF-8 character at @p u8charp into UTF-16 (1 or 2 units). */
+/**
+ * @brief Decode the UTF-8 character at @p u8charp into UTF-16.
+ *
+ * A supplementary code point (above U+FFFF) is emitted as a surrogate pair
+ * of 2 units; every other code point fits in a single unit.
+ * @param u8charp    Pointer to the first byte of the UTF-8 character.
+ * @param bytelen    Number of bytes available at @p u8charp.
+ * @param out_c16    Output buffer of at least WOORT_UTF16MAXLEN units.
+ * @param out_u16len Receives the number of UTF-16 units written (1 or 2).
+ * @return The byte length of the decoded character, or 0 if @p bytelen is 0
+ *         (in which case @p out_u16len is set to 0).
+ */
 WOORT_NODISCARD WOORT_API size_t woort_u8combineu16(
     const char* u8charp, size_t bytelen,
     char16_t out_c16[WOORT_UTF16MAXLEN], size_t* out_u16len);
 
-/** @brief Encode a UTF-16 unit sequence as UTF-8. Returns the number of UTF-16 units consumed (1 or 2). */
+/**
+ * @brief Encode the UTF-16 character at @p u16charp as UTF-8.
+ *
+ * A well-formed high+low surrogate pair is combined into a single
+ * supplementary code point; any other unit (including an unpaired surrogate)
+ * is encoded on its own.
+ * @param u16charp  Pointer to the first UTF-16 unit of the character.
+ * @param charcount Number of units available at @p u16charp.
+ * @param out_c8    Output buffer of at least WOORT_UTF8MAXLEN bytes.
+ * @param out_u8len Receives the number of bytes written (1-4).
+ * @return The number of UTF-16 units consumed: 2 when a surrogate pair was
+ *         combined, 1 otherwise, or 0 if @p charcount is 0.
+ */
 WOORT_NODISCARD WOORT_API size_t woort_u16exractu8(
     const char16_t* u16charp, size_t charcount,
     char out_c8[WOORT_UTF8MAXLEN], size_t* out_u8len);
@@ -5765,7 +5798,9 @@ WOORT_NODISCARD WOORT_API bool woort_u16losurrogate(char16_t ch);
  * @brief Escape a UTF-8 string into a quoted Woolang string literal.
  *
  * The returned buffer is malloc-allocated and must be freed with woort_free().
- * @param force_unicode  If non-zero, always emit \uXXXX escapes for non-ASCII.
+ * 
+ * @param force_unicode  If non-zero, always emit \uXXXX escapes for non-print 
+        character.
  * @return NUL-terminated quoted string literal, or NULL on allocation failure.
  */
 WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u8enstring(
@@ -5775,6 +5810,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u8enstring(
  * @brief Unescape a Woolang string literal (with or without surrounding quotes).
  *
  * The returned buffer is malloc-allocated and must be freed with woort_free().
+ * 
  * @param out_len  Optional receiver for the decoded byte length.
  * @return NUL-terminated decoded string, or NULL on allocation failure.
  */
@@ -5835,7 +5871,9 @@ WOORT_NODISCARD WOORT_API bool woort_u8stridx(
 /** @brief Opaque handle to a REPL printer that buffers serialized Woolang values and flushes them as UTF-8 text. */
 typedef struct woort_REPLPrinter woort_REPLPrinter;
 
-/** @brief Callback invoked by woort_REPLPrinter_flush() to deliver flushed UTF-8 text. Parameters are the text buffer and its length in bytes. */
+/** @brief Callback invoked by woort_REPLPrinter_flush() to deliver flushed UTF-8 text.
+ *         Parameters are the NUL-terminated text buffer, its length in bytes (excluding the terminator),
+ *         and the user pointer given as @p param to woort_REPLPrinter_create(). */
 typedef void(*woort_REPLPrinter_ResultCallback)(const char*, size_t, void*);
 
 /** @brief Outcome codes returned by woort_REPLPrinter_flush(). */
@@ -5851,6 +5889,7 @@ typedef enum woort_REPLPrinter_FlushResult
 /**
  * @brief Create a new REPL printer.
  * @param callback   Optional callback invoked on flush; if NULL, flushed text is written to stdout.
+ * @param param      User pointer stored in the printer and passed back as the callback's third argument; never dereferenced.
  * @param out_printer Output handle receiving the newly created printer.
  * @return true on success, false on allocation failure.
  */
