@@ -20,7 +20,6 @@ void woort_vector_init(woort_Vector* vector, size_t element_size)
 }
 void woort_vector_deinit(woort_Vector* vector)
 {
-    /* Safe to call even if _init failed (m_data may be NULL). */
     if (vector->m_data != NULL)
     {
         free(vector->m_data);

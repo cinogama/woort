@@ -72,6 +72,8 @@ union woort_Value
     woort_DynBox            m_dynamic;
 
     woort_RetBP             m_ret_bp;
+    
+    /* OPTIONAL, NULL if call from external */
     const void*             m_ret_addr;
 
 #ifndef __cplusplus

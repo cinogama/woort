@@ -433,16 +433,14 @@ static bool _save_resolve_extern_names(
     if (type == WOORT_CONST_TYPE_EXTERN_CLOSURE)
     {
         const woort_GCClosure* closure = val->m_closure;
-        if (closure == NULL || closure->m_script_function != NULL)
-            return false;  /* 闭包无原生函数指针，无法解析 */
+        assert(closure != NULL && closure->m_script_function == NULL);
+
         nf = closure->m_native_function;
     }
     else
-    {
         nf = val->m_native_function;
-        if (nf == NULL)
-            return false;
-    }
+
+    assert(nf != NULL);
 
     woort_Dylib* found_lib = NULL;
     if (!woort_Dylib_find_by_resolved_func((void*)nf, &found_lib))
@@ -737,9 +735,9 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
         case WOORT_CONST_TYPE_STRING:
         {
             const woort_GCString* gcs = code_env->m_data_begin[i].m_string;
-            if (gcs != NULL)
-                ok = ok && _bin_strpool_insert(&strpool,
-                    gcs->m_content, gcs->m_length, NULL);
+            assert(gcs != NULL);
+            ok = ok && _bin_strpool_insert(&strpool,
+                gcs->m_content, gcs->m_length, NULL);
             break;
         }
         case WOORT_CONST_TYPE_EXTERN_FUNC:
@@ -886,27 +884,24 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
             case WOORT_CONST_TYPE_STRING:
             {
                 const woort_GCString* gcs = val->m_string;
-                if (gcs != NULL)
-                {
-                    uint32_t off = WOORT_STRREF_NULL;
-                    ok = ok && _bin_strpool_insert(&strpool,
-                        gcs->m_content, gcs->m_length, &off);
-                    ok = ok && _bin_write_u32(&w, off);
-                    ok = ok && _bin_write_u32(&w, (uint32_t)gcs->m_length);
-                }
-                else
-                {
-                    ok = ok && _bin_write_u32(&w, WOORT_STRREF_NULL);
-                    ok = ok && _bin_write_u32(&w, 0);
-                }
+                assert(gcs != NULL);
+
+                uint32_t off = WOORT_STRREF_NULL;
+                ok = ok && _bin_strpool_insert(&strpool,
+                    gcs->m_content, gcs->m_length, &off);
+                ok = ok && _bin_write_u32(&w, off);
+                ok = ok && _bin_write_u32(&w, (uint32_t)gcs->m_length);
+
                 break;
             }
 
             case WOORT_CONST_TYPE_SCRIPT_FUNC:
             {
-                uint32_t off = (val->m_script_function != NULL)
-                    ? (uint32_t)(val->m_script_function - code_env->m_code_begin)
-                    : WOORT_STRREF_NULL;
+                assert(val->m_script_function != NULL);
+
+                const uint32_t off =
+                    (uint32_t)(val->m_script_function - code_env->m_code_begin);
+
                 ok = ok && _bin_write_u32(&w, off);
                 break;
             }
@@ -937,9 +932,11 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
             case WOORT_CONST_TYPE_SCRIPT_CLOSURE:
             {
                 const woort_GCClosure* closure = val->m_closure;
-                uint32_t off = WOORT_STRREF_NULL;
-                if (closure != NULL && closure->m_script_function != NULL)
-                    off = (uint32_t)(closure->m_script_function - code_env->m_code_begin);
+
+                assert(closure != NULL && closure->m_script_function != NULL);
+                const uint32_t off = 
+                    (uint32_t)(closure->m_script_function - code_env->m_code_begin);
+
                 ok = ok && _bin_write_u32(&w, off);
                 break;
             }
@@ -976,7 +973,10 @@ WOORT_NODISCARD bool woort_CodeEnv_save_binary(
             case WOORT_CONST_TYPE_STRUCT:
             {
                 woort_GCStruct* s = val->m_struct;
-                uint32_t member_count = (s != NULL) ? (uint32_t)s->m_size : 0;
+
+                assert(s != NULL);
+                const uint32_t member_count = (uint32_t)s->m_size;
+
                 ok = ok && _bin_write_u32(&w, member_count);
                 for (uint32_t mi = 0; ok && mi < member_count; ++mi)
                 {

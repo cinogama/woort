@@ -12,7 +12,9 @@ woort_vector.h
 
 typedef struct woort_Vector
 {
+    /* OPTIONAL, Null if empty. */ 
     char*       m_data;
+
     size_t      m_size;
     size_t      m_capacity;
 

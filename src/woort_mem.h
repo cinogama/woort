@@ -46,25 +46,25 @@ void woort_mem_shutdown(void);
 
 void woort_mem_trigger_gc(bool async);
 
-void* woort_mem_allocate_begin(size_t size);
+/* OPTIONAL */ void* woort_mem_allocate_begin(size_t size);
 void woort_mem_allocate_end(void* p, int attrib);
 void woort_mem_allocate_end_as_root(void* p, int attrib);
 void woort_mem_remove_from_root_set(void* p);
 
 /* Do not reallocate a root; the old unit will not be released. */
-void* woort_mem_reallocate(void* ptr, size_t size);
+/* OPTIONAL */ void* woort_mem_reallocate(void* ptr, size_t size);
 
-void* woort_mem_validate_addr(void* ptr_may_invalid);
-void* woort_mem_validate_addr_head(void* ptr_may_invalid);
+/* OPTIONAL */ void* woort_mem_validate_addr(/* OPTIONAL */ void* ptr_may_invalid);
+/* OPTIONAL */ void* woort_mem_validate_addr_head(/* OPTIONAL */ void* ptr_may_invalid);
 size_t woort_mem_get_capacity_of_addr_head(void* ptr);
 
-void woort_mem_mark_unit_head(void* ptr_head_may_null);
-void woort_mem_mark_fuzzy_unit(void* ptr_may_invalid_or_null);
-void woort_mem_mark_fuzzy_unit_head(void* ptr_head_may_invalid_null);
+void woort_mem_mark_unit_head(/* OPTIONAL */ void* ptr_head_may_null);
+void woort_mem_mark_fuzzy_unit(/* OPTIONAL */ void* ptr_may_invalid_or_null);
+void woort_mem_mark_fuzzy_unit_head(/* OPTIONAL */ void* ptr_head_may_invalid_null);
 
-void woort_mem_mark_root_unit_head(void* ptr_head_may_null);
-void woort_mem_mark_root_fuzzy_unit(void* ptr_may_invalid_or_null);
-void woort_mem_mark_root_fuzzy_unit_head(void* ptr_head_may_invalid_null);
+void woort_mem_mark_root_unit_head(/* OPTIONAL */ void* ptr_head_may_null);
+void woort_mem_mark_root_fuzzy_unit(/* OPTIONAL */ void* ptr_may_invalid_or_null);
+void woort_mem_mark_root_fuzzy_unit_head(/* OPTIONAL */ void* ptr_head_may_invalid_null);
 
 #ifdef __cplusplus
 }

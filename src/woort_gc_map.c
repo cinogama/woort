@@ -8,6 +8,7 @@
 #include "woort_mem.h"
 
 #include <string.h>
+#include <assert.h>
 
 const woort_GCUnitProxy WOORT_GCMAP_UNIT_PROXY = {
     .m_destructor = NULL,

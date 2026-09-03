@@ -63,7 +63,7 @@ void woort_mem_trigger_gc(bool async)
     woort_mem_gc_trigger_gc(g_woort_mem_gc, async);
 }
 
-void* woort_mem_allocate_begin(size_t size)
+/* OPTIONAL */ void* woort_mem_allocate_begin(size_t size)
 {
     assert(g_woort_mem_gc != NULL);
 
@@ -133,7 +133,7 @@ void woort_mem_remove_from_root_set(void* p)
     woort_mem_gc_unregister_root_unit_head(g_woort_mem_gc, unit_head);
 }
 
-void* woort_mem_reallocate(void* ptr, size_t size)
+/* OPTIONAL */ void* woort_mem_reallocate(void* ptr, size_t size)
 {
     assert(ptr != NULL);
 
@@ -157,8 +157,11 @@ void* woort_mem_reallocate(void* ptr, size_t size)
     return new_ptr;
 }
 
-void* woort_mem_validate_addr(void* ptr_may_invalid)
+/* OPTIONAL */ void* woort_mem_validate_addr(/* OPTIONAL */ void* ptr_may_invalid)
 {
+    if (ptr_may_invalid == NULL)
+        return NULL;
+
     woort_mem_PageHead* const page_head =
         woort_mem_chunk_validate(
             &g_woort_mem_global_context.m_chunk, ptr_may_invalid);
@@ -208,7 +211,8 @@ void* woort_mem_validate_addr(void* ptr_may_invalid)
     return NULL;
 }
 
-void* woort_mem_validate_addr_head(void* ptr_may_invalid)
+/* OPTIONAL */ void* woort_mem_validate_addr_head(
+    /* OPTIONAL */ void* ptr_may_invalid)
 {
     if (((intptr_t)ptr_may_invalid & 0b0111) == 0)
     {
@@ -222,7 +226,7 @@ size_t woort_mem_get_capacity_of_addr_head(void* ptr)
     return woort_mem_unit_get_available_size((woort_mem_UnitHead*)ptr - 1);
 }
 
-void woort_mem_mark_unit_head(void* ptr_head_may_null)
+void woort_mem_mark_unit_head(/* OPTIONAL */ void* ptr_head_may_null)
 {
     if (ptr_head_may_null != NULL)
     {
@@ -235,19 +239,19 @@ void woort_mem_mark_unit_head(void* ptr_head_may_null)
     }
 }
 
-void woort_mem_mark_fuzzy_unit(void* ptr_may_invalid_or_null)
+void woort_mem_mark_fuzzy_unit(/* OPTIONAL */ void* ptr_may_invalid_or_null)
 {
     woort_mem_mark_unit_head(
         woort_mem_validate_addr(ptr_may_invalid_or_null));
 }
 
-void woort_mem_mark_fuzzy_unit_head(void* ptr_head_may_invalid_null)
+void woort_mem_mark_fuzzy_unit_head(/* OPTIONAL */ void* ptr_head_may_invalid_null)
 {
     woort_mem_mark_unit_head(
         woort_mem_validate_addr_head(ptr_head_may_invalid_null));
 }
 
-void woort_mem_mark_root_unit_head(void* ptr_head_may_null)
+void woort_mem_mark_root_unit_head(/* OPTIONAL */ void* ptr_head_may_null)
 {
     if (ptr_head_may_null != NULL)
     {
@@ -257,13 +261,14 @@ void woort_mem_mark_root_unit_head(void* ptr_head_may_null)
     }
 }
 
-void woort_mem_mark_root_fuzzy_unit(void* ptr_may_invalid_or_null)
+void woort_mem_mark_root_fuzzy_unit(/* OPTIONAL */ void* ptr_may_invalid_or_null)
 {
     woort_mem_mark_root_unit_head(
         woort_mem_validate_addr(ptr_may_invalid_or_null));
 }
 
-void woort_mem_mark_root_fuzzy_unit_head(void* ptr_head_may_invalid_null)
+void woort_mem_mark_root_fuzzy_unit_head(
+    /* OPTIONAL */ void* ptr_head_may_invalid_null)
 {
     woort_mem_mark_root_unit_head(
         woort_mem_validate_addr_head(ptr_head_may_invalid_null));
