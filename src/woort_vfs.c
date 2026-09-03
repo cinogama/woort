@@ -596,37 +596,34 @@ WOORT_NODISCARD size_t woort_vfile_read(
     size_t size)
 {
     size_t total_read = 0;
-    assert(file != NULL);
+    assert(file != NULL && (buffer != NULL || size == 0));
+
+    if (size == 0)
+        return 0;
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
     {
-        size_t available = file->m_virtual.m_entry->m_data_length - file->m_virtual.m_pos;
-        size_t to_read = (size < available) ? size : available;
+        const size_t available = file->m_virtual.m_entry->m_data_length - file->m_virtual.m_pos;
+        const size_t to_read = (size < available) ? size : available;
 
-        if (buffer != NULL && to_read > 0)
-            memcpy(buffer, file->m_virtual.m_entry->m_data + file->m_virtual.m_pos, to_read);
+        memcpy(buffer, file->m_virtual.m_entry->m_data + file->m_virtual.m_pos, to_read);
 
         file->m_virtual.m_pos += to_read;
         total_read = to_read;
     }
     else if (file->m_type == WOORT_VFILE_TYPE_READER)
     {
-        size_t available = file->m_reader.m_size - file->m_reader.m_pos;
-        size_t to_read = (size < available) ? size : available;
+        const size_t available = file->m_reader.m_size - file->m_reader.m_pos;
+        const size_t to_read = (size < available) ? size : available;
 
-        if (buffer != NULL && to_read > 0)
-            memcpy(buffer, (const char*)file->m_reader.m_data + file->m_reader.m_pos, to_read);
+        memcpy(buffer, (const char*)file->m_reader.m_data + file->m_reader.m_pos, to_read);
 
         file->m_reader.m_pos += to_read;
         total_read = to_read;
     }
     else
-    {
-        if (buffer != NULL && size > 0)
-        {
-            total_read = fread(buffer, 1, size, file->m_real_file);
-        }
-    }
+        total_read = fread(buffer, 1, size, file->m_real_file);
+
     return total_read;
 }
 

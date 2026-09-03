@@ -2336,6 +2336,9 @@ WOORT_NODISCARD bool woort_deserialize_dynbox(
     if (!_woort_deserialize_dynbox_from_str(&p, &_WOORT_API_STACK(dst).m_dynamic))
         return false;
 
+    if (*p != '\0')
+        return false;
+
     return true;
 }
 

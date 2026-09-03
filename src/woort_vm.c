@@ -168,7 +168,12 @@ void woort_VMRuntime_destroy(woort_VMRuntime* vm)
 void woort_VMRuntime_weaken(woort_VMRuntime* vm)
 {
     assert(!vm->m_is_weak);
-    vm->m_is_weak = true;
+
+    woort_VMRuntime* const last_vm = woort_VMRuntime_swap(vm);
+    {
+        vm->m_is_weak = true;
+    }
+    (void)woort_VMRuntime_swap(last_vm);
 }
 
 
