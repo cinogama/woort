@@ -76,7 +76,8 @@ int main(int argc, char** argv) {
 
     /* 2. 填充常量池（必须在 lock/unlock 之间） */
     woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_extern_function(cenv, c_print, my_print);
+    /* libname/funcname 供二进制序列化按名重解析，可传 NULL 省略 */
+    woort_CodeEnv_set_const_extern_function(cenv, c_print, my_print, NULL, NULL);
     woort_CodeEnv_set_const_int(cenv, c_val, 100);
     woort_CodeEnv_unlock(cenv);
 
@@ -143,9 +144,11 @@ woort_CodeEnv_lock(cenv);
 woort_CodeEnv_set_const_int(cenv, cidx_int, 42);
 woort_CodeEnv_set_const_real(cenv, cidx_real, 3.14);
 woort_CodeEnv_set_const_buffer(cenv, cidx_str, "hello", 5);   /* 字符串经 buffer 写入 */
-woort_CodeEnv_set_const_extern_function(cenv, cidx_fn, my_native_fn);
+woort_CodeEnv_set_const_extern_function(cenv, cidx_fn, my_native_fn, NULL, NULL);
 woort_CodeEnv_unlock(cenv);
 ```
+
+extern 函数/闭包的 `lib_name`/`func_name` 参数与 `woort_CodeEnv_set_const_record()` 对应：两者都提供时，`save_binary` 直接按登记名序列化（restore 时按名从库重解析），不再反查 dylib 运行时表。不需要序列化信息时传 `NULL`。
 
 ### 执行入口约定
 

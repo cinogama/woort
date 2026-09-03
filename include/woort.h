@@ -2674,14 +2674,24 @@ WOORT_API void woort_CodeEnv_set_const_script_function(
  * @param code_env  The locked code environment.
  * @param cidx      The constant pool index (must be allocated before finish).
  * @param val       Pointer to the native function entry point.
+ * @param lib_name  Library name recorded for serialization.
+ * @param func_name Function name recorded for serialization.
  *
  * @note The native function must follow the woort_api calling convention
  *       and return woort_VmCallStatus.
+ *
+ * @note lib_name/func_name correspond to woort_CodeEnv_set_const_record().
+ *       When both are given, woort_CodeEnv_save_binary() uses them to
+ *       re-resolve the function on restore instead of reverse-looking up
+ *       the dylib runtime table. Pass NULL to omit either.
+ * @return true on success, false on OOM while copying the names.
  */
-WOORT_API void woort_CodeEnv_set_const_extern_function(
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_set_const_extern_function(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
-    woort_NativeFunction val);
+    woort_NativeFunction val,
+    /* OPTIONAL */ const char* lib_name,
+    /* OPTIONAL */ const char* func_name);
 
 /**
  * @brief Set a constant pool entry to a script closure (function + env).
@@ -2702,14 +2712,24 @@ WOORT_API void woort_CodeEnv_set_const_script_closure(
  * @param code_env  The locked code environment.
  * @param cidx      The constant pool index (must be allocated before finish).
  * @param val       Pointer to the native function entry point.
+ * @param lib_name  Library name recorded for serialization.
+ * @param func_name Function name recorded for serialization.
  *
  * @note This creates a GCClosure wrapping the native function. The closure
  *       can be called from script code via CALLNFP/CALLNWO.
+ *
+ * @note lib_name/func_name correspond to woort_CodeEnv_set_const_record().
+ *       When both are given, woort_CodeEnv_save_binary() uses them to
+ *       re-resolve the function on restore instead of reverse-looking up
+ *       the dylib runtime table. Pass NULL to omit either.
+ * @return true on success, false on OOM while copying the names.
  */
-WOORT_API void woort_CodeEnv_set_const_extern_closure(
+WOORT_NODISCARD WOORT_API bool woort_CodeEnv_set_const_extern_closure(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
-    woort_NativeFunction val);
+    woort_NativeFunction val,
+    /* OPTIONAL */ const char* lib_name,
+    /* OPTIONAL */ const char* func_name);
 
 /**
  * @brief Set a constant pool entry to a boxed integer value.

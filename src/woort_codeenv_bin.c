@@ -1574,13 +1574,14 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                 goto _restore_fail;
             }
 
-            if (type == WOORT_CONST_TYPE_EXTERN_FUNC)
-                woort_CodeEnv_set_const_extern_function(cenv, (woort_IRConstantIndex)i, nf);
-            else
-                woort_CodeEnv_set_const_extern_closure(cenv, (woort_IRConstantIndex)i, nf);
+            const bool set_ok =
+                (type == WOORT_CONST_TYPE_EXTERN_FUNC)
+                ? woort_CodeEnv_set_const_extern_function(cenv,
+                    (woort_IRConstantIndex)i, nf, lib_name, func_name)
+                : woort_CodeEnv_set_const_extern_closure(cenv,
+                    (woort_IRConstantIndex)i, nf, lib_name, func_name);
 
-            if (!woort_CodeEnv_set_const_record(cenv, (woort_IRConstantIndex)i,
-                (woort_ConstRecordType)type, lib_name, func_name))
+            if (!set_ok)
             {
                 result = WOORT_CODEENV_RESTORE_FAIL_ALLOC;
                 goto _restore_fail;

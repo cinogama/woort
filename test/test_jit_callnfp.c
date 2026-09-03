@@ -49,7 +49,7 @@ static int run_jit_callnfp_witharg(void)
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_script_closure(cenv, c_main, main_addr);
-    woort_CodeEnv_set_const_extern_function(cenv, c_native, native_double_and_print);
+    (void)woort_CodeEnv_set_const_extern_function(cenv, c_native, native_double_and_print, NULL, NULL);
     woort_CodeEnv_set_const_int(cenv, c_arg, 21);
     woort_CodeEnv_unlock(cenv);
 
@@ -105,7 +105,7 @@ static int run_jit_callnfp_noarg(void)
 
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_script_closure(cenv, c_main, main_addr);
-    woort_CodeEnv_set_const_extern_function(cenv, c_native, native_noarg_const);
+    (void)woort_CodeEnv_set_const_extern_function(cenv, c_native, native_noarg_const, NULL, NULL);
     woort_CodeEnv_unlock(cenv);
 
     woort_CodeEnv_jit(cenv);

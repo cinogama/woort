@@ -937,7 +937,7 @@ static void test_vm_call_status(void)
     (void)woort_CodeEnv_query_function(cenv, f_main, &entry_addr);
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c_arg, 0);
-    woort_CodeEnv_set_const_extern_function(cenv, cfn, return_int_fn);
+    TEST_ASSERT(woort_CodeEnv_set_const_extern_function(cenv, cfn, return_int_fn, NULL, NULL));
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);
 
@@ -1203,7 +1203,7 @@ static void test_call_conventions(void)
     woort_CodeEnv_set_const_int(cenv, c1, 1);
     woort_CodeEnv_set_const_int(cenv, c2, 2);
     woort_CodeEnv_set_const_int(cenv, c3, 3);
-    woort_CodeEnv_set_const_extern_function(cenv, cfn, sumThree_fn);
+    TEST_ASSERT(woort_CodeEnv_set_const_extern_function(cenv, cfn, sumThree_fn, NULL, NULL));
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);
 
@@ -1260,7 +1260,7 @@ static void test_extern_function_call(void)
     woort_CodeEnv_set_const_int(cenv, c1, 1);
     woort_CodeEnv_set_const_int(cenv, c2, 2);
     woort_CodeEnv_set_const_int(cenv, c3, 3);
-    woort_CodeEnv_set_const_extern_function(cenv, cfn, sumThree_fn);
+    TEST_ASSERT(woort_CodeEnv_set_const_extern_function(cenv, cfn, sumThree_fn, NULL, NULL));
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);
 
@@ -1594,9 +1594,9 @@ static void test_return_macros(void)
     const woort_Bytecode* entry_addr;
     (void)woort_CodeEnv_query_function(cenv, f_main, &entry_addr);
     woort_CodeEnv_lock(cenv);
-    woort_CodeEnv_set_const_extern_function(cenv, cfn_int, return_int_fn);
-    woort_CodeEnv_set_const_extern_function(cenv, cfn_real, return_real_fn);
-    woort_CodeEnv_set_const_extern_function(cenv, cfn_bool, return_bool_fn);
+    TEST_ASSERT(woort_CodeEnv_set_const_extern_function(cenv, cfn_int, return_int_fn, NULL, NULL));
+    TEST_ASSERT(woort_CodeEnv_set_const_extern_function(cenv, cfn_real, return_real_fn, NULL, NULL));
+    TEST_ASSERT(woort_CodeEnv_set_const_extern_function(cenv, cfn_bool, return_bool_fn, NULL, NULL));
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);
 
@@ -1876,7 +1876,7 @@ static void test_abort_and_yield(void)
     (void)woort_CodeEnv_query_function(cenv, f_main, &entry_addr);
     woort_CodeEnv_lock(cenv);
     woort_CodeEnv_set_const_int(cenv, c_arg, 999);
-    woort_CodeEnv_set_const_extern_function(cenv, cfn_abort, capture_int_fn);
+    TEST_ASSERT(woort_CodeEnv_set_const_extern_function(cenv, cfn_abort, capture_int_fn, NULL, NULL));
     woort_CodeEnv_set_const_script_closure(cenv, c_entry, entry_addr);
     woort_CodeEnv_unlock(cenv);
 

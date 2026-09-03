@@ -274,10 +274,12 @@ void woort_CodeEnv_set_const_script_function(
         WOORT_CONST_TYPE_SCRIPT_FUNC, NULL, NULL);
 }
 
-void woort_CodeEnv_set_const_extern_function(
+WOORT_NODISCARD bool woort_CodeEnv_set_const_extern_function(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
-    woort_NativeFunction val)
+    woort_NativeFunction val,
+    /* OPTIONAL */ const char* lib_name,
+    /* OPTIONAL */ const char* func_name)
 {
     assert(code_env != NULL);
     assert((size_t)cidx < code_env->m_const_records.m_size);
@@ -286,8 +288,8 @@ void woort_CodeEnv_set_const_extern_function(
     v.m_native_function = val;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
-    (void)woort_CodeEnv_set_const_record(code_env, cidx,
-        WOORT_CONST_TYPE_EXTERN_FUNC, NULL, NULL);
+    return woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_EXTERN_FUNC, lib_name, func_name);
 }
 
 void woort_CodeEnv_set_const_script_closure(
@@ -312,10 +314,12 @@ void woort_CodeEnv_set_const_script_closure(
         WOORT_CONST_TYPE_SCRIPT_CLOSURE, NULL, NULL);
 }
 
-void woort_CodeEnv_set_const_extern_closure(
+WOORT_NODISCARD bool woort_CodeEnv_set_const_extern_closure(
     woort_CodeEnv* code_env,
     woort_IRConstantIndex cidx,
-    woort_NativeFunction val)
+    woort_NativeFunction val,
+    /* OPTIONAL */ const char* lib_name,
+    /* OPTIONAL */ const char* func_name)
 {
     assert(code_env != NULL);
     assert((size_t)cidx < code_env->m_const_records.m_size);
@@ -330,8 +334,8 @@ void woort_CodeEnv_set_const_extern_closure(
     v.m_closure = closure;
 
     woort_GC_mixed_write_barrier_value(&code_env->m_data_begin[cidx], v);
-    (void)woort_CodeEnv_set_const_record(code_env, cidx,
-        WOORT_CONST_TYPE_EXTERN_CLOSURE, NULL, NULL);
+    return woort_CodeEnv_set_const_record(code_env, cidx,
+        WOORT_CONST_TYPE_EXTERN_CLOSURE, lib_name, func_name);
 }
 
 void woort_CodeEnv_set_const_box_int(
