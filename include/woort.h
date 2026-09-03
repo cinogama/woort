@@ -3069,6 +3069,7 @@ WOORT_API void woort_set_bool(
 WOORT_API void woort_set_string(
     woort_StackValue dst, woort_U8CString src);
 
+/** @brief Set a stack slot to a string built from a printf-style @p fmt and arguments. */
 WOORT_API void woort_set_string_fmt(
     woort_StackValue dst, woort_U8CString fmt, ...);
 
@@ -3190,6 +3191,7 @@ WOORT_API void woort_set_union_bool(
 WOORT_API void woort_set_union_string(
     woort_StackValue dst, woort_Int id, woort_U8CString src);
 
+/** @brief Set union to a string variant built from a printf-style @p fmt and arguments. */
 WOORT_API void woort_set_union_string_fmt(
     woort_StackValue dst, woort_Int id, woort_U8CString fmt, ...);
 
@@ -5869,7 +5871,9 @@ WOORT_NODISCARD WOORT_API bool woort_u8stridx(
 /** @brief Opaque handle to a REPL printer that buffers serialized Woolang values and flushes them as UTF-8 text. */
 typedef struct woort_REPLPrinter woort_REPLPrinter;
 
-/** @brief Callback invoked by woort_REPLPrinter_flush() to deliver flushed UTF-8 text. Parameters are the text buffer and its length in bytes. */
+/** @brief Callback invoked by woort_REPLPrinter_flush() to deliver flushed UTF-8 text.
+ *         Parameters are the NUL-terminated text buffer, its length in bytes (excluding the terminator),
+ *         and the user pointer given as @p param to woort_REPLPrinter_create(). */
 typedef void(*woort_REPLPrinter_ResultCallback)(const char*, size_t, void*);
 
 /** @brief Outcome codes returned by woort_REPLPrinter_flush(). */
@@ -5885,6 +5889,7 @@ typedef enum woort_REPLPrinter_FlushResult
 /**
  * @brief Create a new REPL printer.
  * @param callback   Optional callback invoked on flush; if NULL, flushed text is written to stdout.
+ * @param param      User pointer stored in the printer and passed back as the callback's third argument; never dereferenced.
  * @param out_printer Output handle receiving the newly created printer.
  * @return true on success, false on allocation failure.
  */
