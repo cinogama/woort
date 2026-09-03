@@ -24,6 +24,7 @@ void woort_GCMap_clear(woort_GCMap* gcmap);
 WOORT_NODISCARD bool woort_GCMap_erase(woort_GCMap* gcmap, woort_DynBox key);
 WOORT_NODISCARD bool woort_GCMap_get(woort_GCMap* gcmap, woort_DynBox key, woort_DynBox* out_val);
 WOORT_NODISCARD bool woort_GCMap_set(woort_GCMap* gcmap, woort_DynBox key, woort_DynBox val);
+WOORT_NODISCARD bool woort_GCMap_contains(woort_GCMap* gcmap, woort_DynBox key);
 
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_bucket_val_by_int(
     woort_GCMap* gcmap, woort_Int key);

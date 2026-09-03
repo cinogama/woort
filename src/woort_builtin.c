@@ -237,17 +237,11 @@ static woort_api woort_builtin_input_read_s(void)
         if (c != EOF)
             (void)woort_conin_ungetc(c);
     }
-
     (void)woort_vm_swap(this_vm);
 
-    {
-        /* EOF / empty input -> "" (avoid passing NULL to woort_ret_buffer,
-           which would trigger memcpy(_, NULL, 0) UB per C11 7.24.2.1) */
-        const char* data = (vec.m_size == 0) ? "" : vec.m_data;
-        const woort_api r = woort_ret_buffer(data, vec.m_size);
-        woort_vector_deinit(&vec);
-        return r;
-    }
+    const woort_api r = woort_ret_buffer(vec.m_data, vec.m_size);
+    woort_vector_deinit(&vec);
+    return r;
 }
 static woort_api woort_builtin_input_readline(void)
 {
@@ -261,7 +255,7 @@ static woort_api woort_builtin_input_readline(void)
     if (line == NULL)
     {
         /* EOF -> empty string */
-        return woort_ret_buffer("", 0);
+        return woort_ret_buffer(NULL, 0);
     }
 
     {

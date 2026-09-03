@@ -16,8 +16,8 @@
 static woort_AtomicPtr /* OPTIONAL woort_PanicHandlerFunction */
 g_panic_handler_callback = NULL;
 
-WOORT_NODISCARD static bool _woort_diagnosis_str_equal(
-    const char* a, const char* b)
+WOORT_NODISCARD static bool _woort_diagnosis_str_may_null_equal(
+    /* OPTIONAL */ const char* a, /* OPTIONAL */ const char* b)
 {
     if (a == b)
         return true;
@@ -30,9 +30,9 @@ WOORT_NODISCARD static bool _woort_diagnosis_trace_equal(
     const woort_VMRuntime_TraceCallstack* a,
     const woort_VMRuntime_TraceCallstack* b)
 {
-    if (!_woort_diagnosis_str_equal(a->m_function_name, b->m_function_name))
+    if (!_woort_diagnosis_str_may_null_equal(a->m_function_name, b->m_function_name))
         return false;
-    if (!_woort_diagnosis_str_equal(a->m_file_or_lib_name, b->m_file_or_lib_name))
+    if (!_woort_diagnosis_str_may_null_equal(a->m_file_or_lib_name, b->m_file_or_lib_name))
         return false;
     if (a->m_has_location != b->m_has_location
         || a->m_location_begin[0] != b->m_location_begin[0]

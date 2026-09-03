@@ -184,7 +184,9 @@ WOORT_NODISCARD static bool _woort_WAIPO_BreakpointCollection_add_user_breakpoin
     /* OPTIONAL */ const char* desc_fmt,
     va_list args)
 {
-    if (ips == NULL || ip_count == 0)
+    assert(ips != NULL);
+
+    if (ip_count == 0)
         return false;
 
     woort_WAIPO_UserBreakpoint ub;

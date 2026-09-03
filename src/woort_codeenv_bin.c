@@ -445,11 +445,11 @@ static bool _save_resolve_extern_names(
     }
 
     woort_Dylib* found_lib = NULL;
-    if (!woort_Dylib_find_by_resolved_func((void*)nf, &found_lib) || found_lib == NULL)
+    if (!woort_Dylib_find_by_resolved_func((void*)nf, &found_lib))
         return false;
 
     const char* resolved_name = NULL;
-    if (!woort_Dylib_get_function_name(found_lib, (void*)nf, &resolved_name) || resolved_name == NULL)
+    if (!woort_Dylib_get_function_name(found_lib, (void*)nf, &resolved_name))
         return false;
 
     *out_lib_name = found_lib->m_name;
@@ -1311,8 +1311,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
         (size_t)code_size,
         (size_t)constant_count,
         (size_t)(data_count - constant_count),
-        &cenv)
-        || cenv == NULL)
+        &cenv))
     {
         free(codes_from_bin);
         return WOORT_CODEENV_RESTORE_FAIL_CREATE_CODEENV;
@@ -1438,8 +1437,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
                     goto _restore_fail;
                 }
                 /* OK 或 ALREADY_EXIST：写入 lib 指针。 */
-                if (slot != NULL)
-                    *(woort_Dylib**)slot = lib;
+                *(woort_Dylib**)slot = lib;
             }
 
             /* 释放本次 woort_dylib_load 的引用；CodeEnv 已 keep 一份。 */
@@ -1561,7 +1559,7 @@ WOORT_NODISCARD woort_CodeEnv_RestoreResult woort_CodeEnv_restore_binary(
             }
 
             woort_Dylib** lib_slot = NULL;
-            if (!woort_hashmap_find(&lib_map, &lib_name, (void**)&lib_slot) || lib_slot == NULL)
+            if (!woort_hashmap_find(&lib_map, &lib_name, (void**)&lib_slot))
             {
                 WOORT_DEBUG("CodeEnv restore: cannot find lib '%s' for const %zu.", lib_name, i);
                 result = WOORT_CODEENV_RESTORE_FAIL_EXTERN_RESOLVE;

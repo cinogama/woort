@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <inttypes.h>
+#include <assert.h>
 
 typedef enum woort_WAIPO_CommandResult
 {
@@ -294,7 +295,9 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_list(
 
 WOORT_NODISCARD static bool _woort_WAIPO_is_numeric(const char* s)
 {
-    if (s == NULL || *s == '\0')
+    assert(s != NULL);
+
+    if (*s == '\0')
         return false;
 
     for (const char* p = s; *p != '\0'; ++p)
@@ -380,7 +383,7 @@ static void _woort_WAIPO_print_source_file(
     size_t to_line)
 {
     woort_VFile* f = NULL;
-    if (!woort_vfile_open(filepath, &f) || f == NULL)
+    if (!woort_vfile_open(filepath, &f))
     {
         (void)printf("Cannot open source: '%s'.\n", filepath);
         return;
@@ -405,7 +408,7 @@ static void _woort_WAIPO_print_source_file(
             *(const woort_Bytecode* const*)woort_vector_at(&bp_ips, i);
 
         woort_CodeEnv* bp_cenv = NULL;
-        if (!woort_CodeEnv_find(ip, &bp_cenv) || bp_cenv == NULL)
+        if (!woort_CodeEnv_find(ip, &bp_cenv))
             continue;
 
         woort_SourceLocation bp_loc;
@@ -1051,7 +1054,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_global(
     }
 
     woort_CodeEnv* cenv = NULL;
-    if (!woort_CodeEnv_find(trace.m_code_addr, &cenv) || cenv == NULL)
+    if (!woort_CodeEnv_find(trace.m_code_addr, &cenv))
     {
         (void)printf("Cannot locate CodeEnv for current frame.\n");
         return WOORT_WAIPO_CMD_REINPUT;

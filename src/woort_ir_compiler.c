@@ -34,9 +34,9 @@
   * 私有类型
   * ======================================================================== */
 
-/*
- * 跳转修正记录
-  */
+  /*
+   * 跳转修正记录
+    */
 typedef struct _JumpPatch
 {
     uint32_t m_block_idx;       /* 跳转指令所在 block 的索引 */
@@ -1715,8 +1715,7 @@ static bool _emit_function(
              * 源码映射边界检测：当 srcloc_index 发生变化时，
              * 记录当前字节码偏移作为新源码位置的起始点。
              */
-            if (source_map_entries != NULL &&
-                op->m_srcloc_index != last_srcloc_index &&
+            if (op->m_srcloc_index != last_srcloc_index &&
                 op->m_srcloc_index != WOORT_SRCLOC_INVALID_INDEX)
             {
                 /* 当前全局字节码偏移：
@@ -2248,7 +2247,7 @@ static bool _compile_function(
          * PUSHRCHK 位于函数入口偏移 0，为其补充 source_map 条目。
          * 使用函数首条 IR 指令的源码位置作为 PUSHRCHK 的位置信息。
          */
-        if (source_map_entries != NULL && source_map_entries->m_size > 0)
+        if (source_map_entries->m_size > 0)
         {
             const woort_SourceMap_Entry* first =
                 (const woort_SourceMap_Entry*)woort_vector_at(source_map_entries, 0);
@@ -2410,7 +2409,7 @@ WOORT_NODISCARD bool woort_IRCompiler_finish(woort_IRCompiler* c, woort_CodeEnv*
      * 编译完成后统一转移到 CodeEnv。
      */
 
-    /* 为每个函数分配临时的映射条目收集器 */
+     /* 为每个函数分配临时的映射条目收集器 */
     woort_Vector /* woort_Function_SourceMap */ function_source_map;
     woort_vector_init(&function_source_map, sizeof(woort_Function_SourceMap));
 

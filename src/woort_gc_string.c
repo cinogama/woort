@@ -39,13 +39,15 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_string_for_env_constan
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_make_string(const char* str, size_t len)
 {
-    woort_GCString* const gcstr = 
+    woort_GCString* const gcstr =
         woort_GCUnit_alloc_delay_init(sizeof(woort_GCString) + len + 1);
 
     gcstr->m_gc_unit.m_proxy = &WOORT_GCSTRING_UNIT_PROXY;
     gcstr->m_length = len;
 
-    memcpy(gcstr->m_content, str, len);
+    if (len != 0)
+        memcpy(gcstr->m_content, str, len);
+
     gcstr->m_content[len] = '\0';
 
     woort_GCUnit_init_delay_alloc(O, gcstr);
@@ -78,7 +80,7 @@ WOORT_NODISCARD const woort_GCString* woort_GCString_make_format_va(
 
 WOORT_NODISCARD const woort_GCString* woort_GCString_add_string(const woort_GCString* a, const woort_GCString* b)
 {
-    woort_GCString* const gcstr = 
+    woort_GCString* const gcstr =
         woort_GCUnit_alloc_delay_init(sizeof(woort_GCString) + a->m_length + b->m_length + 1);
 
     gcstr->m_gc_unit.m_proxy = &WOORT_GCSTRING_UNIT_PROXY;

@@ -2086,7 +2086,7 @@ WOORT_NODISCARD bool woort_map_contains(
     woort_GCMap* const gcmap = _WOORT_API_STACK(src).m_map;
     assert(gcmap != NULL);
 
-    return woort_GCMap_get(gcmap, _WOORT_API_STACK(key_boxed).m_dynamic, NULL);
+    return woort_GCMap_contains(gcmap, _WOORT_API_STACK(key_boxed).m_dynamic);
 }
 
 WOORT_NODISCARD bool woort_map_contains_int(

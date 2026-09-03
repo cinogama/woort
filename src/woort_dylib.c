@@ -192,7 +192,7 @@ static bool _woort_dylib_resolved_funcs_foreach_free(
 static void _woort_dylib_try_record_resolved(
     woort_Dylib* lib,
     const char* funcname,
-    void* func_addr)
+    /* OPTIONAL */ void* func_addr)
 {
     if (func_addr == NULL)
         return;

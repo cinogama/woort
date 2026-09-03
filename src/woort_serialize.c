@@ -834,8 +834,7 @@ WOORT_NODISCARD bool _woort_serialize_dynbox_to_buf_for_debug(
         if (gcclosure->m_script_function != NULL)
         {
             woort_CodeEnv* cenv = NULL;
-            if (woort_CodeEnv_find(gcclosure->m_script_function, &cenv)
-                && cenv != NULL)
+            if (woort_CodeEnv_find(gcclosure->m_script_function, &cenv))
             {
                 const uint32_t offset = (uint32_t)(
                     gcclosure->m_script_function - cenv->m_code_begin);

@@ -3045,9 +3045,14 @@ WOORT_API void woort_set_string(
 WOORT_API void woort_set_string_fmt(
     woort_StackValue dst, woort_U8CString fmt, ...);
 
-/** @brief Set a stack slot to a byte buffer value (copied). */
+/**
+ * @brief Set a stack slot to a byte buffer value (copied).
+ * @param dst Target stack slot.
+ * @param src Pointer to the buffer data; may be NULL if @p len is 0.
+ * @param len Length of the buffer in bytes.
+ */
 WOORT_API void woort_set_buffer(
-    woort_StackValue dst, const void* src, size_t len);
+    woort_StackValue dst, /* OPTIONAL */ const void* src, size_t len);
 
 /** @brief Set a stack slot to an empty vector. */
 WOORT_API void woort_set_vec(

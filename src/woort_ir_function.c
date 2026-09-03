@@ -162,11 +162,11 @@ static int _compare_intervals_by_start(const void* a, const void* b)
  */
 static bool _should_allocate_interval(
     const woort_IRValue* v,
-    const uint32_t* const_placement_block,
+    /* OPTIONAL */ const uint32_t* const_placement_block,
     uint32_t first_point)
 {
-    if (v == NULL)
-        return false;
+    assert(v != NULL);
+
     if (v->m_source == WOORT_IRVALUE_SOURCE_ARGUMENT)
         return false;
     if (v->m_source == WOORT_IRVALUE_SOURCE_CONST)
@@ -918,7 +918,9 @@ static void _record_def(
     (void)woort_bitset_set(def_set, val->m_id);
 }
 
-static bool _phase2_liveness_analysis(woort_IRFunction* f, const uint32_t* const_placement_block)
+static bool _phase2_liveness_analysis(
+    woort_IRFunction* f, 
+    /* OPTIONAL */ const uint32_t* const_placement_block)
 {
     const uint32_t vreg_count = f->m_next_vreg_id;
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
@@ -1127,7 +1129,7 @@ static bool _phase3b_const_optimization(woort_IRFunction* f)
 static bool _phase3_stack_allocation(
     woort_IRFunction* f,
     size_t* out_stack_space,
-    const uint32_t* const_placement_block)
+    /* OPTIONAL */ const uint32_t* const_placement_block)
 {
     const uint32_t vreg_count = f->m_next_vreg_id;
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;

@@ -278,9 +278,16 @@ WOORT_NODISCARD bool woort_GCMap_get(woort_GCMap* gcmap, woort_DynBox key, woort
     if (idx == NULL_BUCKET_INDEX)
         return false;
 
-    if (out_val != NULL)
-        *out_val = gcmap->m_buckets[idx].m_val;
+    assert(out_val != NULL);
+    *out_val = gcmap->m_buckets[idx].m_val;
+
     return true;
+}
+
+WOORT_NODISCARD bool woort_GCMap_contains(woort_GCMap* gcmap, woort_DynBox key)
+{
+    const uint32_t idx = _woort_GCMap_find_bucket(gcmap, key, NULL);
+    return idx != NULL_BUCKET_INDEX;
 }
 
 WOORT_NODISCARD bool woort_GCMap_insert(woort_GCMap* gcmap, woort_DynBox key, woort_DynBox val)

@@ -74,11 +74,11 @@ static /* OPTIONAL */ woort_VFSEntry* _woort_vfs_find_entry(
     return NULL;
 }
 
- /*
- Free the storage owned by an entry (filepath, data, and the entry itself).
- The entry must already have been removed from the registry and have a
- reference count of zero.
- */
+/*
+Free the storage owned by an entry (filepath, data, and the entry itself).
+The entry must already have been removed from the registry and have a
+reference count of zero.
+*/
 static void _woort_vfs_entry_free(woort_VFSEntry* entry)
 {
     assert(entry != NULL);
@@ -87,12 +87,12 @@ static void _woort_vfs_entry_free(woort_VFSEntry* entry)
     free(entry);
 }
 
- /*
- Drop one reference to an entry.  If the reference count falls to zero the
- entry is freed immediately.  Safe to call with or without @p g_vfs_lock held:
- when the count reaches zero no other thread can hold a reference, so the
- entry is unreachable and freeing without the lock is safe.
- */
+/*
+Drop one reference to an entry.  If the reference count falls to zero the
+entry is freed immediately.  Safe to call with or without @p g_vfs_lock held:
+when the count reaches zero no other thread can hold a reference, so the
+entry is unreachable and freeing without the lock is safe.
+*/
 static void _woort_vfs_entry_unref(woort_VFSEntry* entry)
 {
     assert(entry != NULL);
@@ -346,7 +346,9 @@ static bool _woort_vfs_try_search_dir(
     const char* search_dir,
     /* OPTIONAL */ char** out_resolved_path)
 {
-    if (search_dir == NULL || search_dir[0] == '\0')
+    assert(search_dir != NULL);
+
+    if (search_dir[0] == '\0')
         return false;
 
     /* Build: search_dir + "/" + filepath */
@@ -740,14 +742,9 @@ void woort_vfile_close(woort_VFile* file)
     assert(file != NULL);
 
     if (file->m_type == WOORT_VFILE_TYPE_VIRTUAL)
-    {
         woort_vfs_close(file->m_virtual.m_entry);
-    }
     else if (file->m_type == WOORT_VFILE_TYPE_REAL)
-    {
-        if (file->m_real_file != NULL)
-            fclose(file->m_real_file);
-    }
+        fclose(file->m_real_file);
     /* WOORT_VFILE_TYPE_READER: external buffer, nothing to free */
 
     free(file);
