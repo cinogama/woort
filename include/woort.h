@@ -5794,6 +5794,7 @@ WOORT_NODISCARD WOORT_API bool woort_u16losurrogate(char16_t ch);
  * @brief Escape a UTF-8 string into a quoted Woolang string literal.
  *
  * The returned buffer is malloc-allocated and must be freed with woort_free().
+ * 
  * @param force_unicode  If non-zero, always emit \uXXXX escapes for non-print 
         character.
  * @return NUL-terminated quoted string literal, or NULL on allocation failure.
@@ -5805,6 +5806,7 @@ WOORT_NODISCARD WOORT_API /* OPTIONAL */ char* woort_u8enstring(
  * @brief Unescape a Woolang string literal (with or without surrounding quotes).
  *
  * The returned buffer is malloc-allocated and must be freed with woort_free().
+ * 
  * @param out_len  Optional receiver for the decoded byte length.
  * @return NUL-terminated decoded string, or NULL on allocation failure.
  */

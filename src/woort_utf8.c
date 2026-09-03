@@ -334,8 +334,10 @@ WOORT_NODISCARD char* woort_u8destring(woort_string_t enu8str_zero_term, /* OPTI
         if (pch == '\\')
         {
             const char pescch = *(++p);
+
             switch (pescch)
             {
+            case 0: result[result_len++] = '\\'; --p; break;
             case 'a': result[result_len++] = '\a'; break;
             case 'b': result[result_len++] = '\b'; break;
             case 'f': result[result_len++] = '\f'; break;
