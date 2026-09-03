@@ -22,7 +22,7 @@
 
 typedef struct woort_JITContext {
     woort_RWSpinlock m_jit_backend_mx;
-    const woort_JIT_Backend* m_jit_backend;
+    /* OPTIONAL */ const woort_JIT_Backend* m_jit_backend;
 } woort_JITContext;
 
 static woort_JITContext g_jit_context;

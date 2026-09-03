@@ -78,6 +78,7 @@ static size_t _woort_shrink_target_size(
 
 static void _woort_VMRuntime_destroy(woort_VMRuntime* vm)
 {
+    /* Failed to create? check them if not exist. */
     if (vm->m_stack != NULL)
         free(vm->m_stack);
 

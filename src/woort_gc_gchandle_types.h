@@ -15,7 +15,7 @@ struct woort_GCHandle
         woort_Value m_hold_value;
         woort_GCHandle_UserMarkFunction m_user_mark_callback;
     };
-    void* m_user_handle;
+    /* OPTIONAL, NULL if closed */ void* m_user_handle;
     woort_GCHandle_UserDestructFunction m_user_destruct_callback;
     /* OPTIONAL */ woort_Dylib* m_dylib;
 

@@ -16,8 +16,8 @@ struct woort_GCPin
     /* =========================== */
 
     size_t          m_size;
-    woort_GCPin*    m_prev;
-    woort_GCPin*    m_next;
+    /* OPTIONAL */ woort_GCPin*    m_prev;
+    /* OPTIONAL */ woort_GCPin*    m_next;
     woort_Value     m_datas[];
 
 };
