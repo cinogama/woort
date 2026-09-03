@@ -5158,7 +5158,7 @@ WOORT_NODISCARD WOORT_API bool woort_WAIPO_Debugger_delete_breakpoint(
  *
  * @param debugger  The debugger session. Must not be NULL.
  */
-WOORT_NODISCARD WOORT_API void woort_WAIPO_Debugger_clear_breakpoint(
+WOORT_API void woort_WAIPO_Debugger_clear_breakpoint(
     woort_WAIPO_Debugger* debugger);
 
 /**
