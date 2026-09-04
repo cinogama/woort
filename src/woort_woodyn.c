@@ -409,6 +409,8 @@
     WOODYN_WRAP(woort_VMRuntime_Debugger_terminate_all_vm)                  \
     WOODYN_WRAP(woort_VMRuntime_Debugger_try_terminate_vm)                  \
     WOODYN_WRAP(woort_VMRuntime_Debugger_serialize_value)                   \
+    WOODYN_WRAP(woort_VMRuntime_Debugger_detach)                            \
+    WOODYN_WRAP(woort_VMRuntime_Debugger_detach_and_drain)                  \
     WOODYN_WRAP(woort_ctrlc_setup)                                          \
     WOODYN_WRAP(woort_ctrlc_teardown)                                       \
     WOODYN_WRAP(woort_set_panic_callback)                                   \

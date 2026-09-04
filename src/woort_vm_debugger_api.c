@@ -1,3 +1,5 @@
+#include "woort.h"
+
 #include "woort_vm_debugger_api.h"
 #include "woort_atomic.h"
 #include "woort_spin.h"
@@ -73,7 +75,30 @@ static void _woort_VMRuntime_Debugger_disref(woort_VMRuntime_Debugger* debugger)
     }
 }
 
-void woort_VMRuntime_Debugger_detach(void)
+static void _woort_VMRuntime_Debugger_drain_and_release(
+    woort_VMRuntime_Debugger* debugger)
+{
+    do
+    {
+        uint32_t expected = 1;
+        if (woort_atomic_compare_exchange_weak_explicit(
+            &debugger->m_ref_count,
+            &expected,
+            0,
+            WOORT_ATOMIC_MEMORY_ORDER_RELAXED,
+            WOORT_ATOMIC_MEMORY_ORDER_RELAXED))
+        {
+            break;
+        }
+        /* Wait for 10ms */
+        woort_thread_sleep_ms(10);
+    } while (1);
+    _woort_VMRuntime_Debugger_release_impl(debugger);
+}
+
+WOORT_NODISCARD
+static /* OPTIONAL */ woort_VMRuntime_Debugger*
+_woort_VMRuntime_Debugger_detach(void)
 {
     woort_VMRuntime_Debugger* origin_debugger;
     woort_rwspinlock_write_lock(&g_debugger_rwspin);
@@ -83,9 +108,29 @@ void woort_VMRuntime_Debugger_detach(void)
     }
     woort_rwspinlock_write_unlock(&g_debugger_rwspin);
 
+    return origin_debugger;
+}
+
+void woort_VMRuntime_Debugger_detach(void)
+{
+    /* OPTIONAL */ woort_VMRuntime_Debugger* const origin_debugger =
+        _woort_VMRuntime_Debugger_detach();
+
     if (origin_debugger != NULL)
     {
         _woort_VMRuntime_Debugger_disref(origin_debugger);
+    }
+}
+
+void woort_VMRuntime_Debugger_detach_and_drain(void)
+{
+    /* OPTIONAL */ woort_VMRuntime_Debugger* const origin_debugger =
+        _woort_VMRuntime_Debugger_detach();
+
+    if (origin_debugger != NULL)
+    {
+        _woort_VMRuntime_Debugger_drain_and_release(
+            origin_debugger);
     }
 }
 

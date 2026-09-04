@@ -4836,6 +4836,27 @@ typedef woort_WAIPO_TrapEndBehavior(*woort_WAIPO_Debugger_TrapCallback)(
     woort_WAIPO_Debugger*, woort_VMRuntime*);
 
 /**
+ * @brief Detach the currently attached debugger, without waiting.
+ *
+ * Removes whatever debugger woort_WAIPO_Debugger_attach() installed and
+ * drops the runtime's own reference to it; a no-op when no debugger is
+ * attached.  New VM traps no longer reach the debugger, but VMs already
+ * stopped inside a trap callback keep it alive: its context destroy
+ * callback runs only after the last such trap callback returns.
+ */
+WOORT_API void woort_VMRuntime_Debugger_detach(void);
+
+/**
+ * @brief Detach the currently attached debugger and wait for its release.
+ *
+ * Like woort_VMRuntime_Debugger_detach(), but blocks until every in-flight
+ * trap callback has returned, so the debugger and its context destroy
+ * callback are fully finished when this function returns.  Must not be
+ * called from inside a trap callback of the debugger being detached.
+ */
+WOORT_API void woort_VMRuntime_Debugger_detach_and_drain(void);
+
+/**
  * @brief Attach a WAIPO (Watch And Inspect Program Operation) debugger to woort.
  *
  * Allocates a debugger instance and registers it into whole woort.
