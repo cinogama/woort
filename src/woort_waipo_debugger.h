@@ -3,6 +3,7 @@
 /*
 woort_waipo_debugger.h
 */
+#include "woort.h"
 
 #include "woort_hashmap.h"
 #include "woort_vm.h"
@@ -20,11 +21,11 @@ typedef struct woort_WAIPO_UserBreakpoint
     /* 一条源码行可能对应多条指令（如 for 头部），断点持有全部地址 */
     woort_Vector /* const woort_Bytecode* */ m_ips;
 
-    /* 0 起始源码行号；SIZE_MAX 表示无行号信息（函数名断点） */
+    /* 0 起始源码行号；WOORT_WAIPO_DEBUGGER_BREAKPOINT_NO_LINE 表示无行号信息（函数名断点） */
     size_t m_line;
 
     /* 断点名：源码行断点为文件路径，函数名断点为函数名 */
-    char m_desc[256];
+    char m_desc[WOORT_WAIPO_DEBUGGER_BREAKPOINT_INFO_NAME_LEN];
 } woort_WAIPO_UserBreakpoint;
 
 typedef struct woort_WAIPO_BreakpointCollection

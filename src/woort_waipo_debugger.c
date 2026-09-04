@@ -172,7 +172,7 @@ static void _woort_WAIPO_BreakpointCollection_cancel_debug_break_at_without_lock
  * 向断点集合添加一条用户断点：占用 ips 给出的全部地址并记入无条件断点表
  * （m_debug_breakpoints，任意 VM 命中即中断），任一地址写入失败则整体回滚
  * （返回 false）。desc_fmt 为 NULL 时描述留空。
- * line 为 0 起始源码行号，SIZE_MAX 表示无行号信息（函数名断点）。
+ * line 为 0 起始源码行号，WOORT_WAIPO_DEBUGGER_BREAKPOINT_NO_LINE 表示无行号信息（函数名断点）。
  * 成功时分配稳定递增的断点编号，经 out_id（可选）返回给调用方显示。
  */
 WOORT_NODISCARD static bool _woort_WAIPO_BreakpointCollection_add_user_breakpoint_impl_without_lock(
@@ -331,14 +331,19 @@ _woort_WAIPO_BreakpointCollection_get_user_breakpoint_at_without_lock(
 /*
  * 从用户断点记录填充公开的断点信息。m_filename 指向断点记录自带的描述缓冲
  * （该断点被删除或调试器卸载前有效），描述为空时置 NULL；m_line 为 0 起始
- * 源码行号，无行号信息（函数名断点）时为 SIZE_MAX。
+ * 源码行号，无行号信息（函数名断点）时为 WOORT_WAIPO_DEBUGGER_BREAKPOINT_NO_LINE。
  */
 static void _woort_WAIPO_Debugger_set_breakpoint_info(
     woort_WAIPO_Debugger_BreakpointInfo* info,
     const woort_WAIPO_UserBreakpoint* ub)
 {
     info->m_id = ub->m_id;
-    info->m_filename = ub->m_desc[0] != '\0' ? ub->m_desc : NULL;
+    
+    _Static_assert(
+        WOORT_WAIPO_DEBUGGER_BREAKPOINT_INFO_NAME_LEN == sizeof(info->m_name)
+        && sizeof(info->m_name) == sizeof(ub->m_desc), "Size must be match.");
+    memcpy(info->m_name, ub->m_desc, sizeof(info->m_name));
+
     info->m_line = ub->m_line;
 }
 
@@ -1718,7 +1723,7 @@ WOORT_NODISCARD bool woort_WAIPO_Debugger_set_function_breakpoint(
         &debugger->m_breakpoint_collection,
         (const woort_Bytecode* const*)ctx.m_ips.m_data,
         ctx.m_ips.m_size,
-        SIZE_MAX,
+        WOORT_WAIPO_DEBUGGER_BREAKPOINT_NO_LINE,
         out_id,
         "%s",
         function_name);

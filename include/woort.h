@@ -4935,6 +4935,9 @@ typedef uint64_t woort_WAIPO_Debugger_BreakpointId;
  */
 typedef uint64_t woort_WAIPO_Debugger_FrameId;
 
+#define WOORT_WAIPO_DEBUGGER_BREAKPOINT_INFO_NAME_LEN 256
+#define WOORT_WAIPO_DEBUGGER_BREAKPOINT_NO_LINE SIZE_MAX
+
 /**
  * @brief User-breakpoint descriptor filled by the breakpoint query interfaces.
  */
@@ -4942,13 +4945,12 @@ typedef struct woort_WAIPO_Debugger_BreakpointInfo
 {
     /** @brief Stable breakpoint identifier. */
     woort_WAIPO_Debugger_BreakpointId   m_id;
-    /* OPTIONAL */ const char*          m_filename; /**< @brief Source file path (source
-                                                         breakpoint) or function name
-                                                         (function breakpoint); points into
-                                                         the breakpoint's own record and
-                                                         stays valid until any breakpoint
-                                                         is modified. */
-    /* 0-based source line; SIZE_MAX = no line info (function breakpoint) */
+    /**< @brief Source file path (source breakpoint) or function name (function breakpoint) */
+    char m_name[WOORT_WAIPO_DEBUGGER_BREAKPOINT_INFO_NAME_LEN]; 
+    /* 
+    0-based source line; WOORT_WAIPO_DEBUGGER_BREAKPOINT_NO_LINE = no line 
+    info (function breakpoint) 
+    */
     size_t                              m_line;
 
 }woort_WAIPO_Debugger_BreakpointInfo;

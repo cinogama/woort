@@ -1162,13 +1162,13 @@ static bool _woort_WAIPO_list_breakpoint_callback(
     if (ctx->m_count == 0)
         (void)printf("Id   Desc\n");
 
-    if (info->m_filename == NULL)
+    if (info->m_name[0] == 0)
         (void)printf("%-4" PRIu64 " <unknown>\n", info->m_id);
-    else if (info->m_line != SIZE_MAX)
+    else if (info->m_line != WOORT_WAIPO_DEBUGGER_BREAKPOINT_NO_LINE)
         (void)printf("%-4" PRIu64 " %s:%zu\n",
-            info->m_id, info->m_filename, info->m_line + 1);
+            info->m_id, info->m_name, info->m_line + 1);
     else
-        (void)printf("%-4" PRIu64 " %s\n", info->m_id, info->m_filename);
+        (void)printf("%-4" PRIu64 " %s\n", info->m_id, info->m_name);
 
     ++ctx->m_count;
     return true;
