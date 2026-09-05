@@ -468,10 +468,10 @@ typedef struct woort_SourceLocation
 {
     /* OPTIONAL */ const char* m_filepath; /**< @brief Source file path (may be NULL). */
 
-    uint32_t m_begin_line;   /**< @brief Start line number (1-based). */
-    uint32_t m_begin_column; /**< @brief Start column number (1-based). */
-    uint32_t m_end_line;     /**< @brief End line number (1-based). */
-    uint32_t m_end_column;   /**< @brief End column number (1-based). */
+    uint32_t m_begin_line;   /**< @brief Start line number (0-based). */
+    uint32_t m_begin_column; /**< @brief Start column number (0-based). */
+    uint32_t m_end_line;     /**< @brief End line number (0-based). */
+    uint32_t m_end_column;   /**< @brief End column number (0-based). */
 
 } woort_SourceLocation;
 
