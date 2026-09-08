@@ -4004,6 +4004,52 @@ WOORT_NODISCARD WOORT_API bool woort_map_set_by_string(
     woort_U8CString key,
     woort_StackValue val_boxed);
 
+/**
+ * @brief Insert only if absent: if the key already exists, do nothing and
+ * return false (the existing value is left unmodified).
+ * @param src        Stack slot holding the map.
+ * @param key_boxed  Stack slot holding the boxed key.
+ * @param val_boxed  Stack slot holding the boxed value.
+ * @return true if the key was newly inserted, false if the key already existed.
+ */
+WOORT_NODISCARD WOORT_API bool woort_map_insert(
+    woort_StackValue src,
+    woort_StackValue key_boxed,
+    woort_StackValue val_boxed);
+
+/** @brief Insert-only with int key. Returns true if newly inserted,
+ *  false if the key already existed (map unmodified). */
+WOORT_NODISCARD WOORT_API bool woort_map_insert_by_int(
+    woort_StackValue src,
+    woort_Int key,
+    woort_StackValue val_boxed);
+
+/** @brief Insert-only with pointer key. Returns true if newly inserted,
+ *  false if the key already existed (map unmodified). */
+#define woort_map_insert_by_pointer(src, ptr, val_boxed) \
+    woort_map_insert_by_int((src), (woort_Int)(intptr_t)(ptr), (val_boxed))
+
+/** @brief Insert-only with real key. Returns true if newly inserted,
+ *  false if the key already existed (map unmodified). */
+WOORT_NODISCARD WOORT_API bool woort_map_insert_by_real(
+    woort_StackValue src,
+    woort_Real key,
+    woort_StackValue val_boxed);
+
+/** @brief Insert-only with bool key. Returns true if newly inserted,
+ *  false if the key already existed (map unmodified). */
+WOORT_NODISCARD WOORT_API bool woort_map_insert_by_bool(
+    woort_StackValue src,
+    bool key,
+    woort_StackValue val_boxed);
+
+/** @brief Insert-only with string key. Returns true if newly inserted,
+ *  false if the key already existed (map unmodified). */
+WOORT_NODISCARD WOORT_API bool woort_map_insert_by_string(
+    woort_StackValue src,
+    woort_U8CString key,
+    woort_StackValue val_boxed);
+
 /**@}*/
 
 /** @name Mapping Erase */

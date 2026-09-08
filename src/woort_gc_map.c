@@ -563,6 +563,131 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
     return &new_bucket->m_val;
 }
 
+/* ======================================================================
+ * 类型特化的插入函数：键已存在则不插入、不修改，返回 false
+ * ====================================================================== */
+
+WOORT_NODISCARD bool woort_GCMap_insert_by_int(
+    woort_GCMap* gcmap, woort_Int key, woort_DynBox val)
+{
+    /* 检查 key 是否已存在 */
+    if (woort_GCMap_get_bucket_val_by_int(gcmap, key) != NULL)
+        return false;
+
+    /* key 不存在，创建新的 bucket */
+    if (gcmap->m_size >= gcmap->m_mask)
+        woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
+
+    const size_t hash = _woort_hash_int(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    const uint32_t new_idx = (uint32_t)gcmap->m_size;
+    woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+
+    /* 初始化 m_key/m_val 为 nil，避免 mixed 写屏障标记脏的旧值 */
+    new_bucket->m_key.m_boxed = 0;
+    new_bucket->m_val.m_boxed = 0;
+    woort_DynBox_box_int_with_barrier(&new_bucket->m_key, key);
+
+    _woort_GCMap_link_bucket_to_head(gcmap, new_idx, entry_idx);
+
+    ++gcmap->m_size;
+    woort_GC_init_write_barrier_dynbox(&new_bucket->m_val, val);
+    return true;
+}
+
+WOORT_NODISCARD bool woort_GCMap_insert_by_real(
+    woort_GCMap* gcmap, woort_Real key, woort_DynBox val)
+{
+    /* 检查 key 是否已存在 */
+    if (woort_GCMap_get_bucket_val_by_real(gcmap, key) != NULL)
+        return false;
+
+    /* key 不存在，创建新的 bucket */
+    if (gcmap->m_size >= gcmap->m_mask)
+        woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
+
+    const size_t hash = _woort_hash_real(key);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    const uint32_t new_idx = (uint32_t)gcmap->m_size;
+    woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+
+    /* 初始化 m_key/m_val 为 nil，避免 mixed 写屏障标记脏的旧值 */
+    new_bucket->m_key.m_boxed = 0;
+    new_bucket->m_val.m_boxed = 0;
+    woort_DynBox_box_real_with_barrier(&new_bucket->m_key, key);
+
+    _woort_GCMap_link_bucket_to_head(gcmap, new_idx, entry_idx);
+
+    ++gcmap->m_size;
+    woort_GC_init_write_barrier_dynbox(&new_bucket->m_val, val);
+    return true;
+}
+
+WOORT_NODISCARD bool woort_GCMap_insert_by_bool(
+    woort_GCMap* gcmap, bool key, woort_DynBox val)
+{
+    /* 检查 key 是否已存在 */
+    if (woort_GCMap_get_bucket_val_by_bool(gcmap, key) != NULL)
+        return false;
+
+    /* key 不存在，创建新的 bucket */
+    if (gcmap->m_size >= gcmap->m_mask)
+        woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
+
+    const size_t hash = key ? 1 : 0;
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    const uint32_t new_idx = (uint32_t)gcmap->m_size;
+    woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+
+    /* 初始化 m_key/m_val 为 nil，避免 mixed 写屏障标记脏的旧值 */
+    new_bucket->m_key.m_boxed = 0;
+    new_bucket->m_val.m_boxed = 0;
+    woort_DynBox_box_bool_with_barrier(&new_bucket->m_key, key);
+
+    _woort_GCMap_link_bucket_to_head(gcmap, new_idx, entry_idx);
+
+    ++gcmap->m_size;
+    woort_GC_init_write_barrier_dynbox(&new_bucket->m_val, val);
+    return true;
+}
+
+WOORT_NODISCARD bool woort_GCMap_insert_by_string(
+    woort_GCMap* gcmap, const char* key, size_t len, woort_DynBox val)
+{
+    /* 检查 key 是否已存在 */
+    if (woort_GCMap_get_bucket_val_by_string(gcmap, key, len) != NULL)
+        return false;
+
+    /* key 不存在，创建新的 bucket */
+    if (gcmap->m_size >= gcmap->m_mask)
+        woort_GCMap_reserve(gcmap, gcmap->m_size + 1);
+
+    const size_t hash = woort_hash_string(key, len);
+    const size_t entry_idx = hash & gcmap->m_mask;
+
+    const woort_GCString* const str = woort_GCString_make_string(key, len);
+
+    const uint32_t new_idx = (uint32_t)gcmap->m_size;
+    woort_GCMap_Bucket* const new_bucket = &gcmap->m_buckets[new_idx];
+
+    /* 初始化 m_val 为 nil，避免 mixed 写屏障标记脏的旧值 */
+    new_bucket->m_val.m_boxed = 0;
+    {
+        woort_DynBox boxed;
+        boxed.m_boxed = _woort_gcunit_to_boxed((woort_GCUnit*)str);
+        woort_GC_init_write_barrier_dynbox(&new_bucket->m_key, boxed);
+    }
+
+    _woort_GCMap_link_bucket_to_head(gcmap, new_idx, entry_idx);
+
+    ++gcmap->m_size;
+    woort_GC_init_write_barrier_dynbox(&new_bucket->m_val, val);
+    return true;
+}
+
 WOORT_NODISCARD bool woort_GCMap_get_key_value_by_index(
     const woort_GCMap* gcmap,
     size_t index,

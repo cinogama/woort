@@ -2041,6 +2041,99 @@ static void test_map_detailed_ops(void)
     TEST_END();
 }
 
+/* ========== 测试: Map insert 语义（键已存在则不修改，返回 false） ========== */
+static void test_map_insert_ops(void)
+{
+    TEST_BEGIN("map_insert_if_absent_semantics");
+
+    woort_VMRuntime* vm;
+    TEST_ASSERT(woort_VMRuntime_create(&vm));
+    (void)woort_VMRuntime_swap(vm);
+
+    woort_StackValue sv;
+    TEST_ASSERT(woort_push_reserve(8, &sv));
+
+    woort_set_map(sv);
+    woort_set_int(sv + 1, 100);       /* 旧值 */
+    woort_set_int(sv + 2, 200);       /* 新值（不应覆盖旧值） */
+    woort_set_box_int(sv + 7, 77);    /* 装箱 int 键 */
+    static int s_pointer_key;         /* pointer 宏转发用键 */
+
+    /* --- 特化键：int --- */
+    bool inserted = woort_map_insert_by_int(sv, 10, sv + 1);
+    TEST_ASSERT(inserted == true);
+
+    inserted = woort_map_insert_by_int(sv, 10, sv + 2);
+    TEST_ASSERT(inserted == false);
+
+    TEST_ASSERT(woort_map_get_by_int(sv + 6, sv, 10));
+    TEST_ASSERT(woort_int(sv + 6) == 100);
+    TEST_ASSERT(woort_map_len(sv) == 1);
+
+    /* insert 失败不影响 set 更新 */
+    bool updated = woort_map_set_by_int(sv, 10, sv + 2);
+    TEST_ASSERT(updated == false);
+    TEST_ASSERT(woort_map_get_by_int(sv + 6, sv, 10));
+    TEST_ASSERT(woort_int(sv + 6) == 200);
+
+    /* --- 特化键：real --- */
+    inserted = woort_map_insert_by_real(sv, 1.5, sv + 1);
+    TEST_ASSERT(inserted == true);
+
+    inserted = woort_map_insert_by_real(sv, 1.5, sv + 2);
+    TEST_ASSERT(inserted == false);
+
+    TEST_ASSERT(woort_map_get_by_real(sv + 6, sv, 1.5));
+    TEST_ASSERT(woort_int(sv + 6) == 100);
+
+    /* --- 特化键：bool --- */
+    inserted = woort_map_insert_by_bool(sv, true, sv + 1);
+    TEST_ASSERT(inserted == true);
+
+    inserted = woort_map_insert_by_bool(sv, true, sv + 2);
+    TEST_ASSERT(inserted == false);
+
+    TEST_ASSERT(woort_map_get_by_bool(sv + 6, sv, true));
+    TEST_ASSERT(woort_int(sv + 6) == 100);
+
+    /* --- 特化键：string --- */
+    inserted = woort_map_insert_by_string(sv, "k1", sv + 1);
+    TEST_ASSERT(inserted == true);
+
+    inserted = woort_map_insert_by_string(sv, "k1", sv + 2);
+    TEST_ASSERT(inserted == false);
+
+    TEST_ASSERT(woort_map_get_by_string(sv + 6, sv, "k1"));
+    TEST_ASSERT(woort_int(sv + 6) == 100);
+
+    TEST_ASSERT(woort_map_len(sv) == 4);
+
+    /* --- 通用（装箱键）--- */
+    inserted = woort_map_insert(sv, sv + 7, sv + 1);
+    TEST_ASSERT(inserted == true);
+
+    inserted = woort_map_insert(sv, sv + 7, sv + 2);
+    TEST_ASSERT(inserted == false);
+
+    TEST_ASSERT(woort_map_get_by_int(sv + 6, sv, 77));
+    TEST_ASSERT(woort_int(sv + 6) == 100);
+
+    /* --- pointer 宏转发 --- */
+    inserted = woort_map_insert_by_pointer(sv, &s_pointer_key, sv + 1);
+    TEST_ASSERT(inserted == true);
+
+    inserted = woort_map_insert_by_pointer(sv, &s_pointer_key, sv + 2);
+    TEST_ASSERT(inserted == false);
+
+    TEST_ASSERT(woort_map_len(sv) == 6);
+
+    woort_pop(8);
+    (void)woort_VMRuntime_swap(NULL);
+    woort_VMRuntime_destroy(vm);
+
+    TEST_END();
+}
+
 /* ========== 测试 40: Map 详细操作 ========== */
 static void test_struct_detailed_ops(void)
 {
@@ -2266,6 +2359,7 @@ int main(int argc, char** argv)
     test_const_struct();
     test_vector_detailed_ops();
     test_map_detailed_ops();
+    test_map_insert_ops();
     test_struct_detailed_ops();
     test_serialize_deserialize_inf_nan();
 

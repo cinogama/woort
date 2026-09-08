@@ -332,6 +332,11 @@
     WOODYN_WRAP(woort_map_set_by_real)                                      \
     WOODYN_WRAP(woort_map_set_by_bool)                                      \
     WOODYN_WRAP(woort_map_set_by_string)                                    \
+    WOODYN_WRAP(woort_map_insert)                                           \
+    WOODYN_WRAP(woort_map_insert_by_int)                                    \
+    WOODYN_WRAP(woort_map_insert_by_real)                                   \
+    WOODYN_WRAP(woort_map_insert_by_bool)                                   \
+    WOODYN_WRAP(woort_map_insert_by_string)                                 \
     WOODYN_WRAP(woort_map_erase)                                            \
     WOODYN_WRAP(woort_map_erase_by_int)                                     \
     WOODYN_WRAP(woort_map_erase_by_real)                                    \

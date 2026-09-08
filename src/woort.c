@@ -1960,6 +1960,88 @@ WOORT_NODISCARD bool woort_map_set_by_string(
     return gcmap->m_size > old_size;
 }
 
+WOORT_NODISCARD bool woort_map_insert(
+    woort_StackValue src,
+    woort_StackValue key_boxed,
+    woort_StackValue val_boxed)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCMap* const gcmap = _WOORT_API_STACK(src).m_map;
+    assert(gcmap != NULL);
+
+    woort_DynBox key = _WOORT_API_STACK(key_boxed).m_dynamic;
+    woort_DynBox val = _WOORT_API_STACK(val_boxed).m_dynamic;
+
+    return woort_GCMap_insert(gcmap, key, val);
+}
+
+WOORT_NODISCARD bool woort_map_insert_by_int(
+    woort_StackValue src,
+    woort_Int key,
+    woort_StackValue val_boxed)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCMap* const gcmap = _WOORT_API_STACK(src).m_map;
+    assert(gcmap != NULL);
+
+    woort_DynBox val = _WOORT_API_STACK(val_boxed).m_dynamic;
+
+    return woort_GCMap_insert_by_int(gcmap, key, val);
+}
+
+WOORT_NODISCARD bool woort_map_insert_by_real(
+    woort_StackValue src,
+    woort_Real key,
+    woort_StackValue val_boxed)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCMap* const gcmap = _WOORT_API_STACK(src).m_map;
+    assert(gcmap != NULL);
+
+    woort_DynBox val = _WOORT_API_STACK(val_boxed).m_dynamic;
+
+    return woort_GCMap_insert_by_real(gcmap, key, val);
+}
+
+WOORT_NODISCARD bool woort_map_insert_by_bool(
+    woort_StackValue src,
+    bool key,
+    woort_StackValue val_boxed)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCMap* const gcmap = _WOORT_API_STACK(src).m_map;
+    assert(gcmap != NULL);
+
+    woort_DynBox val = _WOORT_API_STACK(val_boxed).m_dynamic;
+
+    return woort_GCMap_insert_by_bool(gcmap, key, val);
+}
+
+WOORT_NODISCARD bool woort_map_insert_by_string(
+    woort_StackValue src,
+    woort_U8CString key,
+    woort_StackValue val_boxed)
+{
+    woort_VMRuntime* const vm = WOORT_t_this_thread_vm;
+    assert(vm != NULL);
+
+    woort_GCMap* const gcmap = _WOORT_API_STACK(src).m_map;
+    assert(gcmap != NULL);
+
+    const size_t len = strlen(key);
+    woort_DynBox val = _WOORT_API_STACK(val_boxed).m_dynamic;
+
+    return woort_GCMap_insert_by_string(gcmap, key, len, val);
+}
+
 /* --- Mapping Erase --- */
 
 void woort_map_clear(woort_StackValue src)

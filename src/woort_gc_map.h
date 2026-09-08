@@ -48,6 +48,16 @@ WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_va
 WOORT_NODISCARD /* OPTIONAL */ woort_DynBox* woort_GCMap_get_or_create_bucket_val_by_string(
     woort_GCMap* gcmap, const char* key, size_t len);
 
+/* 类型特化的插入：键已存在则不插入、不修改，返回 false */
+WOORT_NODISCARD bool woort_GCMap_insert_by_int(
+    woort_GCMap* gcmap, woort_Int key, woort_DynBox val);
+WOORT_NODISCARD bool woort_GCMap_insert_by_real(
+    woort_GCMap* gcmap, woort_Real key, woort_DynBox val);
+WOORT_NODISCARD bool woort_GCMap_insert_by_bool(
+    woort_GCMap* gcmap, bool key, woort_DynBox val);
+WOORT_NODISCARD bool woort_GCMap_insert_by_string(
+    woort_GCMap* gcmap, const char* key, size_t len, woort_DynBox val);
+
 WOORT_NODISCARD bool woort_GCMap_get_key_value_by_index(
     const woort_GCMap* gcmap,
     size_t index,

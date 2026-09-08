@@ -215,6 +215,7 @@ void        woort_map_reserve(src, reserve);
 /* 通用（装箱键） */
 bool        woort_map_get(dst, src, key_boxed);
 bool        woort_map_set(src, key_boxed, val_boxed);   /* 返回 true=新增，false=更新 */
+bool        woort_map_insert(src, key_boxed, val_boxed);  /* 返回 true=新增，false=键已存在（不修改） */
 bool        woort_map_erase(src, key_boxed);
 bool        woort_map_contains(src, key_boxed);
 
@@ -222,6 +223,8 @@ bool        woort_map_contains(src, key_boxed);
 bool woort_map_get_by_int / _by_real / _by_bool / _by_string(dst, src, key);
 bool woort_map_set_by_int / _by_real / _by_bool / _by_string(src, key, val_boxed);
 #define woort_map_set_by_pointer(src, ptr, val) woort_map_set_by_int(src, (woort_Int)(intptr_t)ptr, val)
+bool woort_map_insert_by_int / _by_real / _by_bool / _by_string(src, key, val_boxed);
+#define woort_map_insert_by_pointer(src, ptr, val) woort_map_insert_by_int(src, (woort_Int)(intptr_t)ptr, val)
 bool woort_map_erase_by_int / _by_real / _by_bool / _by_string(src, key);
 bool woort_map_contains_int / _real / _bool / _string(src, key);
 
