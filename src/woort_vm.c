@@ -3761,7 +3761,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_TRAP, 0):
         {
             WOORT_VM_SYNC_STATE_WITH_ENV();
-            if (woort_VMRuntime_Debugger_try_trap(WOORT_DEBUGGER_TRAP_REASON_TRAP_OPCODE))
+            if (woort_VMRuntime_Debugger_try_trap(WOORT_DEBUGGER_TRAP_REASON_TRAP))
             {
                 /* Check for TERMINATE request raised by debugger. */
                 if (woort_VMRuntime_request_check(vm, WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE))
@@ -3947,7 +3947,7 @@ _label_continue_execution:
             else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP)
             {
-                (void)woort_VMRuntime_Debugger_try_trap(WOORT_DEBUGGER_TRAP_REASON_TRAP_REQUEST);
+                (void)woort_VMRuntime_Debugger_try_trap(WOORT_DEBUGGER_TRAP_REASON_TRAP);
                 (void)woort_VMRuntime_request_accept(
                     vm,
                     WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);

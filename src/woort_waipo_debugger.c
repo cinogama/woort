@@ -338,7 +338,7 @@ static void _woort_WAIPO_Debugger_set_breakpoint_info(
     const woort_WAIPO_UserBreakpoint* ub)
 {
     info->m_id = ub->m_id;
-    
+
     _Static_assert(
         WOORT_WAIPO_DEBUGGER_BREAKPOINT_INFO_NAME_LEN == sizeof(info->m_name)
         && sizeof(info->m_name) == sizeof(ub->m_desc), "Size must be match.");
@@ -361,7 +361,7 @@ _woort_WAIPO_BreakpointCollection_find_user_breakpoint_and_get_info(
     const size_t count = collection->m_user_breakpoints.m_size;
     for (size_t i = 0; i < count; ++i)
     {
-        const woort_WAIPO_UserBreakpoint*  user_breakpoint =
+        const woort_WAIPO_UserBreakpoint* user_breakpoint =
             _woort_WAIPO_BreakpointCollection_get_user_breakpoint_at_without_lock(
                 collection, i);
 
@@ -638,6 +638,7 @@ static void _woort_WAIPO_VMLocalContext_set_source_step(
 static void _woort_WAIPO_VMLocalContext_clean_step_breakpoint(
     woort_WAIPO_VMLocalContext* vmcontext)
 {
+
     for (size_t i = 0; i < 2; ++i)
     {
         if (vmcontext->m_step_breakpoints[i] != NULL)
@@ -821,13 +822,14 @@ WOORT_NODISCARD static bool _woort_WAIPO_get_next_ip(
     woort_CodeEnv* cenv,
     const woort_Value* sb,
     woort_VMRuntime* vm,
+    bool need_step_in,
     const woort_Bytecode** out_next_ip,
     bool* out_is_callnfp_callnjit)
 {
-    assert(ip != NULL 
-        && cenv != NULL 
-        && sb != NULL 
-        && out_next_ip != NULL 
+    assert(ip != NULL
+        && cenv != NULL
+        && sb != NULL
+        && out_next_ip != NULL
         && out_is_callnfp_callnjit != NULL);
 
     if (ip < cenv->m_code_begin || ip >= cenv->m_code_end)
@@ -980,68 +982,76 @@ WOORT_NODISCARD static bool _woort_WAIPO_get_next_ip(
 
     case WOORT_OPCODE_CALLNWO:
     {
-        *out_next_ip = cenv->m_data_begin[WOORT_BYTECODE(MABC26, bc)].m_script_function;
+        if (need_step_in)
+            *out_next_ip = cenv->m_data_begin[WOORT_BYTECODE(MABC26, bc)].m_script_function;
+        else
+            *out_next_ip = ip + 1;
         return true;
     }
     case WOORT_OPCODE_CALLNFP:
     case WOORT_OPCODE_CALLNJIT:
     {
-        *out_is_callnfp_callnjit = true;
+        if (need_step_in)
+            *out_is_callnfp_callnjit = true;
+
         *out_next_ip = ip + 1;
         return true;
     }
     case WOORT_OPCODE_CALL:
     {
-        const woort_GCClosure* target;
-        if (m2 == 0) /* CALLS */
+        if (need_step_in)
         {
-            target = sb[(int16_t)WOORT_BYTECODE(BC16, bc)].m_closure;
-        }
-        else /* m2 == 1, CALLC */
-        {
-            target = cenv->m_data_begin[WOORT_BYTECODE(ABC24, bc)].m_closure;
-        }
-
-        // Assure invoking closure is valid.
-        const woort_GCClosure* const invoked_closure_instance =
-            woort_mem_validate_addr_head((void*)target);
-
-        if (invoked_closure_instance != NULL
-            && invoked_closure_instance == target
-            && invoked_closure_instance->m_gc_unit.m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
-        {
-            /*
-            The minimum unit of memory allocation in Woomem is 8 bytes. We need to
-            verify the type of the unit here, and the type information happens to
-            fall within the first eight bytes; therefore, reading the first 8 bytes
-            of the unit is safe.
-            */
-            _Static_assert(
-                offsetof(woort_GCClosure, m_gc_unit)
-                + sizeof(invoked_closure_instance->m_gc_unit) <= 8,
-                "woort_GCUnit is too large/far to safely verify its type.");
-
-            if (invoked_closure_instance->m_script_function != NULL)
+            const woort_GCClosure* target;
+            if (m2 == 0) /* CALLS */
             {
-                if (invoked_closure_instance->m_jit_function != NULL)
+                target = sb[(int16_t)WOORT_BYTECODE(BC16, bc)].m_closure;
+            }
+            else /* m2 == 1, CALLC */
+            {
+                target = cenv->m_data_begin[WOORT_BYTECODE(ABC24, bc)].m_closure;
+            }
+
+            // Assure invoking closure is valid.
+            const woort_GCClosure* const invoked_closure_instance =
+                woort_mem_validate_addr_head((void*)target);
+
+            if (invoked_closure_instance != NULL
+                && invoked_closure_instance == target
+                && invoked_closure_instance->m_gc_unit.m_proxy == &WOORT_GCCLOSURE_UNIT_PROXY)
+            {
+                /*
+                The minimum unit of memory allocation in Woomem is 8 bytes. We need to
+                verify the type of the unit here, and the type information happens to
+                fall within the first eight bytes; therefore, reading the first 8 bytes
+                of the unit is safe.
+                */
+                _Static_assert(
+                    offsetof(woort_GCClosure, m_gc_unit)
+                    + sizeof(invoked_closure_instance->m_gc_unit) <= 8,
+                    "woort_GCUnit is too large/far to safely verify its type.");
+
+                if (invoked_closure_instance->m_script_function != NULL
+                    && invoked_closure_instance->m_jit_function == NULL)
+                {
+                    *out_next_ip = invoked_closure_instance->m_script_function;
+                }
+                else
                 {
                     *out_is_callnfp_callnjit = true;
                     *out_next_ip = ip + 1;
                 }
-                else
-                    *out_next_ip = invoked_closure_instance->m_script_function;
+
+                return true;
             }
             else
-            {
-                *out_is_callnfp_callnjit = true;
-                *out_next_ip = ip + 1;
-            }
-
-            return true;
+                /* Bad closure instance */
+                return false;
         }
         else
-            /* Bad closure instance */
-            return false;
+        {
+            *out_next_ip = ip + 1;
+            return true;
+        }
     }
     case WOORT_OPCODE_RET:
     {
@@ -1111,7 +1121,7 @@ typedef struct _woort_WAIPO_SavedStepBreakContext
 }_woort_WAIPO_SavedStepBreakContext;
 
 static bool _woort_WAIPO_Debugger_meet_breakpoint(
-    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm, woort_DebuggerTrapReason reason)
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm, bool breakdown_by_request)
 {
     const woort_Bytecode* current_ip = vm->m_ip;
 
@@ -1119,17 +1129,22 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
     /* OPTIONAL */ woort_CodeEnv* step_break_trapped_env_for_refill = NULL;
     _woort_WAIPO_SavedStepBreakContext saved_step_break_context_for_restoring;
 
-    if (_woort_WAIPO_BreakpointCollection_contains_break_at(
-        &debugger_instance->m_breakpoint_collection, current_ip)
-        || reason == WOORT_DEBUGGER_TRAP_REASON_TRAP_REQUEST)
+    const bool trapped_by_request =
+        woort_VMRuntime_request_accept(
+            vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);
+
+    if (trapped_by_request
+        || breakdown_by_request
+        || _woort_WAIPO_BreakpointCollection_contains_break_at(
+            &debugger_instance->m_breakpoint_collection, current_ip))
     {
         /* Might be next, return, step or step ir? */
         /* Check, we may need to clear step breakpoint. */
         woort_WAIPO_VMLocalContext* vmcontext;
         if (woort_hashmap_find(&debugger_instance->m_focusing_vms, &vm, (void**)&vmcontext))
         {
-            if (_woort_WAIPO_VMLocalContext_meet_step_breakdown(vmcontext, current_ip)
-                || reason == WOORT_DEBUGGER_TRAP_REASON_TRAP_REQUEST)
+            if (trapped_by_request
+                || _woort_WAIPO_VMLocalContext_meet_step_breakdown(vmcontext, current_ip))
             {
                 breakdown = true;
 
@@ -1214,9 +1229,9 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
                     saved_step_break_context_for_restoring.m_target_depth = vmcontext->m_step_target_depth;
                 }
 
-                /* 
+                /*
                 无论如何，步进断点确实命中了，我们需要把当前的步进断点清理掉，预
-                留给后续重新填装的槽位 
+                留给后续重新填装的槽位
 
                 NOTE: 即便是 WOORT_DEBUGGER_TRAP_REASON_TRAP_REQUEST 的情况，也需
                     要清理，因为 TRAP_REQUEST 总是伴随着保守的断点设置的
@@ -1226,25 +1241,33 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
         }
 
         /* May be step debug point? */
-        if (!breakdown && _woort_WAIPO_BreakpointCollection_contains_debug_break_at(
-            &debugger_instance->m_breakpoint_collection, current_ip))
+        if (!breakdown
+            && (breakdown_by_request
+                || _woort_WAIPO_BreakpointCollection_contains_debug_break_at(
+                    &debugger_instance->m_breakpoint_collection, current_ip)))
         {
             breakdown = true;
         }
 
         /* 检查是否需要重新填装步进断点 */
-        if (!breakdown && step_break_trapped_env_for_refill != NULL)
+        if (!breakdown
+            && step_break_trapped_env_for_refill != NULL)
         {
             /* 继续步进 */
+            const bool need_step_in =
+                !saved_step_break_context_for_restoring.m_is_stepout
+                && !saved_step_break_context_for_restoring.m_is_stepover;
+
             const woort_Bytecode* next_ip = NULL;
             bool is_callnfp_callnjit;
 
             if (_woort_WAIPO_get_next_ip(
-                current_ip, 
-                step_break_trapped_env_for_refill, 
-                vm->m_sb, 
+                current_ip,
+                step_break_trapped_env_for_refill,
+                vm->m_sb,
                 vm,
-                &next_ip, 
+                need_step_in,
+                &next_ip,
                 &is_callnfp_callnjit))
             {
                 _woort_WAIPO_VMLocalContext_set_source_step(
@@ -1258,7 +1281,7 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
                 vmcontext->m_is_source_next = saved_step_break_context_for_restoring.m_is_stepover;
                 vmcontext->m_is_source_return = saved_step_break_context_for_restoring.m_is_stepout;
                 vmcontext->m_step_target_depth = saved_step_break_context_for_restoring.m_target_depth;
-              
+
                 if (_woort_WAIPO_VMLocalContext_set_stepir_breakpoint(
                     vmcontext, next_ip))
                 {
@@ -1289,13 +1312,13 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
     return breakdown;
 }
 
-static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, woort_DebuggerTrapReason reason)
+static void woort_WAIPO_Debugger_active(
+    woort_VMRuntime* vm, void* instance, bool breakdown_by_request)
 {
     woort_WAIPO_Debugger* const debugger_instance = instance;
 
-    if (woort_hashmap_is_empty(&debugger_instance->m_focusing_vms)
-        || _woort_WAIPO_Debugger_meet_breakpoint(debugger_instance, vm, reason)
-        || reason == WOORT_DEBUGGER_TRAP_REASON_BREAKDOWN)
+    if (_woort_WAIPO_Debugger_meet_breakpoint(
+        debugger_instance, vm, breakdown_by_request))
     {
         do
         {
@@ -1310,10 +1333,6 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, woo
             /* Reset current VM to NULL. */
             debugger_instance->m_current_vm = NULL;
 
-            /* VM 可能产生了不必要的 TRAP，在此处统一清除，和 TRAP CODE 的清除原因类似 */
-            (void)woort_VMRuntime_request_accept(
-                vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);
-
             if (behavior == WOORT_WAIPO_TRAP_CONTINUE)
             {
                 /* Un focus this vm, continue. */
@@ -1322,14 +1341,19 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, woo
             }
             else
             {
+                const bool need_step_in =
+                    behavior == WOORT_WAIPO_TRAP_STEPIR
+                    || behavior == WOORT_WAIPO_TRAP_STEPIN;
+
                 const woort_Bytecode* next_ip;
                 bool need_trap_request_for_callnfp_and_callnjit;
                 if (!_woort_WAIPO_get_next_ip(
-                    vm->m_ip, 
+                    vm->m_ip,
                     vm->m_env,
-                    vm->m_sb, 
-                    vm, 
-                    &next_ip, 
+                    vm->m_sb,
+                    vm,
+                    need_step_in,
+                    &next_ip,
                     &need_trap_request_for_callnfp_and_callnjit))
                 {
                     (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
@@ -1345,9 +1369,9 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, woo
 
                 /* Break point trapped, we need to clear the stepping trap. */
                 /*
-                NOTE: When a breakpoint is hit, the stepping breakpoint should be reset. 
-                    In the case of `WOORT_WAIPO_TRAP_CONTINUE`, the stepping breakpoint 
-                    will be reset in `_woort_WAIPO_Debugger_out_of_focus`, so this is 
+                NOTE: When a breakpoint is hit, the stepping breakpoint should be reset.
+                    In the case of `WOORT_WAIPO_TRAP_CONTINUE`, the stepping breakpoint
+                    will be reset in `_woort_WAIPO_Debugger_out_of_focus`, so this is
                     appropriate.
                 */
                 _woort_WAIPO_VMLocalContext_clean_step_breakpoint(local_context);

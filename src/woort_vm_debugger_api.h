@@ -10,15 +10,7 @@
 
 #include <stdbool.h>
 
-typedef enum woort_DebuggerTrapReason
-{
-    WOORT_DEBUGGER_TRAP_REASON_BREAKDOWN,
-    WOORT_DEBUGGER_TRAP_REASON_TRAP_OPCODE,
-    WOORT_DEBUGGER_TRAP_REASON_TRAP_REQUEST,
-
-}woort_DebuggerTrapReason;
-
-typedef void (*woort_VMRuntime_DebuggerCallback)(woort_VMRuntime*, void*, woort_DebuggerTrapReason);
+typedef void (*woort_VMRuntime_DebuggerCallback)(woort_VMRuntime*, void*, bool);
 typedef void (*woort_VMRuntime_DebuggerContextDestroyCallback)(void*);
 
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_bootup(void);
@@ -29,7 +21,13 @@ WOORT_NODISCARD woort_DebuggerAttachResult woort_VMRuntime_Debugger_attach(
     void* context,
     /* OPTIONAL */ woort_VMRuntime_DebuggerContextDestroyCallback destroy_callback);
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(woort_DebuggerTrapReason reason);
+/* Named bool arguments for woort_VMRuntime_Debugger_try_trap: TRAP means the
+   trap comes from the TRAP opcode or a DEBUG_TRAP request, BREAKDOWN means the
+   VM explicitly requested a breakdown via a DEBUG_BREAK request. */
+#define WOORT_DEBUGGER_TRAP_REASON_TRAP false
+#define WOORT_DEBUGGER_TRAP_REASON_BREAKDOWN true
+
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool breakdown_by_request);
 WOORT_NODISCARD bool woort_VMRuntime_Debugger_handle_external_debug_break_race(woort_VMRuntime* vm);
 
 typedef void(*woort_VMRuntime_Debugger_VerifyVmDoCallback)(woort_VMRuntime*, void*);

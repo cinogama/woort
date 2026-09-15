@@ -178,7 +178,7 @@ WOORT_NODISCARD woort_DebuggerAttachResult woort_VMRuntime_Debugger_attach(
     return result;
 }
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(woort_DebuggerTrapReason reason)
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool breakdown_by_request)
 {
     woort_VMRuntime_Debugger* current_debugger;
     woort_rwspinlock_read_lock(&g_debugger_rwspin);
@@ -205,7 +205,7 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(woort_DebuggerTrapReason 
                 current_debugger->m_break_callback(
                     running_vm,
                     current_debugger->m_debugger_context,
-                    reason);
+                    breakdown_by_request);
             }
             woort_mutex_unlock(g_debugger_execute_mx);
         }
@@ -352,12 +352,7 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_handle_external_debug_break_race(
                 race_succeed = true;
             }
         }
-        else
-        {
-            /*  Another VM has reached, failed */
-            (void)woort_VMRuntime_request_accept(
-                vm, WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK);
-        }
+        /* else: Another VM has reached, failed */
     }
     woort_mutex_unlock(g_debugger_external_race_mx);
     return race_succeed;
