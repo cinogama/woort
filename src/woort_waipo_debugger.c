@@ -1311,7 +1311,7 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, woo
             debugger_instance->m_current_vm = NULL;
 
             /* VM 可能产生了不必要的 TRAP，在此处统一清除，和 TRAP CODE 的清除原因类似 */
-            (void)woort_VMRuntime_request_accpet(
+            (void)woort_VMRuntime_request_accept(
                 vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);
 
             if (behavior == WOORT_WAIPO_TRAP_CONTINUE)
