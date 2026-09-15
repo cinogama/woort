@@ -90,23 +90,6 @@ typedef enum woort_VMRuntime_CheckRequestMask
     WOORT_VMRUNTIME_CHECK_REQUEST_GC_LEAVE = 1 << 4,
 
     /*
-    DEBUG_BREAK
-    Requests the VM to invoke the debug callback; the debug callback
-    function and its context must have been set previously and not yet
-    cleared.
-
-    If the debug context is unset when this request is received, it is
-    ignored.
-
-        * JIT runtime:
-            Cannot be handled in JIT; after a forward-sync it is thrown
-            up to the interpreter via WOORT_VM_CALL_STATUS_RESYNC.
-        * Interpreter runtime:
-            Runs the debug-callback mechanism.
-    */
-    WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK = 1 << 5,
-
-    /*
     YIELD
     Requests the VM to end execution with WOORT_VM_CALL_STATUS_YIELD,
     performing a full forward-sync to save RT state into VM state so
@@ -124,7 +107,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
             accepting the request the VM is temporarily detached; no
             further sync is performed.
     */
-    WOORT_VMRUNTIME_CHECK_REQUEST_YIELD = 1 << 6,
+    WOORT_VMRUNTIME_CHECK_REQUEST_YIELD = 1 << 5,
 
     /*
     TERMINATE
@@ -138,7 +121,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
             Writes a GCString describing the termination reason by
             convention, then sets ABORT.
     */
-    WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE = 1 << 7,
+    WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE = 1 << 6,
 
     /*
     SHRINK_STACK
@@ -156,7 +139,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
             portion tail-aligned, and frees the old stack; on success
             m_shrink_stack_edge is recomputed from the new capacity.
     */
-    WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK = 1 << 8,
+    WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK = 1 << 7,
 
     /*
     GC_MARK_FINISHED
@@ -170,7 +153,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
             handle_gc_check_request_and_mark or in the standalone
             checkpoint branch, waking the waiting GC worker thread.
     */
-    WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED = 1 << 9,
+    WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED = 1 << 8,
 
     /*
     SUSPEND
@@ -188,7 +171,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
             (woort_thread_yield) until RESUME can be successfully
             accepted, after which it swaps the VM back in.
     */
-    WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND = 1 << 10,
+    WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND = 1 << 9,
 
     /*
     RESUME
@@ -200,7 +183,7 @@ typedef enum woort_VMRuntime_CheckRequestMask
             (request_accept(RESUME)) to break the spin and resume
             execution.
     */
-    WOORT_VMRUNTIME_CHECK_REQUEST_RESUME = 1 << 11,
+    WOORT_VMRUNTIME_CHECK_REQUEST_RESUME = 1 << 10,
 
     /*
     EXTERNAL_DEBUG_BREAK
@@ -218,7 +201,40 @@ typedef enum woort_VMRuntime_CheckRequestMask
         * Interpreter runtime:
             Runs the external-debug-callback mechanism.
     */
-    WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK = 1 << 12,
+    WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK = 1 << 11,
+
+    /*
+    DEBUG_TRAP
+    When performing a step-into operation in the debugger, if CALLNFP/CALLNJIT
+    is encountered, we cannot predict whether a sub-call will occur during the
+    external call. When the debugger encounters CALLNFP/CALLNJIT and a step-into
+    operation is in progress, it sets the WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP
+    request; upon receiving this request, the virtual machine acts as if it has
+    trapped on a TRAP instruction and executes the corresponding debugger flow.
+        * JIT runtime:
+            Cannot be handled in JIT; after a forward-sync it is thrown
+            up to the interpreter via WOORT_VM_CALL_STATUS_RESYNC.
+        * Interpreter runtime:
+            Runs the debug-trap mechanism.
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP = 1 << 12,
+
+    /*
+    DEBUG_BREAK
+    Requests the VM to invoke the debug callback; the debug callback
+    function and its context must have been set previously and not yet
+    cleared.
+
+    If the debug context is unset when this request is received, it is
+    ignored.
+
+        * JIT runtime:
+            Cannot be handled in JIT; after a forward-sync it is thrown
+            up to the interpreter via WOORT_VM_CALL_STATUS_RESYNC.
+        * Interpreter runtime:
+            Runs the debug-callback mechanism.
+    */
+    WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK = 1 << 13,
 
 }woort_VMRuntime_CheckRequestMask;
 

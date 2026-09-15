@@ -3761,7 +3761,7 @@ _label_continue_execution:
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_TRAP, 0):
         {
             WOORT_VM_SYNC_STATE_WITH_ENV();
-            if (woort_VMRuntime_Debugger_try_trap(false))
+            if (woort_VMRuntime_Debugger_try_trap(WOORT_DEBUGGER_TRAP_REASON_TRAP_OPCODE))
             {
                 /* Check for TERMINATE request raised by debugger. */
                 if (woort_VMRuntime_request_check(vm, WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE))
@@ -3888,14 +3888,6 @@ _label_continue_execution:
                 /* Just ignore. */
             }
             else if (request_mask
-                & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK)
-            {
-                (void)woort_VMRuntime_Debugger_try_trap(true);
-                (void)woort_VMRuntime_request_accept(
-                    vm,
-                    WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
-            }
-            else if (request_mask
                 & WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK)
             {
                 if (woort_VMRuntime_request_accept(
@@ -3951,6 +3943,22 @@ _label_continue_execution:
                     (void)woort_VMRuntime_request_set(
                         vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
                 }
+            }
+            else if (request_mask
+                & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP)
+            {
+                (void)woort_VMRuntime_Debugger_try_trap(WOORT_DEBUGGER_TRAP_REASON_TRAP_REQUEST);
+                (void)woort_VMRuntime_request_accept(
+                    vm,
+                    WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);
+            }
+            else if (request_mask
+                & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK)
+            {
+                (void)woort_VMRuntime_Debugger_try_trap(WOORT_DEBUGGER_TRAP_REASON_BREAKDOWN);
+                (void)woort_VMRuntime_request_accept(
+                    vm,
+                    WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
             }
             else
             {
@@ -4032,12 +4040,14 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
         if (request_mask == 0)
             break;
 
-        if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_ABORT)
-        {
-            /* Already aborted. */
-            return WOORT_VM_CALL_STATUS_RESYNC;
-        }
-        if (request_mask & WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE)
+        if (request_mask & (
+            WOORT_VMRUNTIME_CHECK_REQUEST_ABORT
+            | WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE
+            | WOORT_VMRUNTIME_CHECK_REQUEST_YIELD
+            | WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND
+            | WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK
+            | WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP
+            | WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK))
         {
             return WOORT_VM_CALL_STATUS_RESYNC;
         }
@@ -4051,11 +4061,6 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
             & WOORT_VMRUNTIME_CHECK_REQUEST_STACK_OCCUPYING)
         {
             /* Just ignore. */
-        }
-        else if (request_mask
-            & WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK)
-        {
-            return WOORT_VM_CALL_STATUS_RESYNC;
         }
         else if (request_mask
             & WOORT_VMRUNTIME_CHECK_REQUEST_SHRINK_STACK)
@@ -4075,21 +4080,6 @@ WOORT_NODISCARD woort_VmCallStatus woort_VMRuntime_JIT_request_handler(woort_VMR
         {
             (void)woort_VMRuntime_request_accept(
                 vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED);
-        }
-        else if (request_mask
-            & WOORT_VMRUNTIME_CHECK_REQUEST_YIELD)
-        {
-            return WOORT_VM_CALL_STATUS_RESYNC;
-        }
-        else if (request_mask
-            & WOORT_VMRUNTIME_CHECK_REQUEST_SUSPEND)
-        {
-            return WOORT_VM_CALL_STATUS_RESYNC;
-        }
-        else if (request_mask
-            & WOORT_VMRUNTIME_CHECK_REQUEST_EXTERNAL_DEBUG_BREAK)
-        {
-            return WOORT_VM_CALL_STATUS_RESYNC;
         }
         else
         {

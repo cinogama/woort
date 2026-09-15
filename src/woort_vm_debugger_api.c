@@ -178,7 +178,7 @@ WOORT_NODISCARD woort_DebuggerAttachResult woort_VMRuntime_Debugger_attach(
     return result;
 }
 
-WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request)
+WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(woort_DebuggerTrapReason reason)
 {
     woort_VMRuntime_Debugger* current_debugger;
     woort_rwspinlock_read_lock(&g_debugger_rwspin);
@@ -205,7 +205,7 @@ WOORT_NODISCARD bool woort_VMRuntime_Debugger_try_trap(bool trap_by_request)
                 current_debugger->m_break_callback(
                     running_vm,
                     current_debugger->m_debugger_context,
-                    trap_by_request);
+                    reason);
             }
             woort_mutex_unlock(g_debugger_execute_mx);
         }

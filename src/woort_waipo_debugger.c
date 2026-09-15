@@ -821,15 +821,19 @@ WOORT_NODISCARD static bool _woort_WAIPO_get_next_ip(
     woort_CodeEnv* cenv,
     const woort_Value* sb,
     woort_VMRuntime* vm,
-    /* OPTIONAL */ const woort_Bytecode** out_next_ip)
+    const woort_Bytecode** out_next_ip,
+    bool* out_is_callnfp_callnjit)
 {
-    assert(ip != NULL && cenv != NULL && sb != NULL);
-
-    if (out_next_ip == NULL)
-        return false;
+    assert(ip != NULL 
+        && cenv != NULL 
+        && sb != NULL 
+        && out_next_ip != NULL 
+        && out_is_callnfp_callnjit != NULL);
 
     if (ip < cenv->m_code_begin || ip >= cenv->m_code_end)
         return false;
+
+    *out_is_callnfp_callnjit = false;
 
     const woort_Bytecode bc = woort_CodeEnv_raw_trap(cenv, ip);
     const uint8_t op6 = (uint8_t)WOORT_BYTECODE(OP6, bc);
@@ -982,8 +986,7 @@ WOORT_NODISCARD static bool _woort_WAIPO_get_next_ip(
     case WOORT_OPCODE_CALLNFP:
     case WOORT_OPCODE_CALLNJIT:
     {
-        (void)woort_VMRuntime_request_set(
-            vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_BREAK);
+        *out_is_callnfp_callnjit = true;
         *out_next_ip = ip + 1;
         return true;
     }
@@ -1019,9 +1022,20 @@ WOORT_NODISCARD static bool _woort_WAIPO_get_next_ip(
                 "woort_GCUnit is too large/far to safely verify its type.");
 
             if (invoked_closure_instance->m_script_function != NULL)
-                *out_next_ip = invoked_closure_instance->m_script_function;
+            {
+                if (invoked_closure_instance->m_jit_function != NULL)
+                {
+                    *out_is_callnfp_callnjit = true;
+                    *out_next_ip = ip + 1;
+                }
+                else
+                    *out_next_ip = invoked_closure_instance->m_script_function;
+            }
             else
+            {
+                *out_is_callnfp_callnjit = true;
                 *out_next_ip = ip + 1;
+            }
 
             return true;
         }
@@ -1097,7 +1111,7 @@ typedef struct _woort_WAIPO_SavedStepBreakContext
 }_woort_WAIPO_SavedStepBreakContext;
 
 static bool _woort_WAIPO_Debugger_meet_breakpoint(
-    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm)
+    woort_WAIPO_Debugger* debugger_instance, woort_VMRuntime* vm, woort_DebuggerTrapReason reason)
 {
     const woort_Bytecode* current_ip = vm->m_ip;
 
@@ -1106,14 +1120,16 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
     _woort_WAIPO_SavedStepBreakContext saved_step_break_context_for_restoring;
 
     if (_woort_WAIPO_BreakpointCollection_contains_break_at(
-        &debugger_instance->m_breakpoint_collection, current_ip))
+        &debugger_instance->m_breakpoint_collection, current_ip)
+        || reason == WOORT_DEBUGGER_TRAP_REASON_TRAP_REQUEST)
     {
         /* Might be next, return, step or step ir? */
         /* Check, we may need to clear step breakpoint. */
         woort_WAIPO_VMLocalContext* vmcontext;
         if (woort_hashmap_find(&debugger_instance->m_focusing_vms, &vm, (void**)&vmcontext))
         {
-            if (_woort_WAIPO_VMLocalContext_meet_step_breakdown(vmcontext, current_ip))
+            if (_woort_WAIPO_VMLocalContext_meet_step_breakdown(vmcontext, current_ip)
+                || reason == WOORT_DEBUGGER_TRAP_REASON_TRAP_REQUEST)
             {
                 breakdown = true;
 
@@ -1198,7 +1214,13 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
                     saved_step_break_context_for_restoring.m_target_depth = vmcontext->m_step_target_depth;
                 }
 
-                /* Step break point trapped, we need to clear the breakpoint trap. */
+                /* 
+                无论如何，步进断点确实命中了，我们需要把当前的步进断点清理掉，预
+                留给后续重新填装的槽位 
+
+                NOTE: 即便是 WOORT_DEBUGGER_TRAP_REASON_TRAP_REQUEST 的情况，也需
+                    要清理，因为 TRAP_REQUEST 总是伴随着保守的断点设置的
+                */
                 _woort_WAIPO_VMLocalContext_clean_step_breakpoint(vmcontext);
             }
         }
@@ -1213,10 +1235,17 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
         /* 检查是否需要重新填装步进断点 */
         if (!breakdown && step_break_trapped_env_for_refill != NULL)
         {
-            /* 仍在同一源码位置（或 next 中尚未返回目标深度），继续步进 */
+            /* 继续步进 */
             const woort_Bytecode* next_ip = NULL;
+            bool is_callnfp_callnjit;
+
             if (_woort_WAIPO_get_next_ip(
-                current_ip, step_break_trapped_env_for_refill, vm->m_sb, vm, &next_ip))
+                current_ip, 
+                step_break_trapped_env_for_refill, 
+                vm->m_sb, 
+                vm,
+                &next_ip, 
+                &is_callnfp_callnjit))
             {
                 _woort_WAIPO_VMLocalContext_set_source_step(
                     vmcontext,
@@ -1229,6 +1258,15 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
                 vmcontext->m_is_source_next = saved_step_break_context_for_restoring.m_is_stepover;
                 vmcontext->m_is_source_return = saved_step_break_context_for_restoring.m_is_stepout;
                 vmcontext->m_step_target_depth = saved_step_break_context_for_restoring.m_target_depth;
+              
+                if (is_callnfp_callnjit
+                    && !vmcontext->m_is_source_next
+                    && !vmcontext->m_is_source_return)
+                {
+                    /* 仅限 STEPIR/STEPIN，设置 DEBUG_TRAP，使得外部函数中的子调用可以重回调试器 */
+                    (void)woort_VMRuntime_request_set(
+                        vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);
+                }
 
                 if (_woort_WAIPO_VMLocalContext_set_stepir_breakpoint(
                     vmcontext, next_ip))
@@ -1247,18 +1285,18 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
                 breakdown = true;
             }
         }
-
     }
+
     return breakdown;
 }
 
-static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, bool trap_by_request)
+static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, woort_DebuggerTrapReason reason)
 {
     woort_WAIPO_Debugger* const debugger_instance = instance;
 
     if (woort_hashmap_is_empty(&debugger_instance->m_focusing_vms)
-        || _woort_WAIPO_Debugger_meet_breakpoint(debugger_instance, vm)
-        || trap_by_request)
+        || _woort_WAIPO_Debugger_meet_breakpoint(debugger_instance, vm, reason)
+        || reason == WOORT_DEBUGGER_TRAP_REASON_BREAKDOWN)
     {
         do
         {
@@ -1282,7 +1320,14 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, boo
             else
             {
                 const woort_Bytecode* next_ip;
-                if (!_woort_WAIPO_get_next_ip(vm->m_ip, vm->m_env, vm->m_sb, vm, &next_ip))
+                bool need_trap_request_for_callnfp_and_callnjit;
+                if (!_woort_WAIPO_get_next_ip(
+                    vm->m_ip, 
+                    vm->m_env,
+                    vm->m_sb, 
+                    vm, 
+                    &next_ip, 
+                    &need_trap_request_for_callnfp_and_callnjit))
                 {
                     (void)printf(WOORT_ANSI_HIR "Cannot determine next instruction.\n" WOORT_ANSI_RST);
                     continue;
@@ -1294,6 +1339,15 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, boo
                     (void)printf(WOORT_ANSI_HIR "Failed to focus on VM.\n" WOORT_ANSI_RST);
                     continue;
                 }
+
+                /* Break point trapped, we need to clear the stepping trap. */
+                /*
+                NOTE: When a breakpoint is hit, the stepping breakpoint should be reset. 
+                    In the case of `WOORT_WAIPO_TRAP_CONTINUE`, the stepping breakpoint 
+                    will be reset in `_woort_WAIPO_Debugger_out_of_focus`, so this is 
+                    appropriate.
+                */
+                _woort_WAIPO_VMLocalContext_clean_step_breakpoint(local_context);
 
                 bool breakpoint_set_successfully;
                 switch (behavior)
@@ -1307,10 +1361,12 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, boo
                         _woort_WAIPO_VMLocalContext_set_stepin_breakpoint(local_context, vm, next_ip);
                     break;
                 case WOORT_WAIPO_TRAP_STEPOVER:
+                    need_trap_request_for_callnfp_and_callnjit = false;
                     breakpoint_set_successfully =
                         _woort_WAIPO_VMLocalContext_set_stepover_breakpoint(local_context, vm, next_ip);
                     break;
                 case WOORT_WAIPO_TRAP_STEPOUT:
+                    need_trap_request_for_callnfp_and_callnjit = false;
                     breakpoint_set_successfully =
                         _woort_WAIPO_VMLocalContext_set_stepout_breakpoint(local_context, vm, next_ip);
                     break;
@@ -1321,6 +1377,13 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, boo
 
                 if (breakpoint_set_successfully)
                     break;
+
+                if (need_trap_request_for_callnfp_and_callnjit)
+                {
+                    /* 设置 DEBUG_TRAP，使得外部函数中的子调用可以重回调试器 */
+                    (void)woort_VMRuntime_request_set(
+                        vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);
+                }
 
                 (void)printf(WOORT_ANSI_HIR "Failed to set step breakpoint." WOORT_ANSI_RST);
             }
