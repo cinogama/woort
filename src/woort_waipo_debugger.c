@@ -1259,19 +1259,18 @@ static bool _woort_WAIPO_Debugger_meet_breakpoint(
                 vmcontext->m_is_source_return = saved_step_break_context_for_restoring.m_is_stepout;
                 vmcontext->m_step_target_depth = saved_step_break_context_for_restoring.m_target_depth;
               
-                if (is_callnfp_callnjit
-                    && !vmcontext->m_is_source_next
-                    && !vmcontext->m_is_source_return)
-                {
-                    /* 仅限 STEPIR/STEPIN，设置 DEBUG_TRAP，使得外部函数中的子调用可以重回调试器 */
-                    (void)woort_VMRuntime_request_set(
-                        vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);
-                }
-
                 if (_woort_WAIPO_VMLocalContext_set_stepir_breakpoint(
                     vmcontext, next_ip))
                 {
                     /* 成功设置下一步断点，不中断 */
+                    if (is_callnfp_callnjit
+                        && !vmcontext->m_is_source_next
+                        && !vmcontext->m_is_source_return)
+                    {
+                        /* 仅限 STEPIR/STEPIN，设置 DEBUG_TRAP，使得外部函数中的子调用可以重回调试器 */
+                        (void)woort_VMRuntime_request_set(
+                            vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);
+                    }
                 }
                 else
                 {
@@ -1310,6 +1309,10 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, woo
 
             /* Reset current VM to NULL. */
             debugger_instance->m_current_vm = NULL;
+
+            /* VM 可能产生了不必要的 TRAP，在此处统一清除，和 TRAP CODE 的清除原因类似 */
+            (void)woort_VMRuntime_request_accpet(
+                vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);
 
             if (behavior == WOORT_WAIPO_TRAP_CONTINUE)
             {
@@ -1375,15 +1378,15 @@ static void woort_WAIPO_Debugger_active(woort_VMRuntime* vm, void* instance, woo
                     abort();
                 }
 
-                if (breakpoint_set_successfully)
-                    break;
-
                 if (need_trap_request_for_callnfp_and_callnjit)
                 {
                     /* 设置 DEBUG_TRAP，使得外部函数中的子调用可以重回调试器 */
                     (void)woort_VMRuntime_request_set(
                         vm, WOORT_VMRUNTIME_CHECK_REQUEST_DEBUG_TRAP);
                 }
+
+                if (breakpoint_set_successfully)
+                    break;
 
                 (void)printf(WOORT_ANSI_HIR "Failed to set step breakpoint." WOORT_ANSI_RST);
             }
