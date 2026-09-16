@@ -75,6 +75,7 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "dis                 [funcname]      Dump current VM's running bytecodes.\n"
         "                    --all           Or dump all bytecodes in current CodeEnv.\n"
         "                    [offset length] Or dump bytecodes in specified range.\n"
+        "where       w       <offset>        Locate the function and source of a bytecode offset.\n"
         "stepir      si                      Step one bytecode instruction.\n"
         "step        s                       Step one source line.\n"
         "next        n                       Step over to next source line, not entering callees.\n"
@@ -882,6 +883,115 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_dis(
     return WOORT_WAIPO_CMD_REINPUT;
 }
 
+/* ====================================================================
+ * where / w command
+ * ==================================================================== */
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_where(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    if (arg_count < 2 || !_woort_WAIPO_is_numeric(args[1]))
+    {
+        (void)printf("Usage: where <offset>\n");
+        return WOORT_WAIPO_CMD_REINPUT;
+    }
+
+    /*
+     * 以当前选中调用栈帧所属的 CodeEnv 为反查上下文，
+     * 与 dis 命令的帧解析保持一致。
+     */
+    woort_VMRuntime_TraceCallstack trace;
+    if (!_woort_WAIPO_trace_to_depth(vm, dbg->m_current_frame_depth, &trace))
+    {
+        (void)printf(WOORT_ANSI_HIR "No callstack.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_REINPUT;
+    }
+
+    const woort_Bytecode* frame_ip = trace.m_code_addr;
+    if (frame_ip == NULL)
+        frame_ip = vm->m_ip;
+
+    woort_CodeEnv* cenv;
+    if (!woort_CodeEnv_find(frame_ip, &cenv))
+    {
+        (void)printf(WOORT_ANSI_HIR
+            "Cannot locate CodeEnv for current frame.\n" WOORT_ANSI_RST);
+        return WOORT_WAIPO_CMD_REINPUT;
+    }
+
+    const size_t code_count =
+        (size_t)(cenv->m_code_end - cenv->m_code_begin);
+
+    const size_t offset = (size_t)strtoul(args[1], NULL, 10);
+    if (offset >= code_count)
+    {
+        (void)printf("Offset %zu out of range [0, %zu).\n",
+            offset, code_count);
+        return WOORT_WAIPO_CMD_REINPUT;
+    }
+
+    (void)printf("Offset +%04zu in CodeEnv(%p):\n", offset, (void*)cenv);
+
+    /* 函数归属：由函数边界表反查。 */
+    const woort_FunctionBoundary* const boundary =
+        woort_CodeEnv_find_function_boundary_by_offset(
+            cenv, (uint32_t)offset);
+
+    if (boundary == NULL)
+        (void)printf("    Function: <not covered by any function>\n");
+    else if (boundary->m_name != NULL)
+        (void)printf("    Function: " WOORT_ANSI_HIG "%s" WOORT_ANSI_RST
+            "  [+%04u, +%04u)\n",
+            boundary->m_name,
+            boundary->m_offset_begin,
+            boundary->m_offset_begin + boundary->m_code_length);
+    else
+        (void)printf("    Function: <anonymous>  [+%04u, +%04u)\n",
+            boundary->m_offset_begin,
+            boundary->m_offset_begin + boundary->m_code_length);
+
+    /*
+     * 源码位置：映射表二分查找 <= offset 的最近条目，
+     * 一行源码产生的多条指令共享同一条目。
+     */
+    woort_SourceLocation loc;
+    if (woort_CodeEnv_find_srcloc_by_offset(cenv, (uint32_t)offset, &loc)
+        && loc.m_filepath != NULL)
+    {
+        if (loc.m_begin_line == loc.m_end_line
+            && loc.m_begin_column == loc.m_end_column)
+        {
+            (void)printf("    Source:   %s:%u:%u\n",
+                loc.m_filepath,
+                loc.m_begin_line + 1,
+                loc.m_begin_column + 1);
+        }
+        else
+        {
+            (void)printf("    Source:   %s:%u:%u - %u:%u\n",
+                loc.m_filepath,
+                loc.m_begin_line + 1,
+                loc.m_begin_column + 1,
+                loc.m_end_line + 1,
+                loc.m_end_column + 1);
+        }
+    }
+    else
+    {
+        (void)printf("    Source:   <no source location>\n");
+    }
+
+    /* 附带打印该偏移处的指令本身。 */
+    (void)printf("    Code:     ");
+    (void)woort_disassembly(cenv->m_code_begin + offset,
+        (woort_Disassembly_DumpCallback)printf);
+
+    return WOORT_WAIPO_CMD_REINPUT;
+}
+
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_stepir(
     woort_WAIPO_Debugger* dbg,
     woort_VMRuntime* vm,
@@ -1389,6 +1499,7 @@ static const woort_WAIPO_CommandEntry _woort_WAIPO_command_table[] = {
     { "source",    "src",  &_woort_WAIPO_cmd_source },
     { "list",      "l",    &_woort_WAIPO_cmd_list },
     { "dis",       NULL,   &_woort_WAIPO_cmd_dis },
+    { "where",     "w",    &_woort_WAIPO_cmd_where },
     { "stepir",    "si",   &_woort_WAIPO_cmd_stepir },
     { "step",      "s",    &_woort_WAIPO_cmd_step },
     { "next",      "n",    &_woort_WAIPO_cmd_next },
