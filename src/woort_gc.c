@@ -286,8 +286,6 @@ static bool _woort_GC_walk_through_to_abort_vm(
 
 static void _woort_GC_stop_mark_callback(void)
 {
-    /* NOTE: 对 weak VM 的"无人标记即终止"判定不在本回调中执行，
-       见 _woort_GC_after_final_mark_callback。 */
     woort_rwspinlock_read_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
