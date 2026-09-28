@@ -120,30 +120,44 @@ static void mutator_thread_entry(void* user_data)
         if (!g_running)
             break;
 
-        /* Give the assigned worker real work so its parallel-mark drain
-           window is wide enough to observe. */
-        for (size_t i = 0; i < FILLER_COUNT; ++i)
-            woort_mem_mark_unit_head(g_filler_units[i]);
-
-        /* Wait until the worker entered the parallel-mark drain. */
-        while (g_running && !worker_is_draining(g_mutator_worker))
-            woort_thread_yield();
-
-        /* Wait until the worker finished the drain. */
-        while (g_running && worker_is_draining(g_mutator_worker))
-            woort_thread_yield();
-
-        if (g_running && marking_is_on())
+        /* Feed the assigned worker so its parallel-mark drain lasts long
+           enough to observe, and detect the drain directly while feeding:
+           a worker that drains faster than we enqueue may leave in the
+           middle of the loop, so waiting for a "draining" edge AFTER the
+           loop would miss it entirely.
+           Every mark is flag-checked per iteration like a real write
+           barrier, otherwise a straddling loop could enqueue grays after
+           the final-mark drain and trip the sweep assertion. */
+        bool saw_draining = false;
+        for (size_t i = 0; i < FILLER_COUNT && marking_is_on(); ++i)
         {
-            /* The assigned worker is asleep now: move the holder handle
-               out of and back into the chain slot. The write barrier does
-               the unit's first graying of this round, which parks in the
-               sleeping worker's queue until final mark. */
-            woort_GC_mixed_write_barrier_gcaddr(g_holder_slot, NULL);
-            woort_GC_mixed_write_barrier_gcaddr(
-                g_holder_slot, (void*)g_holder_handle);
+            if (worker_is_draining(g_mutator_worker))
+                saw_draining = true;
+            else if (saw_draining)
+                break;
+            woort_mem_mark_unit_head(g_filler_units[i]);
+        }
 
-            ++g_parked_moves;
+        if (saw_draining)
+        {
+            /* Drain the tail: wait for the worker to leave the drain. */
+            while (g_running && marking_is_on()
+                && worker_is_draining(g_mutator_worker))
+                woort_thread_yield();
+
+            if (g_running && marking_is_on())
+            {
+                /* The assigned worker is asleep now: move the holder
+                   handle out of and back into the chain slot. The write
+                   barrier does the unit's first graying of this round,
+                   which parks in the sleeping worker's queue until
+                   final mark. */
+                woort_GC_mixed_write_barrier_gcaddr(g_holder_slot, NULL);
+                woort_GC_mixed_write_barrier_gcaddr(
+                    g_holder_slot, (void*)g_holder_handle);
+
+                ++g_parked_moves;
+            }
         }
 
         /* Wait for the round to finish. */
@@ -246,7 +260,9 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    for (size_t round = 0; round < TEST_ROUNDS; ++round)
+    for (size_t round = 0;
+         round < TEST_ROUNDS && g_parked_moves < 30;
+         ++round)
     {
         woort_mem_trigger_gc(false);
         woort_thread_sleep_ms(1);
