@@ -286,17 +286,8 @@ static bool _woort_GC_walk_through_to_abort_vm(
 
 static void _woort_GC_stop_mark_callback(void)
 {
-    woort_spinlock_lock(&g_gc_context.m_not_been_marked_weak_vm_mx);
-    {
-        (void)woort_hashmap_foreach(
-            &g_gc_context.m_not_been_marked_weak_vm,
-            &_woort_GC_walk_through_to_abort_vm,
-            NULL);
-
-        woort_hashmap_clear(&g_gc_context.m_not_been_marked_weak_vm);
-    }
-    woort_spinlock_unlock(&g_gc_context.m_not_been_marked_weak_vm_mx);
-
+    /* NOTE: 对 weak VM 的"无人标记即终止"判定不在本回调中执行，
+       见 _woort_GC_after_final_mark_callback。 */
     woort_rwspinlock_read_lock(&g_gc_context.m_root_vms_to_mark_mx);
     {
         (void)woort_hashmap_foreach(
@@ -307,6 +298,25 @@ static void _woort_GC_stop_mark_callback(void)
     woort_rwspinlock_read_unlock(&g_gc_context.m_root_vms_to_mark_mx);
 
     _woort_GC_stage_switch_sync();
+}
+
+static void _woort_GC_after_final_mark_callback(void)
+{
+    /* NOTE: 并发标记期间，持有者经写屏障完成"首次置灰"的单元，可能在对应
+       worker 已结束并行标记排水之后才入队，只能等 final mark 阶段排空并
+       执行其 mark 回调（woort_GC_mark_weak_vm_manually 的消费点）。
+       因此"GC_CHECK 仍置位 ⇒ 无人标记"的判定必须放在 final mark 之后，
+       否则会误杀仍被持有者引用的 weak VM。 */
+    woort_spinlock_lock(&g_gc_context.m_not_been_marked_weak_vm_mx);
+    {
+        (void)woort_hashmap_foreach(
+            &g_gc_context.m_not_been_marked_weak_vm,
+            &_woort_GC_walk_through_to_abort_vm,
+            NULL);
+
+        woort_hashmap_clear(&g_gc_context.m_not_been_marked_weak_vm);
+    }
+    woort_spinlock_unlock(&g_gc_context.m_not_been_marked_weak_vm_mx);
 }
 
 static void _woort_GC_thread_entry(void)
@@ -321,6 +331,7 @@ WOORT_NODISCARD bool woort_GC_bootup(size_t reserving_memory_size)
         reserving_memory_size,
         &_woort_GC_start_callback,
         &_woort_GC_stop_mark_callback,
+        &_woort_GC_after_final_mark_callback,
         &_woort_GC_marker_callback,
         &_woort_GC_destroyer_callback,
         &_woort_GC_thread_entry,

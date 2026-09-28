@@ -38,6 +38,7 @@ bool woort_mem_init(
     size_t reserved_chunk_size,
     woort_mem_GCCallback gc_callback_at_begin,
     woort_mem_GCCallback gc_callback_at_stop_marking,
+    woort_mem_GCCallback gc_callback_after_final_mark,
     woort_mem_MarkCallback mark_callback,
     woort_mem_FreeCallback free_callback,
     woort_mem_GCMainThreadEntryCallback main_entry_callback,

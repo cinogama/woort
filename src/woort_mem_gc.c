@@ -744,6 +744,13 @@ static void _woort_mem_gc_main_thread_entry(void* user_data)
         woort_mem_gc_launch_worker_and_wait_until_done(
             self, WOORT_MEM_WORKER_THRESHOLD_FINAL_MARK);
 
+        /* Step 5.5: After final mark callback
+           Final mark drains the grays that mutators enqueued after their
+           assigned workers had finished the parallel mark; callbacks that
+           only run here (e.g. weak-vm termination verdicts) must not be
+           judged earlier. */
+        self->m_gc_callback_after_final_mark();
+
         /* Step 6: Distribute pages for sweep */
         {
             void* old = woort_atomic_exchange_explicit(
@@ -828,6 +835,7 @@ WOORT_NODISCARD woort_mem_GC* woort_mem_gc_create(
     size_t worker_count,
     void (*callback_for_marking_root)(void),
     void (*callback_stop_marking)(void),
+    void (*callback_after_final_mark)(void),
     void (*user_mark_callback)(void*),
     void (*user_free_callback)(void*),
     void (*main_entry_callback)(void),
@@ -848,6 +856,7 @@ WOORT_NODISCARD woort_mem_GC* woort_mem_gc_create(
 
     self->m_gc_callback_at_begin = callback_for_marking_root;
     self->m_gc_callback_at_stop_marking = callback_stop_marking;
+    self->m_gc_callback_after_final_mark = callback_after_final_mark;
     self->m_user_mark_callback = user_mark_callback;
     self->m_user_free_callback = user_free_callback;
     self->m_main_entry_callback = main_entry_callback;

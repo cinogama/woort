@@ -102,7 +102,9 @@ WOORT_NODISCARD static inline size_t woort_mem_mpsc_drain(
     return count;
 }
 
-WOORT_NODISCARD static inline bool woort_mem_mpsc_empty(const woort_mem_MpscGrayQueue* self)
+/* NOTE: 不能用 const 形参——atomic 泛型宏对 const 限定的原子指针没有兼容分支，
+   任何未启用 /experimental:c11atomics 的编译单元（如测试）包含本头都会失败。 */
+WOORT_NODISCARD static inline bool woort_mem_mpsc_empty(woort_mem_MpscGrayQueue* self)
 {
     const uint64_t pos = woort_atomic_load_explicit(
         &self->m_dequeue_pos, WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
@@ -111,5 +113,5 @@ WOORT_NODISCARD static inline bool woort_mem_mpsc_empty(const woort_mem_MpscGray
         &self->m_slots[pos & WOORT_MEM_GRAY_QUEUE_MASK];
 
     return woort_atomic_load_explicit(
-        &slot->sequence, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE) != pos + 1;
+        (woort_AtomicUInt64*)&slot->sequence, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE) != pos + 1;
 }
