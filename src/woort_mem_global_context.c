@@ -83,8 +83,12 @@ WOORT_NODISCARD static bool _woort_mem_shutdown_te_callback(
 
 WOORT_NODISCARD bool woort_mem_global_context_init(size_t reserved_chunk_size)
 {
+    assert(NULL == woort_atomic_load_explicit(
+        &g_woort_mem_global_context.m_all_page_list,
+        WOORT_ATOMIC_MEMORY_ORDER_RELAXED));
+
     if (!woort_mem_chunk_init(
-            &g_woort_mem_global_context.m_chunk, reserved_chunk_size))
+        &g_woort_mem_global_context.m_chunk, reserved_chunk_size))
     {
         woort_mem_chunk_deinit(&g_woort_mem_global_context.m_chunk);
         return false;
@@ -121,6 +125,11 @@ void woort_mem_global_context_deinit(void)
 
     woort_mem_gpc_deinit(&g_woort_mem_global_context.m_gpc);
     woort_mem_chunk_deinit(&g_woort_mem_global_context.m_chunk);
+
+    woort_atomic_store_explicit(
+        &g_woort_mem_global_context.m_all_page_list,
+        NULL,
+        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
     woort_hashmap_deinit(
         &g_woort_mem_global_context.m_thread_entries);

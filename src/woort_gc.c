@@ -257,6 +257,9 @@ static bool _woort_GC_walk_through_to_sync_finish_mark(
             /* This VM leaved, ignore. */
             break;
         }
+
+        woort_thread_yield();
+
     } while (woort_VMRuntime_request_check(
         vm, WOORT_VMRUNTIME_CHECK_REQUEST_GC_MARK_FINISHED));
 
