@@ -9,26 +9,7 @@ woort_mem_global_context.c
 #include <stdlib.h>
 #include <assert.h>
 
-woort_mem_GlobalContext g_woort_mem_global_context = {
-    .m_globalcontext_alive = true,
-    .m_globalcontext_inited = false,
-    .m_thread_entries_inited = false,
-};
-
-void woort_mem_global_context_ensure_thread_entries_init(void)
-{
-    if (!g_woort_mem_global_context.m_thread_entries_inited)
-    {
-        woort_hashmap_init(
-            &g_woort_mem_global_context.m_thread_entries,
-            sizeof(woort_mem_ThreadContext*),
-            0,
-            woort_util_ptr_hash,
-            woort_util_ptr_equal);
-
-        g_woort_mem_global_context.m_thread_entries_inited = true;
-    }
-}
+woort_mem_GlobalContext g_woort_mem_global_context;
 
 void woort_mem_global_context_thread_entries_insert(
     woort_mem_ThreadContext* ctx)
@@ -36,7 +17,6 @@ void woort_mem_global_context_thread_entries_insert(
     woort_spinlock_lock(
         &g_woort_mem_global_context.m_thread_entries_mx);
     {
-        woort_mem_global_context_ensure_thread_entries_init();
         (void)woort_hashmap_insert(
             &g_woort_mem_global_context.m_thread_entries,
             &ctx, NULL);
@@ -51,12 +31,9 @@ void woort_mem_global_context_thread_entries_remove(
     woort_spinlock_lock(
         &g_woort_mem_global_context.m_thread_entries_mx);
     {
-        if (g_woort_mem_global_context.m_thread_entries_inited)
-        {
-            (void)woort_hashmap_remove(
-                &g_woort_mem_global_context.m_thread_entries,
-                &ctx);
-        }
+        (void)woort_hashmap_remove(
+            &g_woort_mem_global_context.m_thread_entries,
+            &ctx);
     }
     woort_spinlock_unlock(
         &g_woort_mem_global_context.m_thread_entries_mx);
@@ -97,13 +74,15 @@ WOORT_NODISCARD static bool _woort_mem_shutdown_te_callback(
 
     woort_mem_tpc_shutdown_manually(
         &thread_ctx->m_thread_page_collection);
+
+    /* reset tls ptr when global shutdown. */
+    *thread_ctx->m_this_tls_storage_ptr = NULL;
+
     return true;
 }
 
 WOORT_NODISCARD bool woort_mem_global_context_init(size_t reserved_chunk_size)
 {
-    assert(!g_woort_mem_global_context.m_globalcontext_inited);
-
     if (!woort_mem_chunk_init(
             &g_woort_mem_global_context.m_chunk, reserved_chunk_size))
     {
@@ -115,43 +94,27 @@ WOORT_NODISCARD bool woort_mem_global_context_init(size_t reserved_chunk_size)
         &g_woort_mem_global_context.m_gpc,
         &g_woort_mem_global_context.m_chunk);
 
-    g_woort_mem_global_context.m_globalcontext_inited = true;
-
-    woort_spinlock_lock(
-        &g_woort_mem_global_context.m_thread_entries_mx);
-    {
-        if (g_woort_mem_global_context.m_thread_entries_inited)
-        {
-            _woort_mem_init_te_ctx ctx = {
-                .gpc = &g_woort_mem_global_context.m_gpc,
-            };
-            (void)woort_hashmap_foreach(
-                &g_woort_mem_global_context.m_thread_entries,
-                _woort_mem_init_te_callback,
-                &ctx);
-        }
-    }
-    woort_spinlock_unlock(
-        &g_woort_mem_global_context.m_thread_entries_mx);
+    woort_spinlock_init(&g_woort_mem_global_context.m_thread_entries_mx);
+    woort_hashmap_init(
+        &g_woort_mem_global_context.m_thread_entries,
+        sizeof(woort_mem_ThreadContext*),
+        0,
+        woort_util_ptr_hash,
+        woort_util_ptr_equal);
 
     return true;
 }
 
-void woort_mem_global_context_shutdown(void)
+void woort_mem_global_context_deinit(void)
 {
-    assert(g_woort_mem_global_context.m_globalcontext_inited);
-
     woort_spinlock_lock(
         &g_woort_mem_global_context.m_thread_entries_mx);
     {
-        if (g_woort_mem_global_context.m_thread_entries_inited)
-        {
-            _woort_mem_shutdown_te_ctx ctx = { .unused = 0 };
-            (void)woort_hashmap_foreach(
-                &g_woort_mem_global_context.m_thread_entries,
-                _woort_mem_shutdown_te_callback,
-                &ctx);
-        }
+        _woort_mem_shutdown_te_ctx ctx = { .unused = 0 };
+        (void)woort_hashmap_foreach(
+            &g_woort_mem_global_context.m_thread_entries,
+            _woort_mem_shutdown_te_callback,
+            &ctx);
     }
     woort_spinlock_unlock(
         &g_woort_mem_global_context.m_thread_entries_mx);
@@ -159,23 +122,10 @@ void woort_mem_global_context_shutdown(void)
     woort_mem_gpc_deinit(&g_woort_mem_global_context.m_gpc);
     woort_mem_chunk_deinit(&g_woort_mem_global_context.m_chunk);
 
-    g_woort_mem_global_context.m_globalcontext_inited = false;
-}
-
-void woort_mem_global_context_deinit(void)
-{
-    if (g_woort_mem_global_context.m_thread_entries_inited)
-    {
-        woort_hashmap_deinit(
-            &g_woort_mem_global_context.m_thread_entries);
-        g_woort_mem_global_context.m_thread_entries_inited = false;
-    }
-
+    woort_hashmap_deinit(
+        &g_woort_mem_global_context.m_thread_entries);
     woort_spinlock_deinit(
         &g_woort_mem_global_context.m_thread_entries_mx);
-
-    assert(!g_woort_mem_global_context.m_globalcontext_inited);
-    g_woort_mem_global_context.m_globalcontext_alive = false;
 }
 
 void woort_mem_global_context_add_new_page_into_chain(

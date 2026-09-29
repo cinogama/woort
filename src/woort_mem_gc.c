@@ -232,12 +232,12 @@ void woort_mem_gc_trigger_gc(woort_mem_GC* self, bool async)
 
         woort_mutex_lock(self->m_trigger_mx);
         while (woort_atomic_load_explicit(
-                    &self->m_gc_cycle_count,
-                    WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE)
-                    <= prev_count
+            &self->m_gc_cycle_count,
+            WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE)
+            <= prev_count
             && !woort_atomic_load_explicit(
-                    &self->m_shutdown,
-                    WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE))
+                &self->m_shutdown,
+                WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE))
         {
             woort_condition_variable_wait(
                 self->m_trigger_cv, self->m_trigger_mx);
@@ -283,7 +283,7 @@ void woort_mem_gcworker_mark_unit_to_gray(
                         WOORT_ATOMIC_MEMORY_ORDER_RELAXED))
                     {
                         if (!woort_vector_push_back(
-                                &self->m_local_work, 1, &unit_head))
+                            &self->m_local_work, 1, &unit_head))
                         {
                             WOORT_DEBUG(
                                 "woort_vector_push_back failed "
@@ -337,7 +337,7 @@ WOORT_NODISCARD static bool woort_mem_gcworker_check_and_free_unmarked_unit(
         /* Fall through to survival path */
     }
 
-    assert(life != WOORT_MEM_UNIT_LIFE_SELF_MARKED 
+    assert(life != WOORT_MEM_UNIT_LIFE_SELF_MARKED
         /* Might be new unit, it was been self-marked by write-barrier. */
         || unit->m_age == 15);
 
@@ -374,8 +374,8 @@ static void woort_mem_gcworker_sweep_units_in_page(
 
         const size_t unit_count =
             (WOORT_MEM_NORMAL_PAGE_SIZE
-             - sizeof(woort_mem_PageHead)
-             - sizeof(woort_mem_PageUnitAlloc))
+                - sizeof(woort_mem_PageHead)
+                - sizeof(woort_mem_PageUnitAlloc))
             / unit_size_with_head;
 
         bool has_survivor = false, has_free_space = false;
@@ -471,7 +471,7 @@ static void woort_mem_gcworker_drain_queue_into_local(
         for (size_t i = 0; i < count; ++i)
         {
             if (!woort_vector_push_back(
-                    &self->m_local_work, 1, &self->m_drain_buf[i]))
+                &self->m_local_work, 1, &self->m_drain_buf[i]))
             {
                 WOORT_DEBUG(
                     "woort_vector_push_back failed during GC queue drain");
@@ -568,7 +568,7 @@ static void _woort_mem_gcworker_thread_entry(void* user_data)
             self->m_alive_memory_size_counter = 0;
 
             for (woort_mem_PageHead* page = self->m_sweep_page_list;
-                 page != NULL;)
+                page != NULL;)
             {
                 woort_mem_PageHead* const next_page = page->m_next_page;
                 woort_mem_gcworker_sweep_units_in_page(self, page);
@@ -660,11 +660,11 @@ static void _woort_mem_gc_main_thread_entry(void* user_data)
                 {
                     woort_mutex_lock(self->m_trigger_mx);
                     while (!woort_atomic_load_explicit(
-                                &self->m_force_trigger_gc,
-                                WOORT_ATOMIC_MEMORY_ORDER_RELAXED)
+                        &self->m_force_trigger_gc,
+                        WOORT_ATOMIC_MEMORY_ORDER_RELAXED)
                         && !woort_atomic_load_explicit(
-                                &self->m_shutdown,
-                                WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE))
+                            &self->m_shutdown,
+                            WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE))
                     {
                         if (!woort_condition_variable_timed_wait(
                             self->m_trigger_cv, self->m_trigger_mx, 100))
@@ -690,7 +690,7 @@ static void _woort_mem_gc_main_thread_entry(void* user_data)
 
                 const size_t alive =
                     GC_TRIGGER_MIN_EDGE
-                        > woort_mem_gc_memory_size_after_last_round_sweep
+            > woort_mem_gc_memory_size_after_last_round_sweep
                     ? GC_TRIGGER_MIN_EDGE
                     : woort_mem_gc_memory_size_after_last_round_sweep;
 
@@ -764,7 +764,7 @@ static void _woort_mem_gc_main_thread_entry(void* user_data)
             {
                 size_t total_pages = 0;
                 for (woort_mem_PageHead* p = all_pages;
-                     p != NULL; p = p->m_next_page)
+                    p != NULL; p = p->m_next_page)
                     ++total_pages;
 
                 const size_t base_count =
@@ -808,7 +808,7 @@ static void _woort_mem_gc_main_thread_entry(void* user_data)
             {
                 total_alive_memory_size +=
                     self->m_gc_worker_threads[i]
-                        .m_alive_memory_size_counter;
+                    .m_alive_memory_size_counter;
             }
             woort_mem_gc_memory_size_after_last_round_sweep =
                 total_alive_memory_size;
@@ -848,7 +848,7 @@ WOORT_NODISCARD woort_mem_GC* woort_mem_gc_create(
 
     self->m_gc_worker_count =
         worker_count != 0 ? worker_count
-                          : woort_mem_default_gc_worker_count();
+        : woort_mem_default_gc_worker_count();
 
     woort_atomic_init(&self->m_gc_assigned_thread_idx, 0);
     woort_atomic_init(&self->m_shutdown, false);
@@ -983,7 +983,7 @@ WOORT_NODISCARD static bool _woort_mem_assign_mc_callback(
 
     if (!thread_ctx->m_is_gc_worker_context)
         thread_ctx->m_gc_marking_context =
-            woort_mem_gc_fetch_thread_worker(ctx->gc);
+        woort_mem_gc_fetch_thread_worker(ctx->gc);
 
     return true;
 }
@@ -994,14 +994,11 @@ void woort_mem_global_context_assign_marking_contexts(
     woort_spinlock_lock(
         &g_woort_mem_global_context.m_thread_entries_mx);
     {
-        if (g_woort_mem_global_context.m_thread_entries_inited)
-        {
-            _woort_mem_assign_mc_ctx ctx = { .gc = gc };
-            (void)woort_hashmap_foreach(
-                &g_woort_mem_global_context.m_thread_entries,
-                _woort_mem_assign_mc_callback,
-                &ctx);
-        }
+        _woort_mem_assign_mc_ctx ctx = { .gc = gc };
+        (void)woort_hashmap_foreach(
+            &g_woort_mem_global_context.m_thread_entries,
+            _woort_mem_assign_mc_callback,
+            &ctx);
     }
     woort_spinlock_unlock(
         &g_woort_mem_global_context.m_thread_entries_mx);
@@ -1023,13 +1020,10 @@ void woort_mem_global_context_clear_marking_contexts(void)
     woort_spinlock_lock(
         &g_woort_mem_global_context.m_thread_entries_mx);
     {
-        if (g_woort_mem_global_context.m_thread_entries_inited)
-        {
-            (void)woort_hashmap_foreach(
-                &g_woort_mem_global_context.m_thread_entries,
-                _woort_mem_clear_mc_callback,
-                NULL);
-        }
+        (void)woort_hashmap_foreach(
+            &g_woort_mem_global_context.m_thread_entries,
+            _woort_mem_clear_mc_callback,
+            NULL);
     }
     woort_spinlock_unlock(
         &g_woort_mem_global_context.m_thread_entries_mx);

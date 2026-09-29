@@ -14,12 +14,14 @@ struct woort_mem_GCWorker;
 typedef struct woort_mem_ThreadContext
 {
     woort_mem_ThreadPageCollection m_thread_page_collection;
+    struct woort_mem_ThreadContext** m_this_tls_storage_ptr;
+
     /* OPTIONAL */ struct woort_mem_GCWorker* m_gc_marking_context;
     bool m_is_gc_worker_context;
 
 } woort_mem_ThreadContext;
 
-void woort_mem_thread_context_init(woort_mem_ThreadContext* self);
+void woort_mem_thread_context_init(woort_mem_ThreadContext** pself);
 void woort_mem_thread_context_deinit(woort_mem_ThreadContext* self);
 
 /*

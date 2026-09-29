@@ -21,10 +21,6 @@ struct woort_mem_GC;
 
 typedef struct woort_mem_GlobalContext
 {
-    bool            m_globalcontext_alive;
-    bool            m_globalcontext_inited;
-    bool            m_thread_entries_inited;
-
     woort_Spinlock  m_thread_entries_mx;
     woort_HashMap   m_thread_entries;
 
@@ -42,7 +38,6 @@ void woort_mem_global_context_thread_entries_insert(struct woort_mem_ThreadConte
 void woort_mem_global_context_thread_entries_remove(struct woort_mem_ThreadContext* ctx);
 
 WOORT_NODISCARD bool woort_mem_global_context_init(size_t reserved_chunk_size);
-void woort_mem_global_context_shutdown(void);
 void woort_mem_global_context_deinit(void);
 
 void woort_mem_global_context_add_new_page_into_chain(woort_mem_PageHead* page);

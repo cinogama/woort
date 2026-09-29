@@ -24,8 +24,7 @@ bool woort_mem_init(
     woort_mem_GCMainThreadEntryCallback main_entry_callback,
     woort_mem_GCWorkerThreadEntryCallback worker_entry_callback)
 {
-    assert(!g_woort_mem_global_context.m_globalcontext_inited
-        && g_woort_mem_gc == NULL);
+    assert(g_woort_mem_gc == NULL);
 
     if (woort_mem_global_context_init(reserved_chunk_size))
     {
@@ -41,7 +40,7 @@ bool woort_mem_init(
         if (g_woort_mem_gc != NULL)
             return true;
 
-        woort_mem_global_context_shutdown();
+        woort_mem_global_context_deinit();
     }
     return false;
 }
@@ -53,7 +52,6 @@ void woort_mem_shutdown(void)
     woort_mem_gc_destroy(g_woort_mem_gc);
     g_woort_mem_gc = NULL;
 
-    woort_mem_global_context_shutdown();
     woort_mem_global_context_deinit();
 }
 
