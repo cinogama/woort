@@ -28,6 +28,19 @@ Deterministic parking strategy used here:
     graying of this round, and the gray is enqueued into the sleeping
     worker's queue -> parked until final mark.
 
+The mutator is a RAW (non-VM) thread: no GC checkpoint handshake quiesces
+it, so every "flag check + mark" pair (feed loop and park barriers alike)
+is wrapped in woort_GC_sync_marking_lock/unlock — the documented contract
+for host threads (include/woort.h). The stop-marking callback's trailing
+stage-switch sync then waits any straddling pair out before final mark
+drains the queues. Without the guard, a mark whose flag read happened
+before the stop-marking flag clear but whose enqueue landed after the
+final-mark drain leaves an OLD unit SELF_MARKED into the sweep and trips
+the sweep assertion (observed once on a loaded CI runner; per-iteration
+flag checks alone do NOT close that window — they only mirror the flag
+read of a real barrier, which additionally runs on a VM thread and is
+quiesced at checkpoints).
+
 Expected results:
 
   * Before the fix: the abort-walk (stop-marking phase) consumes GC_CHECK
@@ -125,17 +138,32 @@ static void mutator_thread_entry(void* user_data)
            a worker that drains faster than we enqueue may leave in the
            middle of the loop, so waiting for a "draining" edge AFTER the
            loop would miss it entirely.
-           Every mark is flag-checked per iteration like a real write
-           barrier, otherwise a straddling loop could enqueue grays after
-           the final-mark drain and trip the sweep assertion. */
+           Each flag check + mark pair is flag-checked per iteration like
+           a real write barrier AND wrapped in the external marking sync
+           guard: this thread is not a VM thread, so no checkpoint
+           handshake quiesces it — an unguarded pair straddling the
+           stop-marking flag clear could enqueue a gray after the
+           final-mark drain and trip the sweep assertion. The guard makes
+           the stop-marking stage-switch sync wait the pair out instead. */
         bool saw_draining = false;
-        for (size_t i = 0; i < FILLER_COUNT && marking_is_on(); ++i)
+        for (size_t i = 0; i < FILLER_COUNT; ++i)
         {
+            /* The guard must cover the flag check AND the mark as a
+               whole: a check done outside the guard can be straddled
+               before the guard is even taken. */
+            const bool guarded = woort_GC_sync_marking_lock();
+            const bool flag_on = marking_is_on();
+            if (flag_on)
+                woort_mem_mark_unit_head(g_filler_units[i]);
+            if (guarded)
+                woort_GC_sync_marking_unlock();
+            if (!flag_on)
+                break;
+
             if (worker_is_draining(g_mutator_worker))
                 saw_draining = true;
             else if (saw_draining)
                 break;
-            woort_mem_mark_unit_head(g_filler_units[i]);
         }
 
         if (saw_draining)
@@ -145,19 +173,23 @@ static void mutator_thread_entry(void* user_data)
                 && worker_is_draining(g_mutator_worker))
                 woort_thread_yield();
 
+            /* The assigned worker is asleep now: move the holder handle
+               out of and back into the chain slot. The write barrier does
+               the unit's first graying of this round, which parks in the
+               sleeping worker's queue until final mark. The flag check
+               and the barriers are guarded as a whole — same contract as
+               the feed loop above. */
+            const bool guarded = woort_GC_sync_marking_lock();
             if (g_running && marking_is_on())
             {
-                /* The assigned worker is asleep now: move the holder
-                   handle out of and back into the chain slot. The write
-                   barrier does the unit's first graying of this round,
-                   which parks in the sleeping worker's queue until
-                   final mark. */
                 woort_GC_mixed_write_barrier_gcaddr(g_holder_slot, NULL);
                 woort_GC_mixed_write_barrier_gcaddr(
                     g_holder_slot, (void*)g_holder_handle);
 
                 ++g_parked_moves;
             }
+            if (guarded)
+                woort_GC_sync_marking_unlock();
         }
 
         /* Wait for the round to finish. */
