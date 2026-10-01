@@ -636,16 +636,65 @@ WOORT_NODISCARD static bool _woort_mem_root_mark_callback(
 }
 
 /* ============================================================ */
+/* GC trigger policy                                             */
+/* ============================================================ */
+
+/*
+The GC main thread starts a concurrent cycle once the bytes allocated
+since the previous cycle (m_new_allocated_size_since_last_gc) reach a
+size-dependent fraction of the live heap left by the last sweep:
+
+    trigger when:  new_allocated >= max(min_edge, live) / ratio
+
+The ratio shrinks as the heap grows: small heaps collect less eagerly
+(frequent cycles on a tiny live set are pure overhead), while large
+heaps collect more eagerly (bounding how far the heap may balloon above
+its live set). min_edge floors the live size so tiny-live but
+allocation-heavy programs do not thrash the collector; its value
+(4MB, aligned with Go's minimum heap size) is a compile-time constant.
+*/
+
+typedef struct woort_mem_GCTriggerTier
+{
+    size_t m_alive_limit;   /* tier applies when alive <= m_alive_limit */
+    size_t m_ratio_den;     /* threshold = alive / m_ratio_den          */
+} woort_mem_GCTriggerTier;
+
+static const size_t WOORT_MEM_GC_TRIGGER_MIN_EDGE_DEFAULT =
+    4ull * 1024 * 1024;
+
+static const woort_mem_GCTriggerTier WOORT_MEM_GC_TRIGGER_TIERS[] = {
+    { 16ull * 1024 * 1024,   3 },  /* alive <= 16MB  -> 1/3 */
+    { 64ull * 1024 * 1024,   4 },  /* alive <= 64MB  -> 1/4 */
+    { 256ull * 1024 * 1024,  6 },  /* alive <= 256MB -> 1/6 */
+    { SIZE_MAX,              8 },  /* otherwise      -> 1/8 */
+};
+
+WOORT_NODISCARD static size_t woort_mem_gc_compute_trigger_threshold(
+    size_t live_bytes, size_t min_edge_bytes)
+{
+    const size_t alive =
+        live_bytes > min_edge_bytes ? live_bytes : min_edge_bytes;
+
+    for (size_t i = 0;
+        i < sizeof(WOORT_MEM_GC_TRIGGER_TIERS)
+            / sizeof(WOORT_MEM_GC_TRIGGER_TIERS[0]);
+        ++i)
+    {
+        if (alive <= WOORT_MEM_GC_TRIGGER_TIERS[i].m_alive_limit)
+            return alive / WOORT_MEM_GC_TRIGGER_TIERS[i].m_ratio_den;
+    }
+
+    return alive / 8; /* unreachable: the last tier covers SIZE_MAX */
+}
+
+/* ============================================================ */
 /* GC main thread                                                */
 /* ============================================================ */
 
 static void _woort_mem_gc_main_thread_entry(void* user_data)
 {
     woort_mem_GC* self = (woort_mem_GC*)user_data;
-
-    static const size_t GC_TRIGGER_NEW_ALLOC_RATIO_NUM = 1;
-    static const size_t GC_TRIGGER_NEW_ALLOC_RATIO_DEN = 3;
-    static const size_t GC_TRIGGER_MIN_EDGE = 1024 * 1024;
 
     self->m_main_entry_callback();
 
@@ -688,19 +737,16 @@ static void _woort_mem_gc_main_thread_entry(void* user_data)
                     WOORT_ATOMIC_MEMORY_ORDER_RELAXED))
                     break;
 
-                const size_t alive =
-                    GC_TRIGGER_MIN_EDGE
-            > woort_mem_gc_memory_size_after_last_round_sweep
-                    ? GC_TRIGGER_MIN_EDGE
-                    : woort_mem_gc_memory_size_after_last_round_sweep;
+                const size_t trigger_threshold =
+                    woort_mem_gc_compute_trigger_threshold(
+                        woort_mem_gc_memory_size_after_last_round_sweep,
+                        WOORT_MEM_GC_TRIGGER_MIN_EDGE_DEFAULT);
 
-                const size_t new_alloc =
-                    woort_atomic_load_explicit(
-                        &self->m_new_allocated_size_since_last_gc,
-                        WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
+                const size_t new_alloc = (size_t)woort_atomic_load_explicit(
+                    &self->m_new_allocated_size_since_last_gc,
+                    WOORT_ATOMIC_MEMORY_ORDER_RELAXED);
 
-                if (new_alloc * GC_TRIGGER_NEW_ALLOC_RATIO_DEN
-                    >= alive * GC_TRIGGER_NEW_ALLOC_RATIO_NUM)
+                if (new_alloc >= trigger_threshold)
                     break;
             }
         }

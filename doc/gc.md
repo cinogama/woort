@@ -199,6 +199,27 @@ void woort_GC_shutdown(void);                          /* woort_shutdown 内部�
 1. **分配失败**：`_woort_GCUnit_alloc_failed`（`src/woort_gc_units.c`）临时脱离当前 VM（保存/恢复 `m_sp`），同步触发 GC 后重试分配。
 2. **关闭**：`woort_GC_shutdown` 执行最后一次 mark → finalize → sweep。
 
+除上述强制路径外，GC 主线程（`src/woort_mem_gc.c`）按以下策略自动触发并发回收，每 100ms 轮询一次：
+
+1. **比例门限（按存活内存分层）**：自上轮 GC 以来的新分配量达到门限即触发。
+
+   ```
+   门限 = max(最小存活门限, 上轮 sweep 后存活内存) / 比例
+   ```
+
+   比例随存活内存增大逐级降低——小堆回收更懒惰（存活集很小但分配频繁的程序不会打转 GC），大堆回收更积极（限制堆峰值超出存活集太多）：
+
+   | 存活内存（取 max 之后） | 触发比例 |
+   |------------------------|---------|
+   | ≤ 16MB | 1/3 |
+   | ≤ 64MB | 1/4 |
+   | ≤ 256MB | 1/6 |
+   | > 256MB | 1/8 |
+
+2. **最小存活门限**：把参与上式计算的存活内存垫高，默认 **4MB**（对齐 Go 的 `minHeapSize` 思路），为 `src/woort_mem_gc.c` 内部常量 `WOORT_MEM_GC_TRIGGER_MIN_EDGE_DEFAULT`。
+
+3. **周期触发**：距上轮 10 秒必跑一轮（即使几乎没有新分配）。
+
 ---
 
 ## Root Set
