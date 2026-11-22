@@ -589,7 +589,15 @@ void woort_GC_foreach_root_vm(
 
 void woort_GC_mark_weak_vm_manually(woort_VMRuntime* vm)
 {
-    assert(vm->m_is_weak);
+    /*
+    NOTE: 尽管此处实际上期待一个 weak 的VM，但是不能做 assert(vm->m_is_weak) 
+        断言，因为一个 VM 实例能被标记到时，可能还尚未 make weak——这
+        很常见。因为按照设计，设置虚拟机为 weak 就得在确保其能够被标记
+        之后。
+        此处放行也是可行的，因为 mark weak vm （按照预期使用）只会发生在 
+        full mark 阶段，对于非 weak 的vm，其请求标记已经被提走。所以
+        直接放行是可行的。
+    */
 
     /* NOTE: 此处使用 _woort_GC_mark_vm_proxy 是为了确保：
 
