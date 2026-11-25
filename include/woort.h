@@ -799,6 +799,38 @@ WOORT_NODISCARD WOORT_API  /* OPTIONAL */ woort_VMRuntime* woort_VMRuntime_curre
 WOORT_NODISCARD WOORT_API /* OPTIONAL */ const char* woort_VMRuntime_get_runtime_error_msg(
     woort_VMRuntime* vm);
 
+/**
+ * @brief How a call frame was entered.
+ *
+ * Every frame records this beside its return address, and the callstack trace
+ * reports it for each frame (see woort_VMRuntime_trace_next()).
+ */
+typedef enum woort_CallWay
+{
+    /**
+     * @brief A script function called another (local) script function.
+     */
+    WOORT_CALL_WAY_NEAR,
+
+    /**
+     * @brief A script function called a script function of another code environment.
+     *
+     * Returning to the caller requires an extra check.
+     */
+    WOORT_CALL_WAY_FAR,
+
+    /**
+     * @brief The frame was entered from the native side: by a native function
+     *        calling back into script, or by the host through
+     *        woort_invoke() / woort_spawn().
+     *
+     * Returning from the callee ends the interpreter run and hands control back
+     * to the native caller.
+     */
+    WOORT_CALL_WAY_FROM_NATIVE,
+
+} woort_CallWay;
+
 typedef struct woort_VMRuntime_TraceCallstack_Iter
 {
     woort_VMRuntime* m_vm;
@@ -823,6 +855,8 @@ typedef struct woort_VMRuntime_TraceCallstack
     /* OPTIONAL */ const woort_Bytecode* m_code_addr;
 
     size_t m_callstack_offset_of_base;
+
+    woort_CallWay m_call_way;   /**< @brief How this frame was entered. */
 
 } woort_VMRuntime_TraceCallstack;
 

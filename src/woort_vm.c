@@ -4361,6 +4361,20 @@ WOORT_NODISCARD static bool _woort_VMRuntime_trace_addr(
     return false;
 }
 
+/*
+ * 基址距 m_stack_end 为 offset_of_base 的帧所记录的调用方式（记在该帧的 sb[1]）。
+ * 离栈顶不足 3 个槽的位置放不下一个完整的帧——VM 空闲时 m_sb 就停在那里，宿主调起
+ * 的顶层帧之外也是那里——一律按 native 侧的边界处理。
+ */
+WOORT_NODISCARD static woort_CallWay _woort_VMRuntime_frame_call_way(
+    const woort_VMRuntime* vm, size_t offset_of_base)
+{
+    if (offset_of_base < 3)
+        return WOORT_CALL_WAY_FROM_NATIVE;
+
+    return (vm->m_stack_end - offset_of_base)[1].m_ret_bp.m_way;
+}
+
 WOORT_NODISCARD bool woort_VMRuntime_trace_next(
     woort_VMRuntime_TraceCallstack_Iter* modify_trace_iter,
     /* OPTIONAL */ woort_VMRuntime_TraceCallstack* out_result)
@@ -4380,6 +4394,9 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
         if (out_result != NULL)
         {
             out_result->m_code_addr = modify_trace_iter->m_vm->m_ip;
+            out_result->m_call_way = _woort_VMRuntime_frame_call_way(
+                modify_trace_iter->m_vm,
+                modify_trace_iter->m_next_tracing_offset_of_base);
             (void)_woort_VMRuntime_trace_addr(
                 modify_trace_iter->m_vm->m_ip, 0, out_result);
         }
@@ -4417,6 +4434,11 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
                 {
                     out_result->m_code_addr =
                         (const woort_Bytecode*)sb_addr[2].m_ret_addr;
+
+                    /* 调用方式记在刚走到的那一帧自己的 sb[1] */
+                    out_result->m_call_way = _woort_VMRuntime_frame_call_way(
+                        modify_trace_iter->m_vm,
+                        modify_trace_iter->m_next_tracing_offset_of_base);
 
                     (void)_woort_VMRuntime_trace_addr(
                         sb_addr[2].m_ret_addr, -1, out_result);

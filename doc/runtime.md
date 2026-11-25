@@ -428,9 +428,10 @@ void woort_VMRuntime_print_backtrace(woort_VMRuntime* vm, size_t max_depth);  /*
 * 符号解析：地址属于某个 CodeEnv 时，查源码映射与函数边界得到函数名、文件和起止行列（`m_has_location = true`；CodeEnv 不带调试信息时只有函数名）；否则按已注册的动态库反查函数名与库名；都查不到则输出 `<unknown>`。
 * `m_location_begin` / `m_location_end` 是 0 起始的 `[行, 列]`，`woort_VMRuntime_log_trace` 输出时加 1。
 * `m_callstack_offset_of_base` 是该帧基址到 `m_stack_end` 的距离，`vm->m_stack_end - m_callstack_offset_of_base` 即该帧的 `sb`（调试器据此读取指定帧的局部变量）。
+* `m_call_way` 是该帧的进入方式（`woort_CallWay`，定义于 `woort.h`）：`WOORT_CALL_WAY_NEAR` / `WOORT_CALL_WAY_FAR` 表示由脚本调用（同 / 不同代码环境），`WOORT_CALL_WAY_FROM_NATIVE` 表示由 native 函数或宿主进入。离栈顶不足 3 个槽的位置放不下完整的帧（VM 空闲时、宿主调起的顶层帧之外），那里的帧一律报 `WOORT_CALL_WAY_FROM_NATIVE`。
 * `print_backtrace` 先输出 `Backtrace:` 再逐帧输出；`max_depth` 是最多输出的帧数，0 表示不限，被截断时输出 `...`。
 
-**从 native 进入的帧**：宿主经 `woort_invoke` / `woort_spawn` 调起脚本，或 native 函数回调脚本时，建立的帧调用方式为 `FROM_NATIVE`（见[栈布局](#栈布局)），trace 会照常穿过：
+**从 native 进入的帧**：宿主经 `woort_invoke` / `woort_spawn` 调起脚本，或 native 函数回调脚本时，建立的帧调用方式为 `WOORT_CALL_WAY_FROM_NATIVE`（见[栈布局](#栈布局)），trace 会照常穿过：
 
 * native 函数运行期间 `vm->m_ip` 是它的函数地址——无论由脚本经 `CALLNFP` / `CALL` 调用、由 JIT 调用，还是作为闭包经 C API 调起，三者一致。它再回调脚本时，新帧保存的返回地址就是这个地址，因此调用栈里会多出一帧代表该 native 函数：它注册在某个动态库（含伪库）时显示为 `函数名 (库名)`，否则为 `<unknown>`；再往外才是脚本调用者。
 * 宿主直接调起的顶层帧没有更外层的帧，其返回地址为 NULL，trace 到此为止。

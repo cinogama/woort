@@ -19,8 +19,9 @@
  * RET 分支经调用栈 trace 接口（woort_VMRuntime_trace_next）走链。trace 遇到返回地址
  * 为 NULL 的帧即止，而 native 运行期间 vm->m_ip 是它的函数地址（解释器、JIT 与
  * woort_spawn 的 native 分支一致），native 调起的脚本闭包以之作为帧内保存的返回
- * 地址，所以 trace 能穿过这些帧到达外层脚本帧。下面对 trace 深度的断言钉住这一点，
- * 其中第 2 项越过两层的情形覆盖经 C API 调起的 native 闭包。
+ * 地址，所以 trace 能穿过这些帧到达外层脚本帧。下面对 trace 深度与各帧调用方式
+ * （m_call_way）的断言钉住这一点，其中第 2 项越过两层的情形覆盖经 C API 调起的
+ * native 闭包。
  *
  * 对照基准 legacy_ret_next_ip 是上述走链的独立实现：直接读 VM 栈帧
  * （sb[1].m_ret_bp / sb[2].m_ret_addr），不经过调用栈 trace 接口。每次停在 RET 上
@@ -132,17 +133,27 @@ static bool legacy_ret_next_ip(
 }
 
 /*
- * 调用栈 trace 的深度：第 0 层是当前帧，其后每层来自更内一帧保存的返回地址，
- * 返回地址为 NULL 即止（见 woort_VMRuntime_trace_next）。
+ * 走一遍调用栈 trace：返回帧数，并按由内向外在 out_ways 中记下前 max_count 帧的
+ * 调用方式（out_ways 可为 NULL）。
+ * 第 0 层是当前帧，其后每层来自更内一帧保存的返回地址，返回地址为 NULL 即止
+ * （见 woort_VMRuntime_trace_next）。
  */
-static size_t trace_depth(woort_VMRuntime* vm)
+static size_t trace_call_ways(
+    woort_VMRuntime* vm,
+    /* OPTIONAL */ woort_CallWay* out_ways,
+    size_t max_count)
 {
     woort_VMRuntime_TraceCallstack_Iter iter;
     woort_VMRuntime_trace_begin(vm, &iter);
 
+    woort_VMRuntime_TraceCallstack frame;
     size_t depth = 0;
-    while (woort_VMRuntime_trace_next(&iter, NULL))
+    while (woort_VMRuntime_trace_next(&iter, out_ways != NULL ? &frame : NULL))
+    {
+        if (out_ways != NULL && depth < max_count)
+            out_ways[depth] = frame.m_call_way;
         ++depth;
+    }
     return depth;
 }
 
@@ -219,6 +230,7 @@ static woort_WAIPO_TrapEndBehavior step_ret_trap(woort_VMRuntime* vm)
 
         const woort_Bytecode* next_ip = NULL;
         size_t skipped = 0;
+        woort_CallWay ways[4];
         if (legacy_ret_next_ip(vm, &next_ip, &skipped))
         {
             if (vm->m_sb[1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE)
@@ -227,14 +239,25 @@ static woort_WAIPO_TrapEndBehavior step_ret_trap(woort_VMRuntime* vm)
                 CHECK(skipped == 1 || skipped == 2);
                 ++g_from_native_steps[skipped];
 
-                /* trace 须穿过 c 与被越过的 native 帧到达 main；顶层帧再往外无帧 */
-                CHECK(trace_depth(vm) == 2 + skipped);
+                /*
+                 * trace 须穿过 c 与被越过的 native 帧到达 main，由内向外依次是：
+                 * c（以及经 m 调起时 m 自己的帧）为 FROM_NATIVE，发起 CALLNFP 的
+                 * native 帧为 NEAR，main 为顶层帧（FROM_NATIVE）；再往外无帧
+                 */
+                CHECK(trace_call_ways(vm, ways, 4) == 2 + skipped);
+                for (size_t i = 0; i < skipped; ++i)
+                    CHECK(ways[i] == WOORT_CALL_WAY_FROM_NATIVE);
+                CHECK(ways[skipped] == WOORT_CALL_WAY_NEAR);
+                CHECK(ways[skipped + 1] == WOORT_CALL_WAY_FROM_NATIVE);
             }
             else
             {
                 CHECK(skipped == 0);
                 ++g_near_steps;
-                CHECK(trace_depth(vm) == 2); /* f2、main */
+
+                CHECK(trace_call_ways(vm, ways, 2) == 2); /* f2、main，再往外无帧 */
+                CHECK(ways[0] == WOORT_CALL_WAY_NEAR);
+                CHECK(ways[1] == WOORT_CALL_WAY_FROM_NATIVE);
             }
             g_expect_pending = true;
             g_expect_ip = next_ip;
@@ -243,7 +266,10 @@ static woort_WAIPO_TrapEndBehavior step_ret_trap(woort_VMRuntime* vm)
         {
             ++g_undeterminable_count;
             g_undeterminable_ip = ip;
-            CHECK(trace_depth(vm) == 1); /* 顶层帧：宿主调起，返回地址为 NULL */
+
+            /* 顶层帧：宿主调起（FROM_NATIVE），返回地址为 NULL，再往外无帧 */
+            CHECK(trace_call_ways(vm, ways, 1) == 1);
+            CHECK(ways[0] == WOORT_CALL_WAY_FROM_NATIVE);
         }
         return WOORT_WAIPO_TRAP_STEPIR;
     }
@@ -521,6 +547,23 @@ int main(int argc, char** argv)
         CHECK(g_inner_calls == 1);
         CHECK(g_direct_got == 42);
         CHECK(g_inner_got == 42);
+    }
+
+    /* 空闲的 VM（尚未调起任何函数，m_sb 停在栈顶）：第 0 层按宿主边界计为 FROM_NATIVE */
+    {
+        woort_VMRuntime* vm;
+        (void)woort_VMRuntime_create(&vm);
+        (void)woort_VMRuntime_swap(vm);
+
+        woort_VMRuntime_TraceCallstack_Iter iter;
+        woort_VMRuntime_trace_begin(vm, &iter);
+
+        woort_VMRuntime_TraceCallstack frame;
+        CHECK(woort_VMRuntime_trace_next(&iter, &frame));
+        CHECK(frame.m_call_way == WOORT_CALL_WAY_FROM_NATIVE);
+
+        (void)woort_VMRuntime_swap(NULL);
+        woort_VMRuntime_destroy(vm);
     }
 
     woort_WAIPO_Debugger* dbg = NULL;

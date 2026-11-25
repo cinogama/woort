@@ -262,7 +262,7 @@ woort_Bytecode woort_CodeEnv_raw_trap(woort_CodeEnv* env, const woort_Bytecode* 
 
 步进断点命中时未必停下：源码级步进在「源码位置未变」时不中断，步越（`STEPOVER`）时落在更深层、步出（`STEPOUT`）时仍在当前函数内也不中断。这些情况不进入回调，由 `_woort_WAIPO_Debugger_meet_breakpoint` 重新计算下一条指令并续装断点（代码中的 refill）；但只要当前地址上有用户断点，就无条件中断。
 
-> RET 的走链使用调用栈 trace 接口（见 [runtime.md · 调用栈追踪](./runtime.md#调用栈追踪)）：以 `woort_VMRuntime_trace_next` 逐帧向上，落点是第一个非 `FROM_NATIVE` 帧的返回地址，即 trace 为更外一帧给出的 `m_code_addr`。`woort_VMRuntime_TraceCallstack` 本身不带调用方式，各帧的 `m_ret_bp.m_way` 是按 `m_callstack_offset_of_base` 定位到该帧后回读的。`trace_next` 在返回地址为 NULL 的帧处停止，所以这依赖「native 运行期间 `vm->m_ip` 为其函数地址」的约定。`test/test_waipo_step_ret.c` 覆盖这些情形。
+> RET 的走链使用调用栈 trace 接口（见 [runtime.md · 调用栈追踪](./runtime.md#调用栈追踪)）：以 `woort_VMRuntime_trace_next` 逐帧向上，按每帧的 `m_call_way` 跳过 `WOORT_CALL_WAY_FROM_NATIVE` 帧，落点是第一个其余帧的返回地址，即 trace 为更外一帧给出的 `m_code_addr`。`trace_next` 在返回地址为 NULL 的帧处停止，所以这依赖「native 运行期间 `vm->m_ip` 为其函数地址」的约定。`test/test_waipo_step_ret.c` 覆盖这些情形。
 
 ### 编译期调试陷阱
 

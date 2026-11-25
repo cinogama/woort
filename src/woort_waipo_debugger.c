@@ -1066,9 +1066,9 @@ WOORT_NODISCARD static bool _woort_WAIPO_get_next_ip(
          * 再由 native 返回外层脚本，因此沿调用栈向上跳过连续的 FROM_NATIVE 帧，
          * 落点是第一个脚本调用帧的返回地址。
          *
-         * 走链交给调用栈 trace 接口（从 vm->m_sb 起走，与 sb 相同）。
-         * TraceCallstack 不带调用方式，帧是否由 native 进入仍需按
-         * m_callstack_offset_of_base 回读该帧的 m_ret_bp。
+         * 走链与各帧的调用方式都取自调用栈 trace 接口（从 vm->m_sb 起走，与 sb
+         * 相同）。离栈顶不足 3 个槽的位置不是完整的帧（宿主调起的顶层帧之外），
+         * 走到那里即无落点。
          */
         assert(sb == vm->m_sb);
 
@@ -1081,9 +1081,7 @@ WOORT_NODISCARD static bool _woort_WAIPO_get_next_ip(
             && woort_VMRuntime_trace_next(&trace_iter, &trace)
             && trace.m_callstack_offset_of_base >= 3)
         {
-            from_native =
-                (vm->m_stack_end - trace.m_callstack_offset_of_base)[1].m_ret_bp.m_way
-                    == WOORT_CALL_WAY_FROM_NATIVE;
+            from_native = trace.m_call_way == WOORT_CALL_WAY_FROM_NATIVE;
         }
 
         if (from_native)

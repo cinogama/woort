@@ -32,18 +32,8 @@ typedef union woort_DynBox
 
 }woort_DynBox;
 
-typedef enum woort_CallWay
-{
-    /* 一个脚本中的函数调用了另一个（本地的）脚本函数 */
-    WOORT_CALL_WAY_NEAR,
-
-    /* 调用了另一个代码环境下的脚本函数，返回时需要额外检查 */
-    WOORT_CALL_WAY_FAR,
-
-    /* 此调用是由 native 层发起的，返回时需要中断解释器执行 */
-    WOORT_CALL_WAY_FROM_NATIVE,
-
-} woort_CallWay;
+/* woort_CallWay（WOORT_CALL_WAY_NEAR / FAR / FROM_NATIVE）定义于公开头文件 woort.h：
+   调用栈 trace 会把各帧的调用方式报告给外部 */
 
 typedef struct woort_RetBP
 {
