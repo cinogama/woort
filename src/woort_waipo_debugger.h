@@ -79,6 +79,11 @@ void _woort_WAIPO_BreakpointCollection_collect_debug_breakpoints(
     woort_Vector /* const woort_Bytecode* */* modify_break_ips);
 
 /*
+ * 返回 vm 当前调用栈的层数：恒不为 0，第 0 层即 VM 当前所在帧。
+ */
+WOORT_NODISCARD size_t _woort_WAIPO_get_current_callstack_depth(woort_VMRuntime* vm);
+
+/*
  * 沿调用栈向内走到第 target_depth 层（0 为栈顶），成功时通过 out_trace
  * 返回该帧信息。
  */

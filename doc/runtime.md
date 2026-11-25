@@ -444,7 +444,7 @@ void woort_VMRuntime_print_backtrace(woort_VMRuntime* vm, size_t max_depth);  /*
 | panic（默认处理器，`woort_raise_panic_v`） | panic 消息与 C 侧位置（`Location:`，即 `woort_panic` 的调用点），随后是 `Trace:`；连续相同的帧折叠为 `... (repeated N times)` |
 | `woort_GC_shutdown` 时仍有 VM 未退出 | 每秒至多一次、且仅在存活 VM 数量变化时警告，输出至多 3 个 VM 各 4 帧，其余的帧与 VM 只给数量 |
 | GC 单元分配失败（`_woort_GCUnit_alloc_failed`） | `GC Allocate failed` 与至多 8 帧 |
-| 调试器 | `bt [depth]`（默认 32 帧）、`vm` / `list vm`（每个 VM 3 帧），见 [subsystems.md](./subsystems.md) |
+| 调试器 | `bt [depth]`（默认 32 帧）、`vm` / `list vm`（每个 VM 3 帧）：每帧输出 `#层号  函数 (文件:行:列)`，层号自栈顶 0 起算，即 `frame` 命令的 frameid；`bt` 另在层号前以 `>` 标出 `frame` 命令当前选中的帧。见 [subsystems.md](./subsystems.md) |
 | 脚本内建 `debug_trace_callstack(layer_count)` | 不打印；把各帧转成向量返回，每个元素为「函数名、文件名、位置」三项，位置是 `option<((起始行, 起始列), (结束行, 结束列))>`。`layer_count > 0` 时只取前 `layer_count` 层 |
 
 ---

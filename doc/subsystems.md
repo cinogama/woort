@@ -277,7 +277,7 @@ IR 层可用 `woort_IR_debugtrap(f)` 发射 `DEBUGTRAP` 指令（见 [ir.md](./i
   * `m_user_breakpoints`：用户通过 break 命令设置的断点（一条源码行可对应多个指令地址，用于列表/删除）。每个断点带创建时分配的稳定编号（`m_id`，由 `m_next_breakpoint_id` 单调递增供给、永不复用），删除某个断点不会使其余断点编号移位，`delete` 命令按编号查找。
 
   另有 `m_focusing_vms`（各受关注 VM 的局部上下文：单步断点、步进目标源码位置等）与 `m_trap_callback`（陷阱回调）。支持单步（step）、源码单步（step source）、next（step over）、step out（run until return）、focus 切换等。
-* **`src/woort_waipo_debugger_cmd.c`**：命令行交互层——命令解析、命令表、REPL 循环与 printf 输出，只做 CLI 交互/展示，不含调试状态逻辑。
+* **`src/woort_waipo_debugger_cmd.c`**：命令行交互层——命令解析、命令表、REPL 循环与 printf 输出，只做 CLI 交互/展示，不含调试状态逻辑。调用栈展示（`bt`、`vm` 列表）逐帧输出 `#层号  函数 (文件:行:列)`：层号自栈顶 0 起算，即 `frame` 命令的 frameid；`bt` 另在层号前以 `>` 标出 `frame` 命令当前选中的帧。`frame [frameid]` 选中一帧后展示其源码，不带层号时重新显示当前帧。
 
 ---
 

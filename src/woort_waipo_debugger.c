@@ -673,7 +673,10 @@ static bool _woort_WAIPO_VMLocalContext_meet_step_breakdown(
         || vmcontext->m_step_breakpoints[1] == ip;
 }
 
-static size_t _woort_WAIPO_get_current_callstack_depth(woort_VMRuntime* vm)
+/*
+ * 返回 vm 当前调用栈的层数（只走栈，不解析符号）。
+ */
+WOORT_NODISCARD size_t _woort_WAIPO_get_current_callstack_depth(woort_VMRuntime* vm)
 {
     woort_VMRuntime_TraceCallstack_Iter iter;
     woort_VMRuntime_trace_begin(vm, &iter);

@@ -66,11 +66,15 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_help(
         "quit                                Stop all vm to exit.\n"
         "clear       cls                     Clean the screen.\n"
         "backtrace   bt      [depth]         Print callstack backtrace (default 32).\n"
+        "                                    Frames are numbered from 0 (innermost),\n"
+        "                                    '>' marks the frame selected by 'frame'.\n"
         "break       b       [line]          Set or list breakpoints.\n"
         "                    [func]          Break at function entry.\n"
         "                    [file:line]     Break at specific file:line.\n"
         "delete      d       <num>           Delete breakpoint by number.\n"
-        "frame       f       <frameid>       Switch to a call frame.\n"
+        "frame       f       [frameid]       Select a call frame by its number in 'bt'\n"
+        "                                    and show its source. Without argument, show\n"
+        "                                    the currently selected frame.\n"
         "source      src     [file|range]    Display source code.\n"
         "dis                 [funcname]      Dump current VM's running bytecodes.\n"
         "                    --all           Or dump all bytecodes in current CodeEnv.\n"
@@ -132,14 +136,72 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_exit(
     return WOORT_WAIPO_CMD_CONTINUE;
 }
 
+/*
+ * 输出调用栈的一帧：'#' 后是层号，自栈顶 0 起向外递增，与 frame 命令的 frameid
+ * 是同一套编号；is_selected 的帧（frame 命令当前选中的那帧）在层号前以 '>' 标记
+ * （不放在行首，免得与 REPL 提示符 '> ' 混淆），其余帧同位置留空，各帧对齐。
+ */
+static void _woort_WAIPO_print_frame(
+    size_t frame_id,
+    const woort_VMRuntime_TraceCallstack* trace,
+    bool is_selected)
+{
+    (void)printf("%s#%-2zu ", is_selected ? "  > " : "    ", frame_id);
+
+    if (trace->m_function_name != NULL)
+        (void)printf("%s", trace->m_function_name);
+    else
+        (void)printf("<unknown>");
+
+    if (trace->m_file_or_lib_name != NULL)
+    {
+        if (trace->m_has_location)
+            (void)printf(" (%s:%zu:%zu)",
+                trace->m_file_or_lib_name,
+                trace->m_location_begin[0] + 1,
+                trace->m_location_begin[1] + 1);
+        else
+            (void)printf(" (%s)", trace->m_file_or_lib_name);
+    }
+
+    (void)printf("\n");
+}
+
+/*
+ * 逐帧输出 vm 的调用栈，返回调用栈的总层数（含因 max_depth 而未输出的帧）。
+ * max_depth 是最多输出的帧数，0 表示不限；未输出的帧只计数，不解析符号。
+ * selected_frame（可为 NULL）是 frame 命令当前选中的层号。
+ */
+WOORT_NODISCARD static size_t _woort_WAIPO_print_callstack(
+    woort_VMRuntime* vm,
+    size_t max_depth,
+    /* OPTIONAL */ const woort_WAIPO_Debugger_FrameId* selected_frame)
+{
+    woort_VMRuntime_TraceCallstack_Iter trace_iter;
+    woort_VMRuntime_trace_begin(vm, &trace_iter);
+
+    woort_VMRuntime_TraceCallstack trace;
+    size_t depth = 0;
+    while (woort_VMRuntime_trace_next(
+        &trace_iter, (max_depth == 0 || depth < max_depth) ? &trace : NULL))
+    {
+        if (max_depth == 0 || depth < max_depth)
+        {
+            _woort_WAIPO_print_frame(
+                depth, &trace, selected_frame != NULL && *selected_frame == depth);
+        }
+        ++depth;
+    }
+
+    return depth;
+}
+
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_backtrace(
     woort_WAIPO_Debugger* dbg,
     woort_VMRuntime* vm,
     char** args,
     size_t arg_count)
 {
-    (void)dbg;
-
     size_t max_depth = 32;
     if (arg_count >= 2)
     {
@@ -148,7 +210,23 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_backtrace(
             max_depth = (size_t)val;
     }
 
-    woort_VMRuntime_print_backtrace(vm, max_depth);
+    (void)printf("Backtrace:\n");
+
+    const size_t depth =
+        _woort_WAIPO_print_callstack(vm, max_depth, &dbg->m_current_frame_depth);
+
+    if (max_depth != 0 && depth > max_depth)
+    {
+        (void)printf("    ... (%zu more frame%s, 'bt %zu' shows all",
+            depth - max_depth, (depth - max_depth) == 1 ? "" : "s", depth);
+
+        /* 选中的帧被截掉时看不到 '>' 标记，另行说明 */
+        if (dbg->m_current_frame_depth >= max_depth)
+            (void)printf("; current frame #%" PRIu64 " is not shown",
+                dbg->m_current_frame_depth);
+
+        (void)printf(")\n");
+    }
 
     return WOORT_WAIPO_CMD_REINPUT;
 }
@@ -247,7 +325,9 @@ static bool _woort_WAIPO_list_vm_callback(
         (void*)vm->m_stack_end,
         usage);
 
-    woort_VMRuntime_print_backtrace(vm, 3);
+    (void)printf("Backtrace:\n");
+    if (_woort_WAIPO_print_callstack(vm, 3, NULL) > 3)
+        (void)printf("    ...\n");
 
     ++ctx->m_index;
     return true;
@@ -535,60 +615,6 @@ static void _woort_WAIPO_print_source_file(
 
 #undef WOORT_WAIPO_DOT
 
-static woort_WAIPO_CommandResult _woort_WAIPO_cmd_frame(
-    woort_WAIPO_Debugger* dbg,
-    woort_VMRuntime* vm,
-    char** args,
-    size_t arg_count)
-{
-    if (arg_count < 2)
-    {
-        (void)printf("Usage: frame <frameid>\n");
-        return WOORT_WAIPO_CMD_REINPUT;
-    }
-
-    const long frame_id = strtol(args[1], NULL, 10);
-    if (frame_id < 0)
-    {
-        (void)printf("Invalid frame id.\n");
-        return WOORT_WAIPO_CMD_REINPUT;
-    }
-
-    woort_VMRuntime_TraceCallstack trace;
-    if (!woort_WAIPO_Debugger_do_switch_trace_frame(
-        dbg, (woort_WAIPO_Debugger_FrameId)frame_id, &trace))
-    {
-        (void)printf("No such frame.\n");
-        return WOORT_WAIPO_CMD_REINPUT;
-    }
-
-    (void)printf("Now at: frame %zu", (size_t)frame_id);
-
-    if (trace.m_function_name != NULL)
-    {
-        (void)printf("  %s", trace.m_function_name);
-
-        if (trace.m_file_or_lib_name != NULL)
-        {
-            if (trace.m_has_location)
-                (void)printf(" (%s:%zu:%zu)",
-                    trace.m_file_or_lib_name,
-                    trace.m_location_begin[0] + 1,
-                    trace.m_location_begin[1] + 1);
-            else
-                (void)printf(" (%s)", trace.m_file_or_lib_name);
-        }
-    }
-    else
-    {
-        (void)printf("  <unknown>");
-    }
-
-    (void)printf("\n");
-
-    return WOORT_WAIPO_CMD_REINPUT;
-}
-
 static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
     woort_WAIPO_Debugger* dbg,
     woort_VMRuntime* vm,
@@ -669,6 +695,37 @@ static woort_WAIPO_CommandResult _woort_WAIPO_cmd_source(
     }
 
     return WOORT_WAIPO_CMD_REINPUT;
+}
+
+static woort_WAIPO_CommandResult _woort_WAIPO_cmd_frame(
+    woort_WAIPO_Debugger* dbg,
+    woort_VMRuntime* vm,
+    char** args,
+    size_t arg_count)
+{
+    if (arg_count >= 2 && !_woort_WAIPO_is_numeric(args[1]))
+    {
+        (void)printf("Invalid frame id: %s\n", args[1]);
+        return WOORT_WAIPO_CMD_REINPUT;
+    }
+
+    /* 不带层号时沿用当前选中的帧：只重新显示，不切换 */
+    const woort_WAIPO_Debugger_FrameId frame_id = arg_count < 2
+        ? dbg->m_current_frame_depth
+        : (woort_WAIPO_Debugger_FrameId)strtoull(args[1], NULL, 10);
+
+    woort_VMRuntime_TraceCallstack trace;
+    if (!woort_WAIPO_Debugger_do_switch_trace_frame(dbg, frame_id, &trace))
+    {
+        (void)printf("No such frame: %" PRIu64 " (valid frame ids: 0-%zu)\n",
+            frame_id, _woort_WAIPO_get_current_callstack_depth(vm) - 1);
+        return WOORT_WAIPO_CMD_REINPUT;
+    }
+
+    _woort_WAIPO_print_frame((size_t)frame_id, &trace, true);
+
+    /* 选中一帧多半是要看它停在哪儿，直接展示其源码 */
+    return _woort_WAIPO_cmd_source(dbg, vm, NULL, 0);
 }
 
 static void _woort_WAIPO_dump_disassembly_range(

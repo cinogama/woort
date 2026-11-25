@@ -5011,7 +5011,9 @@ typedef uint64_t woort_WAIPO_Debugger_BreakpointId;
  * @brief Identifies a frame of the stopped VM's callstack.
  *
  * 0 is the innermost (top) frame; larger ids walk outwards towards the
- * outermost caller.
+ * outermost caller.  The command-line debugger's backtrace labels each
+ * frame with this id ("#0", "#1", ...), and its `frame` command selects
+ * a frame by it.
  */
 typedef uint64_t woort_WAIPO_Debugger_FrameId;
 
