@@ -26,10 +26,11 @@ WooRT（Woolang Runtime）是 Woolang 脚本语言的 C11 运行时，包含字�
 
 ```c
 #include "woort.h"
+#include <stdio.h>
 
 woort_api my_print(void) {
-    printf("%lld\n", (long long)woort_int(3));   /* 读第 0 个参数 */
-    woort_ret_void();
+    printf("%lld\n", (long long)woort_int(0));   /* 读第 0 个参数 */
+    return woort_ret_void();
 }
 
 int main(int argc, char** argv) {

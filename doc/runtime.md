@@ -22,9 +22,9 @@ typedef int32_t woort_StackValue;
 #define WOORT_RETURN_SLOT  ((woort_StackValue)-1)  /* 当前函数的返回值槽 */
 ```
 
-* **负值**：相对于当前栈帧基址 `m_sb` 的偏移。`WOORT_RETURN_SLOT (-1)` 即 `SB+2`，是约定写返回值的位置。
-* **正值**：绝对栈索引（由 `woort_push_reserve` 返回）。
-* 参数位于 `SB+3+idx`，即从 `m_sb` 看是 `3+idx`（正值）。原生函数通过相对偏移读取参数（见下）。
+* `woort_StackValue` 的值 `n` 寻址栈槽 `SB+3+n`，一律相对于当前栈帧基址 `m_sb`。
+* **非负值**：当前函数的参数。第 `i` 个参数位于 `SB+3+i`，索引就是 `i`，所以原生函数里 `woort_int(0)` 读的是第 0 个参数（见下）。
+* **负值**：当前栈帧内的槽。`WOORT_RETURN_SLOT (-1)` 即 `SB+2`，是约定写返回值的位置；`WOORT_IGNORE (-2)` 对应 `SB+1`，只作「丢弃该参数」的占位，不会被读写。临时槽经 `woort_push_reserve` 预留，得到的也是负值索引。
 
 ## 初始化与关闭
 
@@ -53,12 +53,13 @@ int main(int argc, char** argv) {
 
 ```c
 #include "woort.h"
+#include <stdio.h>
 
 woort_api my_print(void) {
-    /* 读取第 0 个参数（整数），原生函数参数从 SB+3 开始，相对偏移为 3 */
-    woort_Int x = woort_int(3);
+    /* 读取第 0 个参数（整数）：参数的栈槽索引就是它的序号 */
+    woort_Int x = woort_int(0);
     printf("%lld\n", (long long)x);
-    woort_ret_void();             /* 写返回槽并返回 NORMAL */
+    return woort_ret_void();       /* 写返回槽并返回 NORMAL */
 }
 
 int main(int argc, char** argv) {
@@ -260,13 +261,13 @@ typedef woort_api(*woort_NativeFunction)(void);
 
 ### 读取参数
 
-参数位于 `SB+3+idx`。在原生函数内，第 0 个参数的相对偏移是 `3`，第 1 个是 `4`，依此类推：
+第 `i` 个参数位于 `SB+3+i`，它的 `woort_StackValue` 就是 `i`。原生函数内，第 0 个参数用索引 `0` 读，第 1 个用 `1`，依此类推：
 
 ```c
 woort_api add(void) {
-    woort_Int a = woort_int(3);       /* 第 0 个参数 */
-    woort_Int b = woort_int(4);       /* 第 1 个参数 */
-    woort_ret_int(a + b);             /* 写返回槽并返回 NORMAL */
+    woort_Int a = woort_int(0);       /* 第 0 个参数 */
+    woort_Int b = woort_int(1);       /* 第 1 个参数 */
+    return woort_ret_int(a + b);      /* 写返回槽并返回 NORMAL */
 }
 ```
 
@@ -287,17 +288,17 @@ woort_api add(void) {
 
 ### 写返回值
 
-返回值通过写 `WOORT_RETURN_SLOT` 槽实现。便捷宏 `woort_ret_*` 会同时写槽并返回 `NORMAL`：
+返回值通过写 `WOORT_RETURN_SLOT` 槽实现。便捷宏 `woort_ret_*` 会写槽并求值为 `WOORT_VM_CALL_STATUS_NORMAL`，须以 `return` 把它作为函数的返回值：
 
 ```c
-woort_ret_void();            /* 返回 void */
-woort_ret_int(42);
-woort_ret_real(3.14);
-woort_ret_bool(true);
-woort_ret_string("hello");
-woort_ret_value(some_slot);  /* 返回栈上某槽的值 */
-woort_ret_nil();
-woort_ret_box_int(42);       /* 返回装箱整数 */
+return woort_ret_void();            /* 返回 void */
+return woort_ret_int(42);
+return woort_ret_real(3.14);
+return woort_ret_bool(true);
+return woort_ret_string("hello");
+return woort_ret_value(some_slot);  /* 返回栈上某槽的值 */
+return woort_ret_nil();
+return woort_ret_box_int(42);       /* 返回装箱整数 */
 ```
 
 ### 非正常返回
@@ -350,10 +351,10 @@ woort_GCPin_destroy(pin);
 
 ```c
 woort_api print_string(void) {
-    woort_U8CString s = woort_string(3);   /* 第 0 个参数 */
+    woort_U8CString s = woort_string(0);   /* 第 0 个参数 */
     fputs(s, stdout);
     fputc('\n', stdout);
-    woort_ret_void();
+    return woort_ret_void();
 }
 ```
 
@@ -361,19 +362,19 @@ woort_api print_string(void) {
 
 ```c
 woort_api vec_sum(void) {
-    woort_StackValue vec = 3;              /* 第 0 个参数是向量 */
+    woort_StackValue vec = 0;              /* 第 0 个参数是向量 */
     size_t n = woort_vec_len(vec);
     woort_Int sum = 0;
-    woort_StackValue tmp = woort_push_reserve(1, &(woort_StackValue){0});
-    /* 注意：push_reserve 需要传出索引；这里简化展示 */
+    woort_StackValue tmp;
+    if (!woort_push_reserve(1, &tmp))      /* 在栈顶预留 1 个临时槽 */
+        return woort_ret_panic("Stack overflow.");
     for (size_t i = 0; i < n; ++i) {
-        if (!woort_vec_get(tmp, vec, i)) { /* 取出第 i 个（装箱值）到 tmp */
-            woort_ret_panic("index out of range");
-        }
+        if (!woort_vec_get(tmp, vec, i))   /* 取出第 i 个（装箱值）到 tmp */
+            return woort_ret_panic("index out of range");
         sum += woort_unbox_int(tmp);       /* 拆箱为整数累加 */
     }
     woort_pop(1);
-    woort_ret_int(sum);
+    return woort_ret_int(sum);
 }
 ```
 

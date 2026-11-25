@@ -29,10 +29,11 @@ WooRT 是 [Woolang](https://git.cinogama.net/cinogamaproject/woolang) 脚本语�
 
 ```c
 #include "woort.h"
+#include <stdio.h>
 
 woort_api my_print(void) {
-    printf("%lld\n", (long long)woort_int(3));   /* 读取第 0 个参数 */
-    woort_ret_void();
+    printf("%lld\n", (long long)woort_int(0));   /* 读取第 0 个参数 */
+    return woort_ret_void();
 }
 
 int main(int argc, char** argv) {
@@ -83,10 +84,11 @@ WooRT is the C11 runtime for the [Woolang](https://git.cinogama.net/cinogamaproj
 
 ```c
 #include "woort.h"
+#include <stdio.h>
 
 woort_api my_print(void) {
-    printf("%lld\n", (long long)woort_int(3));   /* read 1st argument */
-    woort_ret_void();
+    printf("%lld\n", (long long)woort_int(0));   /* read 1st argument */
+    return woort_ret_void();
 }
 
 int main(int argc, char** argv) {

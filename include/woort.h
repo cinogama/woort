@@ -297,7 +297,7 @@ typedef union woort_Value
 #endif
 woort_Value;
 
-/** @brief Index into the VM evaluation stack. Negative values are relative to the current frame base. */
+/** @brief Index into the VM evaluation stack. The value n addresses the slot 3 + n slots above the current frame base: argument i of the current function has index i, and negative values (such as WOORT_RETURN_SLOT) address the current frame itself. */
 typedef int32_t woort_StackValue;
 
 /**
