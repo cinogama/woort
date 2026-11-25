@@ -1061,14 +1061,42 @@ WOORT_NODISCARD static bool _woort_WAIPO_get_next_ip(
             goto label_fall_to_default;
         }
 
-        const woort_Value* trace_sb = sb;
-        while (trace_sb[1].m_ret_bp.m_way == WOORT_CALL_WAY_FROM_NATIVE)
+        /*
+         * 从 native 进入的帧（如 native 函数内调起的闭包）RET 后先回到 native，
+         * 再由 native 返回外层脚本，因此沿调用栈向上跳过连续的 FROM_NATIVE 帧，
+         * 落点是第一个脚本调用帧的返回地址。
+         *
+         * 走链交给调用栈 trace 接口（从 vm->m_sb 起走，与 sb 相同）。
+         * TraceCallstack 不带调用方式，帧是否由 native 进入仍需按
+         * m_callstack_offset_of_base 回读该帧的 m_ret_bp。
+         */
+        assert(sb == vm->m_sb);
+
+        woort_VMRuntime_TraceCallstack_Iter trace_iter;
+        woort_VMRuntime_TraceCallstack trace;
+        woort_VMRuntime_trace_begin(vm, &trace_iter);
+
+        bool from_native = true;
+        while (from_native
+            && woort_VMRuntime_trace_next(&trace_iter, &trace)
+            && trace.m_callstack_offset_of_base >= 3)
         {
-            trace_sb = trace_sb + 2 + trace_sb[1].m_ret_bp.m_bp_offset;
-            if (vm->m_stack_end - trace_sb < 3)
-                return false;
+            from_native =
+                (vm->m_stack_end - trace.m_callstack_offset_of_base)[1].m_ret_bp.m_way
+                    == WOORT_CALL_WAY_FROM_NATIVE;
         }
-        *out_next_ip = (const woort_Bytecode*)trace_sb[2].m_ret_addr;
+
+        if (from_native)
+        {
+            /* 向上已无可回到的脚本帧（宿主调起的顶层帧），或栈已损坏 */
+            return false;
+        }
+
+        /* 该帧的返回地址，即 trace 为其调用者帧给出的代码地址 */
+        if (!woort_VMRuntime_trace_next(&trace_iter, &trace))
+            return false;
+
+        *out_next_ip = trace.m_code_addr;
         return true;
     }
     case WOORT_OPCODE_JIFINITED:

@@ -1176,7 +1176,9 @@ WOORT_NODISCARD woort_VmCallStatus woort_spawn(
     else
     {
         const woort_Bytecode* const origin_ip = vm->m_ip;
-        vm->m_ip = (const woort_Bytecode*)target->m_script_function;
+        /* 与解释器/JIT 调用 native 时一致：m_ip 记为 native 函数地址，供调用栈追踪
+           （此后调起的闭包以它作为帧内保存的返回地址） */
+        vm->m_ip = (const woort_Bytecode*)target->m_native_function;
 
         const woort_VmCallStatus r = target->m_native_function();
         /*

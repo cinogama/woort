@@ -195,7 +195,16 @@ typedef enum woort_DebuggerAttachResult {
 
 typedef struct woort_WAIPO_Debugger woort_WAIPO_Debugger;  /* 不透明调试器句柄 */
 
-typedef void (*woort_WAIPO_Debugger_TrapCallback)(woort_WAIPO_Debugger*, woort_VMRuntime*);
+typedef enum woort_WAIPO_TrapEndBehavior {
+    WOORT_WAIPO_TRAP_CONTINUE,  /* 放行，恢复正常执行 */
+    WOORT_WAIPO_TRAP_STEPIR,    /* 再执行一条 IR 指令后停下 */
+    WOORT_WAIPO_TRAP_STEPIN,    /* 停在下一行源码，进入被调函数 */
+    WOORT_WAIPO_TRAP_STEPOVER,  /* 停在当前帧的下一行源码，越过调用 */
+    WOORT_WAIPO_TRAP_STEPOUT,   /* 当前函数返回后停下 */
+} woort_WAIPO_TrapEndBehavior;
+
+typedef woort_WAIPO_TrapEndBehavior (*woort_WAIPO_Debugger_TrapCallback)(
+    woort_WAIPO_Debugger*, woort_VMRuntime*);
 
 woort_DebuggerAttachResult woort_WAIPO_Debugger_attach(
     /* OPTIONAL */ woort_WAIPO_Debugger_TrapCallback breakdown_callback,  /* NULL = 命令行 REPL */
@@ -240,6 +249,20 @@ woort_Bytecode woort_CodeEnv_raw_trap(woort_CodeEnv* env, const woort_Bytecode* 
 * `raw_trap`：透明读取「陷阱前」的原始指令（用于反汇编），无陷阱则原样返回。
 
 陷阱记录存储在 `woort_CodeEnv::m_trap_records`（`src/woort_codeenv.h`），由 `m_mutex` 保护。
+
+### 单步与下一条指令
+
+陷阱回调返回 `CONTINUE` 以外的值时，引擎为当前 VM 布防一个一次性步进断点，再放行 VM，直到它再次命中陷阱。步进断点落在「下一条指令」上，每个受关注 VM 至多同时持有 2 个（`m_step_breakpoints`）。
+
+「下一条指令」由 `_woort_WAIPO_get_next_ip`（`src/woort_waipo_debugger.c`）解码当前指令得出：
+
+* 跳转取目标地址；条件跳转按栈上的值决定取目标还是顺序执行。
+* 调用：`STEPIR` / `STEPIN` 取被调函数入口，`STEPOVER` / `STEPOUT` 取调用之后的指令。`CALLNFP` / `CALLNJIT` 以及已有 JIT 版本的闭包无法步入，`STEPIR` / `STEPIN` 对它们同样取调用之后的指令，并另置 `DEBUG_TRAP` 请求，使 native 内部的子调用也能回到调试器。
+* `RET` / `RETV` / `RETVC`：取调用者的返回地址。当前帧若是从 native 进入的（`FROM_NATIVE`），`RET` 后会先回到 native、再由 native 返回脚本，因此沿帧链向上跳过连续的 `FROM_NATIVE` 帧，取第一个脚本调用帧的返回地址。向上没有脚本帧（宿主调起的顶层闭包）时返回失败，引擎输出 `Cannot determine next instruction.`，并在原指令上重新调用陷阱回调。
+
+步进断点命中时未必停下：源码级步进在「源码位置未变」时不中断，步越（`STEPOVER`）时落在更深层、步出（`STEPOUT`）时仍在当前函数内也不中断。这些情况不进入回调，由 `_woort_WAIPO_Debugger_meet_breakpoint` 重新计算下一条指令并续装断点（代码中的 refill）；但只要当前地址上有用户断点，就无条件中断。
+
+> RET 的走链使用调用栈 trace 接口（见 [runtime.md · 调用栈追踪](./runtime.md#调用栈追踪)）：以 `woort_VMRuntime_trace_next` 逐帧向上，落点是第一个非 `FROM_NATIVE` 帧的返回地址，即 trace 为更外一帧给出的 `m_code_addr`。`woort_VMRuntime_TraceCallstack` 本身不带调用方式，各帧的 `m_ret_bp.m_way` 是按 `m_callstack_offset_of_base` 定位到该帧后回读的。`trace_next` 在返回地址为 NULL 的帧处停止，所以这依赖「native 运行期间 `vm->m_ip` 为其函数地址」的约定。`test/test_waipo_step_ret.c` 覆盖这些情形。
 
 ### 编译期调试陷阱
 
