@@ -139,7 +139,10 @@ WOORT_NODISCARD bool woort_raise_panic_v(
                         {
                             if (has_prev)
                             {
+                                woort_log("    at ");
                                 woort_VMRuntime_log_trace(&prev_trace);
+                                woort_log("\n");
+
                                 if (repeat_count > 0)
                                     woort_log("    ... (repeated %zu time%s)\n",
                                         repeat_count, repeat_count > 1 ? "s" : "");
@@ -152,7 +155,10 @@ WOORT_NODISCARD bool woort_raise_panic_v(
 
                     if (has_prev)
                     {
+                        woort_log("    at ");
                         woort_VMRuntime_log_trace(&prev_trace);
+                        woort_log("\n");
+
                         if (repeat_count > 0)
                             woort_log("    ... (repeated %zu time%s)\n",
                                 repeat_count, repeat_count > 1 ? "s" : "");

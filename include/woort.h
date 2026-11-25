@@ -880,7 +880,12 @@ WOORT_NODISCARD WOORT_API bool woort_VMRuntime_trace_next(
     /* OPTIONAL */ woort_VMRuntime_TraceCallstack* out_result);
 
 /**
- * @brief Log a trace callstack entry.
+ * @brief Log the information of a trace callstack entry.
+ *
+ * Outputs only what the entry describes: `func (file:line:column)` for a script
+ * location, `func (lib)` for a native function, `func` alone, or `<unknown>` where
+ * nothing resolves. No indentation, no `at`, no trailing newline; emit whatever
+ * framing the context calls for around this call.
  * @param trace  The trace callstack info to log. Must not be NULL.
  */
 WOORT_API void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace);

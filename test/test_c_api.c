@@ -6,6 +6,20 @@
 #include <assert.h>
 #include <math.h>
 
+#ifdef _WIN32
+#include <io.h>
+#define TEST_DUP    _dup
+#define TEST_DUP2   _dup2
+#define TEST_CLOSE  _close
+#define TEST_FILENO _fileno
+#else
+#include <unistd.h>
+#define TEST_DUP    dup
+#define TEST_DUP2   dup2
+#define TEST_CLOSE  close
+#define TEST_FILENO fileno
+#endif
+
 /* ========== 测试基础设施 ========== */
 
 static int g_tests_run = 0;
@@ -2311,6 +2325,103 @@ static void test_serialize_deserialize_inf_nan(void)
     woort_VMRuntime_destroy(vm);
 }
 
+/*
+ * 把标准错误接到临时文件，在 '<' 与 ">\n" 之间调用一次 log_trace，返回捕获到的内容
+ * （去掉可能随文本模式写入的回车）；重定向失败时返回 NULL。
+ */
+static const char* capture_log_trace(woort_VMRuntime_TraceCallstack* trace)
+{
+    static char captured[256];
+    FILE* const capture = tmpfile();
+    if (capture == NULL)
+        return NULL;
+
+    (void)fflush(stderr);
+    const int saved_stderr = TEST_DUP(2);
+    bool ok = saved_stderr >= 0
+        && TEST_DUP2(TEST_FILENO(capture), 2) == 0;
+
+    if (ok)
+    {
+        (void)fprintf(stderr, "<");
+        woort_VMRuntime_log_trace(trace);
+        (void)fprintf(stderr, ">\n");
+    }
+
+    (void)fflush(stderr);
+    if (saved_stderr >= 0)
+    {
+        (void)TEST_DUP2(saved_stderr, 2);
+        (void)TEST_CLOSE(saved_stderr);
+    }
+
+    captured[0] = '\0';
+    if (ok && fseek(capture, 0, SEEK_SET) == 0)
+    {
+        const size_t len = fread(captured, 1, sizeof(captured) - 1, capture);
+        size_t kept = 0;
+        for (size_t i = 0; i < len; ++i)
+        {
+            if (captured[i] != '\r')
+                captured[kept++] = captured[i];
+        }
+        captured[kept] = '\0';
+    }
+    else
+        ok = false;
+
+    (void)fclose(capture);
+    return ok ? captured : NULL;
+}
+
+/* ========== 测试: log_trace 只输出帧信息（缩进、at、换行由调用方拼接） ========== */
+static void test_log_trace_output(void)
+{
+    TEST_BEGIN("log_trace_outputs_frame_info_only");
+
+    static const struct
+    {
+        /* OPTIONAL */ const char* m_func;
+        /* OPTIONAL */ const char* m_file;
+        bool                        m_has_location;
+        size_t                      m_line;     /* 0 起始 */
+        const char*                 m_expected;
+    } cases[] = {
+        { "f",  "a.wo",  true,  4, "f (a.wo:5:3)" },              /* 脚本帧：行列加 1 */
+        { "n",  "mylib", false, 0, "n (mylib)" },                 /* native 帧：只有库名 */
+        { "g",  NULL,    false, 0, "g" },                         /* 只有函数名 */
+        { NULL, "a.wo",  true,  4, "<unknown> (a.wo:5:3)" },      /* 有位置、无函数名 */
+        { NULL, "a.wo",  false, 0, "<unknown> (a.wo)" },          /* 只有文件名 */
+        { NULL, NULL,    false, 0, "<unknown>" },                 /* 都查不到 */
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+    {
+        woort_VMRuntime_TraceCallstack trace = { 0 };
+        trace.m_function_name = cases[i].m_func;
+        trace.m_file_or_lib_name = cases[i].m_file;
+        trace.m_has_location = cases[i].m_has_location;
+        trace.m_location_begin[0] = cases[i].m_line;
+        trace.m_location_begin[1] = 2;
+
+        const char* const got = capture_log_trace(&trace);
+        TEST_ASSERT(got != NULL);
+
+        char expected[256];
+        (void)snprintf(expected, sizeof(expected), "<%s>\n", cases[i].m_expected);
+        if (strcmp(got, expected) != 0)
+        {
+            (void)printf("FAIL\n");
+            (void)printf("    case %zu: expected \"%s\", got \"%s\"\n",
+                i, expected, got);
+            (void)printf("    at %s:%d\n", __FILE__, __LINE__);
+            return;
+        }
+    }
+
+    TEST_END();
+}
+
 int main(int argc, char** argv)
 {
     (void)argc;
@@ -2362,6 +2473,7 @@ int main(int argc, char** argv)
     test_map_insert_ops();
     test_struct_detailed_ops();
     test_serialize_deserialize_inf_nan();
+    test_log_trace_output();
 
     (void)printf("\n=== Results: %d/%d passed ===\n\n",
         g_tests_passed, g_tests_run);

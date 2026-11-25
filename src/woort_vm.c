@@ -4460,6 +4460,10 @@ WOORT_NODISCARD bool woort_VMRuntime_trace_next(
     return traced;
 }
 
+/*
+ * 只输出这一帧的信息：脚本是「函数名 (文件:行:列)」，native 是「函数名 (库名)」，查不到的
+ * 为 <unknown>。缩进、at、换行一概不带，版式由调用方按各自的场合拼接。
+ */
 void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace)
 {
     const char* const func = trace->m_function_name;
@@ -4471,33 +4475,33 @@ void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace)
     {
         if (trace->m_has_location)
             woort_log(
-                "    at %s (%s:%zu:%zu)\n",
+                "%s (%s:%zu:%zu)",
                 func,
                 file,
                 line + 1,
                 col + 1);
         else
             woort_log(
-                "    at %s (%s)\n",
+                "%s (%s)",
                 func,
                 file);
     }
     else if (func != NULL)
-        woort_log("    at %s\n", func);
+        woort_log("%s", func);
     else if (file != NULL)
     {
         if (line != 0)
             woort_log(
-                "    at <unknown> (%s:%zu:%zu)\n",
+                "<unknown> (%s:%zu:%zu)",
                 file,
                 line + 1,
                 col + 1);
         else
-            woort_log("    at <unknown> (%s)\n", file);
+            woort_log("<unknown> (%s)", file);
     }
     else
     {
-        woort_log("    at <unknown>\n");
+        woort_log("<unknown>");
     }
 }
 
@@ -4520,7 +4524,9 @@ void woort_VMRuntime_print_backtrace(
             break;
         }
 
+        woort_log("    at ");
         woort_VMRuntime_log_trace(&trace);
+        woort_log("\n");
         ++depth;
     }
 }

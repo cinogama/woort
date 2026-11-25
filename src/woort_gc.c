@@ -416,7 +416,10 @@ static bool _woort_GC_shutdown_dump_vm_trace_callback(
     while (logged_count < WOORT_GC_SHUTDOWN_TRACE_FRAMES_PER_VM
         && woort_VMRuntime_trace_next(&trace_iter, &trace))
     {
+        /* 帧行比 VM 标题深一级，与下面的「还有 N 帧未显示」对齐 */
+        woort_log("        at ");
         woort_VMRuntime_log_trace(&trace);
+        woort_log("\n");
         ++logged_count;
     }
 

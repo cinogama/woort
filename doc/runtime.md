@@ -420,7 +420,7 @@ while (woort_VMRuntime_trace_next(&iter, &frame)) {   /* 返回 false 表示已�
 便捷函数：
 
 ```c
-void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace);        /* 输出一帧 */
+void woort_VMRuntime_log_trace(woort_VMRuntime_TraceCallstack* trace);        /* 只输出一帧的信息 */
 void woort_VMRuntime_print_backtrace(woort_VMRuntime* vm, size_t max_depth);  /* 输出整条调用栈 */
 ```
 
@@ -430,7 +430,8 @@ void woort_VMRuntime_print_backtrace(woort_VMRuntime* vm, size_t max_depth);  /*
 * `m_location_begin` / `m_location_end` 是 0 起始的 `[行, 列]`，`woort_VMRuntime_log_trace` 输出时加 1。
 * `m_callstack_offset_of_base` 是该帧基址到 `m_stack_end` 的距离，`vm->m_stack_end - m_callstack_offset_of_base` 即该帧的 `sb`（调试器据此读取指定帧的局部变量）。
 * `m_call_way` 是该帧的进入方式（`woort_CallWay`，定义于 `woort.h`）：`WOORT_CALL_WAY_NEAR` / `WOORT_CALL_WAY_FAR` 表示由脚本调用（同 / 不同代码环境），`WOORT_CALL_WAY_FROM_NATIVE` 表示由 native 函数或宿主进入。离栈顶不足 3 个槽的位置放不下完整的帧（VM 空闲时、宿主调起的顶层帧之外），那里的帧一律报 `WOORT_CALL_WAY_FROM_NATIVE`。
-* `print_backtrace` 先输出 `Backtrace:` 再逐帧输出；`max_depth` 是最多输出的帧数，0 表示不限，被截断时输出 `...`。
+* `log_trace` 只输出一帧的信息——`函数名 (文件:行:列)`、native 帧的 `函数名 (库名)`、只有函数名时的 `函数名`，查不到的为 `<unknown>`——不带缩进、`at` 与换行，版式由调用方拼接，例如 `woort_log("    at "); woort_VMRuntime_log_trace(&trace); woort_log("\n");`。
+* `print_backtrace` 先输出 `Backtrace:`，再逐帧输出 `    at ` 加该帧的信息；`max_depth` 是最多输出的帧数，0 表示不限，被截断时输出 `...`。
 
 **从 native 进入的帧**：宿主经 `woort_invoke` / `woort_spawn` 调起脚本，或 native 函数回调脚本时，建立的帧调用方式为 `WOORT_CALL_WAY_FROM_NATIVE`（见[栈布局](#栈布局)），trace 会照常穿过：
 
@@ -442,7 +443,7 @@ void woort_VMRuntime_print_backtrace(woort_VMRuntime* vm, size_t max_depth);  /*
 | 场合 | 输出 |
 |------|------|
 | panic（默认处理器，`woort_raise_panic_v`） | panic 消息与 C 侧位置（`Location:`，即 `woort_panic` 的调用点），随后是 `Trace:`；连续相同的帧折叠为 `... (repeated N times)` |
-| `woort_GC_shutdown` 时仍有 VM 未退出 | 每秒至多一次、且仅在存活 VM 数量变化时警告，输出至多 3 个 VM 各 4 帧，其余的帧与 VM 只给数量 |
+| `woort_GC_shutdown` 时仍有 VM 未退出 | 每秒至多一次、且仅在存活 VM 数量变化时警告，输出至多 3 个 VM 各 4 帧，其余的帧与 VM 只给数量。每个 VM 以缩进 4 格的 `VM <地址> trace:` 起头，它的帧行缩进 8 格；`... (N more frames not shown)` 与帧行对齐，`... N more VM(s) not shown` 与 VM 标题对齐 |
 | GC 单元分配失败（`_woort_GCUnit_alloc_failed`） | `GC Allocate failed` 与至多 8 帧 |
 | 调试器 | `bt [depth]`（默认 32 帧）、`vm` / `list vm`（每个 VM 3 帧）：每帧输出 `#层号  函数 (文件:行:列)`，层号自栈顶 0 起算，即 `frame` 命令的 frameid；`bt` 另在层号前以 `>` 标出 `frame` 命令当前选中的帧。见 [subsystems.md](./subsystems.md) |
 | 脚本内建 `debug_trace_callstack(layer_count)` | 不打印；把各帧转成向量返回，每个元素为「函数名、文件名、位置」三项，位置是 `option<((起始行, 起始列), (结束行, 结束列))>`。`layer_count > 0` 时只取前 `layer_count` 层 |
