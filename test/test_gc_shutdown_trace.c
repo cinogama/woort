@@ -306,8 +306,9 @@ static bool shutdown_and_capture(void)
 
     (void)fflush(stderr);
     const int saved_stderr = capture != NULL ? TEST_DUP(2) : -1;
+    /* dup2 成功时返回新描述符（这里是 2），只有 Windows 的 _dup2 才返回 0 */
     bool ok = saved_stderr >= 0
-        && TEST_DUP2(TEST_FILENO(capture), 2) == 0;
+        && TEST_DUP2(TEST_FILENO(capture), 2) >= 0;
 
     woort_shutdown(NULL, NULL);
 

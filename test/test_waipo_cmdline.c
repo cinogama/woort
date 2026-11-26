@@ -205,9 +205,10 @@ static bool run_session(
     (void)fflush(stdout);
     const int saved_stdin = ok ? TEST_DUP(0) : -1;
     const int saved_stdout = saved_stdin >= 0 ? TEST_DUP(1) : -1;
+    /* dup2 成功时返回新描述符（这里是 0 与 1），只有 Windows 的 _dup2 才返回 0 */
     ok = saved_stdout >= 0
-        && TEST_DUP2(TEST_FILENO(input), 0) == 0
-        && TEST_DUP2(TEST_FILENO(capture), 1) == 0;
+        && TEST_DUP2(TEST_FILENO(input), 0) >= 0
+        && TEST_DUP2(TEST_FILENO(capture), 1) >= 0;
 
     *out_behavior = WOORT_WAIPO_TRAP_CONTINUE;
     if (ok)

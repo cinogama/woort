@@ -2338,8 +2338,9 @@ static const char* capture_log_trace(woort_VMRuntime_TraceCallstack* trace)
 
     (void)fflush(stderr);
     const int saved_stderr = TEST_DUP(2);
+    /* dup2 成功时返回新描述符（这里是 2），只有 Windows 的 _dup2 才返回 0 */
     bool ok = saved_stderr >= 0
-        && TEST_DUP2(TEST_FILENO(capture), 2) == 0;
+        && TEST_DUP2(TEST_FILENO(capture), 2) >= 0;
 
     if (ok)
     {
