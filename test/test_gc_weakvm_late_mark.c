@@ -14,43 +14,45 @@ the holder's mark callback runs AFTER the stop-marking phase.
 If the abort-walk runs before final mark, a weak VM whose only gray was
 parked gets TERMINATEd even though its holder did mark it.
 
-Deterministic parking strategy used here:
+How the parked gray is forced here, by synchronization rather than timing:
 
-  * The mutator thread feeds its own TLS-assigned worker with filler grays
-    right after a round starts, so that worker surely enters (and later
-    leaves) the parallel-mark drain with a wide, observable window.
-  * The holder GCHandle sits in the last unit of a deep root chain, so its
-    mark callback only fires when that chain gets drained (late in the
-    parallel mark), or when the parked gray is drained (final mark).
-  * Once the assigned worker has LEFT the parallel-mark drain while the
-    marking flag is still up, the mutator moves the GCHandle out of and
-    back into the chain slot. The write barrier performs the unit's first
-    graying of this round, and the gray is enqueued into the sleeping
-    worker's queue -> parked until final mark.
-
-The mutator is a RAW (non-VM) thread: no GC checkpoint handshake quiesces
-it, so every "flag check + mark" pair (feed loop and park barriers alike)
-is wrapped in woort_GC_sync_marking_lock/unlock — the documented contract
-for host threads (include/woort.h). The stop-marking callback's trailing
-stage-switch sync then waits any straddling pair out before final mark
-drains the queues. Without the guard, a mark whose flag read happened
-before the stop-marking flag clear but whose enqueue landed after the
-final-mark drain leaves an OLD unit SELF_MARKED into the sweep and trips
-the sweep assertion (observed once on a loaded CI runner; per-iteration
-flag checks alone do NOT close that window — they only mirror the flag
-read of a real barrier, which additionally runs on a VM thread and is
-quiesced at checkpoints).
+  * Every GC worker is held inside its parallel-mark drain. Each one is
+    given a root unit whose GCHandle child has a mark callback that blocks
+    until the test releases it, so the round cannot leave the parallel mark
+    on its own.
+  * The mutator thread is a RAW thread with its own TLS-assigned worker.
+    Once every worker is inside its drain, it takes the mutex through which
+    the GC main thread launches the workers and waits for them to report
+    completion. While the test holds that mutex no worker can report, so
+    the marking flag stays up for as long as the late write takes.
+  * It releases the blockers and waits until no worker is draining: every
+    worker, the assigned one included, has now left its parallel-mark drain.
+  * Only then does it move the holder handle out of and back into a slot
+    through the mixed write barrier. The barrier performs the holder unit's
+    first graying of the round, the gray lands in the assigned worker's
+    queue, and nothing drains that queue again before the final mark.
+  * Releasing the mutex lets the round continue: the final mark drains the
+    gray and runs the holder's mark callback after the stop-marking phase.
 
 Expected results:
 
-  * Before the fix: the abort-walk (stop-marking phase) consumes GC_CHECK
-    before the parked callback runs, the held weak VM is TERMINATEd and
-    this test FAILS.
-  * After the fix (abort-walk moved after final mark): the parked callback
-    runs in final mark while GC_CHECK is still set, the weak VM survives
-    and this test PASSES.
-  * An orphan weak VM with no holder at all must still be TERMINATEd, so
-    the genuine reclamation path stays intact.
+  * After the fix (abort-walk after final mark): the parked callback runs in
+    final mark while GC_CHECK is still set, the weak VM survives and this
+    test PASSES.
+  * Before the fix (abort-walk before final mark): the abort-walk (stop-marking
+    phase) consumes GC_CHECK before the parked callback runs, the held weak
+    VM is TERMINATEd and this test FAILS.
+  * An orphan weak VM with no holder at all must still be TERMINATEd, so the
+    genuine reclamation path stays intact.
+
+The scenario is verified rather than assumed: the test fails unless the
+holder's callback ran exactly once and with marking already off. An earlier
+version chased the window from a spinning mutator thread instead. That
+thread lost the scheduling race in every one of its 300 rounds on a loaded
+runner ("never managed to park a late gray"), and with a single GC worker,
+the default below 16 logical CPUs, the holder was always already marked when
+its late write came, so a green run did not show the parked path had been
+taken.
 */
 
 #ifdef WOORT_STATIC_LIB
@@ -61,6 +63,7 @@ Expected results:
 
 #include "woort.h"
 
+#include "woort_atomic.h"
 #include "woort_gc.h"
 #include "woort_gc_gchandle.h"
 #include "woort_mem.h"
@@ -72,37 +75,36 @@ Expected results:
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
+/* Every wait below gives up after this long, so a GC that no longer behaves
+   as this test expects fails visibly instead of hanging the suite. */
 enum
 {
-    TEST_ROUNDS  = 300,
-    CHAIN_DEPTH  = 4000,
-    FILLER_COUNT = 2000,
+    WAIT_LIMIT_MS = 10000,
+    BLOCKERS_PER_WORKER = 2,
 };
 
-static woort_VMRuntime* g_held_weak_vm   = NULL;
-static woort_VMRuntime* g_orphan_weak_vm = NULL;
+static woort_VMRuntime* g_held_weak_vm = NULL;
 
 static const woort_GCHandle* g_holder_handle = NULL;
-static void**                g_holder_slot   = NULL;
+static void*                g_holder_slot   = NULL;
 
-static void** g_filler_units[FILLER_COUNT];
+/* One blocker per root unit: the unit is a root, the GCHandle it points to
+   carries the blocking mark callback. */
+static void**                 g_blocker_roots = NULL;
+static const woort_GCHandle** g_blockers     = NULL;
+static size_t                 g_blocker_count = 0;
 
-static volatile bool          g_running      = false;
-static volatile int           g_parked_moves = 0;
-static woort_mem_GCWorker*    g_mutator_worker = NULL;
+static woort_AtomicUInt32 g_release_blockers;
+static woort_AtomicUInt32 g_mutator_ready;
 
-static void holder_mark_function(void* user)
-{
-    (void)user;
-    if (g_held_weak_vm != NULL)
-        woort_GC_mark_weak_vm_manually(g_held_weak_vm);
-}
+static int  g_parked_moves = 0;
+static int  g_holder_callback_runs = 0;
+static bool g_holder_callback_saw_marking = false;
 
-static void holder_destruct_function(void* user)
-{
-    (void)user;
-}
+/* Set by the mutator when the GC did not behave as this test expects. */
+static const char* g_protocol_error = NULL;
 
 /* Same non-atomic read the write barriers themselves perform. */
 static bool marking_is_on(void)
@@ -117,85 +119,134 @@ static bool worker_is_draining(woort_mem_GCWorker* worker)
         WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
 }
 
+static bool all_workers_draining(void)
+{
+    for (size_t i = 0; i < g_woort_mem_gc->m_gc_worker_count; ++i)
+    {
+        if (!worker_is_draining(&g_woort_mem_gc->m_gc_worker_threads[i]))
+            return false;
+    }
+    return true;
+}
+
+static bool no_worker_draining(void)
+{
+    for (size_t i = 0; i < g_woort_mem_gc->m_gc_worker_count; ++i)
+    {
+        if (worker_is_draining(&g_woort_mem_gc->m_gc_worker_threads[i]))
+            return false;
+    }
+    return true;
+}
+
+static bool mutator_is_ready(void)
+{
+    return 0 != woort_atomic_load_explicit(
+        &g_mutator_ready, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE);
+}
+
+static bool wait_until(bool (*condition)(void))
+{
+    for (int waited = 0; waited < WAIT_LIMIT_MS; ++waited)
+    {
+        if (condition())
+            return true;
+        woort_thread_sleep_ms(1);
+    }
+    return condition();
+}
+
+static void holder_mark_function(void* user)
+{
+    (void)user;
+
+    ++g_holder_callback_runs;
+    if (marking_is_on())
+        g_holder_callback_saw_marking = true;
+
+    if (g_held_weak_vm != NULL)
+        woort_GC_mark_weak_vm_manually(g_held_weak_vm);
+}
+
+static void holder_destruct_function(void* user)
+{
+    (void)user;
+}
+
+/* Runs on a GC worker inside its parallel-mark drain and keeps it there
+   until the mutator releases the blockers. */
+static void blocker_mark_function(void* user)
+{
+    (void)user;
+    while (!woort_atomic_load_explicit(
+        &g_release_blockers, WOORT_ATOMIC_MEMORY_ORDER_ACQUIRE))
+    {
+        woort_thread_sleep_ms(1);
+    }
+}
+
+static void blocker_destruct_function(void* user)
+{
+    (void)user;
+}
+
 static void mutator_thread_entry(void* user_data)
 {
     (void)user_data;
 
-    /* Fix this thread's TLS-assigned GC worker. */
-    g_mutator_worker =
-        woort_mem_get_thread_context()->m_gc_marking_context;
+    woort_mem_GC* const gc = g_woort_mem_gc;
 
-    while (g_running)
+    /* Fix this thread's TLS-assigned GC worker before the round starts, so
+       that nothing shifts the round's root-to-worker assignment. */
+    (void)woort_mem_get_thread_context();
+    woort_atomic_store_explicit(
+        &g_mutator_ready, 1, WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
+
+    /* Wait for the round, then until every worker is inside its drain, each
+       one parked in a blocker's mark callback. This state is stable: the
+       round cannot proceed until the blockers are released. */
+    if (!wait_until(&marking_is_on))
+        g_protocol_error = "marking never turned on";
+    else if (!wait_until(&all_workers_draining))
+        g_protocol_error = "not every GC worker picked up a blocker root";
+
+    if (g_protocol_error == NULL)
     {
-        /* Wait for the next GC round. */
-        while (g_running && !marking_is_on())
-            woort_thread_yield();
-        if (!g_running)
-            break;
+        woort_mutex_lock(gc->m_gc_worker_threshold_mx);
 
-        /* Feed the assigned worker so its parallel-mark drain lasts long
-           enough to observe, and detect the drain directly while feeding:
-           a worker that drains faster than we enqueue may leave in the
-           middle of the loop, so waiting for a "draining" edge AFTER the
-           loop would miss it entirely.
-           Each flag check + mark pair is flag-checked per iteration like
-           a real write barrier AND wrapped in the external marking sync
-           guard: this thread is not a VM thread, so no checkpoint
-           handshake quiesces it — an unguarded pair straddling the
-           stop-marking flag clear could enqueue a gray after the
-           final-mark drain and trip the sweep assertion. The guard makes
-           the stop-marking stage-switch sync wait the pair out instead. */
-        bool saw_draining = false;
-        for (size_t i = 0; i < FILLER_COUNT; ++i)
+        /* Let the workers finish their drains. No worker can report the end
+           of the parallel mark while this thread holds the mutex, so the
+           marking flag stays up. */
+        woort_atomic_store_explicit(
+            &g_release_blockers, 1, WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
+
+        if (!wait_until(&no_worker_draining))
         {
-            /* The guard must cover the flag check AND the mark as a
-               whole: a check done outside the guard can be straddled
-               before the guard is even taken. */
-            const bool guarded = woort_GC_sync_marking_lock();
-            const bool flag_on = marking_is_on();
-            if (flag_on)
-                woort_mem_mark_unit_head(g_filler_units[i]);
-            if (guarded)
-                woort_GC_sync_marking_unlock();
-            if (!flag_on)
-                break;
+            g_protocol_error =
+                "a GC worker never left its parallel-mark drain";
+        }
+        else
+        {
+            /* Every worker has left its parallel-mark drain and marking is
+               still on. The barrier performs the holder unit's first
+               graying of the round; the gray parks in the assigned
+               worker's queue until the final mark. The slot holds the
+               handle to begin with, so taking it out marks the handle and
+               putting it back is a no-op. */
+            woort_GC_mixed_write_barrier_gcaddr(&g_holder_slot, NULL);
+            woort_GC_mixed_write_barrier_gcaddr(
+                &g_holder_slot, (void*)g_holder_handle);
 
-            if (worker_is_draining(g_mutator_worker))
-                saw_draining = true;
-            else if (saw_draining)
-                break;
+            ++g_parked_moves;
         }
 
-        if (saw_draining)
-        {
-            /* Drain the tail: wait for the worker to leave the drain. */
-            while (g_running && marking_is_on()
-                && worker_is_draining(g_mutator_worker))
-                woort_thread_yield();
-
-            /* The assigned worker is asleep now: move the holder handle
-               out of and back into the chain slot. The write barrier does
-               the unit's first graying of this round, which parks in the
-               sleeping worker's queue until final mark. The flag check
-               and the barriers are guarded as a whole — same contract as
-               the feed loop above. */
-            const bool guarded = woort_GC_sync_marking_lock();
-            if (g_running && marking_is_on())
-            {
-                woort_GC_mixed_write_barrier_gcaddr(g_holder_slot, NULL);
-                woort_GC_mixed_write_barrier_gcaddr(
-                    g_holder_slot, (void*)g_holder_handle);
-
-                ++g_parked_moves;
-            }
-            if (guarded)
-                woort_GC_sync_marking_unlock();
-        }
-
-        /* Wait for the round to finish. */
-        while (g_running && marking_is_on())
-            woort_thread_yield();
+        woort_mutex_unlock(gc->m_gc_worker_threshold_mx);
     }
+
+    /* Never leave the round blocked: from here on the blockers return at
+       once, whatever happened above. */
+    woort_atomic_store_explicit(
+        &g_release_blockers, 1, WOORT_ATOMIC_MEMORY_ORDER_RELEASE);
 }
 
 int main(int argc, char** argv)
@@ -205,6 +256,7 @@ int main(int argc, char** argv)
 
     int failed = 0;
     static char dummy_user_handle;
+    static char dummy_blocker_handle;
 
     woort_init(0, NULL);
 
@@ -218,16 +270,20 @@ int main(int argc, char** argv)
     }
     (void)woort_vm_swap(setup_vm);
 
-    g_held_weak_vm   = woort_vm_create();
-    g_orphan_weak_vm = woort_vm_create();
-    if (g_held_weak_vm == NULL || g_orphan_weak_vm == NULL)
+    woort_VMRuntime* const held_weak_vm = woort_vm_create();
+    woort_VMRuntime* const orphan_weak_vm = woort_vm_create();
+    if (held_weak_vm == NULL || orphan_weak_vm == NULL)
     {
         printf("test_gc_weakvm_late_mark: FAILED (weak vms)\n");
         return 1;
     }
-    woort_VMRuntime_weaken(g_held_weak_vm);
-    woort_VMRuntime_weaken(g_orphan_weak_vm);
+    woort_VMRuntime_weaken(held_weak_vm);
+    woort_VMRuntime_weaken(orphan_weak_vm);
+    g_held_weak_vm = held_weak_vm;
 
+    /* The holder is reachable from no root: nothing grays it while the
+       workers drain the parallel mark. It survives each round only because
+       the final mark drains the parked gray. */
     g_holder_handle = woort_GCHandle_new_with_marker(
         &dummy_user_handle,
         &holder_mark_function,
@@ -238,84 +294,79 @@ int main(int argc, char** argv)
         printf("test_gc_weakvm_late_mark: FAILED (gchandle)\n");
         return 1;
     }
+    g_holder_slot = (void*)g_holder_handle;
 
-    /* Deep root chain: root -> u1 -> ... -> uCHAIN_DEPTH,
-       the last slot holds the holder GCHandle. */
-    void** chain_root = (void**)woort_GC_allocate_as_root(
-        sizeof(void*),
-        WOORT_MEM_ATTRIB_NEED_SWEEP | WOORT_MEM_ATTRIB_AUTO_MARK);
-    if (chain_root == NULL)
+    /* Blocker roots: two per GC worker, so that every worker gets at least
+       one even if the round-robin root assignment is shifted. */
+    g_blocker_count = BLOCKERS_PER_WORKER * g_woort_mem_gc->m_gc_worker_count;
+    g_blocker_roots = (void**)malloc(g_blocker_count * sizeof(void*));
+    g_blockers = (const woort_GCHandle**)malloc(
+        g_blocker_count * sizeof(woort_GCHandle*));
+    if (g_blocker_roots == NULL || g_blockers == NULL)
     {
-        printf("test_gc_weakvm_late_mark: FAILED (chain root)\n");
+        printf("test_gc_weakvm_late_mark: FAILED (blockers)\n");
         return 1;
     }
-    void** chain_slot = chain_root;
-    for (size_t i = 0; i < CHAIN_DEPTH; ++i)
+    for (size_t i = 0; i < g_blocker_count; ++i)
     {
-        void** unit = (void**)woort_mem_allocate_begin(sizeof(void*));
-        if (unit == NULL)
+        g_blockers[i] = woort_GCHandle_new_with_marker(
+            &dummy_blocker_handle,
+            &blocker_mark_function,
+            &blocker_destruct_function,
+            NULL);
+        g_blocker_roots[i] = (void**)woort_GC_allocate_as_root(
+            sizeof(void*), WOORT_GCALLOCATE_FLAG_AUTO_MARK);
+        if (g_blockers[i] == NULL || g_blocker_roots[i] == NULL)
         {
-            printf("test_gc_weakvm_late_mark: FAILED (chain unit)\n");
+            printf("test_gc_weakvm_late_mark: FAILED (blocker %zu)\n", i);
             return 1;
         }
-        woort_mem_allocate_end(
-            unit, WOORT_MEM_ATTRIB_NEED_SWEEP | WOORT_MEM_ATTRIB_AUTO_MARK);
-        *chain_slot = unit;
-        chain_slot = unit;
-    }
-    *chain_slot = (void*)g_holder_handle;
-    g_holder_slot = chain_slot;
-
-    for (size_t i = 0; i < FILLER_COUNT; ++i)
-    {
-        g_filler_units[i] = (void**)woort_mem_allocate_begin(sizeof(void*));
-        if (g_filler_units[i] == NULL)
-        {
-            printf("test_gc_weakvm_late_mark: FAILED (filler)\n");
-            return 1;
-        }
-        /* NEED_SWEEP is required, otherwise the sweep never reclaims
-           them and woort_shutdown() waits for zero memory forever. */
-        woort_mem_allocate_end(
-            g_filler_units[i], WOORT_MEM_ATTRIB_NEED_SWEEP);
-        *g_filler_units[i] = NULL;
+        woort_GC_init_write_barrier_gcaddr(
+            g_blocker_roots[i], (void*)g_blockers[i]);
     }
 
     (void)woort_vm_swap(NULL);
 
-    g_running = true;
+    woort_atomic_init(&g_release_blockers, 0);
+    woort_atomic_init(&g_mutator_ready, 0);
+
+    /* One round is enough: the round waits for the test. */
     woort_Thread* mutator = NULL;
     if (!woort_thread_start(&mutator_thread_entry, NULL, &mutator))
     {
-        g_running = false;
         printf("test_gc_weakvm_late_mark: FAILED (mutator thread)\n");
         return 1;
     }
+    (void)wait_until(&mutator_is_ready);
 
-    for (size_t round = 0;
-         round < TEST_ROUNDS && g_parked_moves < 30;
-         ++round)
-    {
-        woort_mem_trigger_gc(false);
-        woort_thread_sleep_ms(1);
-    }
-
-    g_running = false;
+    woort_mem_trigger_gc(false);
     woort_thread_join(mutator);
 
-    printf(
-        "test_gc_weakvm_late_mark: rounds=%d parked_moves=%d\n",
-        TEST_ROUNDS, g_parked_moves);
-
-    if (g_parked_moves == 0)
+    if (g_protocol_error != NULL)
     {
-        printf("  [FAIL] never managed to park a late gray, "
-               "round timing did not line up.\n");
+        printf("  [FAIL] the GC did not behave as this test expects: %s.\n",
+               g_protocol_error);
+        failed = 1;
+    }
+
+    if (g_parked_moves != 1)
+    {
+        printf("  [FAIL] the late write was not made after the parallel "
+               "mark: parked_moves=%d.\n",
+               g_parked_moves);
+        failed = 1;
+    }
+
+    if (g_holder_callback_runs != 1 || g_holder_callback_saw_marking)
+    {
+        printf("  [FAIL] the holder's mark callback did not run in the final "
+               "mark: runs=%d, saw marking=%d.\n",
+               g_holder_callback_runs, (int)g_holder_callback_saw_marking);
         failed = 1;
     }
 
     if (woort_VMRuntime_request_check(
-            g_held_weak_vm, WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE))
+            held_weak_vm, WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE))
     {
         printf("  [FAIL] held weak VM got TERMINATEd: its holder's mark "
                "callback only ran after the abort-walk.\n");
@@ -323,29 +374,33 @@ int main(int argc, char** argv)
     }
 
     if (!woort_VMRuntime_request_check(
-            g_orphan_weak_vm, WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE))
+            orphan_weak_vm, WOORT_VMRUNTIME_CHECK_REQUEST_TERMINATE))
     {
         printf("  [FAIL] orphan weak VM was NOT terminated: the genuine "
                "reclamation path is broken.\n");
         failed = 1;
     }
 
+    printf("test_gc_weakvm_late_mark: workers=%zu parked_moves=%d "
+           "holder_callback_runs=%d\n",
+        g_woort_mem_gc->m_gc_worker_count, g_parked_moves,
+        g_holder_callback_runs);
     printf("checks done (failed=%d).\n", failed);
     fflush(stdout);
 
     /* Drop the holder's reference before closing: the GCHandle's mark
        callback must not touch a freed VM during shutdown's final GC. */
-    {
-        woort_VMRuntime* const held_vm = g_held_weak_vm;
-        g_held_weak_vm = NULL;
-        woort_vm_close(held_vm);
-    }
-    woort_vm_close(g_orphan_weak_vm);
+    g_held_weak_vm = NULL;
+    woort_vm_close(held_weak_vm);
+    woort_vm_close(orphan_weak_vm);
     woort_vm_close(setup_vm);
 
-    /* Drop the root chain so shutdown's final rounds can reclaim every
-       remaining unit (it loops until alive memory reaches zero). */
-    woort_mem_remove_from_root_set(chain_root);
+    /* Drop the blocker roots so that shutdown's final rounds can reclaim
+       them and their handles (it loops until alive memory reaches zero). */
+    for (size_t i = 0; i < g_blocker_count; ++i)
+        woort_mem_remove_from_root_set(g_blocker_roots[i]);
+    free(g_blocker_roots);
+    free(g_blockers);
 
     woort_shutdown(NULL, NULL);
 
