@@ -335,6 +335,21 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 |------|------|--------|------|
 | `MKCLOSURE` | `OP6_MA10_BC16` + EX | N10, W_ONLY S16, R_ONLY C32 | 创建闭包，捕获 N 个变量，函数索引 C32 |
 
+### 9.4 不弹栈的构造（CONSNP）
+
+与 `MKVEC`/`MKMAP`/`MKSTRUCT`/`MKCLOSURE` 读取相同的栈顶元素，区别仅在于**执行后不弹出它们**：`sp` 保持不变，元素留在栈上，何时弹出由后续指令决定。
+
+数量上限为 255：`MKVECNP`/`MKMAPNP`/`MKSTRUCTNP` 是一字指令，操作数布局与对应的原指令相同；`MKCLOSURENP` 与 `MKCLOSURE` 一样带一个 EX 字放函数索引。元素更多的构造不采用预留栈槽的方式，仍使用 `MKVECEXT` 等原指令。
+
+| 变体 | Mode | 格式 | 操作数 | 说明 |
+|------|------|------|--------|------|
+| `MKVECNP` | 0 | `OP6_M2_A8_BC16` | N8, W_ONLY S16 | 创建向量，读取 N 个元素，不弹出 |
+| `MKMAPNP` | 1 | `OP6_M2_A8_BC16` | N8, W_ONLY S16 | 创建映射，读取 N×2 个键值对，不弹出 |
+| `MKSTRUCTNP` | 2 | `OP6_M2_A8_BC16` | N8, W_ONLY S16 | 创建结构体，读取 N 个字段，不弹出 |
+| `MKCLOSURENP` | 3 | `OP6_M2_A8_BC16` + EX | N8, W_ONLY S16, R_ONLY C32 | 创建闭包，捕获 N 个变量，函数索引 C32，不弹出 |
+
+> IR 编译器目前不发射这一族指令：`woort_IR_MKVEC` 等接口发射的仍是会弹栈的原指令。
+
 ---
 
 ## 10. 动态类型操作（DYN）
@@ -689,7 +704,7 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 函数调用（CALLN*/CALL） | 4 | 6 |
 | 返回与结果（RET/RESULT） | 2 | 4 |
 | 跳转指令（JFWD/JBCK/J*CND/J*CMP） | 6 | 20 |
-| 容器创建（CONS/CONSEX/MKCLOSURE） | 4 | 11 |
+| 容器创建（CONS/CONSEX/CONSNP/MKCLOSURE） | 4 | 13 |
 | 动态类型（DYN） | 1 | 4 |
 | 整数运算（OPIASMD/OPIONLG/OPISREN） | 3 | 12 |
 | 实数运算（OPRASMD/OPRONLG/OPRSREN） | 3 | 12 |
@@ -706,4 +721,4 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 陷阱与 Panic（TRAP） | 1 | 3 |
 | **总计** | **65 个枚举值**（64 条主指令 + `count`） | — |
 
-> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。64 个编码已全部占用：63 条可用主指令 + 1 条保留（`WOORT_OPCODE_RESERVED_0`）；`WOORT_OPCODE_COUNT` 是哨兵，不占编码。
+> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。64 个编码已全部占用，且全部可用（原保留的 `RESERVED_0` 已由 `CONSNP` 接替）；`WOORT_OPCODE_COUNT` 是哨兵，不占编码。

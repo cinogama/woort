@@ -296,6 +296,24 @@
     woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_MKCLOSURE, n10, bc16)
 
 /*
+ * CONSNP - 不弹栈的容器/闭包构造
+ * 读取与 MKVEC/MKMAP/MKSTRUCT/MKCLOSURE 相同的栈顶元素，区别仅在于执行后不弹出它们
+ * 数量上限为 255：元素更多的构造不采用预留栈槽的方式，仍使用 MKVECEXT 等原指令
+ * MKVECNP     (mode=0): 构造向量，n8 个元素 -> [SB + bc16]
+ * MKMAPNP     (mode=1): 构造字典，n8 个键值对 -> [SB + bc16]
+ * MKSTRUCTNP  (mode=2): 构造结构体，n8 个字段 -> [SB + bc16]
+ * MKCLOSURENP (mode=3): 创建闭包，捕获 n8 个值 -> [SB + bc16]，函数在 G[ex32]（两字指令）
+ */
+#define woort_OpCode_MKVECNP(n8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONSNP, 0, n8, bc16)
+#define woort_OpCode_MKMAPNP(n8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONSNP, 1, n8, bc16)
+#define woort_OpCode_MKSTRUCTNP(n8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONSNP, 2, n8, bc16)
+#define woort_OpCode_MKCLOSURENP(n8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONSNP, 3, n8, bc16)
+
+/*
  * DYN - 动态类型操作
  * BOXDYN    (mode=0): 装箱 [SB + b8] -> [SB + c8]，类型 t8
  * UNBOXDYN  (mode=1): 拆箱 [SB + b8] -> [SB + c8]，类型 t8

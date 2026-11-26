@@ -173,6 +173,18 @@ static void _woort_dis_MKUNION(void* userdata, woort_Opcode_Stack dst, woort_Opc
 static void _woort_dis_MKCLOSURE(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl)
 { CTX->callback("MKCLOSURE   %u -> [SB %+d], G[%u]\n", n, dst, tmpl); CTX->printed = 1; }
 
+static void _woort_dis_MKVECNP(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count n)
+{ CTX->callback("MKVECNP     %u -> [SB %+d]\n", n, dst); CTX->printed = 1; }
+
+static void _woort_dis_MKMAPNP(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count n)
+{ CTX->callback("MKMAPNP     %u -> [SB %+d]\n", n, dst); CTX->printed = 1; }
+
+static void _woort_dis_MKSTRUCTNP(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count n)
+{ CTX->callback("MKSTRUCTNP  %u -> [SB %+d]\n", n, dst); CTX->printed = 1; }
+
+static void _woort_dis_MKCLOSURENP(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl)
+{ CTX->callback("MKCLOSURENP %u -> [SB %+d], G[%u]\n", n, dst, tmpl); CTX->printed = 1; }
+
 static void _woort_dis_BOXDYN(void* userdata, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
 { CTX->callback("BOXDYN      T%u, [SB %+d] -> [SB %+d]\n", type, src, dst); CTX->printed = 1; }
 
@@ -598,6 +610,10 @@ static const woort_OpcodeDispatchers g_disasm_dispatchers = {
     .m_MKSTRUCT = _woort_dis_MKSTRUCT,
     .m_MKUNION = _woort_dis_MKUNION,
     .m_MKCLOSURE = _woort_dis_MKCLOSURE,
+    .m_MKVECNP = _woort_dis_MKVECNP,
+    .m_MKMAPNP = _woort_dis_MKMAPNP,
+    .m_MKSTRUCTNP = _woort_dis_MKSTRUCTNP,
+    .m_MKCLOSURENP = _woort_dis_MKCLOSURENP,
     .m_BOXDYN = _woort_dis_BOXDYN,
     .m_UNBOXDYN = _woort_dis_UNBOXDYN,
     .m_CHECKDYN = _woort_dis_CHECKDYN,

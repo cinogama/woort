@@ -60,6 +60,10 @@ WOORT_OPCODE_DISPATCHER_TYPE_DECL(MKMAP, woort_Opcode_Stack dst, woort_Opcode_Co
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(MKSTRUCT, woort_Opcode_Stack dst, woort_Opcode_Count n);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(MKUNION, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack src);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(MKCLOSURE, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl);
+WOORT_OPCODE_DISPATCHER_TYPE_DECL(MKVECNP, woort_Opcode_Stack dst, woort_Opcode_Count n);
+WOORT_OPCODE_DISPATCHER_TYPE_DECL(MKMAPNP, woort_Opcode_Stack dst, woort_Opcode_Count n);
+WOORT_OPCODE_DISPATCHER_TYPE_DECL(MKSTRUCTNP, woort_Opcode_Stack dst, woort_Opcode_Count n);
+WOORT_OPCODE_DISPATCHER_TYPE_DECL(MKCLOSURENP, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(BOXDYN, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(UNBOXDYN, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(CHECKDYN, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src);
@@ -244,6 +248,10 @@ typedef struct woort_OpcodeDispatchers
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(MKSTRUCT);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(MKUNION);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(MKCLOSURE);
+    WOORT_OPCODE_DISPATCHER_FIELD_DECL(MKVECNP);
+    WOORT_OPCODE_DISPATCHER_FIELD_DECL(MKMAPNP);
+    WOORT_OPCODE_DISPATCHER_FIELD_DECL(MKSTRUCTNP);
+    WOORT_OPCODE_DISPATCHER_FIELD_DECL(MKCLOSURENP);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(BOXDYN);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(UNBOXDYN);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(CHECKDYN);

@@ -75,6 +75,10 @@ extern "C" {
     void woort_JIT_Backend_arm64_MKSTRUCT(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n);
     void woort_JIT_Backend_arm64_MKUNION(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack src);
     void woort_JIT_Backend_arm64_MKCLOSURE(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl);
+    void woort_JIT_Backend_arm64_MKVECNP(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n);
+    void woort_JIT_Backend_arm64_MKMAPNP(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n);
+    void woort_JIT_Backend_arm64_MKSTRUCTNP(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n);
+    void woort_JIT_Backend_arm64_MKCLOSURENP(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl);
     void woort_JIT_Backend_arm64_BOXDYN(void* emitter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src);
     void woort_JIT_Backend_arm64_UNBOXDYN(void* emitter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src);
     void woort_JIT_Backend_arm64_CHECKDYN(void* emitter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src);

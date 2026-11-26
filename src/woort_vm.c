@@ -1629,6 +1629,76 @@ _label_continue_execution:
             continue;
         }
 
+        /*
+            CONSNP：不弹栈的构造。与 MKVEC/MKMAP/MKSTRUCT/MKCLOSURE 读取相同的栈顶元素，
+            区别仅在于执行后不弹出它们（sp 不变）；操作数布局与对应的原指令相同。
+        */
+        /* MKVECNP */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSNP, 0):
+        {
+            const size_t size = WOORT_BYTECODE(A8, c);
+
+            woort_GCVec* const gcvec = woort_GCVec_new();
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_vec = gcvec;
+
+            _woort_GCVec_extern(gcvec, size);
+
+            for (size_t i = 1; i <= size; ++i)
+                woort_GC_init_write_barrier_dynbox(
+                    &gcvec->m_datas[size - i], rt_sp[i].m_dynamic);
+
+            break;
+        }
+        /* MKMAPNP */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSNP, 1):
+        {
+            const size_t size = WOORT_BYTECODE(A8, c);
+
+            woort_GCMap* const gcmap = woort_GCMap_new();
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_map = gcmap;
+
+            woort_GCMap_reserve(gcmap, size);
+
+            for (size_t i = 0; i < size; ++i)
+            {
+                woort_DynBox val = rt_sp[1 + i * 2].m_dynamic;
+                woort_DynBox key = rt_sp[2 + i * 2].m_dynamic;
+                woort_GCMap_set_or_insert(gcmap, key, val);
+            }
+
+            break;
+        }
+        /* MKSTRUCTNP */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSNP, 2):
+        {
+            const size_t size = WOORT_BYTECODE(A8, c);
+
+            woort_GCStruct* const gcstruct = woort_GCStruct_new(size);
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_struct = gcstruct;
+
+            for (size_t i = 1; i <= size; ++i)
+                woort_GC_init_write_barrier_value(
+                    &gcstruct->m_datas[size - i], rt_sp[i]);
+
+            break;
+        }
+        /* MKCLOSURENP */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CONSNP, 3):
+        {
+            const size_t size = WOORT_BYTECODE(A8, c);
+            const uint32_t const_idx = rt_ip[1];
+
+            woort_GCClosure* const gcclosure =
+                woort_GCClosure_new(rt_env_data[const_idx].m_closure, size);
+
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_closure = gcclosure;
+
+            memcpy(gcclosure->m_datas, rt_sp + 1, sizeof(woort_Value) * size);
+
+            rt_ip += 2;
+            continue;
+        }
+
         /* BOXDYN */
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_DYN, 0):
         {

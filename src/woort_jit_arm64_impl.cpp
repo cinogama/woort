@@ -2775,6 +2775,86 @@ void woort_JIT_Backend_arm64_MKCLOSURE(void* emitter, woort_Opcode_Stack dst, wo
     }
 }
 
+/* -------------------------------------------------------------------------- */
+/* CONSNP：不弹栈的构造。与 MKVEC/MKMAP/MKSTRUCT/MKCLOSURE 的发射相同，
+   只是构造完成后不推进 sp，栈顶的元素保持原位。 */
+
+void woort_JIT_Backend_arm64_MKVECNP(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+{
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp result = em->c->new_gp64();
+    InvokeNode* invoke_node;
+    WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_JIT_make_vec,
+        FuncSignature::build<woort_GCVec*, woort_Value*, size_t>());
+
+    invoke_node->set_arg(0, em->m_sp);
+    invoke_node->set_arg(1, Imm(static_cast<size_t>(n)));
+    invoke_node->set_ret(0, result);
+
+    em->store_stack(dst, result);
+}
+
+void woort_JIT_Backend_arm64_MKMAPNP(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+{
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp result = em->c->new_gp64();
+    InvokeNode* invoke_node;
+    WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_JIT_make_map,
+        FuncSignature::build<woort_GCMap*, woort_Value*, size_t>());
+
+    invoke_node->set_arg(0, em->m_sp);
+    invoke_node->set_arg(1, Imm(static_cast<size_t>(n)));
+    invoke_node->set_ret(0, result);
+
+    em->store_stack(dst, result);
+}
+
+void woort_JIT_Backend_arm64_MKSTRUCTNP(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n)
+{
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp result = em->c->new_gp64();
+    InvokeNode* invoke_node;
+    WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_JIT_make_struct,
+        FuncSignature::build<void*, woort_Value*, size_t>());
+
+    invoke_node->set_arg(0, em->m_sp);
+    invoke_node->set_arg(1, Imm(static_cast<size_t>(n)));
+    invoke_node->set_ret(0, result);
+
+    em->store_stack(dst, result);
+}
+
+void woort_JIT_Backend_arm64_MKCLOSURENP(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count n, woort_Opcode_Global tmpl)
+{
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const woort_GCClosure* const tmpl_closure =
+        em->m_cenv_static_storage[tmpl].m_closure;
+
+    const Gp result = em->c->new_gp64();
+    InvokeNode* invoke_node;
+    WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_JIT_make_closure,
+        FuncSignature::build<void*, const void*, woort_Value*, size_t>());
+
+    invoke_node->set_arg(0, Imm(reinterpret_cast<intptr_t>(tmpl_closure)));
+    invoke_node->set_arg(1, em->m_sp);
+    invoke_node->set_arg(2, Imm(static_cast<size_t>(n)));
+    invoke_node->set_ret(0, result);
+
+    em->store_stack(dst, result);
+}
+
 void woort_JIT_Backend_arm64_BOXDYN(void* emitter, woort_Opcode_Stack dst, woort_BoxValueType type, woort_Opcode_Stack src)
 {
     woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);

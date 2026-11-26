@@ -408,6 +408,29 @@ _label_retry_entry:
             (woort_Opcode_Global)(uint32_t)c[1]);
         return c + 2;
 
+    /* CONSNP：不弹栈的构造；MKVECNP/MKMAPNP/MKSTRUCTNP 为一字，MKCLOSURENP 为两字 */
+    case WOORT_OPCODE_CONSNP:
+    {
+        const woort_Opcode_Stack dst = (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc);
+        const woort_Opcode_Count n = (woort_Opcode_Count)(uint8_t)WOORT_BYTECODE(A8, bc);
+        switch (m2)
+        {
+        case 0: /* MKVECNP */
+            DISPATCH(m_MKVECNP, dst, n);
+            return c + 1;
+        case 1: /* MKMAPNP */
+            DISPATCH(m_MKMAPNP, dst, n);
+            return c + 1;
+        case 2: /* MKSTRUCTNP */
+            DISPATCH(m_MKSTRUCTNP, dst, n);
+            return c + 1;
+        case 3: /* MKCLOSURENP */
+            DISPATCH(m_MKCLOSURENP, dst, n, (woort_Opcode_Global)(uint32_t)c[1]);
+            return c + 2;
+        }
+        return c + 1;
+    }
+
     case WOORT_OPCODE_DYN:
         switch (m2)
         {
