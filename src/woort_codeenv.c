@@ -628,7 +628,7 @@ WOORT_NODISCARD woort_Bytecode woort_CodeEnv_raw_trap(
          * 若在无锁检查与加锁之间，另一个线程刚好清除了该 trap，
          * 则 *code 已被恢复为原始指令，此时应重新读取 *code。
          */
-        if (r != woort_OpCode_DEBUGTRAP())
+        if (*code != woort_OpCode_DEBUGTRAP())
             r = *code;
         else
         {
