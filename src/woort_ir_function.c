@@ -1604,6 +1604,7 @@ static void _sp_require(woort_IROp* op, _woort_SpState* state, uint32_t target)
     {
         op->m_need_spset = true;
         op->m_sp_from = state->m_sp;
+        op->m_sp_to = target;
     }
     state->m_sp = target;
 }

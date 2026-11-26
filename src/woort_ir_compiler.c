@@ -1942,18 +1942,15 @@ static bool _emit_function(
 
             /*
              * sp 跟踪（Phase 3c）判定执行本指令前 sp 不在所需位置：先定位。
-             * 窗口消费者要去窗口的位置，V1 栈区间的起点要去入口预留后的位置。
+             * 目标位置（窗口的、所写槽位的、入口预留后的）由跟踪层记在指令上。
              */
             if (op->m_need_spset)
             {
-                const int32_t base =
-                    (op->m_window != NULL && !op->m_window->m_push_lowered)
-                        ? op->m_window->m_base : 0;
                 const int32_t from =
                     op->m_sp_from == UINT32_MAX ? INT32_MIN : (int32_t)op->m_sp_from;
 
                 if (!_emit_sp_position(
-                    blk, f->m_window_sp_rest, from, f->m_window_sp_rest + base))
+                    blk, f->m_window_sp_rest, from, f->m_window_sp_rest + (int32_t)op->m_sp_to))
                 {
                     return false;
                 }

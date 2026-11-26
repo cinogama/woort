@@ -295,12 +295,15 @@ typedef struct woort_IROp
 
     /*
      * finish 阶段（sp 跟踪）填充：执行本指令前 sp 不在所需位置，
-     * 发射层要先把它定位过去。V2 消费指令的目标是窗口的位置，
-     * 其余栈操作（V1 栈区间的起点）的目标是函数入口预留后的位置。
+     * 发射层要先把它定位过去。目标是窗口消费者所在窗口的位置、普通写槽
+     * 指令所写槽位的位置，或 V1 栈区间起点（函数入口预留后的位置）。
      */
     bool m_need_spset;
 
     /* m_need_spset 时 sp 的当前位置（窗口内的位置）；UINT32_MAX 表示静态未知 */
     uint32_t m_sp_from;
+
+    /* m_need_spset 时 sp 要移到的位置（窗口内的位置） */
+    uint32_t m_sp_to;
 
 } woort_IROp;

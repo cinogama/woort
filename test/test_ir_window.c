@@ -452,6 +452,28 @@ static woort_IRFunction* make_lin2(woort_IRCompiler* irc, woort_IRConstantIndex 
     return f;
 }
 
+/* 三个整数参数：a * p + b * q + c（常量 c_p、c_q 由调用方分配并绑定） */
+static woort_IRFunction* make_lin3(woort_IRCompiler* irc, woort_IRConstantIndex c_p,
+    woort_IRConstantIndex c_q)
+{
+    woort_IRFunction* f = NULL;
+    if (!woort_IRCompiler_add_function(irc, 3, 0, &f))
+        return NULL;
+
+    const woort_IRValue* a = woort_IRFunction_get_argument(f, 0);
+    const woort_IRValue* b = woort_IRFunction_get_argument(f, 1);
+    const woort_IRValue* c = woort_IRFunction_get_argument(f, 2);
+    woort_IRValue* ta = woort_IRFunction_new_vreg(f);
+    woort_IRValue* tb = woort_IRFunction_new_vreg(f);
+    woort_IRValue* r = woort_IRFunction_new_vreg(f);
+    (void)woort_IR_MULI(f, ta, a, CONST(f, c_p));
+    (void)woort_IR_MULI(f, tb, b, CONST(f, c_q));
+    (void)woort_IR_ADDI(f, ta, ta, tb);
+    (void)woort_IR_ADDI(f, r, ta, c);
+    (void)woort_IR_ret(f, r);
+    return f;
+}
+
 /* 一个整数参数：x + v（常量 c_v 由调用方分配并绑定） */
 static woort_IRFunction* make_addconst(woort_IRCompiler* irc, woort_IRConstantIndex c_v)
 {
@@ -2037,6 +2059,120 @@ static void test_write_below_sp(void)
     TEST_END();
 }
 
+/* ========== 15b. 逐层下沉的嵌套窗口：放下 sp 时要落到所写槽位的位置 ========== */
+
+/*
+ * 最先消费的窗口在最高处，sp 调用后停在那里；外层窗口靠上的槽位写完后，更深的窗口
+ * 只能落在下面。往低处的槽位写值时 sp 要逐次放下，每次都放到所写槽位的位置：放到
+ * 入口位置的话，跟踪层以为 sp 已经在下一个消费者的位置，不再发射 SPSET，消费者
+ * 就读到别的槽。
+ *
+ *   E = 窗口(1)，位置 3：t = g(x)
+ *   O = 窗口(3)，位置 3..5：slot2、slot1 先写
+ *     M = 窗口(3)，位置 1..3：slot2、slot1 先写
+ *       L = 窗口(1)，位置 1：slot0 = t，l = g(t)
+ *       S = 窗口(2)，位置 0..1：slot1 = 9，slot0 = l，s = f(l, 9)
+ *     M.slot0 = s，m = h(s, 5, 6)
+ *   O.slot0 = m，返回 h(m, 1, 2)
+ * sp：入口 0 → E 调用 3 → 写 M.slot1 降到 2 → 写 L.slot0 降到 1 → L 调用（已在 1）
+ *     → 写 S.slot0 降到 0 → S 调用（已在 0）→ M 调用 1 → O 调用 3。
+ */
+static void test_nested_lowered_windows(void)
+{
+    TEST_BEGIN("nested_lowered_windows (sp lowered onto the written slot)");
+    _Harness h;
+    h_init(&h);
+
+    enum { E_MAIN, C_F, C_G, C_H, C_10, C_1, C_100, C_2, C_6, C_5, C_9, C_1B };
+    for (int i = 0; i <= C_1B; ++i)
+        (void)woort_IRCompiler_add_constant(h.irc);
+
+    woort_IRFunction* f_f = make_lin2(h.irc, C_10, C_1);
+    woort_IRFunction* f_g = make_addconst(h.irc, C_1);
+    woort_IRFunction* f_h = make_lin3(h.irc, C_100, C_10);
+    CHECK(&h, f_f != NULL && f_g != NULL && f_h != NULL);
+
+    woort_IRFunction* f_main = NULL;
+    CHECK(&h, woort_IRCompiler_add_function(h.irc, 1, 0, &f_main));
+    {
+        const woort_IRValue* const x = woort_IRFunction_get_argument(f_main, 0);
+
+        woort_IRWindow* win_e = woort_IRFunction_new_window(f_main, 1);
+        woort_IRValue* t = woort_IRFunction_new_vreg(f_main);
+        CHECK(&h, woort_IR_MOV(f_main, SLOT(win_e, 0), x));
+        CHECK(&h, woort_IR_CALLNWO2(f_main, C_G, win_e, t));
+
+        woort_IRWindow* win_o = woort_IRFunction_new_window(f_main, 3);
+        CHECK(&h, woort_IR_MOV(f_main, SLOT(win_o, 2), CONST(f_main, C_2)));
+        CHECK(&h, woort_IR_MOV(f_main, SLOT(win_o, 1), CONST(f_main, C_1B)));
+
+        woort_IRWindow* win_m = woort_IRFunction_new_window(f_main, 3);
+        CHECK(&h, woort_IR_MOV(f_main, SLOT(win_m, 2), CONST(f_main, C_6)));
+        CHECK(&h, woort_IR_MOV(f_main, SLOT(win_m, 1), CONST(f_main, C_5)));
+
+        woort_IRWindow* win_l = woort_IRFunction_new_window(f_main, 1);
+        woort_IRValue* l = woort_IRFunction_new_vreg(f_main);
+        CHECK(&h, woort_IR_MOV(f_main, SLOT(win_l, 0), t));
+        CHECK(&h, woort_IR_CALLNWO2(f_main, C_G, win_l, l));
+
+        woort_IRWindow* win_s = woort_IRFunction_new_window(f_main, 2);
+        CHECK(&h, woort_IR_MOV(f_main, SLOT(win_s, 1), CONST(f_main, C_9)));
+        CHECK(&h, woort_IR_MOV(f_main, SLOT(win_s, 0), l));
+        CHECK(&h, woort_IR_CALLNWO2(f_main, C_F, win_s, SLOT(win_m, 0)));
+
+        CHECK(&h, woort_IR_CALLNWO2(f_main, C_H, win_m, SLOT(win_o, 0)));
+
+        woort_IRValue* r = woort_IRFunction_new_vreg(f_main);
+        CHECK(&h, woort_IR_CALLNWO2(f_main, C_H, win_o, r));
+        CHECK(&h, woort_IR_ret(f_main, r));
+    }
+
+    h_int(&h, C_10, 10);
+    h_int(&h, C_1, 1);
+    h_int(&h, C_100, 100);
+    h_int(&h, C_2, 2);
+    h_int(&h, C_6, 6);
+    h_int(&h, C_5, 5);
+    h_int(&h, C_9, 9);
+    h_int(&h, C_1B, 1);
+    h_function(&h, C_F, f_f);
+    h_function(&h, C_G, f_g);
+    h_function(&h, C_H, f_h);
+    h_closure(&h, E_MAIN, f_main);
+
+    PREPARE_OR_RETURN();
+
+    h_start(&h);
+    for (int pass = 0; pass < 2; ++pass)
+    {
+        if (pass != 0)
+            woort_CodeEnv_jit(h.cenv);
+
+        h_call(&h, E_MAIN, 5);
+        CHECK(&h, h.status == WOORT_VM_CALL_STATUS_NORMAL);
+        /* t = 6，l = 7，s = 79，m = 7956，h(7956, 1, 2) = 795612 */
+        CHECK(&h, woort_int(h.sv + 1) == 795612);
+    }
+
+    dump_function(&h, f_main);
+    CHECK(&h, count_mnemonic("SPSET") == 6);
+    CHECK(&h, count_push_checks() == 0);
+
+    /* 入口预留即 rest 的偏移；位置 p 的 SPSET 写作 SP = SB <rest + p> */
+    const int64_t reserve = entry_reserve(&h, f_main);
+    char sp_at[4][32];
+    for (int p = 0; p < 4; ++p)
+        (void)snprintf(sp_at[p], sizeof(sp_at[p]), "SP = SB %+d", (int)(p - reserve));
+
+    /* 写 S.slot0；写 L.slot0 与 M 调用；写 M.slot1；E 调用与 O 调用 */
+    CHECK(&h, count_lines_with(sp_at[0]) == 1);
+    CHECK(&h, count_lines_with(sp_at[1]) == 2);
+    CHECK(&h, count_lines_with(sp_at[2]) == 1);
+    CHECK(&h, count_lines_with(sp_at[3]) == 2);
+
+    TEST_END();
+}
+
 /* ========== 16. 结构错误：woort_IRCompiler_finish 返回 false ========== */
 
 /*
@@ -2443,6 +2579,7 @@ int main(int argc, char** argv)
     test_mixed_v1_after_lift();
     test_outer_write_fallback();
     test_write_below_sp();
+    test_nested_lowered_windows();
     test_diagnostics();
     test_deep_frame();
     test_deep_frame_s16();
