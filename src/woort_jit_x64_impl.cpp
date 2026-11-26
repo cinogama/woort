@@ -928,64 +928,6 @@ void woort_JIT_Backend_x64_PUSHCCHK(void* emitter, woort_Opcode_Global src)
     WOORT_JIT_CODE(sub(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
 }
 
-void woort_JIT_Backend_x64_ASSURESSZ(void* emitter, woort_Opcode_Count n)
-{
-    woort_JIT_Asmjit_x64_emitter* const em = static_cast<woort_JIT_Asmjit_x64_emitter*>(emitter);
-
-    static_assert(sizeof(woort_Value) == 8, "");
-
-    const Label L_retry = em->c->new_label();
-    WOORT_JIT_CODE(bind(L_retry));
-
-    const Gp new_sp = em->c->new_gp_ptr();
-    WOORT_JIT_CODE(mov(new_sp, em->m_sp));
-    WOORT_JIT_CODE(sub(new_sp, Imm(static_cast<int32_t>(static_cast<size_t>(n) * sizeof(woort_Value)))));
-
-    const Label L_ok = em->c->new_label();
-    WOORT_JIT_CODE(cmp(new_sp, em->m_stack));
-    WOORT_JIT_CODE(jae(L_ok));
-
-    em->emit_extern_stack(*em->m_ip, L_retry);
-
-    WOORT_JIT_CODE(bind(L_ok));
-}
-
-void woort_JIT_Backend_x64_PUSHS(void* emitter, woort_Opcode_Stack src)
-{
-    woort_JIT_Asmjit_x64_emitter* const em = static_cast<woort_JIT_Asmjit_x64_emitter*>(emitter);
-
-    const Gp val = em->load_stack_gp(src);
-
-    WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), val));
-    WOORT_JIT_CODE(sub(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
-}
-
-void woort_JIT_Backend_x64_PUSHC(void* emitter, woort_Opcode_Global src)
-{
-    woort_JIT_Asmjit_x64_emitter* const em = static_cast<woort_JIT_Asmjit_x64_emitter*>(emitter);
-
-    const woort_Value* const src_addr = &em->m_cenv_static_storage[src];
-    const bool is_constant = (src < em->m_cenv_constant_count);
-
-    if (is_constant &&
-        src_addr->m_integer >= INT32_MIN &&
-        src_addr->m_integer <= INT32_MAX)
-    {
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), Imm(static_cast<int32_t>(src_addr->m_integer))));
-    }
-    else
-    {
-        const Gp val = em->c->new_gp64();
-        if (is_constant)
-            WOORT_JIT_CODE(mov(val, Imm(src_addr->m_integer)));
-        else
-            WOORT_JIT_CODE(mov(val, qword_ptr(reinterpret_cast<uintptr_t>(src_addr))));
-        WOORT_JIT_CODE(mov(qword_ptr(em->m_sp), val));
-    }
-
-    WOORT_JIT_CODE(sub(em->m_sp, Imm(static_cast<int32_t>(sizeof(woort_Value)))));
-}
-
 void woort_JIT_Backend_x64_POPR(void* emitter, woort_Opcode_Count n)
 {
     woort_JIT_Asmjit_x64_emitter* const em = static_cast<woort_JIT_Asmjit_x64_emitter*>(emitter);

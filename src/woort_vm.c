@@ -591,40 +591,6 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(stack_overflow);
         }
-        /* ASSURESSZ */
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 0):
-        {
-            if (rt_sp - WOORT_BYTECODE(ABC24, c) >= rt_stack)
-                break;
-
-            WOORT_VM_THROW(stack_overflow);
-        }
-        /* PUSHSCHK */
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 1):
-        {
-            assert(rt_sp > rt_stack);
-
-            *(rt_sp--) = rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)];
-            break;
-        }
-        /* PUSHCCHK */
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 2):
-        {
-            assert(rt_sp > rt_stack);
-
-            *(rt_sp--) = rt_env_data[WOORT_BYTECODE(ABC24, c)];
-            break;
-        }
-        /* PUSHCCHKEXT */
-        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_PUSH, 3):
-        {
-            assert(rt_sp > rt_stack);
-
-            *(rt_sp--) = rt_env_data[rt_ip[1]];
-
-            rt_ip += 2;
-            continue;
-        }
         /* POPR */
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_POP, 0):
         {

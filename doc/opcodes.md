@@ -163,18 +163,7 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | `PUSHCCHK` | 2 | R_ONLY C24 | 从常量区压入（栈检查） |
 | `PUSHCCHKEXT` | 3 | R_ONLY C32 (EX) | 从常量区压入（32 位索引，栈检查） |
 
-### 3.2 压栈-断言版本（PUSH）
-
-不检查溢出的压栈操作（调用方已通过 `PUSHRCHK` 保证空间）。
-
-| 变体 | Mode | 操作数 | 说明 |
-|------|------|--------|------|
-| `ASSURESSZ` | 0 | N24 | 确保栈空间足够 |
-| `PUSHS` | 1 | R_ONLY S16 | 从栈偏移压入 |
-| `PUSHC` | 2 | R_ONLY C24 | 从常量区压入 |
-| `PUSHCEXT` | 3 | R_ONLY C32 (EX) | 从常量区压入（32 位索引） |
-
-### 3.3 弹栈（POP）
+### 3.2 弹栈（POP）
 
 | 变体 | Mode | 操作数 | 说明 |
 |------|------|--------|------|
@@ -694,7 +683,7 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 空操作 | 1 | 1 |
 | 数据加载/存储（LOAD/STORE/LDSTEX） | 3 | 6 |
 | 栈间移动（MOV） | 1 | 4 |
-| 栈操作（PUSHCHK/PUSH/POP） | 3 | 12 |
+| 栈操作（PUSHCHK/POP） | 2 | 8 |
 | 整数除法检查（CHKDIVI） | 1 | 4 |
 | 类型转换（CASTI/CASTR/CASTX） | 3 | 12 |
 | 函数调用（CALLN*/CALL） | 4 | 6 |
@@ -715,6 +704,6 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 原子操作（ATOMIC） | 1 | 3 |
 | 一次性初始化（JIFINITED） | 1 | 1 |
 | 陷阱与 Panic（TRAP） | 1 | 3 |
-| **总计** | **64 条枚举值**（含 `count`） | — |
+| **总计** | **65 个枚举值**（64 条主指令 + `count`） | — |
 
-> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。实际可用主指令 63 条 + `COUNT` 哨兵。
+> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。64 个编码已全部占用：63 条可用主指令 + 1 条保留（`WOORT_OPCODE_RESERVED_0`）；`WOORT_OPCODE_COUNT` 是哨兵，不占编码。

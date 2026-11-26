@@ -94,19 +94,6 @@
     woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSHCHK, 2, abc24)
 
 /*
- * PUSH - 栈扩展
- * ASSURESSZ (mode=0): 确保栈大小 n24
- * PUSHS (mode=1): 压入 [SB + bc16]
- * PUSHC (mode=2): 压入常量 G[abc24]
- */
-#define woort_OpCode_ASSURESSZ(n24) \
-    woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSH, 0, n24)
-#define woort_OpCode_PUSHS(bc16) \
-    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_PUSH, 1, bc16)
-#define woort_OpCode_PUSHC(abc24) \
-    woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_PUSH, 2, abc24)
-
-/*
  * POP - 弹栈
  * POPR (mode=0): 弹出 n24 个栈槽
  * POPS (mode=1): 弹出到 [SB + bc16]
@@ -776,13 +763,10 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONSEX, 3, a8, bc16)
 
 /*
- * PUSHCEXT/POPCEXT/PUSHCCHKEXT - 扩展常量操作
- * PUSHCEXT    : 压入常量 G[ex32]
+ * POPCEXT/PUSHCCHKEXT - 扩展常量操作
  * POPCEXT     : 弹出到常量 G[ex32]
  * PUSHCCHKEXT : 检查常量 G[ex32]
  */
-#define woort_OpCode_PUSHCEXT() \
-    woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_PUSH, 3)
 #define woort_OpCode_POPCEXT() \
     woort_OpCodeFormal_cons(OP6_M2, WOORT_OPCODE_POP, 3)
 #define woort_OpCode_PUSHCCHKEXT() \

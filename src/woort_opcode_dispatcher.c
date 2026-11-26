@@ -111,24 +111,6 @@ _label_retry_entry:
         }
         return c + 1;
 
-    case WOORT_OPCODE_PUSH:
-        switch (m2)
-        {
-        case 0: /* ASSURESSZ */
-            DISPATCH(m_ASSURESSZ, (woort_Opcode_Count)WOORT_BYTECODE(ABC24, bc));
-            return c + 1;
-        case 1: /* PUSHS */
-            DISPATCH(m_PUSHS, (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc));
-            return c + 1;
-        case 2: /* PUSHC */
-            DISPATCH(m_PUSHC, (woort_Opcode_Global)WOORT_BYTECODE(ABC24, bc));
-            return c + 1;
-        case 3: /* PUSHCEXT -> PUSHC */
-            DISPATCH(m_PUSHC, (woort_Opcode_Global)(uint32_t)c[1]);
-            return c + 2;
-        }
-        return c + 1;
-
     case WOORT_OPCODE_POP:
         switch (m2)
         {

@@ -31,9 +31,6 @@ extern "C" {
     void woort_JIT_Backend_x64_PUSHRCHK(void* emitter, woort_Opcode_Count n);
     void woort_JIT_Backend_x64_PUSHSCHK(void* emitter, woort_Opcode_Stack src);
     void woort_JIT_Backend_x64_PUSHCCHK(void* emitter, woort_Opcode_Global src);
-    void woort_JIT_Backend_x64_ASSURESSZ(void* emitter, woort_Opcode_Count n);
-    void woort_JIT_Backend_x64_PUSHS(void* emitter, woort_Opcode_Stack src);
-    void woort_JIT_Backend_x64_PUSHC(void* emitter, woort_Opcode_Global src);
     void woort_JIT_Backend_x64_POPR(void* emitter, woort_Opcode_Count n);
     void woort_JIT_Backend_x64_POPS(void* emitter, woort_Opcode_Stack dst);
     void woort_JIT_Backend_x64_POPC(void* emitter, woort_Opcode_Global dst);

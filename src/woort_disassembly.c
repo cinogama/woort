@@ -41,15 +41,6 @@ static void _woort_dis_PUSHSCHK(void* userdata, woort_Opcode_Stack src)
 static void _woort_dis_PUSHCCHK(void* userdata, woort_Opcode_Global src)
 { CTX->callback("PUSHCCHK    G[%u]\n", src); CTX->printed = 1; }
 
-static void _woort_dis_ASSURESSZ(void* userdata, woort_Opcode_Count n)
-{ CTX->callback("ASSURESSZ   %u\n", n); CTX->printed = 1; }
-
-static void _woort_dis_PUSHS(void* userdata, woort_Opcode_Stack src)
-{ CTX->callback("PUSHS       [SB %+d]\n", src); CTX->printed = 1; }
-
-static void _woort_dis_PUSHC(void* userdata, woort_Opcode_Global src)
-{ CTX->callback("PUSHC       G[%u]\n", src); CTX->printed = 1; }
-
 static void _woort_dis_POPR(void* userdata, woort_Opcode_Count n)
 { CTX->callback("POPR        %u\n", n); CTX->printed = 1; }
 
@@ -563,9 +554,6 @@ static const woort_OpcodeDispatchers g_disasm_dispatchers = {
     .m_PUSHRCHK = _woort_dis_PUSHRCHK,
     .m_PUSHSCHK = _woort_dis_PUSHSCHK,
     .m_PUSHCCHK = _woort_dis_PUSHCCHK,
-    .m_ASSURESSZ = _woort_dis_ASSURESSZ,
-    .m_PUSHS = _woort_dis_PUSHS,
-    .m_PUSHC = _woort_dis_PUSHC,
     .m_POPR = _woort_dis_POPR,
     .m_POPS = _woort_dis_POPS,
     .m_POPC = _woort_dis_POPC,
