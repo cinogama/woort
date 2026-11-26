@@ -122,6 +122,9 @@ typedef enum woort_IROp_Kind
     WOORT_IROP_KIND_LDIDVEC,
     WOORT_IROP_KIND_LDIDVECX,
     WOORT_IROP_KIND_LDIDSTRUCT,
+    WOORT_IROP_KIND_LDIDSTBOXI,     /* dst = box(st[idx])，整数 */
+    WOORT_IROP_KIND_LDIDSTBOXR,     /* dst = box(st[idx])，实数 */
+    WOORT_IROP_KIND_LDIDSTBOXB,     /* dst = box(st[idx])，布尔 */
     WOORT_IROP_KIND_LDIDSTRING,
 
     WOORT_IROP_KIND_LDIDDICTI,
@@ -283,5 +286,21 @@ typedef struct woort_IROp
 
     /* JIFINITED: static index of the atomic flag slot */
     woort_IRStaticIndex m_jifinited_static;
+
+    /*
+     * 槽位窗口（V2）：CALLNWO/CALLNFP/CALLNJIT/CALL/MKVEC/MKMAP/MKSTRUCT/MKCLOSURE
+     * 由窗口取得操作数时非空，此时不再使用 m_argument_count / m_count。
+     */
+    /* OPTIONAL */ struct woort_IRWindow* m_window;
+
+    /*
+     * finish 阶段（sp 跟踪）填充：执行本指令前 sp 不在所需位置，
+     * 发射层要先把它定位过去。V2 消费指令的目标是窗口的位置，
+     * 其余栈操作（V1 栈区间的起点）的目标是函数入口预留后的位置。
+     */
+    bool m_need_spset;
+
+    /* m_need_spset 时 sp 的当前位置（窗口内的位置）；UINT32_MAX 表示静态未知 */
+    uint32_t m_sp_from;
 
 } woort_IROp;

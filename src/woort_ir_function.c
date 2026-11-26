@@ -12,11 +12,13 @@
 #include "woort_ir_block.h"
 #include "woort_ir_value.h"
 #include "woort_ir_op.h"
+#include "woort_ir_window.h"
 #include "woort_ir_srcloc.h"
 #include "woort_ir_compiler.h"
 #include "woort_vector.h"
 #include "woort_linklist.h"
 #include "woort_bitset.h"
+#include "woort_log.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -157,7 +159,8 @@ static int _compare_intervals_by_start(const void* a, const void* b)
 /*
  * vreg 是否需要参与线性扫描栈槽分配。
  * 排除：参数（含捕获，预分配偏移）、const_direct 常量（发射层直连，
- * 不占栈槽）、无放置块的常量、以及无任何活跃区间的 vreg。
+ * 不占栈槽）、无放置块的常量、无任何活跃区间的 vreg，以及槽位窗口里的槽位
+ * （偏移由窗口布局决定；回退为压栈降级的窗口除外，它们的槽位就是普通 vreg）。
  * 非 const_direct 的 CONST vreg 参与统一线性扫描。
  */
 static bool _should_allocate_interval(
@@ -177,6 +180,8 @@ static bool _should_allocate_interval(
             const_placement_block[v->m_id] == UINT32_MAX)
             return false;
     }
+    if (v->m_source == WOORT_IRVALUE_SOURCE_SLOT && !v->m_window->m_push_lowered)
+        return false;
     return first_point != UINT32_MAX;
 }
 
@@ -202,6 +207,13 @@ void woort_IRFunction_init(
     f->m_next_label_id = 0;
 
     woort_vector_init(&f->m_instructions, sizeof(woort_IROp));
+
+    woort_vector_init(&f->m_ir_windows, sizeof(woort_IRWindow*));
+    woort_vector_init(&f->m_window_ancestors, sizeof(uint32_t));
+    woort_vector_init(&f->m_window_live, sizeof(const woort_IRValue*));
+    f->m_window_outer_write = false;
+    f->m_window_sp_rest = INT32_MIN;
+
     woort_vector_init(&f->m_blocks, sizeof(woort_IRBlock));
 
     f->m_name = NULL;
@@ -229,6 +241,13 @@ void woort_IRFunction_deinit(woort_IRFunction* f)
     woort_vector_deinit(&f->m_const_vreg_table);
     woort_linklist_deinit(&f->m_ir_labels);
     woort_vector_deinit(&f->m_instructions);
+
+    for (size_t i = 0; i < f->m_ir_windows.m_size; ++i)
+        _woort_IRWindow_destroy(*(woort_IRWindow**)woort_vector_at(&f->m_ir_windows, i));
+    woort_vector_deinit(&f->m_ir_windows);
+    woort_vector_deinit(&f->m_window_ancestors);
+    woort_vector_deinit(&f->m_window_live);
+
     woort_vector_deinit(&f->m_blocks);
 
     /* 源码位置支持 */
@@ -886,11 +905,914 @@ static void _phase1b_eliminate_dead_blocks(woort_IRFunction* f)
                 instrs[i].m_src[0] = NULL;
                 instrs[i].m_src[1] = NULL;
                 instrs[i].m_src[2] = NULL;
+                instrs[i].m_window = NULL;
             }
         }
     }
 
     free(reachable);
+}
+
+/* ===================================================================
+ * Phase 1c: 槽位窗口校验
+ *
+ * 自 block 0 起对可达块做前向数据流，状态是「打开的窗口栈」（最外层在前）
+ * 加一个「已写槽位」位图（按槽位值的 id 编号）：
+ *   - 执行到某条指令之前，先打开所有创建点等于该指令下标的窗口；
+ *   - m_dst 是槽位的指令给该槽位置位；写的是非最内层窗口的槽位时记
+ *     m_window_outer_write；
+ *   - 消费指令（m_window 非空）要求它消费的窗口正是最内层窗口，且每个
+ *     槽位都已写过，然后关闭该窗口；
+ *   - 返回指令要求没有打开的窗口。
+ * 合流处各前驱的窗口栈必须一致，位图取并。
+ * 收敛后再走一遍，记下每个窗口打开时刻的祖先窗口与其中已写的槽位
+ * （m_window_ancestors / m_window_live），供 Phase 3c 布局使用。
+ * =================================================================== */
+
+/* 可达块标记（自 block 0 的 BFS） */
+static void _mark_reachable_blocks(const woort_IRFunction* f, bool* reachable)
+{
+    const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
+    if (block_count == 0)
+        return;
+
+    uint32_t* const queue = (uint32_t*)malloc((size_t)block_count * sizeof(uint32_t));
+    if (queue == NULL)
+    {
+        /* OOM：保守地全部视为可达 */
+        memset(reachable, 1, (size_t)block_count * sizeof(bool));
+        return;
+    }
+
+    uint32_t head = 0, tail = 0;
+    reachable[0] = true;
+    queue[tail++] = 0;
+
+    while (head < tail)
+    {
+        const woort_IRBlock* const blk = (const woort_IRBlock*)woort_vector_at(
+            &f->m_blocks, queue[head++]);
+        for (size_t si = 0; si < blk->m_successors.m_size; ++si)
+        {
+            const uint32_t succ = *(const uint32_t*)woort_vector_at(
+                &blk->m_successors, si);
+            if (!reachable[succ])
+            {
+                reachable[succ] = true;
+                queue[tail++] = succ;
+            }
+        }
+    }
+
+    free(queue);
+}
+
+typedef struct _woort_WindowState
+{
+    uint32_t     m_depth;
+    uint32_t     m_capacity;
+    /* OPTIONAL */ uint32_t* m_open;    /* 打开的窗口在 m_ir_windows 中的下标 */
+    woort_Bitset m_written;             /* 已写槽位，按槽位值的 id */
+    bool         m_initialized;
+
+} _woort_WindowState;
+
+static void _window_state_deinit(_woort_WindowState* s)
+{
+    free(s->m_open);
+    s->m_open = NULL;
+    s->m_capacity = 0;
+    woort_bitset_deinit(&s->m_written);
+}
+
+static bool _window_state_reserve(_woort_WindowState* s, uint32_t capacity)
+{
+    if (s->m_capacity >= capacity)
+        return true;
+
+    uint32_t new_capacity = s->m_capacity != 0 ? s->m_capacity * 2 : 8;
+    while (new_capacity < capacity)
+        new_capacity *= 2;
+
+    uint32_t* const open =
+        (uint32_t*)realloc(s->m_open, (size_t)new_capacity * sizeof(uint32_t));
+    if (open == NULL)
+        return false;
+
+    s->m_open = open;
+    s->m_capacity = new_capacity;
+    return true;
+}
+
+/* dst = src */
+static bool _window_state_assign(
+    _woort_WindowState* dst, const _woort_WindowState* src, size_t bit_count)
+{
+    if (dst->m_written.m_data == NULL && !woort_bitset_init(&dst->m_written, bit_count))
+        return false;
+    if (!_window_state_reserve(dst, src->m_depth))
+        return false;
+
+    dst->m_depth = src->m_depth;
+    memcpy(dst->m_open, src->m_open, (size_t)src->m_depth * sizeof(uint32_t));
+    woort_bitset_clear(&dst->m_written);
+    (void)_bitset_union_into(&dst->m_written, &src->m_written);
+    dst->m_initialized = true;
+    return true;
+}
+
+static bool _window_state_equal(
+    const _woort_WindowState* a, const _woort_WindowState* b)
+{
+    if (a->m_depth != b->m_depth)
+        return false;
+    if (a->m_depth != 0 &&
+        memcmp(a->m_open, b->m_open, (size_t)a->m_depth * sizeof(uint32_t)) != 0)
+        return false;
+    assert(a->m_written.m_word_count == b->m_written.m_word_count);
+    return memcmp(
+        a->m_written.m_data, b->m_written.m_data,
+        a->m_written.m_word_count * sizeof(uint64_t)) == 0;
+}
+
+/* 打开窗口 w；record 时记下此刻的祖先窗口与其中已写的槽位 */
+static bool _window_open(
+    woort_IRFunction* f, _woort_WindowState* state, uint32_t w, bool record)
+{
+    woort_IRWindow* const window =
+        *(woort_IRWindow**)woort_vector_at(&f->m_ir_windows, w);
+
+    /* 窗口打开时它的槽位都还没写：清掉上一轮（循环）留下的痕迹 */
+    for (uint32_t s = 0; s < window->m_count; ++s)
+        (void)woort_bitset_reset(&state->m_written, window->m_slots[s]->m_id);
+
+    if (record)
+    {
+        window->m_ancestor_begin = (uint32_t)f->m_window_ancestors.m_size;
+        window->m_ancestor_count = state->m_depth;
+        window->m_live_begin = (uint32_t)f->m_window_live.m_size;
+        window->m_live_count = 0;
+
+        for (uint32_t k = 0; k < state->m_depth; ++k)
+        {
+            const uint32_t ancestor = state->m_open[k];
+            woort_IRWindow* const anc = *(woort_IRWindow**)woort_vector_at(
+                &f->m_ir_windows, ancestor);
+
+            if (!woort_vector_push_back(&f->m_window_ancestors, 1, &ancestor))
+                return false;
+
+            for (uint32_t s = 0; s < anc->m_count; ++s)
+            {
+                const woort_IRValue* const slot = anc->m_slots[s];
+                if (!woort_bitset_test(&state->m_written, slot->m_id))
+                    continue;
+                if (!woort_vector_push_back(&f->m_window_live, 1, &slot))
+                    return false;
+                window->m_live_count++;
+            }
+        }
+    }
+
+    if (!_window_state_reserve(state, state->m_depth + 1))
+        return false;
+
+    state->m_open[state->m_depth++] = w;
+    return true;
+}
+
+/*
+ * 自块的入口状态执行到块尾。
+ * record 为 false 时只做校验，为 true 时（已收敛）额外记录布局所需的快照。
+ */
+static bool _window_transfer(
+    woort_IRFunction* f,
+    const uint32_t* first_win_at,
+    uint32_t block_begin, uint32_t block_end,
+    _woort_WindowState* state,
+    bool record)
+{
+    const woort_IROp* const instrs = (const woort_IROp*)f->m_instructions.m_data;
+
+    for (uint32_t i = block_begin; i < block_end; ++i)
+    {
+        for (uint32_t w = first_win_at[i]; w < first_win_at[i + 1]; ++w)
+        {
+            if (!_window_open(f, state, w, record))
+                return false;
+        }
+
+        const woort_IROp* const op = &instrs[i];
+
+        if (op->m_window != NULL)
+        {
+            woort_IRWindow* const window = op->m_window;
+
+            if (state->m_depth == 0 ||
+                state->m_open[state->m_depth - 1] != window->m_id)
+            {
+                woort_log(
+                    "WOORT: IR function '%s': instruction %u consumes window %u, "
+                    "which is not the innermost open window.\n",
+                    f->m_name != NULL ? f->m_name : "<unnamed>", i, window->m_id);
+                return false;
+            }
+
+            for (uint32_t s = 0; s < window->m_count; ++s)
+            {
+                if (woort_bitset_test(&state->m_written, window->m_slots[s]->m_id))
+                    continue;
+                woort_log(
+                    "WOORT: IR function '%s': slot %u of window %u is never written "
+                    "(consumed at instruction %u).\n",
+                    f->m_name != NULL ? f->m_name : "<unnamed>",
+                    s, window->m_id, i);
+                return false;
+            }
+
+            state->m_depth--;
+        }
+
+        /*
+         * 写目标是一个槽位。除了普通的运算 / 搬运指令，还包括消费指令把结果直接
+         * 写进外层窗口的槽位：CALLNWO2(..., outer_slot) 经 RESULTNP 写入，
+         * MKVEC2(outer_slot, ...) 等由构造指令本身写入。
+         */
+        if (op->m_dst != NULL && op->m_dst->m_source == WOORT_IRVALUE_SOURCE_SLOT)
+        {
+            woort_IRWindow* const target = op->m_dst->m_window;
+
+            uint32_t k = state->m_depth;
+            while (k != 0 && state->m_open[k - 1] != target->m_id)
+                --k;
+
+            if (k == 0)
+            {
+                woort_log(
+                    "WOORT: IR function '%s': instruction %u writes slot %u of window %u, "
+                    "which is not open.\n",
+                    f->m_name != NULL ? f->m_name : "<unnamed>",
+                    i, op->m_dst->m_slot_index, target->m_id);
+                return false;
+            }
+
+            /* 内层窗口打开期间写了外层窗口的槽位：布局不能保证窗口之下没有
+               存活数据，整个函数的窗口回退为压栈降级 */
+            if (k != state->m_depth)
+                f->m_window_outer_write = true;
+
+            (void)woort_bitset_set(&state->m_written, op->m_dst->m_id);
+        }
+
+        if (_is_return_op(op->m_op) && state->m_depth != 0)
+        {
+            woort_log(
+                "WOORT: IR function '%s': window %u is still open at the return on "
+                "instruction %u.\n",
+                f->m_name != NULL ? f->m_name : "<unnamed>",
+                state->m_open[state->m_depth - 1], i);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool _phase1c_window_analysis(woort_IRFunction* f)
+{
+    if (f->m_ir_windows.m_size == 0)
+        return true;
+
+    const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
+    const uint32_t instr_count = (uint32_t)f->m_instructions.m_size;
+    if (instr_count == 0 || block_count == 0)
+        return true; /* 没有指令：窗口既不会打开也不会被消费 */
+
+    const uint32_t window_count = (uint32_t)f->m_ir_windows.m_size;
+    const size_t bit_count = f->m_next_vreg_id != 0 ? f->m_next_vreg_id : 1;
+
+    bool* const reachable = (bool*)calloc(block_count, sizeof(bool));
+    _woort_WindowState* const in_states =
+        (_woort_WindowState*)calloc(block_count, sizeof(_woort_WindowState));
+    _woort_WindowState* const out_states =
+        (_woort_WindowState*)calloc(block_count, sizeof(_woort_WindowState));
+
+    /* first_win_at[i]：创建点 >= i 的第一个窗口；窗口表按创建顺序排列 */
+    uint32_t* const first_win_at =
+        (uint32_t*)malloc(((size_t)instr_count + 1) * sizeof(uint32_t));
+
+    _woort_WindowState current;
+    memset(&current, 0, sizeof(current));
+
+    bool ok = reachable != NULL && in_states != NULL &&
+        out_states != NULL && first_win_at != NULL;
+    if (ok && !woort_bitset_init(&current.m_written, bit_count))
+        ok = false;
+
+    /* 可达块（与 Phase 1b 相同的 BFS） */
+    if (ok)
+        _mark_reachable_blocks(f, reachable);
+
+    if (ok)
+    {
+        woort_IRWindow** const windows = (woort_IRWindow**)f->m_ir_windows.m_data;
+        uint32_t wi = 0;
+        for (uint32_t i = 0; i <= instr_count; ++i)
+        {
+            while (wi < window_count && windows[wi]->m_create_index < i)
+                ++wi;
+            first_win_at[i] = wi;
+        }
+    }
+
+    /* 按块序反复扫描直到不动点：合流处窗口栈必须一致，位图取并 */
+    bool changed = true;
+    while (ok && changed)
+    {
+        changed = false;
+
+        for (uint32_t b = 0; b < block_count && ok; ++b)
+        {
+            if (!reachable[b])
+                continue;
+
+            const woort_IRBlock* const blk = (const woort_IRBlock*)woort_vector_at(
+                &f->m_blocks, b);
+
+            if (b == 0)
+            {
+                current.m_depth = 0;
+                woort_bitset_clear(&current.m_written);
+            }
+            else
+            {
+                bool any = false;
+                for (size_t pi = 0; pi < blk->m_predecessors.m_size; ++pi)
+                {
+                    const uint32_t p = *(const uint32_t*)woort_vector_at(
+                        &blk->m_predecessors, pi);
+                    const _woort_WindowState* const out = &out_states[p];
+
+                    if (!reachable[p] || !out->m_initialized)
+                        continue;
+
+                    if (!any)
+                    {
+                        if (!_window_state_assign(&current, out, bit_count))
+                        {
+                            ok = false;
+                            break;
+                        }
+                        any = true;
+                    }
+                    else if (current.m_depth != out->m_depth ||
+                        (current.m_depth != 0 &&
+                            memcmp(current.m_open, out->m_open,
+                                (size_t)current.m_depth * sizeof(uint32_t)) != 0))
+                    {
+                        woort_log(
+                            "WOORT: IR function '%s': open windows differ at the start "
+                            "of block %u.\n",
+                            f->m_name != NULL ? f->m_name : "<unnamed>", b);
+                        ok = false;
+                        break;
+                    }
+                    else
+                    {
+                        (void)_bitset_union_into(&current.m_written, &out->m_written);
+                    }
+                }
+
+                if (!ok)
+                    break;
+
+                /* 前驱都还没处理过（只有后向边到达）：留到下一轮 */
+                if (!any)
+                    continue;
+            }
+
+            if (in_states[b].m_initialized &&
+                _window_state_equal(&current, &in_states[b]))
+                continue;
+
+            if (!_window_state_assign(&in_states[b], &current, bit_count) ||
+                !_window_transfer(f, first_win_at, blk->m_begin, blk->m_end, &current, false) ||
+                !_window_state_assign(&out_states[b], &current, bit_count))
+            {
+                ok = false;
+                break;
+            }
+            changed = true;
+        }
+    }
+
+    /* 收敛后：函数末尾不能留着打开的窗口；再走一遍记录布局所需的快照 */
+    if (ok)
+    {
+        for (uint32_t b = 0; b < block_count; ++b)
+        {
+            if (!reachable[b])
+                continue;
+
+            const woort_IRBlock* const blk = (const woort_IRBlock*)woort_vector_at(
+                &f->m_blocks, b);
+
+            if (blk->m_successors.m_size == 0 && out_states[b].m_depth != 0)
+            {
+                woort_log(
+                    "WOORT: IR function '%s': window %u is still open at the end of "
+                    "block %u.\n",
+                    f->m_name != NULL ? f->m_name : "<unnamed>",
+                    out_states[b].m_open[out_states[b].m_depth - 1], b);
+                ok = false;
+                break;
+            }
+
+            if (!_window_state_assign(&current, &in_states[b], bit_count) ||
+                !_window_transfer(f, first_win_at, blk->m_begin, blk->m_end, &current, true))
+            {
+                ok = false;
+                break;
+            }
+        }
+    }
+
+    woort_bitset_deinit(&current.m_written);
+    for (uint32_t b = 0; b < block_count; ++b)
+    {
+        _window_state_deinit(&in_states[b]);
+        _window_state_deinit(&out_states[b]);
+    }
+    free(in_states);
+    free(out_states);
+    free(first_win_at);
+    free(reachable);
+
+    return ok;
+}
+
+/* ===================================================================
+ * Phase 3c: 槽位窗口布局与 sp 跟踪
+ *
+ * 帧布局（N 为 vreg 槽数，M 为窗口占到的最高位置 + 1）：
+ *   ... vreg 槽 | 位置 M-1 ... 位置 0 | sp
+ * 入口 PUSHRCHK 预留 N + M 个槽，sp 停在位置 0 的正下方。
+ *
+ * 位置：消费指令从 sp[1..count] 读取，消费时 sp 指向窗口最低位置的正下方。
+ * V1 中第 k 个被压入的值在位置 base + count - 1 - k，各类消费指令的槽位
+ * 对应哪个 k 见 _window_slot_position。
+ *
+ * 布局按创建顺序进行，祖先窗口的位置此时已经确定。贯穿始终的不变量是：
+ * 窗口之下不能有存活的数据。
+ *   - 调用的被调帧就在调用者的 sp 之下，会占用窗口下面的全部位置；
+ *   - 构造指令可能触发 GC，而 GC 只扫描 sp 以上的槽位。
+ * 所以窗口整体落在祖先窗口已写槽位的下方，并尽量贴近位置 0；放不下就落到
+ * 位置 0 以下，最后把所有位置整体上移，由入口预留一并覆盖。
+ * 外层窗口尚未写入的位置可以与窗口重叠：内层窗口消费之后外层才会写那里。
+ * 这要求内层窗口打开期间只写它自己的槽位；违反时（m_window_outer_write）
+ * 整个函数的窗口都回退为压栈降级。
+ * =================================================================== */
+
+/* NP 变体的计数只有 8 位，超出者回退为压栈降级 */
+#define _WOORT_WINDOW_NP_MAX 255u
+
+static woort_IROp_Kind _window_consumer_kind(
+    const woort_IRFunction* f, const woort_IRWindow* w)
+{
+    assert(w->m_consumer_index < f->m_instructions.m_size);
+    return ((const woort_IROp*)f->m_instructions.m_data)[w->m_consumer_index].m_op;
+}
+
+static bool _window_is_call(woort_IROp_Kind kind)
+{
+    return kind == WOORT_IROP_KIND_CALLNWO ||
+        kind == WOORT_IROP_KIND_CALLNFP ||
+        kind == WOORT_IROP_KIND_CALLNJIT ||
+        kind == WOORT_IROP_KIND_CALL;
+}
+
+/* 槽位在窗口内的位置（相对 m_base） */
+static uint32_t _window_slot_position(
+    const woort_IRWindow* w, woort_IROp_Kind kind, uint32_t slot)
+{
+    switch (kind)
+    {
+    case WOORT_IROP_KIND_CALLNWO:
+    case WOORT_IROP_KIND_CALLNFP:
+    case WOORT_IROP_KIND_CALLNJIT:
+    case WOORT_IROP_KIND_CALL:
+        /* 第 i 个实参是最后一个（倒数第 i + 1 个）被压入的：sp[1 + i] */
+        return slot;
+
+    default:
+        /*
+         * MKVEC / MKSTRUCT 的第 i 个元素、MKCLOSURE 的第 i 个捕获、MKMAP 的
+         * 第 s 个槽位（键在前、值在后）都是第 i / s 个被压入的。
+         */
+        return w->m_count - 1 - slot;
+    }
+}
+
+static bool _window_exceeds_np(woort_IROp_Kind kind, uint32_t count)
+{
+    switch (kind)
+    {
+    case WOORT_IROP_KIND_MKVEC:
+    case WOORT_IROP_KIND_MKSTRUCT:
+    case WOORT_IROP_KIND_MKCLOSURE:
+        return count > _WOORT_WINDOW_NP_MAX;
+    case WOORT_IROP_KIND_MKMAP:
+        return (count / 2) > _WOORT_WINDOW_NP_MAX;
+    default:
+        return false;
+    }
+}
+
+/* 槽位 slot 在窗口 anc 里的位置（anc 的布局已定） */
+static int32_t _window_slot_base_position(
+    const woort_IRFunction* f, const woort_IRWindow* anc, const woort_IRValue* slot)
+{
+    return anc->m_base +
+        (int32_t)_window_slot_position(anc, _window_consumer_kind(f, anc), slot->m_slot_index);
+}
+
+static bool _phase3c_window_layout(woort_IRFunction* f, uint32_t* out_window_space)
+{
+    *out_window_space = 0;
+
+    const uint32_t window_count = (uint32_t)f->m_ir_windows.m_size;
+    if (window_count == 0)
+        return true;
+
+    woort_IRWindow** const windows = (woort_IRWindow**)f->m_ir_windows.m_data;
+    const woort_IRValue* const* const live = (const woort_IRValue* const*)f->m_window_live.m_data;
+    const woort_IROp* const instrs = (const woort_IROp*)f->m_instructions.m_data;
+
+    int32_t lowest = 0; /* 最深的窗口位置 */
+    int32_t highest = 0; /* 最高的窗口位置 + 1 */
+
+    for (uint32_t wi = 0; wi < window_count; ++wi)
+    {
+        woort_IRWindow* const w = windows[wi];
+        const woort_IROp* const consumer = &instrs[w->m_consumer_index];
+        const woort_IROp_Kind kind = consumer->m_op;
+        const int32_t count = (int32_t)w->m_count;
+
+        w->m_base = 0;
+        w->m_push_lowered =
+            f->m_window_outer_write || _window_exceeds_np(kind, w->m_count);
+        if (w->m_push_lowered)
+            continue;
+
+        /* 祖先窗口里已写的槽位都必须在本窗口之上 */
+        int32_t base = 0;
+        int32_t lowest_live = INT32_MAX;
+        for (uint32_t l = 0; l < w->m_live_count; ++l)
+        {
+            const woort_IRValue* const slot = live[w->m_live_begin + l];
+            const woort_IRWindow* const anc = slot->m_window;
+            if (anc->m_push_lowered)
+                continue;
+
+            const int32_t position = _window_slot_base_position(f, anc, slot);
+            if (position < lowest_live)
+                lowest_live = position;
+        }
+        if (lowest_live - count < base)
+            base = lowest_live - count;
+
+        /*
+         * 消费指令把结果直接写进外层窗口的槽位：这个槽位不能在 sp 之下（GC 扫描
+         * 不到）；构造指令还是先写目标再读元素，不能与自己的元素重叠。
+         */
+        if (consumer->m_dst != NULL &&
+            consumer->m_dst->m_source == WOORT_IRVALUE_SOURCE_SLOT &&
+            !consumer->m_dst->m_window->m_push_lowered)
+        {
+            const int32_t position =
+                _window_slot_base_position(f, consumer->m_dst->m_window, consumer->m_dst);
+            const int32_t limit = _window_is_call(kind) ? position : position - count;
+            if (limit < base)
+                base = limit;
+        }
+
+        w->m_base = base;
+        if (base < lowest)
+            lowest = base;
+        if (base + count > highest)
+            highest = base + count;
+    }
+
+    /* 整体上移，让最深的窗口也从位置 0 起；入口预留覆盖 [0, highest) */
+    const int32_t shift = -lowest;
+    for (uint32_t wi = 0; wi < window_count; ++wi)
+    {
+        woort_IRWindow* const w = windows[wi];
+        if (!w->m_push_lowered)
+            w->m_base += shift;
+    }
+
+    *out_window_space = (uint32_t)(highest + shift);
+    return true;
+}
+
+/*
+ * V1 栈操作对物理栈深度的效果（窗口的消费者另行处理）：
+ *   1 压入 n 个；-1 弹出 n 个；0 不涉及栈；2 数量取决于运行期；
+ *   3 为 POPRS，变参协议用它结束一段运行期数量的区间。
+ */
+static int _v1_stack_effect(const woort_IROp* op, uint32_t* out_n)
+{
+    switch (op->m_op)
+    {
+    case WOORT_IROP_KIND_PUSHCHK:
+    case WOORT_IROP_KIND_PUSHSTATICCHK:
+    case WOORT_IROP_KIND_PUSHBOXDYN:
+    case WOORT_IROP_KIND_PUSHIDSTRUCT:
+    case WOORT_IROP_KIND_PUSHIDSTBOXI:
+    case WOORT_IROP_KIND_PUSHIDSTBOXR:
+    case WOORT_IROP_KIND_PUSHIDSTBOXB:
+        *out_n = 1;
+        return 1;
+
+    case WOORT_IROP_KIND_UNPACKVEC:
+    case WOORT_IROP_KIND_UNPACKVECX:
+        *out_n = op->m_count;
+        return 1;
+
+    case WOORT_IROP_KIND_UNPACKVECALL:
+    case WOORT_IROP_KIND_UNPACKVECXALL:
+        return 2;
+
+    case WOORT_IROP_KIND_CALLNWO:
+    case WOORT_IROP_KIND_CALLNFP:
+    case WOORT_IROP_KIND_CALLNJIT:
+        *out_n = op->m_argument_count;
+        return -1;
+
+    case WOORT_IROP_KIND_CALL:
+        *out_n = op->m_call_argument_count;
+        return -1;
+
+    case WOORT_IROP_KIND_MKVEC:
+    case WOORT_IROP_KIND_MKSTRUCT:
+        *out_n = op->m_count;
+        return -1;
+
+    case WOORT_IROP_KIND_MKMAP:
+        *out_n = op->m_count * 2;
+        return -1;
+
+    case WOORT_IROP_KIND_MKCLOSURE:
+        *out_n = op->m_argument_count;
+        return -1;
+
+    case WOORT_IROP_KIND_POP:
+        *out_n = 1;
+        return -1;
+
+    case WOORT_IROP_KIND_POPR:
+        *out_n = op->m_pop_count;
+        return -1;
+
+    case WOORT_IROP_KIND_POPRS:
+        return 3;
+
+    default:
+        return 0;
+    }
+}
+
+/*
+ * sp 与 V1 栈深度的数据流状态，UINT32_MAX 表示静态未知。
+ * m_sp 是 sp 当前所在窗口位置的 base（入口预留后为 0），m_pd 是尚未配平的
+ * V1 压栈个数。
+ */
+typedef struct _woort_SpState
+{
+    uint32_t m_sp;
+    uint32_t m_pd;
+
+} _woort_SpState;
+
+#define _WOORT_SP_UNKNOWN UINT32_MAX
+
+/* 消费指令 / V1 栈区间起点要求 sp 在 target；不在时记下当前位置，发射层先定位 */
+static void _sp_require(woort_IROp* op, _woort_SpState* state, uint32_t target)
+{
+    if (state->m_sp != target)
+    {
+        op->m_need_spset = true;
+        op->m_sp_from = state->m_sp;
+    }
+    state->m_sp = target;
+}
+
+static bool _sp_transfer(woort_IRFunction* f, woort_IROp* op, uint32_t index, _woort_SpState* state)
+{
+    op->m_need_spset = false;
+
+    if (op->m_window != NULL)
+    {
+        if (op->m_window->m_push_lowered)
+        {
+            /* 压栈降级：先压入再弹出，等同于一次 V1 调用 */
+            if (state->m_pd == 0)
+                _sp_require(op, state, 0);
+            return true;
+        }
+
+        if (state->m_pd != 0)
+        {
+            woort_log(
+                "WOORT: IR function '%s': instruction %u consumes a window between "
+                "unbalanced stack operations.\n",
+                f->m_name != NULL ? f->m_name : "<unnamed>", index);
+            return false;
+        }
+
+        _sp_require(op, state, (uint32_t)op->m_window->m_base);
+        return true;
+    }
+
+    /*
+     * 把结果写进位置低于当前 sp 的槽位：先放下 sp。GC 只扫描 sp 以上的槽位，
+     * 写到 sp 之下的值要等 sp 再次移动之后才对 GC 可见。消费指令的结果由布局
+     * 保证落在自己的窗口之上，这里只处理普通的写槽指令。
+     */
+    if (op->m_dst != NULL && op->m_dst->m_source == WOORT_IRVALUE_SOURCE_SLOT &&
+        !op->m_dst->m_window->m_push_lowered && state->m_pd == 0)
+    {
+        const uint32_t position = (uint32_t)_window_slot_base_position(
+            f, op->m_dst->m_window, op->m_dst);
+
+        if (state->m_sp == _WOORT_SP_UNKNOWN || state->m_sp > position)
+            _sp_require(op, state, position);
+    }
+
+    uint32_t n = 0;
+    const int effect = _v1_stack_effect(op, &n);
+    if (effect == 0)
+        return true;
+
+    /* V1 栈区间的起点：sp 必须在入口预留后的位置，其后的栈操作自己维护 sp */
+    if (state->m_pd == 0)
+        _sp_require(op, state, 0);
+
+    switch (effect)
+    {
+    case 1:
+        if (state->m_pd != _WOORT_SP_UNKNOWN)
+            state->m_pd += n;
+        break;
+    case -1:
+        if (state->m_pd != _WOORT_SP_UNKNOWN)
+            state->m_pd = state->m_pd > n ? state->m_pd - n : 0;
+        break;
+    case 2:
+        state->m_pd = _WOORT_SP_UNKNOWN;
+        break;
+    default: /* POPRS：区间到此结束，sp 回到起点 */
+        state->m_pd = 0;
+        state->m_sp = 0;
+        break;
+    }
+
+    return true;
+}
+
+/*
+ * sp 跟踪。窗口消费后 sp 停在窗口的位置，不会自动回到入口预留后的位置：
+ *   - 下一个窗口不在同一位置时，消费前要先校正（SPSET）；
+ *   - V1 栈区间从入口预留后的位置开始，不能再假定 sp 已经在那里；
+ *   - 往低于当前 sp 的槽位写值之前要先放下 sp。
+ * 自 block 0 对可达块做前向数据流，合流处不一致即为未知，给需要先定位 sp 的
+ * 指令打上 m_need_spset。
+ */
+static bool _phase3c_track_sp(woort_IRFunction* f)
+{
+    const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
+    const size_t state_bytes = (size_t)block_count * sizeof(_woort_SpState);
+
+    bool* const reachable = (bool*)calloc(block_count, sizeof(bool));
+    bool* const initialized = (bool*)calloc(block_count, sizeof(bool));
+    _woort_SpState* const in_states = (_woort_SpState*)malloc(state_bytes);
+    _woort_SpState* const out_states = (_woort_SpState*)malloc(state_bytes);
+
+    bool ok = reachable != NULL && initialized != NULL &&
+        in_states != NULL && out_states != NULL;
+
+    if (ok)
+        _mark_reachable_blocks(f, reachable);
+
+    bool changed = true;
+    while (ok && changed)
+    {
+        changed = false;
+
+        for (uint32_t b = 0; b < block_count && ok; ++b)
+        {
+            if (!reachable[b])
+                continue;
+
+            const woort_IRBlock* const blk = (const woort_IRBlock*)woort_vector_at(
+                &f->m_blocks, b);
+
+            _woort_SpState current = { 0, 0 };
+            if (b != 0)
+            {
+                bool any = false;
+                for (size_t pi = 0; pi < blk->m_predecessors.m_size; ++pi)
+                {
+                    const uint32_t p = *(const uint32_t*)woort_vector_at(
+                        &blk->m_predecessors, pi);
+                    if (!reachable[p] || !initialized[p])
+                        continue;
+
+                    if (!any)
+                    {
+                        current = out_states[p];
+                        any = true;
+                    }
+                    else
+                    {
+                        if (current.m_sp != out_states[p].m_sp)
+                            current.m_sp = _WOORT_SP_UNKNOWN;
+                        if (current.m_pd != out_states[p].m_pd)
+                            current.m_pd = _WOORT_SP_UNKNOWN;
+                    }
+                }
+
+                if (!any)
+                    continue;
+            }
+
+            if (initialized[b] &&
+                in_states[b].m_sp == current.m_sp && in_states[b].m_pd == current.m_pd)
+                continue;
+
+            in_states[b] = current;
+            initialized[b] = true;
+
+            woort_IROp* const instrs = (woort_IROp*)f->m_instructions.m_data;
+            for (uint32_t i = blk->m_begin; i < blk->m_end && ok; ++i)
+            {
+                if (!_sp_transfer(f, &instrs[i], i, &current))
+                    ok = false;
+            }
+
+            out_states[b] = current;
+            changed = true;
+        }
+    }
+
+    free(out_states);
+    free(in_states);
+    free(initialized);
+    free(reachable);
+
+    return ok;
+}
+
+/*
+ * vreg 槽数确定之后：写出各槽位的栈偏移，并在需要时做 sp 跟踪。
+ */
+static bool _phase3c_window_finish(
+    woort_IRFunction* f, uint32_t vreg_slots, uint32_t window_space)
+{
+    const uint32_t window_count = (uint32_t)f->m_ir_windows.m_size;
+    if (window_count == 0)
+        return true;
+
+    bool has_slot_window = false;
+    for (uint32_t wi = 0; wi < window_count; ++wi)
+        has_slot_window = has_slot_window ||
+            !(*(woort_IRWindow**)woort_vector_at(&f->m_ir_windows, wi))->m_push_lowered;
+    if (!has_slot_window)
+        return true;
+
+    /* 位置 M-1 紧邻最深的 vreg 槽，位置每减 1 偏移也减 1 */
+    const int32_t position_top = -(int32_t)f->m_captured_count - (int32_t)vreg_slots;
+
+    woort_IRWindow** const windows = (woort_IRWindow**)f->m_ir_windows.m_data;
+    for (uint32_t wi = 0; wi < window_count; ++wi)
+    {
+        woort_IRWindow* const w = windows[wi];
+        if (w->m_push_lowered)
+            continue;
+
+        const woort_IROp_Kind kind = _window_consumer_kind(f, w);
+        for (uint32_t s = 0; s < w->m_count; ++s)
+        {
+            const uint32_t position = (uint32_t)w->m_base + _window_slot_position(w, kind, s);
+            w->m_slots[s]->m_assigned_stack_offset =
+                position_top - ((int32_t)window_space - 1 - (int32_t)position);
+        }
+    }
+
+    f->m_window_sp_rest = position_top - (int32_t)window_space;
+
+    return _phase3c_track_sp(f);
 }
 
 /* ===================================================================
@@ -974,6 +1896,13 @@ static bool _phase2_liveness_analysis(
             _record_use(&blk->m_use, &blk->m_def, op->m_src[0]);
             _record_use(&blk->m_use, &blk->m_def, op->m_src[1]);
             _record_use(&blk->m_use, &blk->m_def, op->m_src[2]);
+
+            /* 回退为压栈降级的窗口：消费指令发射时会读取它的全部槽位 */
+            if (op->m_window != NULL && op->m_window->m_push_lowered)
+            {
+                for (uint32_t s = 0; s < op->m_window->m_count; ++s)
+                    _record_use(&blk->m_use, &blk->m_def, op->m_window->m_slots[s]);
+            }
 
             /* 再处理写目标 (DEF) */
             _record_def(&blk->m_def, op->m_dst);
@@ -1122,6 +2051,51 @@ static bool _phase3b_const_optimization(woort_IRFunction* f)
     return true;
 }
 
+/*
+ * 函数入口 PUSHRCHK 的预留量：slots 为 vreg 槽数，window_space 为槽位窗口
+ * 占用的操作数位置数（见 Phase 3c）。
+ *
+ * NOTE: No need to reserve for captured, them will be expand in call.
+ *
+ * 栈槽的逻辑偏移为 -slot-captured_count，发射层会把 <= -126 的逻辑偏移
+ * 再偏移 -3 以避开临时槽 -126/-127/-128（见 _get_fact_offset）。当捕获区
+ * 与局部槽、操作数区合计越过该边界（captured_count + slots + window_space > 125）时，
+ * 必须额外预留 3 个槽，否则最深的栈槽会写到帧（rt_sp）之外。
+ * out_stack_space 已包含该余量，发射层直接使用。
+ */
+static size_t _stack_reserve(const woort_IRFunction* f, size_t slots, uint32_t window_space)
+{
+    size_t reserve = slots + window_space;
+
+    if (reserve > 0 && (f->m_captured_count + reserve > 125))
+        reserve += 3;
+
+    /*
+     * 捕获区越过临时槽窗口（captured_count >= 127）：函数序言要把
+     * 窗口内的捕获值搬运到窗口下方的尾接区域，其最深 fact 槽为
+     * tail_base - (relocate_count - 1)，对任何 captured_count >= 127
+     * 都恰为 -(captured_count+2)。统一预留 3 个槽即可覆盖。
+     */
+    if (f->m_captured_count >= 127 && reserve < 3)
+        reserve = 3;
+
+    /*
+     * 参数偏移为 3+idx。当某参数超出 S8 编码（param_count >= 126）时，
+     * a8 类指令（JCC 条件、CAS、STOREPVALUE 等）会把它搬运到固定
+     * 临时槽 -126..-128 —— 帧的可写底部为 -(captured_count+n)，
+     * 必须预留到 -128 以下，否则临时槽在帧外（栈溢出检查被绕过）。
+     */
+    if (f->m_param_count >= 126)
+    {
+        const size_t temp_floor_need = 128 -
+            (f->m_captured_count < 128 ? f->m_captured_count : 128);
+        if (reserve < temp_floor_need)
+            reserve = temp_floor_need;
+    }
+
+    return reserve;
+}
+
 /* ===================================================================
  * Phase 3: 栈槽分配（线性扫描）
  * =================================================================== */
@@ -1129,7 +2103,9 @@ static bool _phase3b_const_optimization(woort_IRFunction* f)
 static bool _phase3_stack_allocation(
     woort_IRFunction* f,
     size_t* out_stack_space,
-    /* OPTIONAL */ const uint32_t* const_placement_block)
+    /* OPTIONAL */ const uint32_t* const_placement_block,
+    uint32_t window_space,
+    uint32_t* out_vreg_slots)
 {
     const uint32_t vreg_count = f->m_next_vreg_id;
     const uint32_t block_count = (uint32_t)f->m_blocks.m_size;
@@ -1138,8 +2114,8 @@ static bool _phase3_stack_allocation(
 
     if (vreg_count == 0)
     {
-        /* NOTE: No need to reserve for captured, them will be expand in call. */
-        *out_stack_space = 0 /*f->m_captured_count*/;
+        *out_vreg_slots = 0;
+        *out_stack_space = _stack_reserve(f, 0, window_space);
         return true;
     }
 
@@ -1207,6 +2183,19 @@ static bool _phase3_stack_allocation(
 
                 if (use_pt < first_point[id])
                     first_point[id] = use_pt;
+                if (use_pt > last_point[id])
+                    last_point[id] = use_pt;
+            }
+        }
+
+        /* 回退为压栈降级的窗口：消费指令读取它的全部槽位 */
+        if (op->m_window != NULL && op->m_window->m_push_lowered)
+        {
+            const uint32_t use_pt = (uint32_t)i * 5;
+
+            for (uint32_t s = 0; s < op->m_window->m_count; ++s)
+            {
+                const uint32_t id = op->m_window->m_slots[s]->m_id;
                 if (use_pt > last_point[id])
                     last_point[id] = use_pt;
             }
@@ -1394,46 +2383,8 @@ static bool _phase3_stack_allocation(
     free(intervals);
     free(vreg_by_id);
 
-    /*
-     * NOTE: No need to reserve for captured, them will be expand in call.
-     *
-     * 栈槽的逻辑偏移为 -slot-captured_count，发射层会把 <= -126 的逻辑偏移
-     * 再偏移 -3 以避开临时槽 -126/-127/-128（见 _get_fact_offset）。当捕获区
-     * 与局部槽合计越过该边界（captured_count + max_slots > 125）时，必须
-     * 额外预留 3 个槽，否则最深的栈槽会写到帧（rt_sp）之外。
-     * out_stack_space 已包含该余量，发射层直接使用。
-     */
-    {
-        size_t reserve = max_slots;
-
-        if (max_slots > 0 && (f->m_captured_count + max_slots > 125))
-            reserve += 3;
-
-        /*
-         * 捕获区越过临时槽窗口（captured_count >= 127）：函数序言要把
-         * 窗口内的捕获值搬运到窗口下方的尾接区域，其最深 fact 槽为
-         * tail_base - (relocate_count - 1)，对任何 captured_count >= 127
-         * 都恰为 -(captured_count+2)。统一预留 3 个槽即可覆盖。
-         */
-        if (f->m_captured_count >= 127 && reserve < 3)
-            reserve = 3;
-
-        /*
-         * 参数偏移为 3+idx。当某参数超出 S8 编码（param_count >= 126）时，
-         * a8 类指令（JCC 条件、CAS、STOREPVALUE 等）会把它搬运到固定
-         * 临时槽 -126..-128 —— 帧的可写底部为 -(captured_count+n)，
-         * 必须预留到 -128 以下，否则临时槽在帧外（栈溢出检查被绕过）。
-         */
-        if (f->m_param_count >= 126)
-        {
-            const size_t temp_floor_need = 128 -
-                (f->m_captured_count < 128 ? f->m_captured_count : 128);
-            if (reserve < temp_floor_need)
-                reserve = temp_floor_need;
-        }
-
-        *out_stack_space = reserve;
-    }
+    *out_vreg_slots = (uint32_t)max_slots;
+    *out_stack_space = _stack_reserve(f, max_slots, window_space);
     return true;
 }
 
@@ -2050,6 +3001,15 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
     /* Phase 2b: 移除无意义跳转 */
     _phase2b_remove_noop_jumps(f);
 
+    /* Phase 1c: 槽位窗口校验（结构错误在此报出） */
+    if (!_phase1c_window_analysis(f))
+        return false;
+
+    /* Phase 3c part 1: 窗口布局，决定入口要预留多少操作数位置 */
+    uint32_t window_space = 0;
+    if (!_phase3c_window_layout(f, &window_space))
+        return false;
+
     /* Phase 3b: 常量直接使用标记（PUSHCCHK / RETVC） */
     if (!_phase3b_const_optimization(f))
         return false;
@@ -2074,8 +3034,16 @@ WOORT_NODISCARD bool _woort_IRFunction_analyze_and_allocate(
         return false;
     }
 
-    /* Phase 3: 栈槽分配（线性扫描，CONST vreg 统一参与复用） */
-    if (!_phase3_stack_allocation(f, out_stack_space, const_placement_block))
+    /* Phase 3: 栈槽分配（线性扫描，CONST vreg 统一参与复用；入口预留含操作数区） */
+    uint32_t vreg_slots = 0;
+    if (!_phase3_stack_allocation(f, out_stack_space, const_placement_block, window_space, &vreg_slots))
+    {
+        free(const_placement_block);
+        return false;
+    }
+
+    /* Phase 3c part 2: 槽位的栈偏移与 sp 跟踪 */
+    if (!_phase3c_window_finish(f, vreg_slots, window_space))
     {
         free(const_placement_block);
         return false;

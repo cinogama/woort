@@ -10,6 +10,7 @@
 #include "woort_ir_block.h"
 #include "woort_ir_value.h"
 #include "woort_ir_op.h"
+#include "woort_ir_window.h"
 #include "woort_ir_srcloc.h"
 #include "woort_linklist.h"
 #include "woort_vector.h"
@@ -43,6 +44,20 @@ struct woort_IRFunction
 
     /* 线性指令列表 */
     woort_Vector /* woort_IROp */ m_instructions;
+
+    /* 槽位窗口（V2）表：元素为 woort_IRWindow*，按创建顺序 */
+    woort_Vector /* woort_IRWindow* */ m_ir_windows;
+
+    /* finish 阶段：各窗口打开时刻的祖先窗口下标，以及祖先中已写的槽位值（均为拼接记录） */
+    woort_Vector /* uint32_t */ m_window_ancestors;
+    woort_Vector /* const woort_IRValue* */ m_window_live;
+
+    /* 内层窗口打开期间写过外层窗口的槽位：窗口之下可能留有存活数据，
+       整个函数的窗口回退为压栈降级 */
+    bool m_window_outer_write;
+
+    /* 入口预留后 sp 的逻辑偏移；窗口内位置 b 的 sp 偏移为 m_window_sp_rest + b */
+    int32_t m_window_sp_rest;
 
     /* finish 阶段生成的基本块 */
     woort_Vector /* woort_IRBlock */ m_blocks;

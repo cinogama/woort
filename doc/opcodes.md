@@ -18,6 +18,7 @@ sb + 4  |_____ ARGUMENT 1 ______|
 
 * 所有字节码中的栈偏移都是相对 `m_sb` 的有符号偏移。`sb+3+idx` 是第 idx 个参数。
 * 闭包函数的捕获变量从 `sb-1` 开始向下排布：`sb-(1+idx)` 是第 idx 个 upvalue。
+* IR 编译器的槽位窗口（V2）把实参和容器元素放在函数入口预留出的槽位里，由 `MK*NP` / `CALL` 经 `sp[1..N]` 读取，`sp` 不像逐个压栈那样移动；需要时用 `SPSET`（§24）定位。
 
 ## 操作数符号
 
@@ -248,6 +249,8 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 > `RESULTNP` 即弹栈数为 0 的 `RESULT`，两者派发到同一个处理分支，反汇编统一输出 `RESULT`（`RESULTNP` 显示为 `POP 0`）。
 >
 > 编译器的发射规则：实参数为 1 到 255 时发 `RESULT`（计数只有 8 位）；没有实参时发 `RESULTNP`；更多时发 `RESULTNP` 加一条 `POPR`。
+>
+> 实参取自槽位窗口（V2，`woort_IR_CALLNWO2` 等）时没有值被压栈，固定发 `RESULTNP`；`dst` 为 `NULL` 时 `RESULT` / `RESULTNP` 都不发。
 
 ---
 
@@ -350,7 +353,9 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | `MKSTRUCTNP` | 2 | `OP6_M2_A8_BC16` | N8, W_ONLY S16 | 创建结构体，读取 N 个字段，不弹出 |
 | `MKCLOSURENP` | 3 | `OP6_M2_A8_BC16` + EX | N8, W_ONLY S16, R_ONLY C32 | 创建闭包，捕获 N 个变量，函数索引 C32，不弹出 |
 
-> IR 编译器目前不发射这一族指令：`woort_IR_MKVEC` 等接口发射的仍是会弹栈的原指令。
+> 与所有指令一样，`MK*NP` **先写目标 `[SB+bc16]`，再读元素**：目标槽位不能与自己的元素重叠。
+>
+> IR 编译器在元素取自槽位窗口（V2）时发射这一族指令（`woort_IR_MKVEC2` 等，窗口不在入口位置时前置一条 `SPSET`）；V1 接口（`woort_IR_MKVEC` 等）发射的仍是会弹栈的原指令。
 
 ---
 
@@ -693,7 +698,22 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 
 ---
 
-## 指令统计
+## 24. 槽位窗口支持（SLOT）
+
+> **新增指令组**，占用原保留的编码 17（`WOORT_OPCODE_RESERVED_0`）。
+
+| 变体 | Mode | 操作数 | 说明 |
+|------|------|--------|------|
+| `SPSET` | 0 | R_ONLY S16 | 定位栈指针：`sp = sb + s16`，不做栈检查 |
+| `LDIDSTBOXI` | 1 | N8(字段), R_ONLY S8(结构体), W_ONLY S8(目标) | 读取结构体字段，装箱为整数后写入目标 |
+| `LDIDSTBOXR` | 2 | N8(字段), R_ONLY S8(结构体), W_ONLY S8(目标) | 读取结构体字段，装箱为实数后写入目标 |
+| `LDIDSTBOXB` | 3 | N8(字段), R_ONLY S8(结构体), W_ONLY S8(目标) | 读取结构体字段，装箱为布尔后写入目标 |
+
+`SPSET` 把 `sp` 放到入口预留范围内的某个位置，供随后的 `MK*NP` / `CALL` 读取落在那里的槽位窗口（见 [ir.md](./ir.md)「槽位窗口」）。它取代的是逐个压栈，所以目标位置始终在函数入口 `PUSHRCHK` 预留过的范围内，不需要再检查；x64 后端发一条 `lea`，arm64 后端发 `add` / `sub` 立即数（放不下时经寄存器中转）。操作数只有 16 位：目标位置离 `sb` 超过约 32767 个槽时，IR 编译器不用 `SPSET`，改为从 `sp` 的当前位置做相对移动（位置升高用 `POPR`，降低用 `PUSHRCHK`）。
+
+`LDIDSTBOXI/R/B` 与 `PUSHIDSTBOX*`（§19）读取相同的字段、做相同的装箱，区别在于结果写入 `[SB+c8]` 而不是压栈，也不做栈检查；操作数布局与 `LDIDSTRUCT` 相同。IR 层对应 `woort_IR_LDIDSTBOXI/R/B`，一条指令完成 `LDIDSTRUCT` + `BOXDYN`。
+
+---
 
 | 分类 | 主指令数 | 变体总数 |
 |------|----------|----------|
@@ -704,7 +724,8 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 整数除法检查（CHKDIVI） | 1 | 4 |
 | 类型转换（CASTI/CASTR/CASTX） | 3 | 12 |
 | 函数调用与结果获取（CALLN*/CALL） | 4 | 8 |
-| 返回（RET）与保留位（RESERVED_0） | 2 | 4 |
+| 返回（RET） | 1 | 4 |
+| 槽位窗口支持（SLOT） | 1 | 4 |
 | 跳转指令（JFWD/JBCK/J*CND/J*CMP） | 6 | 20 |
 | 容器创建（CONS/CONSEX/CONSNP/MKCLOSURE） | 4 | 13 |
 | 动态类型（DYN） | 1 | 4 |
@@ -723,4 +744,4 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 陷阱与 Panic（TRAP） | 1 | 3 |
 | **总计** | **65 个枚举值**（64 条主指令 + `count`） | — |
 
-> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。64 个编码已全部占用：63 条可用主指令 + 1 条保留（`WOORT_OPCODE_RESERVED_0`，即原独立指令 `RESULT` 并入 `CALL` 族（mode 2）后空出的编码，按未知指令处理——解释器 panic「Bad command」，反汇编输出 `UNKNOWN_OPCODE(17)`，JIT 后端无处理器、不发射代码）；`WOORT_OPCODE_COUNT` 是哨兵，不占编码。
+> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。64 个编码已全部占用，全部可用（原保留的编码 17 即原独立指令 `RESULT` 并入 `CALL` 族（mode 2）后空出的那个，现由 `WOORT_OPCODE_SLOT` 使用）；`WOORT_OPCODE_COUNT` 是哨兵，不占编码。

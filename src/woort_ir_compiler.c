@@ -9,6 +9,9 @@
  *   2. 对每个函数发射字节码（常量加载 + 指令翻译 + 跳转占位）
  *   3. 跳转修正（前跳/后跳 + 溢出展开）
  *   4. 拼接所有字节码，创建 CodeEnv
+ *
+ * 槽位窗口（V2）的消费指令在这里降级为 MK*NP / CALL + RESULTNP；sp 不在
+ * 所需位置时先发 SPSET（见 _woort_IRFunction_analyze_and_allocate 的 Phase 3c）。
  */
 
 #include "woort_ir_compiler.h"
@@ -16,6 +19,7 @@
 #include "woort_ir_block.h"
 #include "woort_ir_value.h"
 #include "woort_ir_op.h"
+#include "woort_ir_window.h"
 #include "woort_ir_srcloc.h"
 #include "woort_opcode.h"
 #include "woort_opcode_builder.h"
@@ -24,6 +28,7 @@
 #include "woort_value.h"
 #include "woort_vector.h"
 #include "woort_linklist.h"
+#include "woort_log.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -303,6 +308,64 @@ static bool _emit_static_store(
 }
 
 /* ========================================================================
+ * 辅助函数：压栈 / sp 定位
+ * ======================================================================== */
+
+/*
+ * 把一个值压入栈顶（带栈检查）：常量直连时直接发 PUSHCCHK。
+ */
+static bool _emit_pushchk(woort_IRBlock* blk, const woort_IRValue* src)
+{
+    /* 常量直连优化：直接发 PUSHCCHK，跳过 LOAD + PUSHSCHK */
+    if (src->m_is_const_direct)
+    {
+        uint32_t cidx = src->m_const_idx;
+        if (cidx <= WOORT_UINT24_MAX_VAL)
+            return _emit_bc(blk, woort_OpCode_PUSHCCHK(cidx));
+        return _emit_bc_ex32(blk, woort_OpCode_PUSHCCHKEXT(), cidx);
+    }
+
+    int16_t r;
+    if (!_load_to_s16(blk, src, -128, &r))
+        return false;
+    return _emit_bc(blk, woort_OpCode_PUSHSCHK(r));
+}
+
+/*
+ * 把 sp 定位到逻辑偏移 target。入口预留后的位置 rest 恒为负，
+ * 当前位置是 rest + from（from 为 INT32_MIN 表示静态未知）。
+ * S16 放得下时发 SPSET；帧更深时从当前位置出发做相对移动：位置升高（逻辑偏移
+ * 变大、栈变浅）用 POPR，位置降低用 PUSHRCHK。
+ */
+static bool _emit_sp_position(
+    woort_IRBlock* blk, int32_t rest, int32_t from, int32_t target)
+{
+    const int32_t fact = _get_fact_offset(target);
+
+    if (fact >= INT16_MIN && fact <= INT16_MAX)
+        return _emit_bc(blk, woort_OpCode_SPSET((int16_t)fact));
+
+    if (from == INT32_MIN)
+    {
+        woort_log(
+            "WOORT: IR function is too deep to position sp (offset %d).\n", fact);
+        return false;
+    }
+
+    const int32_t delta = target - (rest + from);
+    assert(delta != 0);
+
+    if (delta > 0)
+    {
+        assert(delta <= (int32_t)WOORT_UINT24_MAX_VAL);
+        return _emit_bc(blk, woort_OpCode_POPR((uint32_t)delta));
+    }
+
+    assert(-delta <= (int32_t)WOORT_UINT24_MAX_VAL);
+    return _emit_bc(blk, woort_OpCode_PUSHRCHK((uint32_t)-delta));
+}
+
+/* ========================================================================
  * 辅助函数：类型转换 A8/BC16 双变体发射
  *
  * 将 src -> dst 的类型转换指令发射出来。
@@ -458,6 +521,99 @@ static bool _emit_static_store(
         return _emit_bc(blk, OP_MACRO(r1, r2, r3)); \
     } while(0)
 
+/* 结构体字段装箱加载专用：A=字段下标 N8，B=结构体 S8，C=目标 S8（与 LDIDSTRUCT 相同） */
+#define _EMIT_LDIDSTBOX_BODY(blk, op, OP_MACRO) \
+    do { \
+        int8_t r; \
+        if (!_load_to_s8(blk, op->m_src[0], -128, &r)) \
+            return false; \
+        const int8_t w = _get_store_s8(op->m_dst, -127); \
+        if (!_emit_bc(blk, OP_MACRO((uint8_t)op->m_index, r, w))) \
+            return false; \
+        return _apply_store(blk, op->m_dst, w); \
+    } while(0)
+
+/* ========================================================================
+ * 辅助函数：槽位窗口（V2）的消费指令发射
+ * ======================================================================== */
+
+/*
+ * V2 容器创建：MK*NP 从窗口读取元素，不弹栈。
+ */
+static bool _emit_window_construct(
+    woort_IRBlock* blk, const woort_IROp* op, woort_IROp_Kind kind)
+{
+    const woort_IRWindow* const w = op->m_window;
+    const int16_t w16 = _get_store_s16(op->m_dst, -128);
+    uint32_t count = w->m_count;
+
+    if (kind == WOORT_IROP_KIND_MKMAP)
+        count /= 2;
+    assert(count <= WOORT_UINT8_MAX_VAL);
+
+    if (kind == WOORT_IROP_KIND_MKCLOSURE)
+    {
+        if (!_emit_bc_ex32(blk,
+            woort_OpCode_MKCLOSURENP((uint8_t)count, w16), op->m_calln_target))
+            return false;
+    }
+    else
+    {
+        const woort_Bytecode bc =
+            kind == WOORT_IROP_KIND_MKVEC ? woort_OpCode_MKVECNP((uint8_t)count, w16) :
+            kind == WOORT_IROP_KIND_MKMAP ? woort_OpCode_MKMAPNP((uint8_t)count, w16) :
+                                            woort_OpCode_MKSTRUCTNP((uint8_t)count, w16);
+        if (!_emit_bc(blk, bc))
+            return false;
+    }
+
+    return _apply_store(blk, op->m_dst, w16);
+}
+
+/*
+ * 回退为压栈降级的窗口：按 V1 的压入顺序逐个压入槽位，再把消费指令改回 V1 形式
+ * （计数取窗口的槽数），交给原有的发射代码。
+ * V1 的压入顺序：实参逆序（第 0 个实参最后压、在栈顶）；元素、键值对、捕获正序
+ * （第 0 个最先压）。
+ */
+static bool _emit_window_pushes(woort_IRBlock* blk, woort_IROp* op)
+{
+    woort_IRWindow* const w = op->m_window;
+    const bool is_call =
+        op->m_op == WOORT_IROP_KIND_CALLNWO ||
+        op->m_op == WOORT_IROP_KIND_CALLNFP ||
+        op->m_op == WOORT_IROP_KIND_CALLNJIT ||
+        op->m_op == WOORT_IROP_KIND_CALL;
+
+    for (uint32_t k = 0; k < w->m_count; ++k)
+    {
+        const uint32_t i = is_call ? w->m_count - 1 - k : k;
+        if (!_emit_pushchk(blk, w->m_slots[i]))
+            return false;
+    }
+
+    switch (op->m_op)
+    {
+    case WOORT_IROP_KIND_CALL:
+        op->m_call_argument_count = w->m_count;
+        break;
+    case WOORT_IROP_KIND_MKMAP:
+        op->m_count = w->m_count / 2; /* V1 的 MKMAP 按键值对计数 */
+        break;
+    case WOORT_IROP_KIND_MKVEC:
+    case WOORT_IROP_KIND_MKSTRUCT:
+        op->m_count = w->m_count;
+        break;
+    default:
+        /* CALLNWO / CALLNFP / CALLNJIT / MKCLOSURE：目标下标占联合体的前 4 字节 */
+        op->m_argument_count = w->m_count;
+        break;
+    }
+
+    op->m_window = NULL;
+    return true;
+}
+
 /* ========================================================================
  * 单条 IR 指令的字节码发射
  * ======================================================================== */
@@ -469,6 +625,13 @@ static bool _emit_op(
     woort_Vector* jump_patches,
     uint32_t block_idx)
 {
+    /* 回退为压栈降级的窗口：先压入各槽位，再按 V1 形式发射 */
+    if (op->m_window != NULL && op->m_window->m_push_lowered &&
+        !_emit_window_pushes(blk, op))
+    {
+        return false;
+    }
+
     switch (op->m_op)
     {
         /* ============ LABEL & EMPTY: 跳过 ============ */
@@ -587,20 +750,7 @@ static bool _emit_op(
     case WOORT_IROP_KIND_PUSHCHK:
     {
         assert(op->m_src[0] != NULL);
-
-        /* 常量直连优化：直接发 PUSHCCHK，跳过 LOAD + PUSHSCHK */
-        if (op->m_src[0]->m_is_const_direct)
-        {
-            uint32_t cidx = op->m_src[0]->m_const_idx;
-            if (cidx <= WOORT_UINT24_MAX_VAL)
-                return _emit_bc(blk, woort_OpCode_PUSHCCHK(cidx));
-            return _emit_bc_ex32(blk, woort_OpCode_PUSHCCHKEXT(), cidx);
-        }
-
-        int16_t r;
-        if (!_load_to_s16(blk, op->m_src[0], -128, &r))
-            return false;
-        return _emit_bc(blk, woort_OpCode_PUSHSCHK(r));
+        return _emit_pushchk(blk, op->m_src[0]);
     }
 
     /* ============ PUSHSTATICCHK ============ */
@@ -686,6 +836,18 @@ static bool _emit_op(
 
 _handle_call_result:
     {
+        /* V2：实参取自窗口，没有栈槽要弹，只取结果 */
+        if (op->m_window != NULL)
+        {
+            if (op->m_dst == NULL)
+                return true;
+
+            const int16_t w16 = _get_store_s16(op->m_dst, -128);
+            if (!_emit_bc(blk, woort_OpCode_RESULTNP(w16)))
+                return false;
+            return _apply_store(blk, op->m_dst, w16);
+        }
+
         if (op->m_dst != NULL)
         {
             const int16_t w16 = _get_store_s16(op->m_dst, -128);
@@ -741,6 +903,10 @@ _handle_call_result:
                 return false;
         }
 
+        /* V2：实参取自窗口，结果的处理与直接调用相同 */
+        if (op->m_window != NULL)
+            goto _handle_call_result;
+
         if (op->m_dst != NULL)
         {
             const int16_t w16 = _get_store_s16(op->m_dst, -128);
@@ -778,6 +944,10 @@ _handle_call_result:
     {
         (void)c;
         assert(op->m_dst != NULL);
+
+        if (op->m_window != NULL)
+            return _emit_window_construct(blk, op, WOORT_IROP_KIND_MKCLOSURE);
+
         assert(op->m_argument_count <= WOORT_UINT10_MAX_VAL);
 
         const int16_t w16 = _get_store_s16(op->m_dst, -128);
@@ -794,6 +964,10 @@ _handle_call_result:
     {
         (void)c;
         assert(op->m_dst != NULL);
+
+        if (op->m_window != NULL)
+            return _emit_window_construct(blk, op, WOORT_IROP_KIND_MKVEC);
+
         const int16_t w16 = _get_store_s16(op->m_dst, -128);
         if (op->m_count <= WOORT_UINT8_MAX_VAL)
         {
@@ -813,6 +987,10 @@ _handle_call_result:
     {
         (void)c;
         assert(op->m_dst != NULL);
+
+        if (op->m_window != NULL)
+            return _emit_window_construct(blk, op, WOORT_IROP_KIND_MKMAP);
+
         const int16_t w16 = _get_store_s16(op->m_dst, -128);
         if (op->m_count <= WOORT_UINT8_MAX_VAL)
         {
@@ -832,6 +1010,10 @@ _handle_call_result:
     {
         (void)c;
         assert(op->m_dst != NULL);
+
+        if (op->m_window != NULL)
+            return _emit_window_construct(blk, op, WOORT_IROP_KIND_MKSTRUCT);
+
         const int16_t w16 = _get_store_s16(op->m_dst, -128);
         if (op->m_count <= WOORT_UINT8_MAX_VAL)
         {
@@ -1183,6 +1365,15 @@ _handle_call_result:
             return false;
         return _apply_store(blk, op->m_dst, w);
     }
+
+    case WOORT_IROP_KIND_LDIDSTBOXI:
+        _EMIT_LDIDSTBOX_BODY(blk, op, woort_OpCode_LDIDSTBOXI);
+
+    case WOORT_IROP_KIND_LDIDSTBOXR:
+        _EMIT_LDIDSTBOX_BODY(blk, op, woort_OpCode_LDIDSTBOXR);
+
+    case WOORT_IROP_KIND_LDIDSTBOXB:
+        _EMIT_LDIDSTBOX_BODY(blk, op, woort_OpCode_LDIDSTBOXB);
 
     case WOORT_IROP_KIND_LDIDSTRING:
         _EMIT_BINOP_NO_COMPOUND(blk, op, c, woort_OpCode_LDIDSTRING);
@@ -1748,6 +1939,25 @@ static bool _emit_function(
                 (void)woort_vector_push_back(source_map_entries, 1, &entry);
             }
             last_srcloc_index = op->m_srcloc_index;
+
+            /*
+             * sp 跟踪（Phase 3c）判定执行本指令前 sp 不在所需位置：先定位。
+             * 窗口消费者要去窗口的位置，V1 栈区间的起点要去入口预留后的位置。
+             */
+            if (op->m_need_spset)
+            {
+                const int32_t base =
+                    (op->m_window != NULL && !op->m_window->m_push_lowered)
+                        ? op->m_window->m_base : 0;
+                const int32_t from =
+                    op->m_sp_from == UINT32_MAX ? INT32_MIN : (int32_t)op->m_sp_from;
+
+                if (!_emit_sp_position(
+                    blk, f->m_window_sp_rest, from, f->m_window_sp_rest + base))
+                {
+                    return false;
+                }
+            }
 
             if (!_emit_op(blk, op, c, jump_patches, bi))
                 return false;

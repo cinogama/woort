@@ -4,7 +4,8 @@
  * woort_ir_value.h
  *
  * IR 虚拟寄存器定义。
- * 三种来源：普通 vreg（可变）、函数参数（预分配栈偏移）、常量（绑定 G[idx]）。
+ * 四种来源：普通 vreg（可变）、函数参数（预分配栈偏移）、常量（绑定 G[idx]）、
+ * 槽位窗口中的操作数槽位（偏移由窗口布局决定）。
  */
 
 #include "woort.h"
@@ -26,6 +27,9 @@ typedef enum woort_IRValue_Source
     /* 常量值（绑定到 G[const_idx]，由 load_const 创建） */
     WOORT_IRVALUE_SOURCE_CONST,
 
+    /* 槽位窗口中的操作数槽位（由 woort_IRWindow_slot 取得，见 woort_ir_window.h） */
+    WOORT_IRVALUE_SOURCE_SLOT,
+
 } woort_IRValue_Source;
 
 #define WOORT_IRVALUE_STACK_NOT_ASSIGN INT32_MAX
@@ -44,7 +48,13 @@ struct woort_IRValue
     {
         /* WOORT_IRVALUE_SOURCE_CONST 专用 */
         woort_IRConstantIndex m_const_idx;
+
+        /* WOORT_IRVALUE_SOURCE_SLOT 专用：在所属窗口中的槽位下标 */
+        uint32_t m_slot_index;
     };
+
+    /* WOORT_IRVALUE_SOURCE_SLOT 专用：所属窗口 */
+    /* OPTIONAL */ struct woort_IRWindow* m_window;
 
     /* finish 阶段填充的栈偏移 */
     int32_t m_assigned_stack_offset;
@@ -63,3 +73,4 @@ void woort_IRValue_init_vreg(woort_IRValue* v, uint32_t id);
 void woort_IRValue_init_argument(woort_IRValue* v, uint32_t id, uint32_t argument_idx);
 void woort_IRValue_init_captured(woort_IRValue* v, uint32_t id, uint32_t captured_idx);
 void woort_IRValue_init_const(woort_IRValue* v, uint32_t id, woort_IRConstantIndex const_idx);
+void woort_IRValue_init_slot(woort_IRValue* v, uint32_t id, struct woort_IRWindow* window, uint32_t slot_index);

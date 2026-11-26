@@ -12,6 +12,7 @@ IR 接口的声明集中在 [`include/woort.h`](../include/woort.h) 的 `IR Comp
 * **ByteCode**：字节码，由 VM 直接执行的指令码，每条 32 位，部分指令带额外 32 位拓展操作数。详见 [opcodes.md](./opcodes.md)。
 * **IR**：结构上类似字节码，但是编写时不考虑操作数的寻址/跳转范围，由 `finish` 流程负责整理、优化并生成最终字节码。
 * **虚拟寄存器 (`woort_IRValue*`)**：可变的无限虚拟寄存器，可被多次读写。在 `finish()` 阶段通过活跃性分析分配栈槽。
+* **槽位窗口 (`woort_IRWindow*`)**：一组由同一条调用 / 构造指令读取的操作数槽位。槽位是普通的虚拟寄存器，实参表达式直接把结果写进去，不再逐个压栈（见「槽位窗口（V2）」）。
 * **Label (`woort_IRLabel*`)**：跳转目标标记。用户通过 `woort_IR_bind` 绑定 Label 到指令流中的某个位置，然后用 `woort_IR_jmp` / `woort_IR_jcc_*` 跳转。
 
 ## 设计理念
@@ -80,13 +81,14 @@ woort_IRValue* upv = woort_IRFunction_get_captured(f, 0);    /* 闭包捕获，�
 const woort_IRValue* c = woort_IRFunction_fetch_const(f, ci);
 ```
 
-虚拟寄存器有三种来源（`woort_IRValue_Source`）：
+虚拟寄存器有四种来源（`woort_IRValue_Source`）：
 
 | 来源 | 创建方式 | 栈位置 | 可变性 |
 |------|----------|--------|--------|
 | `VREG` | `new_vreg` | `finish()` 阶段分配 | 可变 |
 | `ARGUMENT` | `get_argument` | `SB+3+idx`（固定） | 只读 |
 | `CONST` | `fetch_const` | 绑定 `G[idx]` | 不可变 |
+| `SLOT` | `woort_IRWindow_slot` | `finish()` 阶段由窗口布局决定 | 可变 |
 
 ### 指令发射
 
@@ -135,13 +137,18 @@ woort_IR_CHKDIVIR(f, src);            /* 检查右操作数为 0 或 -1  */
 woort_IR_CHKDIVIRZ(f, src);           /* 检查右操作数为 0        */
 woort_IR_CHKDIVILR(f, l, r);          /* 同时检查左右           */
 
-/* 函数调用 */
-woort_IR_PUSHCHK(f, arg0);
+/* 函数调用（V1：实参逆序压栈，第 0 个实参最后压） */
 woort_IR_PUSHCHK(f, arg1);
+woort_IR_PUSHCHK(f, arg0);
 woort_IR_CALLNWO(f, cidx_target, argc, dst);  /* 调用脚本函数 */
 woort_IR_CALLNFP(f, cidx_target, argc, dst);  /* 调用原生函数 */
 woort_IR_CALLNJIT(f, cidx_target, argc, dst); /* 调用 JIT 函数 */
 woort_IR_CALL(f, callee_vreg, argc, dst);     /* 间接调用（vreg 持有函数值） */
+
+/* 函数调用（V2：实参写进槽位窗口，不压栈；见「槽位窗口（V2）」） */
+woort_IRWindow* args = woort_IRFunction_new_window(f, argc);
+/* ... 各实参写入 woort_IRWindow_slot(args, i) ... */
+woort_IR_CALLNWO2(f, cidx_target, args, dst);
 
 /* 控制流 */
 woort_IR_bind(f, L);                  /* 绑定 Label             */
@@ -184,7 +191,7 @@ woort_IR_ASSERTDYN(f, type, src);          /* 断言动态类型，否则 panic 
 
 ```c
 /* 创建向量/映射/结构体/联合：
- * 先用 PUSHCHK 依次压入元素，再调用对应的 MK* 指令。
+ * 先用 PUSHCHK 依次压入元素，再调用对应的 MK* 指令（V1）。
  * - MKVEC:   count 个元素
  * - MKMAP:   count*2 个值（键值交替）
  * - MKSTRUCT: count 个字段
@@ -198,6 +205,8 @@ woort_IR_MKUNION(f, dst, id, src);
  * cidx_target 指向常量池中的脚本函数字节码入口。*/
 woort_IR_MKCLOSURE(f, dst, cidx_target, capture_count);
 ```
+
+元素也可以写进槽位窗口，由 `MKVEC2` 等读取，见下面的「槽位窗口（V2）」。
 
 ### 索引读写
 
@@ -228,7 +237,59 @@ woort_IR_PUSHIDSTRUCT(f, field_idx, st);      /* 原样压栈（woort_Value） *
 woort_IR_PUSHIDSTBOXI(f, field_idx, st);      /* 装箱为整数 */
 woort_IR_PUSHIDSTBOXR(f, field_idx, st);      /* 装箱为实数 */
 woort_IR_PUSHIDSTBOXB(f, field_idx, st);      /* 装箱为布尔 */
+
+/* 读取结构体字段、装箱后写入目标（不压栈；一条指令完成 LDIDSTRUCT + BOXDYN） */
+woort_IR_LDIDSTBOXI(f, dst, st, field_idx);   /* 装箱为整数 */
+woort_IR_LDIDSTBOXR(f, dst, st, field_idx);   /* 装箱为实数 */
+woort_IR_LDIDSTBOXB(f, dst, st, field_idx);   /* 装箱为布尔 */
 ```
+
+### 槽位窗口（V2）
+
+V1 里实参和容器元素要用 `PUSHCHK` 逐个压栈，每次压栈带一次栈检查，计算结果还得先落到 vreg 再多搬一次。V2 把它们换成**槽位窗口**：窗口是一组由同一条消费指令读取的槽位，槽位就是普通的 `woort_IRValue*`，任何指令都能直接把结果写进去。
+
+```c
+/* 调用 sub(a, x - y)：槽 i 就是第 i 个实参（自然序，不需要逆序压栈） */
+woort_IRWindow* args = woort_IRFunction_new_window(f, 2);
+woort_IR_MOV(f, woort_IRWindow_slot(args, 0), a);
+woort_IR_SUBI(f, woort_IRWindow_slot(args, 1), x, y);     /* 结果直接写进槽位 */
+woort_IR_CALLNWO2(f, cidx_target, args, dst);
+
+/* 容器：元素直接写进窗口 */
+woort_IRWindow* elems = woort_IRFunction_new_window(f, 2);
+woort_IR_MOV(f, woort_IRWindow_slot(elems, 0), val);
+woort_IR_LDIDSTBOXI(f, woort_IRWindow_slot(elems, 1), st, 1);
+woort_IR_MKVEC2(f, dst, elems);
+```
+
+| 接口 | 槽位含义 |
+|------|----------|
+| `woort_IR_CALLNWO2` / `CALLNFP2` / `CALLNJIT2` / `CALL2` | 槽 i = 第 i 个实参 |
+| `woort_IR_MKVEC2` / `MKSTRUCT2` | 槽 i = 第 i 个元素 / 字段 |
+| `woort_IR_MKMAP2` | 槽 2p = 第 p 对的键，槽 2p+1 = 值（槽数须为偶数） |
+| `woort_IR_MKCLOSURE2` | 槽 i = 第 i 个捕获，即模板函数里 `woort_IRFunction_get_captured(f, i)` 读到的值 |
+
+窗口从 `woort_IRFunction_new_window` 开始打开，到消费指令发射时关闭；没有实参 / 元素时开一个零槽窗口。消费指令的 `dst` 可以是外层窗口的槽位，嵌套调用 `f(g(x), h(y))` 的结果因此直接落进外层实参的位置。
+
+`finish()` 为函数里所有窗口在入口一次预留空间（一条 `PUSHRCHK`），消费指令改用不弹栈的 `MK*NP` / `RESULTNP` 读取。布局规则：
+
+* 消费时 `sp` 必须正好在窗口之下。窗口落在祖先窗口**已写槽位的下方**，并尽量贴近入口预留后的位置。窗口之下不能有存活的数据：被调函数的帧就在 `sp` 之下，GC 也只扫描 `sp` 以上的槽位。
+* 外层窗口尚未写入的位置可以与内层窗口重叠，内层消费之后外层才写那里。所以嵌套窗口常常可以复用这些空位，`sp` 全程不动；按逆序求值实参（最后一个实参先算）时尤其如此。
+* 窗口不在入口位置时，消费前发一条 `SPSET` 校正 `sp`；`sp` 就停在窗口的位置，直到下一次校正。V1 栈区间开始前、以及往低于当前 `sp` 的槽位写值之前，也会先校正。
+
+调用方需要遵守的规则。`finish()` 检查这些规则，违反时输出诊断并返回 `false`：
+
+* 窗口正确嵌套：消费一个窗口时，它是最内层未消费的窗口。
+* 每个槽位至少被写一次；窗口只消费一次，且在打开它的函数里消费。
+* `ret` 时没有未消费的窗口。
+* 消费指令不能夹在未配平的 V1 栈操作（`PUSHCHK`、`UNPACK*`、`POP` 等）之间。
+
+以下两种情况 IR 仍然被接受，但该函数的**所有**窗口回退为 V1 的降级方式（带检查的压栈 + 会弹栈的指令）：
+
+* 内层窗口打开期间写了外层窗口的槽位（消费指令把结果写进外层槽位不算）；
+* 构造的元素超过 255 个（`MKMAP2` 超过 255 对），超出 `MK*NP` 的 8 位计数。
+
+窗口不能表达的内容保持 V1 不变：运行期数量的解包（`UNPACKVECALL` / `UNPACKVECXALL`）、`PACKARG`、`POP` 族。`LDIDSTBOX*` 不依赖窗口，不用窗口的函数同样可以用它。
 
 ### 变长参数收集
 
@@ -419,6 +480,12 @@ woort_IRCompiler_add_function(&irc, /*param_count=*/1, /*captured_count=*/0, &f)
 8. **字节码发射**：逐指令翻译 IR → 字节码，自动选择 compound 指令和最优编码宽度。`CONST` vreg 自动产生 `PUSHCCHK`/`RETVC`/`LOAD`。
 9. **跳转修补**：解析 Label 地址，选择 `JFWD`/`JBCK` 编码，处理 offset overflow 扩展。
 
+函数里有槽位窗口时，中间还插入三步：
+
+* **窗口校验**（切分基本块之后）：从入口块做前向数据流，跟踪打开的窗口栈和各窗口已写的槽位，检查上面列出的规则；同时记下每个窗口打开时刻的祖先窗口与其中已写的槽位。
+* **窗口布局**（栈槽分配之前）：按创建顺序给每个窗口选位置，决定入口要预留多少操作数位置，入口的 `PUSHRCHK` 把它一并预留。
+* **sp 跟踪**（栈槽分配之后）：算出每个槽位的栈偏移；再做一次前向数据流，给执行前需要先校正 `sp` 的指令打上标记，发射时在这些指令前插入 `SPSET`。
+
 ## 注意事项
 
 * `fetch_const` 返回的 const IRValue* 代表不可变常量，**不应**作为指令的 `dst`。可变变量用 `new_vreg` 创建，通过 `woort_IR_MOV` 从常量初始化。
@@ -426,6 +493,7 @@ woort_IRCompiler_add_function(&irc, /*param_count=*/1, /*captured_count=*/0, &f)
 * 常量值的加载时机由框架自动决定：单次用于 `PUSHCHK`/`RET`/`CALL` 时直接特化指令；多次使用时在最优位置放置 `LOAD`。
 * `CALLNWO/CALLNFP/CALLNJIT/CALL` 的 `argc` 表示调用前已压入栈的实参数量：`argc` 为 1 到 255 时生成 `RESULT`（取返回值并弹出实参），为 0 时生成 `RESULTNP`（只取返回值），超过 255 时生成 `RESULTNP` 加一条 `POPR`。
 * 如果调用的 `dst` 为 `NULL`，则不生成 `RESULT`，直接 `POPR`。
+* 槽位窗口（`woort_IR_*2`）不压栈：有 `dst` 时固定生成 `RESULTNP`，没有时不生成。窗口的嵌套、写入和消费规则见「槽位窗口（V2）」，违反时 `finish()` 返回 `false`，诊断经 `woort_log` 输出到 stderr。
 * 所有指令发射函数返回 `bool`，`false` 表示 OOM。
 * `finish()` 后，每个函数的 `m_code_offset` / `m_code_length` 可用，用于定位它在 `CodeEnv->m_code_begin` 中的位置。
 * 常量池的实际值要在 `finish()` 之后、在 `woort_CodeEnv_lock()/unlock()` 之间通过 `woort_CodeEnv_set_const_*` 填充。

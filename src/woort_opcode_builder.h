@@ -313,6 +313,22 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CONSNP, 3, n8, bc16)
 
 /*
+ * SLOT - 槽位窗口支持
+ * SPSET        (mode=0): sp = SB + bc16，把 sp 定位到指定栈位置，不做栈检查
+ * LDIDSTBOXI   (mode=1): [SB + c8].m_dynamic = box_int([SB + b8].m_struct->m_datas[n8].m_integer)
+ * LDIDSTBOXR   (mode=2): [SB + c8].m_dynamic = box_real([SB + b8].m_struct->m_datas[n8].m_real)
+ * LDIDSTBOXB   (mode=3): [SB + c8].m_dynamic = box_bool([SB + b8].m_struct->m_datas[n8].m_integer)
+ */
+#define woort_OpCode_SPSET(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_SLOT, 0, bc16)
+#define woort_OpCode_LDIDSTBOXI(n8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_SLOT, 1, n8, b8, c8)
+#define woort_OpCode_LDIDSTBOXR(n8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_SLOT, 2, n8, b8, c8)
+#define woort_OpCode_LDIDSTBOXB(n8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_SLOT, 3, n8, b8, c8)
+
+/*
  * DYN - 动态类型操作
  * BOXDYN    (mode=0): 装箱 [SB + b8] -> [SB + c8]，类型 t8
  * UNBOXDYN  (mode=1): 拆箱 [SB + b8] -> [SB + c8]，类型 t8

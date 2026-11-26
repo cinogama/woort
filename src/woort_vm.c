@@ -1284,6 +1284,56 @@ _label_continue_execution:
             assert(rt_sp <= rt_sb);
             break;
         }
+        /*
+            SLOT：槽位窗口支持。
+
+            SPSET：把 sp 定位到 SB + bc16。目标位置在函数入口预留的范围内，
+            不做栈检查；供消费指令（MK*NP / CALL）读取窗口前校正 sp。
+        */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_SLOT, 0):
+        {
+            rt_sp = rt_sb + (int16_t)WOORT_BYTECODE(BC16, c);
+            break;
+        }
+        /* LDIDSTBOXI：读取结构体字段，装箱为整数动态值后写入 [SB + c8] */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_SLOT, 1):
+        {
+            const size_t index = WOORT_BYTECODE(A8, c);
+            woort_GCStruct* const gcstruct =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_struct;
+
+            assert(index < gcstruct->m_size);
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = woort_DynBox_box_int(
+                gcstruct->m_datas[index].m_integer);
+            break;
+        }
+        /* LDIDSTBOXR */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_SLOT, 2):
+        {
+            const size_t index = WOORT_BYTECODE(A8, c);
+            woort_GCStruct* const gcstruct =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_struct;
+
+            assert(index < gcstruct->m_size);
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = woort_DynBox_box_real(
+                gcstruct->m_datas[index].m_real);
+            break;
+        }
+        /* LDIDSTBOXB */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_SLOT, 3):
+        {
+            const size_t index = WOORT_BYTECODE(A8, c);
+            woort_GCStruct* const gcstruct =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_struct;
+
+            assert(index < gcstruct->m_size);
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = woort_DynBox_box_bool(
+                gcstruct->m_datas[index].m_integer);
+            break;
+        }
         /* JMPF */
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_JFWD):
         {

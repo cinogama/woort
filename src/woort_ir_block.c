@@ -10,6 +10,7 @@
 
 #include "woort_ir_block.h"
 #include "woort_ir_function.h"
+#include "woort_ir_window.h"
 #include "woort_ir_srcloc.h"
 
 #include <string.h>
@@ -190,6 +191,50 @@ void _woort_IRBlock_deinit(woort_IRBlock* block)
         _EMIT_END();                                                            \
     }
 
+/* 直接调用（V2）：实参取自槽位窗口 */
+#define _DEFINE_CALLN2(name, kind)                                              \
+    WOORT_NODISCARD bool name(                                                  \
+        woort_IRFunction* f, woort_IRConstantIndex target,                      \
+        woort_IRWindow* args,                                                   \
+        /* OPTIONAL */ woort_IRValue* dst)                                      \
+    {                                                                           \
+        if (!_woort_IRWindow_consume(f, args))                                  \
+            return false;                                                       \
+        _EMIT_BEGIN(f, kind);                                                   \
+        op_->m_dst = dst;                                                       \
+        op_->m_calln_target = target;                                           \
+        op_->m_window = args;                                                   \
+        _EMIT_END();                                                            \
+    }
+
+/* 容器创建（V2）：元素取自槽位窗口 */
+#define _DEFINE_MKCONT2(name, kind)                                             \
+    WOORT_NODISCARD bool name(                                                  \
+        woort_IRFunction* f, woort_IRValue* dst, woort_IRWindow* elems)         \
+    {                                                                           \
+        if (!_woort_IRWindow_consume(f, elems))                                 \
+            return false;                                                       \
+        _EMIT_BEGIN(f, kind);                                                   \
+        op_->m_dst = dst;                                                       \
+        op_->m_window = elems;                                                  \
+        _EMIT_END();                                                            \
+    }
+
+/* 结构体字段装箱加载：dst = Box(src[idx]) */
+#define _DEFINE_LDIDSTBOX(name, kind)                                           \
+    WOORT_NODISCARD bool name(                                                  \
+        woort_IRFunction* f, woort_IRValue* dst,                                \
+        const woort_IRValue* src, uint32_t idx)                                 \
+    {                                                                           \
+        if (idx > UINT8_MAX)                                                    \
+            return false;                                                       \
+        _EMIT_BEGIN(f, kind);                                                   \
+        op_->m_dst = dst;                                                       \
+        op_->m_src[0] = src;                                                    \
+        op_->m_index = idx;                                                     \
+        _EMIT_END();                                                            \
+    }
+
 /* ========== 数据移动 ========== */
 
 WOORT_NODISCARD bool woort_IR_NOP(woort_IRFunction* f)
@@ -329,6 +374,25 @@ WOORT_NODISCARD bool woort_IR_CALL(
     _EMIT_END();
 }
 
+/* 实参取自槽位窗口（V2） */
+_DEFINE_CALLN2(woort_IR_CALLNWO2,  WOORT_IROP_KIND_CALLNWO)
+_DEFINE_CALLN2(woort_IR_CALLNFP2,  WOORT_IROP_KIND_CALLNFP)
+_DEFINE_CALLN2(woort_IR_CALLNJIT2, WOORT_IROP_KIND_CALLNJIT)
+
+WOORT_NODISCARD bool woort_IR_CALL2(
+    woort_IRFunction* f, const woort_IRValue* func_val,
+    woort_IRWindow* args, /* OPTIONAL */ woort_IRValue* dst)
+{
+    if (!_woort_IRWindow_consume(f, args))
+        return false;
+
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_CALL);
+    op_->m_dst = dst;
+    op_->m_src[0] = func_val;
+    op_->m_window = args;
+    _EMIT_END();
+}
+
 /* ========== 闭包/容器 ========== */
 
 WOORT_NODISCARD bool woort_IR_MKCLOSURE(
@@ -350,6 +414,41 @@ WOORT_NODISCARD bool woort_IR_MKCLOSURE(
 _DEFINE_MKCONT(woort_IR_MKVEC,    WOORT_IROP_KIND_MKVEC)
 _DEFINE_MKCONT(woort_IR_MKMAP,    WOORT_IROP_KIND_MKMAP)
 _DEFINE_MKCONT(woort_IR_MKSTRUCT, WOORT_IROP_KIND_MKSTRUCT)
+
+/* 捕获 / 元素取自槽位窗口（V2） */
+WOORT_NODISCARD bool woort_IR_MKCLOSURE2(
+    woort_IRFunction* f, woort_IRValue* dst,
+    woort_IRWindow* captures, woort_IRConstantIndex func_idx)
+{
+    if (!_woort_IRWindow_consume(f, captures))
+        return false;
+
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_MKCLOSURE);
+    op_->m_dst = dst;
+    op_->m_calln_target = func_idx;
+    op_->m_window = captures;
+    _EMIT_END();
+}
+
+_DEFINE_MKCONT2(woort_IR_MKVEC2,    WOORT_IROP_KIND_MKVEC)
+
+WOORT_NODISCARD bool woort_IR_MKMAP2(
+    woort_IRFunction* f, woort_IRValue* dst, woort_IRWindow* kvs)
+{
+    /* 槽位按「键、值」成对，数量必须是偶数 */
+    if (kvs == NULL || (kvs->m_count & 1u) != 0)
+        return false;
+
+    if (!_woort_IRWindow_consume(f, kvs))
+        return false;
+
+    _EMIT_BEGIN(f, WOORT_IROP_KIND_MKMAP);
+    op_->m_dst = dst;
+    op_->m_window = kvs;
+    _EMIT_END();
+}
+
+_DEFINE_MKCONT2(woort_IR_MKSTRUCT2, WOORT_IROP_KIND_MKSTRUCT)
 
 /* MKUNION: dst = new Union(union_id, src) */
 WOORT_NODISCARD bool woort_IR_MKUNION(
@@ -514,6 +613,11 @@ WOORT_NODISCARD bool woort_IR_LDIDSTRUCT(
     op_->m_index = idx;
     _EMIT_END();
 }
+
+/* LDIDSTBOX*: dst = Box(container.field[idx])，一条指令完成读取与装箱 */
+_DEFINE_LDIDSTBOX(woort_IR_LDIDSTBOXI, WOORT_IROP_KIND_LDIDSTBOXI)
+_DEFINE_LDIDSTBOX(woort_IR_LDIDSTBOXR, WOORT_IROP_KIND_LDIDSTBOXR)
+_DEFINE_LDIDSTBOX(woort_IR_LDIDSTBOXB, WOORT_IROP_KIND_LDIDSTBOXB)
 
 /* ========== 索引存储 ========== */
 
@@ -789,3 +893,6 @@ WOORT_NODISCARD bool woort_IR_panic(
 #undef _DEFINE_SDID_VREG
 #undef _DEFINE_PUSHID
 #undef _DEFINE_JCC_CMP
+#undef _DEFINE_CALLN2
+#undef _DEFINE_MKCONT2
+#undef _DEFINE_LDIDSTBOX

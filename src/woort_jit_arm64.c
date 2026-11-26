@@ -186,6 +186,10 @@ static const woort_OpcodeDispatchers _WOORT_JIT_BACKEND_CODE_DISPATCHERS_IMPL_AR
     .m_CHKDIVIR = woort_JIT_Backend_arm64_CHKDIVIR,
     .m_CHKDIVIRZ = woort_JIT_Backend_arm64_CHKDIVIRZ,
     .m_CHKDIVILR = woort_JIT_Backend_arm64_CHKDIVILR,
+    .m_SPSET = woort_JIT_Backend_arm64_SPSET,
+    .m_LDIDSTBOXI = woort_JIT_Backend_arm64_LDIDSTBOXI,
+    .m_LDIDSTBOXR = woort_JIT_Backend_arm64_LDIDSTBOXR,
+    .m_LDIDSTBOXB = woort_JIT_Backend_arm64_LDIDSTBOXB,
 };
 
 const woort_JIT_Backend WOORT_JIT_BACKEND_IMPL_ARM64 = {

@@ -403,6 +403,9 @@ typedef struct woort_IRValue woort_IRValue;
 /** @brief Opaque handle to an IR label (branch target). */
 typedef struct woort_IRLabel woort_IRLabel;
 
+/** @brief Opaque handle to an IR operand window (a group of slots consumed by one instruction). */
+typedef struct woort_IRWindow woort_IRWindow;
+
 /** @brief Opaque handle to a streaming file (virtual or disk). */
 typedef struct woort_VFile woort_VFile;
 
@@ -1630,6 +1633,143 @@ WOORT_NODISCARD WOORT_API bool woort_IR_MKUNION(
 
 /**@}*/
 
+/** @name Operand Windows (V2)
+ *
+ * A window is a fixed-size group of operand slots consumed by a single call or
+ * construction instruction. Slots are ordinary IR values: any instruction may write
+ * its result directly into a slot, so arguments and elements no longer go through
+ * PUSHCHK.
+ *
+ * The compiler reserves room for every window at function entry (one PUSHRCHK) and
+ * reads the slots with the non-popping instructions (MK*NP, RESULTNP). A window that
+ * sits right above the reserved sp needs no sp adjustment at all; the compiler only
+ * emits an SPSET where a window has to live elsewhere (a nested window that does not
+ * fit below slots which are already written).
+ *
+ * Rules checked by woort_IRCompiler_finish():
+ *  - Windows nest properly: when a window is consumed, it is the innermost window
+ *    that is still open.
+ *  - Every slot has at least one write, and a window is consumed exactly once.
+ *  - No window is still open at a return.
+ *  - A window consumer never appears between unbalanced stack operations
+ *    (PUSHCHK, UNPACK*, POP, ...), which keep their V1 behaviour.
+ *  - A window is consumed in the function it was opened in.
+ *
+ * While a window is open, only its own slots should be written. IR that breaks this
+ * rule, or a construction with more than 255 elements (more than what the
+ * non-popping instructions encode), is still accepted: every window of that
+ * function is then lowered with checked pushes and the popping instructions,
+ * exactly like V1.
+ *
+ * @{
+ */
+
+/**
+ * @brief Open a window of @p count operand slots.
+ *
+ * The window is open from this call until its consumer (one of the woort_IR_*2
+ * functions below) is emitted.
+ *
+ * @param f     The IR function. Must not be NULL.
+ * @param count The number of slots. Zero is allowed.
+ * @return The window, or NULL on out-of-memory or invalid arguments.
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_IRWindow* woort_IRFunction_new_window(
+    woort_IRFunction* f,
+    uint32_t count);
+
+/**
+ * @brief Get one slot of a window as a writable IR value.
+ * @param w     The window. Must not be NULL.
+ * @param index The slot index, in the order documented per consumer.
+ * @return The slot, or NULL if @p index is out of range.
+ */
+WOORT_NODISCARD WOORT_API /* OPTIONAL */ woort_IRValue* woort_IRWindow_slot(
+    woort_IRWindow* w,
+    uint32_t index);
+
+/**
+ * @brief Call a woolang function (NEAR) with arguments taken from a window.
+ *
+ * Slot i of @p args is argument i. Emits CALLNWO, then RESULTNP when @p dst is set.
+ *
+ * @param f      The IR function being compiled.
+ * @param target Constant pool index of the callee.
+ * @param args   The argument window. Must not be NULL (use a zero-slot window for no arguments).
+ * @param dst    Destination for the return value (may be NULL, or a slot of an enclosing window).
+ */
+WOORT_NODISCARD WOORT_API bool woort_IR_CALLNWO2(
+    woort_IRFunction* f,
+    woort_IRConstantIndex target,
+    woort_IRWindow* args,
+    /* OPTIONAL */ woort_IRValue* dst);
+
+/** @brief Call a native function with arguments taken from a window. See woort_IR_CALLNWO2. */
+WOORT_NODISCARD WOORT_API bool woort_IR_CALLNFP2(
+    woort_IRFunction* f,
+    woort_IRConstantIndex target,
+    woort_IRWindow* args,
+    /* OPTIONAL */ woort_IRValue* dst);
+
+/** @brief Call a JIT-compiled function with arguments taken from a window. See woort_IR_CALLNWO2. */
+WOORT_NODISCARD WOORT_API bool woort_IR_CALLNJIT2(
+    woort_IRFunction* f,
+    woort_IRConstantIndex target,
+    woort_IRWindow* args,
+    /* OPTIONAL */ woort_IRValue* dst);
+
+/** @brief Indirect call through a function value with arguments taken from a window. See woort_IR_CALLNWO2. */
+WOORT_NODISCARD WOORT_API bool woort_IR_CALL2(
+    woort_IRFunction* f,
+    const woort_IRValue* func_val,
+    woort_IRWindow* args,
+    /* OPTIONAL */ woort_IRValue* dst);
+
+/**
+ * @brief Create a vector with elements taken from a window: dst = new Vec(elems...).
+ * Slot i of @p elems is element i.
+ * @param elems The element window. Must not be NULL.
+ */
+WOORT_NODISCARD WOORT_API bool woort_IR_MKVEC2(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    woort_IRWindow* elems);
+
+/**
+ * @brief Create a map with key-value pairs taken from a window: dst = new Map(pairs...).
+ * Slot 2p of @p kvs is key p and slot 2p+1 is value p; the slot count must be even.
+ * @param kvs The key-value window. Must not be NULL.
+ */
+WOORT_NODISCARD WOORT_API bool woort_IR_MKMAP2(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    woort_IRWindow* kvs);
+
+/**
+ * @brief Create a struct with fields taken from a window: dst = new Struct(fields...).
+ * Slot i of @p fields is field i.
+ * @param fields The field window. Must not be NULL.
+ */
+WOORT_NODISCARD WOORT_API bool woort_IR_MKSTRUCT2(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    woort_IRWindow* fields);
+
+/**
+ * @brief Create a closure with captures taken from a window: dst = new Closure(func_idx, captures...).
+ * Slot i of @p captures is capture i, the value woort_IRFunction_get_captured(func, i) reads
+ * inside the enclosed function.
+ * @param captures The capture window. Must not be NULL.
+ * @param func_idx Constant pool index of the enclosed function.
+ */
+WOORT_NODISCARD WOORT_API bool woort_IR_MKCLOSURE2(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    woort_IRWindow* captures,
+    woort_IRConstantIndex func_idx);
+
+/**@}*/
+
 /** @name Dynamic Typing (Boxing / Unboxing) */
 /**@{*/
 
@@ -1996,6 +2136,31 @@ WOORT_NODISCARD WOORT_API bool woort_IR_LDIDVECX(
 
 /** @brief Load struct field by constant index: dst = container[idx]. */
 WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTRUCT(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* container,
+    uint32_t idx);
+
+/**
+ * @brief Load a struct field, box it as an integer dynamic value and store it: dst = Box(Int, container[idx]).
+ * Same as LDIDSTRUCT followed by BOXDYN, in one instruction.
+ * @param idx Field index, at most 255.
+ */
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTBOXI(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* container,
+    uint32_t idx);
+
+/** @brief Load a struct field, box it as a real dynamic value and store it. See woort_IR_LDIDSTBOXI. */
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTBOXR(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* container,
+    uint32_t idx);
+
+/** @brief Load a struct field, box it as a boolean dynamic value and store it. See woort_IR_LDIDSTBOXI. */
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTBOXB(
     woort_IRFunction* f,
     woort_IRValue* dst,
     const woort_IRValue* container,

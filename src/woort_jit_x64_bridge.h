@@ -202,6 +202,10 @@ extern "C" {
     void woort_JIT_Backend_x64_CHKDIVIR(void* emitter, woort_Opcode_Stack src);
     void woort_JIT_Backend_x64_CHKDIVIRZ(void* emitter, woort_Opcode_Stack src);
     void woort_JIT_Backend_x64_CHKDIVILR(void* emitter, woort_Opcode_Stack divisor, woort_Opcode_Stack dividend);
+    void woort_JIT_Backend_x64_SPSET(void* emitter, woort_Opcode_Stack off);
+    void woort_JIT_Backend_x64_LDIDSTBOXI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
+    void woort_JIT_Backend_x64_LDIDSTBOXR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
+    void woort_JIT_Backend_x64_LDIDSTBOXB(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
 
 #ifdef __cplusplus
 }

@@ -5580,6 +5580,191 @@ void woort_JIT_Backend_arm64_PUSHIDSTBOXB(void* emitter, woort_Opcode_Count idx,
     WOORT_JIT_CODE(sub(em->m_sp, em->m_sp, static_cast<int32_t>(sizeof(woort_Value))));
 }
 
+/* -------------------------------------------------------------------------- */
+/* SLOT：槽位窗口支持。LDIDSTBOX* 与 PUSHIDSTBOX* 的装箱相同，
+   区别是不做栈检查、不压栈，结果直接写入目标栈槽。 */
+
+void woort_JIT_Backend_arm64_SPSET(void* emitter, woort_Opcode_Stack off)
+{
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const int64_t byte_off = static_cast<int64_t>(off) * static_cast<int64_t>(sizeof(woort_Value));
+
+    /* ADD/SUB 立即数只有 12 位无符号，超出时经寄存器中转 */
+    if (byte_off >= 0 && byte_off <= 4095)
+        WOORT_JIT_CODE(add(em->m_sp, em->m_sb, Imm(static_cast<uint32_t>(byte_off))));
+    else if (byte_off < 0 && -byte_off <= 4095)
+        WOORT_JIT_CODE(sub(em->m_sp, em->m_sb, Imm(static_cast<uint32_t>(-byte_off))));
+    else
+    {
+        const Gp off_reg = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(off_reg, Imm(byte_off)));
+        WOORT_JIT_CODE(add(em->m_sp, em->m_sb, off_reg));
+    }
+}
+
+void woort_JIT_Backend_arm64_LDIDSTBOXI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp obj_ptr = em->load_stack_gp(obj);
+
+    const int32_t disp =
+        WOORT_GCSTRUCT_OFFSETOF_DATAS +
+        static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
+
+    const Gp addr = em->c->new_gp_ptr();
+    {
+        const Gp off = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(off, Imm(static_cast<int64_t>(disp))));
+        WOORT_JIT_CODE(add(addr, obj_ptr, off));
+    }
+
+    const Gp val = em->c->new_gp64();
+    WOORT_JIT_CODE(ldr(val, ptr(addr)));
+
+    const Gp boxed = em->c->new_gp64();
+    WOORT_JIT_CODE(lsl(boxed, val, 2));
+    WOORT_JIT_CODE(orr(boxed, boxed, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_INT))));
+
+    const Gp check = em->c->new_gp64();
+    WOORT_JIT_CODE(asr(check, boxed, 2));
+
+    const Label L_fit = em->c->new_label();
+    WOORT_JIT_CODE(cmp(check, val));
+    WOORT_JIT_CODE(b_eq(L_fit));
+
+    {
+        const Gp result = em->c->new_gp_ptr();
+        InvokeNode* invoke_node;
+        WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_JIT_box_int_ex,
+            FuncSignature::build<woort_BoxedValue, woort_Int>());
+
+        invoke_node->set_arg(0, val);
+        invoke_node->set_ret(0, result);
+
+        WOORT_JIT_CODE(mov(boxed, result));
+    }
+
+    WOORT_JIT_CODE(bind(L_fit));
+
+    em->store_stack(dst, boxed);
+}
+
+void woort_JIT_Backend_arm64_LDIDSTBOXR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp obj_ptr = em->load_stack_gp(obj);
+
+    const int32_t disp =
+        WOORT_GCSTRUCT_OFFSETOF_DATAS +
+        static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
+
+    const Gp addr = em->c->new_gp_ptr();
+    {
+        const Gp off = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(off, Imm(static_cast<int64_t>(disp))));
+        WOORT_JIT_CODE(add(addr, obj_ptr, off));
+    }
+
+    const Gp val = em->c->new_gp64();
+    WOORT_JIT_CODE(ldr(val, ptr(addr)));
+
+    const Vec xmm_val = em->c->new_vec_d();
+    WOORT_JIT_CODE(fmov(xmm_val, val));
+
+    const Gp bits = em->c->new_gp64();
+    WOORT_JIT_CODE(fmov(bits, xmm_val));
+
+    const Gp exp_b = em->c->new_gp64();
+    WOORT_JIT_CODE(lsr(exp_b, bits, 61));
+
+    const Gp exp_t = em->c->new_gp64();
+    WOORT_JIT_CODE(lsr(exp_t, exp_b, 1));
+    WOORT_JIT_CODE(eor(exp_b, exp_b, exp_t));
+
+    const Gp boxed = em->c->new_gp64();
+
+    const Label L_ex = em->c->new_label();
+    WOORT_JIT_CODE(tst(exp_b, Imm(1)));
+    WOORT_JIT_CODE(b_eq(L_ex));
+
+    {
+        const Gp sign = em->c->new_gp64();
+        const Gp sign_mask = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(sign_mask, Imm(static_cast<int64_t>(0x8000000000000000ULL))));
+        WOORT_JIT_CODE(mov(sign, bits));
+        WOORT_JIT_CODE(and_(sign, sign, sign_mask));
+
+        const Gp low62 = em->c->new_gp64();
+        const Gp low62_mask = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(low62_mask, Imm(static_cast<int64_t>(0x3FFFFFFFFFFFFFFFULL))));
+        WOORT_JIT_CODE(mov(low62, bits));
+        WOORT_JIT_CODE(and_(low62, low62, low62_mask));
+        WOORT_JIT_CODE(lsl(low62, low62, 1));
+
+        WOORT_JIT_CODE(mov(boxed, sign));
+        WOORT_JIT_CODE(orr(boxed, boxed, low62));
+        WOORT_JIT_CODE(orr(boxed, boxed, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_REAL))));
+    }
+
+    const Label L_done = em->c->new_label();
+    WOORT_JIT_CODE(b(L_done));
+
+    WOORT_JIT_CODE(bind(L_ex));
+    {
+        const Gp result = em->c->new_gp_ptr();
+        InvokeNode* invoke_node;
+        WOORT_JIT_INVOKE_ADDR(Out(invoke_node), woort_JIT_box_real_ex,
+            FuncSignature::build<woort_BoxedValue, woort_Real>());
+
+        invoke_node->set_arg(0, xmm_val);
+        invoke_node->set_ret(0, result);
+
+        WOORT_JIT_CODE(mov(boxed, result));
+    }
+
+    WOORT_JIT_CODE(bind(L_done));
+
+    em->store_stack(dst, boxed);
+}
+
+void woort_JIT_Backend_arm64_LDIDSTBOXB(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{
+    woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);
+
+    static_assert(sizeof(woort_Value) == 8, "");
+
+    const Gp obj_ptr = em->load_stack_gp(obj);
+
+    const int32_t disp =
+        WOORT_GCSTRUCT_OFFSETOF_DATAS +
+        static_cast<int32_t>(idx) * static_cast<int32_t>(sizeof(woort_Value));
+
+    const Gp addr = em->c->new_gp_ptr();
+    {
+        const Gp off = em->c->new_gp64();
+        WOORT_JIT_CODE(mov(off, Imm(static_cast<int64_t>(disp))));
+        WOORT_JIT_CODE(add(addr, obj_ptr, off));
+    }
+
+    const Gp val = em->c->new_gp64();
+    WOORT_JIT_CODE(ldr(val, ptr(addr)));
+
+    const Gp boxed = em->c->new_gp64();
+    WOORT_JIT_CODE(lsl(boxed, val, 3));
+    WOORT_JIT_CODE(orr(boxed, boxed, Imm(static_cast<int32_t>(WOORT_BOX_VALUE_TYPE_BOOL))));
+
+    em->store_stack(dst, boxed);
+}
+
 void woort_JIT_Backend_arm64_PACKARG(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count skip)
 {
     woort_JIT_Asmjit_arm64_emitter* const em = static_cast<woort_JIT_Asmjit_arm64_emitter*>(emitter);

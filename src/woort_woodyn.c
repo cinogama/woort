@@ -108,6 +108,16 @@
     WOODYN_WRAP(woort_IR_MKMAP)                                             \
     WOODYN_WRAP(woort_IR_MKSTRUCT)                                          \
     WOODYN_WRAP(woort_IR_MKUNION)                                           \
+    WOODYN_WRAP(woort_IRFunction_new_window)                                \
+    WOODYN_WRAP(woort_IRWindow_slot)                                        \
+    WOODYN_WRAP(woort_IR_CALLNWO2)                                          \
+    WOODYN_WRAP(woort_IR_CALLNFP2)                                          \
+    WOODYN_WRAP(woort_IR_CALLNJIT2)                                         \
+    WOODYN_WRAP(woort_IR_CALL2)                                             \
+    WOODYN_WRAP(woort_IR_MKVEC2)                                            \
+    WOODYN_WRAP(woort_IR_MKMAP2)                                            \
+    WOODYN_WRAP(woort_IR_MKSTRUCT2)                                         \
+    WOODYN_WRAP(woort_IR_MKCLOSURE2)                                        \
     WOODYN_WRAP(woort_IR_BOXDYN)                                            \
     WOODYN_WRAP(woort_IR_UNBOXDYN)                                          \
     WOODYN_WRAP(woort_IR_CHECKDYN)                                          \
@@ -157,6 +167,9 @@
     WOODYN_WRAP(woort_IR_LDIDVEC)                                           \
     WOODYN_WRAP(woort_IR_LDIDVECX)                                          \
     WOODYN_WRAP(woort_IR_LDIDSTRUCT)                                        \
+    WOODYN_WRAP(woort_IR_LDIDSTBOXI)                                        \
+    WOODYN_WRAP(woort_IR_LDIDSTBOXR)                                        \
+    WOODYN_WRAP(woort_IR_LDIDSTBOXB)                                        \
     WOODYN_WRAP(woort_IR_LDIDSTRING)                                        \
     WOODYN_WRAP(woort_IR_LDIDDICTI)                                         \
     WOODYN_WRAP(woort_IR_LDIDDICTR)                                         \

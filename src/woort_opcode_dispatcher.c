@@ -261,6 +261,33 @@ _label_retry_entry:
         }
         return c + 1;
 
+    case WOORT_OPCODE_SLOT:
+        switch (m2)
+        {
+        case 0: /* SPSET */
+            DISPATCH(m_SPSET, (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc));
+            return c + 1;
+        case 1: /* LDIDSTBOXI */
+            DISPATCH(m_LDIDSTBOXI,
+                (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc),
+                (woort_Opcode_Count)(uint8_t)WOORT_BYTECODE(A8, bc),
+                (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc));
+            return c + 1;
+        case 2: /* LDIDSTBOXR */
+            DISPATCH(m_LDIDSTBOXR,
+                (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc),
+                (woort_Opcode_Count)(uint8_t)WOORT_BYTECODE(A8, bc),
+                (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc));
+            return c + 1;
+        case 3: /* LDIDSTBOXB */
+            DISPATCH(m_LDIDSTBOXB,
+                (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc),
+                (woort_Opcode_Count)(uint8_t)WOORT_BYTECODE(A8, bc),
+                (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc));
+            return c + 1;
+        }
+        return c + 1;
+
     case WOORT_OPCODE_JFWD:
         DISPATCH(m_JFWD, (woort_Opcode_CodeAbs)WOORT_BYTECODE(MABC26, bc));
         return c + 1;

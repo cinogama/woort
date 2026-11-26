@@ -518,6 +518,18 @@ static void _woort_dis_PUSHIDSTBOXR(void* userdata, woort_Opcode_Count idx, woor
 static void _woort_dis_PUSHIDSTBOXB(void* userdata, woort_Opcode_Count idx, woort_Opcode_Stack obj)
 { CTX->callback("PUSHIDSTBOXB [SB %+d].%u\n", obj, idx); CTX->printed = 1; }
 
+static void _woort_dis_SPSET(void* userdata, woort_Opcode_Stack off)
+{ CTX->callback("SPSET       SP = SB %+d\n", off); CTX->printed = 1; }
+
+static void _woort_dis_LDIDSTBOXI(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{ CTX->callback("LDIDSTBOXI [SB %+d].%u -> [SB %+d]\n", obj, idx, dst); CTX->printed = 1; }
+
+static void _woort_dis_LDIDSTBOXR(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{ CTX->callback("LDIDSTBOXR [SB %+d].%u -> [SB %+d]\n", obj, idx, dst); CTX->printed = 1; }
+
+static void _woort_dis_LDIDSTBOXB(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{ CTX->callback("LDIDSTBOXB [SB %+d].%u -> [SB %+d]\n", obj, idx, dst); CTX->printed = 1; }
+
 static void _woort_dis_PACKARG(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count skip)
 { CTX->callback("PACKARG     %u -> [SB %+d]\n", skip, dst); CTX->printed = 1; }
 
@@ -737,6 +749,10 @@ static const woort_OpcodeDispatchers g_disasm_dispatchers = {
     .m_CHKDIVIR = _woort_dis_CHKDIVIR,
     .m_CHKDIVIRZ = _woort_dis_CHKDIVIRZ,
     .m_CHKDIVILR = _woort_dis_CHKDIVILR,
+    .m_SPSET = _woort_dis_SPSET,
+    .m_LDIDSTBOXI = _woort_dis_LDIDSTBOXI,
+    .m_LDIDSTBOXR = _woort_dis_LDIDSTBOXR,
+    .m_LDIDSTBOXB = _woort_dis_LDIDSTBOXB,
 };
 
 WOORT_NODISCARD const woort_Bytecode* woort_disassembly(
