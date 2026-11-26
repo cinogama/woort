@@ -166,14 +166,20 @@
     woort_OpCodeFormal_cons(OP6_MABC26, WOORT_OPCODE_CALLNJIT, u26)
 
 /*
- * CALL - 间接调用
- * CALLS (mode=0): 调用 [SB + bc16]
- * CALLC (mode=1): 调用 G[abc24]
+ * CALL - 间接调用与结果获取
+ * CALLS   (mode=0): 调用 [SB + bc16]
+ * CALLC   (mode=1): 调用 G[abc24]
+ * RESULT  (mode=2): 调用结果 sp[0] -> [SB + bc16]，并弹出 n8 个栈槽（已消费的实参）
+ * RESULTNP (mode=3): 调用结果 sp[0] -> [SB + bc16]，不弹栈，即弹栈数为 0 的 RESULT（派发到同一分支）
  */
 #define woort_OpCode_CALLS(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CALL, 0, bc16)
 #define woort_OpCode_CALLC(abc24) \
     woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_CALL, 1, abc24)
+#define woort_OpCode_RESULT(n8, bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_BC16, WOORT_OPCODE_CALL, 2, n8, bc16)
+#define woort_OpCode_RESULTNP(bc16) \
+    woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_CALL, 3, bc16)
 
 /*
  * RET - 返回
@@ -190,13 +196,6 @@
     woort_OpCodeFormal_cons(OP6_M2_ABC24, WOORT_OPCODE_RET, 2, abc24)
 #define woort_OpCode_POPRS(bc16) \
     woort_OpCodeFormal_cons(OP6_M2_BC16, WOORT_OPCODE_RET, 3, bc16)
-
-/*
- * RESULT - 获取调用结果
- * RESULT [SB + bc16], POP n10
- */
-#define woort_OpCode_RESULT(n10, bc16) \
-    woort_OpCodeFormal_cons(OP6_MA10_BC16, WOORT_OPCODE_RESULT, n10, bc16)
 
 /*
  * JFWD/JBCK - 无条件跳转

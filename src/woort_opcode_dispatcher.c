@@ -231,6 +231,15 @@ _label_retry_entry:
         case 1: /* CALLC */
             DISPATCH(m_CALLC, (woort_Opcode_Global)WOORT_BYTECODE(ABC24, bc));
             return c + 1;
+        case 2: /* RESULT */
+            DISPATCH(m_RESULT,
+                (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc),
+                (woort_Opcode_Count)(uint8_t)WOORT_BYTECODE(A8, bc));
+            return c + 1;
+        case 3: /* RESULTNP -> RESULT，弹栈数为 0 */
+            DISPATCH(m_RESULT,
+                (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc), 0);
+            return c + 1;
         }
         return c + 1;
 
@@ -250,12 +259,6 @@ _label_retry_entry:
             DISPATCH(m_POPRS, (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc));
             return c + 1;
         }
-        return c + 1;
-
-    case WOORT_OPCODE_RESULT:
-        DISPATCH(m_RESULT,
-            (woort_Opcode_Stack)(int16_t)WOORT_BYTECODE(BC16, bc),
-            (woort_Opcode_Count)WOORT_BYTECODE(MA10, bc));
         return c + 1;
 
     case WOORT_OPCODE_JFWD:

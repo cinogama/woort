@@ -1002,6 +1002,12 @@ WOORT_NODISCARD static bool _woort_WAIPO_get_next_ip(
     }
     case WOORT_OPCODE_CALL:
     {
+        if (m2 >= 2)
+        {
+            /* Is RESULT / RESULTNP, not call. */
+            goto label_fall_to_default;
+        }
+
         if (need_step_in)
         {
             const woort_GCClosure* target;

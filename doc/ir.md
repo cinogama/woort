@@ -424,7 +424,7 @@ woort_IRCompiler_add_function(&irc, /*param_count=*/1, /*captured_count=*/0, &f)
 * `fetch_const` 返回的 const IRValue* 代表不可变常量，**不应**作为指令的 `dst`。可变变量用 `new_vreg` 创建，通过 `woort_IR_MOV` 从常量初始化。
 * 同一 `const_index` 多次调用 `fetch_const` 返回相同指针（天然去重）。
 * 常量值的加载时机由框架自动决定：单次用于 `PUSHCHK`/`RET`/`CALL` 时直接特化指令；多次使用时在最优位置放置 `LOAD`。
-* `CALLNWO/CALLNFP/CALLNJIT/CALL` 的 `argc` 表示调用前已压入栈的实参数量，用于生成 `RESULT`/`POPR` 清理。
+* `CALLNWO/CALLNFP/CALLNJIT/CALL` 的 `argc` 表示调用前已压入栈的实参数量：`argc` 为 1 到 255 时生成 `RESULT`（取返回值并弹出实参），为 0 时生成 `RESULTNP`（只取返回值），超过 255 时生成 `RESULTNP` 加一条 `POPR`。
 * 如果调用的 `dst` 为 `NULL`，则不生成 `RESULT`，直接 `POPR`。
 * 所有指令发射函数返回 `bool`，`false` 表示 OOM。
 * `finish()` 后，每个函数的 `m_code_offset` / `m_code_length` 可用，用于定位它在 `CodeEnv->m_code_begin` 中的位置。

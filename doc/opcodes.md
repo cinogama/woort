@@ -234,16 +234,20 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 
 > **CALLNJIT 语义变更**：自 v1.0.6.x 起，`CALLNJIT` 的操作数不再编码常量池索引，而是 `CodeEnv::m_jit_functions` 数组的下标。这使 JIT 后端可以提前分配函数槽并嵌入稳定地址。`CALLNWO` 在 JIT 编译时被改写为 `CALLNJIT`，反汇编输出 `JIT[%u]` 而非 `G[%u]`。
 
-### 6.2 间接调用（CALL）
+### 6.2 间接调用与结果获取（CALL）
 
-通过栈或常量区中持有的函数值（脚本/JIT/原生/闭包）调用。
+`CALLS`/`CALLC` 通过栈或常量区中持有的函数值（脚本/JIT/原生/闭包）调用。调用返回后返回值在栈顶（`sp[0]`），由同族的 `RESULT`/`RESULTNP` 取走。
 
-| 变体 | Mode | 操作数 | 说明 |
-|------|------|--------|------|
-| `CALLS` | 0 | R_ONLY S16 | 从栈偏移调用 |
-| `CALLC` | 1 | R_ONLY C24 | 从常量区调用 |
-| `<保留>` | 2 | — | — |
-| `<保留>` | 3 | — | — |
+| 变体 | Mode | 格式 | 操作数 | 说明 |
+|------|------|------|--------|------|
+| `CALLS` | 0 | `OP6_M2_BC16` | R_ONLY S16 | 从栈偏移调用 |
+| `CALLC` | 1 | `OP6_M2_ABC24` | R_ONLY C24 | 从常量区调用 |
+| `RESULT` | 2 | `OP6_M2_A8_BC16` | N8, W_ONLY S16 | 将栈顶值复制到 `[SB+s16]`，并弹出 N 个值（已消费的实参） |
+| `RESULTNP` | 3 | `OP6_M2_BC16` | W_ONLY S16 | 将栈顶值复制到 `[SB+s16]`，不弹栈 |
+
+> `RESULTNP` 即弹栈数为 0 的 `RESULT`，两者派发到同一个处理分支，反汇编统一输出 `RESULT`（`RESULTNP` 显示为 `POP 0`）。
+>
+> 编译器的发射规则：实参数为 1 到 255 时发 `RESULT`（计数只有 8 位）；没有实参时发 `RESULTNP`；更多时发 `RESULTNP` 加一条 `POPR`。
 
 ---
 
@@ -262,11 +266,9 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 
 > 此变体借放在 RET 指令组中，但**不是**返回指令。它从栈偏移读取一个整数值作为数量 N，弹出 N 个值。用于变长参数处理等「弹栈数量运行时才确定」的场景。
 
-### 7.3 结果处理（RESULT）
+### 7.3 结果获取
 
-| 指令 | 格式 | 操作数 | 说明 |
-|------|------|--------|------|
-| `RESULT` | `OP6_MA10_BC16` | N10, W_ONLY S16 | 将栈顶值复制到 `[SB+s16]` 并弹出 N 个值 |
+取调用结果的 `RESULT`/`RESULTNP` 属于 `CALL` 指令族，见 §6.2。
 
 ---
 
@@ -701,8 +703,8 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 栈操作（PUSHCHK/POP） | 2 | 8 |
 | 整数除法检查（CHKDIVI） | 1 | 4 |
 | 类型转换（CASTI/CASTR/CASTX） | 3 | 12 |
-| 函数调用（CALLN*/CALL） | 4 | 6 |
-| 返回与结果（RET/RESULT） | 2 | 4 |
+| 函数调用与结果获取（CALLN*/CALL） | 4 | 8 |
+| 返回（RET）与保留位（RESERVED_0） | 2 | 4 |
 | 跳转指令（JFWD/JBCK/J*CND/J*CMP） | 6 | 20 |
 | 容器创建（CONS/CONSEX/CONSNP/MKCLOSURE） | 4 | 13 |
 | 动态类型（DYN） | 1 | 4 |
@@ -721,4 +723,4 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 陷阱与 Panic（TRAP） | 1 | 3 |
 | **总计** | **65 个枚举值**（64 条主指令 + `count`） | — |
 
-> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。64 个编码已全部占用，且全部可用（原保留的 `RESERVED_0` 已由 `CONSNP` 接替）；`WOORT_OPCODE_COUNT` 是哨兵，不占编码。
+> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。64 个编码已全部占用：63 条可用主指令 + 1 条保留（`WOORT_OPCODE_RESERVED_0`，即原独立指令 `RESULT` 并入 `CALL` 族（mode 2）后空出的编码，按未知指令处理——解释器 panic「Bad command」，反汇编输出 `UNKNOWN_OPCODE(17)`，JIT 后端无处理器、不发射代码）；`WOORT_OPCODE_COUNT` 是哨兵，不占编码。

@@ -689,17 +689,23 @@ _handle_call_result:
         if (op->m_dst != NULL)
         {
             const int16_t w16 = _get_store_s16(op->m_dst, -128);
-            if (op->m_argument_count <= WOORT_UINT10_MAX_VAL)
+            if (op->m_argument_count != 0
+                && op->m_argument_count <= WOORT_UINT8_MAX_VAL)
             {
                 if (!_emit_bc(blk, woort_OpCode_RESULT(op->m_argument_count, w16)))
                     return false;
             }
             else
             {
+                /*
+                 * 没有实参要弹，或超出 RESULT 的 8 位计数：只取结果（RESULTNP）；
+                 * 后者再用 POPR 弹出实参。
+                 */
                 assert(op->m_argument_count <= WOORT_UINT24_MAX_VAL);
-                if (!_emit_bc(blk, woort_OpCode_RESULT(0, w16)))
+                if (!_emit_bc(blk, woort_OpCode_RESULTNP(w16)))
                     return false;
-                if (!_emit_bc(blk, woort_OpCode_POPR(op->m_argument_count)))
+                if (op->m_argument_count != 0
+                    && !_emit_bc(blk, woort_OpCode_POPR(op->m_argument_count)))
                     return false;
             }
             return _apply_store(blk, op->m_dst, w16);
@@ -738,17 +744,23 @@ _handle_call_result:
         if (op->m_dst != NULL)
         {
             const int16_t w16 = _get_store_s16(op->m_dst, -128);
-            if (op->m_call_argument_count <= WOORT_UINT10_MAX_VAL)
+            if (op->m_call_argument_count != 0
+                && op->m_call_argument_count <= WOORT_UINT8_MAX_VAL)
             {
                 if (!_emit_bc(blk, woort_OpCode_RESULT(op->m_call_argument_count, w16)))
                     return false;
             }
             else
             {
+                /*
+                 * 没有实参要弹，或超出 RESULT 的 8 位计数：只取结果（RESULTNP）；
+                 * 后者再用 POPR 弹出实参。
+                 */
                 assert(op->m_call_argument_count <= WOORT_UINT24_MAX_VAL);
-                if (!_emit_bc(blk, woort_OpCode_RESULT(0, w16)))
+                if (!_emit_bc(blk, woort_OpCode_RESULTNP(w16)))
                     return false;
-                if (!_emit_bc(blk, woort_OpCode_POPR(op->m_call_argument_count)))
+                if (op->m_call_argument_count != 0
+                    && !_emit_bc(blk, woort_OpCode_POPR(op->m_call_argument_count)))
                     return false;
             }
             return _apply_store(blk, op->m_dst, w16);

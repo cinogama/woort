@@ -1162,6 +1162,23 @@ _label_continue_execution:
             /* Stack overflow. */
             WOORT_VM_THROW(stack_overflow);
         }
+        /* RESULT：取调用结果并弹出 n8 个已消费的栈槽 */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CALL, 2):
+        {
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = rt_sp[0];
+            rt_sp += WOORT_BYTECODE(A8, c);
+
+            assert(rt_sp <= rt_sb);
+
+            break;
+        }
+        /* RESULTNP：只取调用结果，不弹栈 */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_CALL, 3):
+        {
+            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = rt_sp[0];
+
+            break;
+        }
         /* RET */
         case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_RET, 0):
         {
@@ -1265,16 +1282,6 @@ _label_continue_execution:
                 (size_t)rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)].m_integer;
 
             assert(rt_sp <= rt_sb);
-            break;
-        }
-        /* RESULT */
-        case WOORT_VM_CASE_OP6(WOORT_OPCODE_RESULT):
-        {
-            rt_sb[(int16_t)WOORT_BYTECODE(BC16, c)] = rt_sp[0];
-            rt_sp += WOORT_BYTECODE(MA10, c);
-
-            assert(rt_sp <= rt_sb);
-
             break;
         }
         /* JMPF */
