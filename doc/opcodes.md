@@ -557,6 +557,19 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | `LDIDDICTEX` (mode 0–3) | `LDIDDICTIEXT`、`LDIDDICTREXT`、`LDIDDICTBEXT`、`LDIDDICTXEXT` |
 | `LDIDDICTEXX` (mode 0–3) | `LDIDDICTIXEXT`、`LDIDDICTRXEXT`、`LDIDDICTBXEXT`、`LDIDDICTXXEXT` |
 
+### 16.6 结构体索引装箱（LDIDSTBOX）
+
+读取结构体的指定字段，按 int / real / bool 的 DynBox 格式装箱后**直接写入栈槽，不压栈**（`sp` 不变）。操作数布局与 `LDIDSTRUCT` 相同，装箱方式与 `PUSHIDSTBOXI/R/B`（§19）相同，相当于把 `LDIDSTRUCT` + `BOXDYN` 合成一条指令。
+
+| 变体 | Mode | 格式 | 操作数 | 说明 |
+|------|------|------|--------|------|
+| `LDIDSTBOXI` | 0 | `OP6_M2_A8_B8_C8` | N8(字段), R S8(结构体) → W S8 | 装箱为整数：`[SB+c8] = box_int([SB+b8].n8)` |
+| `LDIDSTBOXR` | 1 | `OP6_M2_A8_B8_C8` | N8(字段), R S8(结构体) → W S8 | 装箱为实数 |
+| `LDIDSTBOXB` | 2 | `OP6_M2_A8_B8_C8` | N8(字段), R S8(结构体) → W S8 | 装箱为布尔 |
+| `<保留>` | 3 | — | — | — |
+
+> 两个栈偏移只有 8 位，超出时 IR 编译器自动经临时槽中转（`MOVLD` → `LDIDSTBOX*` → `MOVST`）。字段下标同样只有 8 位，更大的结构体仍用 `LDIDSTRUCT` + `BOXDYN`。mode 3 留空，按未知指令处理。
+
 ---
 
 ## 17. 索引存储
@@ -641,6 +654,8 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | `PUSHIDSTBOXR` | 2 | N8(字段), R_ONLY S16(结构体) | 索引字段并装箱为实数压栈 |
 | `PUSHIDSTBOXB` | 3 | N8(字段), R_ONLY S16(结构体) | 索引字段并装箱为布尔压栈 |
 
+> 装箱结果写入栈槽而不压栈的版本是 `LDIDSTBOXI/R/B`（§16.6）。
+
 ---
 
 ## 20. 变长参数收集（PACKARG）
@@ -704,7 +719,7 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 整数除法检查（CHKDIVI） | 1 | 4 |
 | 类型转换（CASTI/CASTR/CASTX） | 3 | 12 |
 | 函数调用与结果获取（CALLN*/CALL） | 4 | 8 |
-| 返回（RET）与保留位（RESERVED_0） | 2 | 4 |
+| 返回（RET） | 1 | 4 |
 | 跳转指令（JFWD/JBCK/J*CND/J*CMP） | 6 | 20 |
 | 容器创建（CONS/CONSEX/CONSNP/MKCLOSURE） | 4 | 13 |
 | 动态类型（DYN） | 1 | 4 |
@@ -713,7 +728,7 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 字符串操作（OPSALGS/OPSREN） | 2 | 7 |
 | 逻辑运算（OPLAONI） | 1 | 3 |
 | 复合赋值（OPCIASMD/OPCRASMD/OPCSAIOO/OPCLAON） | 4 | 15 |
-| 索引加载（LDID 系列） | 6 | 24 |
+| 索引加载（LDID/LDIDSTBOX） | 7 | 27 |
 | 索引存储（STID 系列） | 11 | 45 |
 | 容器解包（UNPACK） | 1 | 4 |
 | 结构体索引装箱（PUSHIDSTBOX） | 1 | 4 |
@@ -723,4 +738,4 @@ woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_OPIASMD, 0, -4, -3, -4) /*
 | 陷阱与 Panic（TRAP） | 1 | 3 |
 | **总计** | **65 个枚举值**（64 条主指令 + `count`） | — |
 
-> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。64 个编码已全部占用：63 条可用主指令 + 1 条保留（`WOORT_OPCODE_RESERVED_0`，即原独立指令 `RESULT` 并入 `CALL` 族（mode 2）后空出的编码，按未知指令处理——解释器 panic「Bad command」，反汇编输出 `UNKNOWN_OPCODE(17)`，JIT 后端无处理器、不发射代码）；`WOORT_OPCODE_COUNT` 是哨兵，不占编码。
+> 主指令受 6 位编码约束，上限 64 条（`_Static_assert(WOORT_OPCODE_COUNT <= 64, "")`，见 `src/woort_vm.c`）。64 个编码已全部占用，且都是可用主指令：最后一个编码（17，原独立指令 `RESULT` 并入 `CALL` 族（mode 2）后空出，曾作为 `WOORT_OPCODE_RESERVED_0`）由 `LDIDSTBOX` 占用，其 mode 3 留空，按未知指令处理——解释器 panic「Bad command」，反汇编输出 `UNKNOWN_OPCODE(17)`，JIT 后端无处理器、不发射代码；`WOORT_OPCODE_COUNT` 是哨兵，不占编码。

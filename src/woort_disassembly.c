@@ -359,6 +359,15 @@ static void _woort_dis_LDIDSTRUCT(void* userdata, woort_Opcode_Stack dst, woort_
 static void _woort_dis_LDIDSTRING(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack str, woort_Opcode_Stack idx)
 { CTX->callback("LDIDSTRING  [[SB %+d].[SB %+d]] -> [SB %+d]\n", str, idx, dst); CTX->printed = 1; }
 
+static void _woort_dis_LDIDSTBOXI(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{ CTX->callback("LDIDSTBOXI [SB %+d].%u -> [SB %+d]\n", obj, idx, dst); CTX->printed = 1; }
+
+static void _woort_dis_LDIDSTBOXR(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{ CTX->callback("LDIDSTBOXR [SB %+d].%u -> [SB %+d]\n", obj, idx, dst); CTX->printed = 1; }
+
+static void _woort_dis_LDIDSTBOXB(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj)
+{ CTX->callback("LDIDSTBOXB [SB %+d].%u -> [SB %+d]\n", obj, idx, dst); CTX->printed = 1; }
+
 static void _woort_dis_LDIDDICTI(void* userdata, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx)
 { CTX->callback("LDIDDICTI  [SB %+d].[SB %+d] -> [SB %+d]\n", map, idx, dst); CTX->printed = 1; }
 
@@ -672,6 +681,9 @@ static const woort_OpcodeDispatchers g_disasm_dispatchers = {
     .m_LDIDVECX = _woort_dis_LDIDVECX,
     .m_LDIDSTRUCT = _woort_dis_LDIDSTRUCT,
     .m_LDIDSTRING = _woort_dis_LDIDSTRING,
+    .m_LDIDSTBOXI = _woort_dis_LDIDSTBOXI,
+    .m_LDIDSTBOXR = _woort_dis_LDIDSTBOXR,
+    .m_LDIDSTBOXB = _woort_dis_LDIDSTBOXB,
     .m_LDIDDICTI = _woort_dis_LDIDDICTI,
     .m_LDIDDICTR = _woort_dis_LDIDDICTR,
     .m_LDIDDICTB = _woort_dis_LDIDDICTB,

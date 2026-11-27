@@ -157,6 +157,9 @@
     WOODYN_WRAP(woort_IR_LDIDVEC)                                           \
     WOODYN_WRAP(woort_IR_LDIDVECX)                                          \
     WOODYN_WRAP(woort_IR_LDIDSTRUCT)                                        \
+    WOODYN_WRAP(woort_IR_LDIDSTBOXI)                                        \
+    WOODYN_WRAP(woort_IR_LDIDSTBOXR)                                        \
+    WOODYN_WRAP(woort_IR_LDIDSTBOXB)                                        \
     WOODYN_WRAP(woort_IR_LDIDSTRING)                                        \
     WOODYN_WRAP(woort_IR_LDIDDICTI)                                         \
     WOODYN_WRAP(woort_IR_LDIDDICTR)                                         \

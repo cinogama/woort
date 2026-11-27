@@ -137,6 +137,9 @@ extern "C" {
     void woort_JIT_Backend_arm64_LDIDVECX(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx);
     void woort_JIT_Backend_arm64_LDIDSTRUCT(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
     void woort_JIT_Backend_arm64_LDIDSTRING(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack str, woort_Opcode_Stack idx);
+    void woort_JIT_Backend_arm64_LDIDSTBOXI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
+    void woort_JIT_Backend_arm64_LDIDSTBOXR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
+    void woort_JIT_Backend_arm64_LDIDSTBOXB(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
     void woort_JIT_Backend_arm64_LDIDDICTI(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx);
     void woort_JIT_Backend_arm64_LDIDDICTR(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx);
     void woort_JIT_Backend_arm64_LDIDDICTB(void* emitter, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx);

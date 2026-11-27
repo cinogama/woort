@@ -551,6 +551,20 @@
     woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDID, 3, a8, b8, c8)
 
 /*
+ * LDIDSTBOX - 结构体索引装箱到栈槽（不压栈）
+ * 操作数布局与 LDIDSTRUCT 相同，装箱方式与 PUSHIDSTBOXI/R/B 相同，结果写入 [SB + c8]
+ * LDIDSTBOXI (mode=0): box_int([SB + b8].field_n8) -> [SB + c8]
+ * LDIDSTBOXR (mode=1): box_real([SB + b8].field_n8) -> [SB + c8]
+ * LDIDSTBOXB (mode=2): box_bool([SB + b8].field_n8) -> [SB + c8]
+ */
+#define woort_OpCode_LDIDSTBOXI(n8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDSTBOX, 0, n8, b8, c8)
+#define woort_OpCode_LDIDSTBOXR(n8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDSTBOX, 1, n8, b8, c8)
+#define woort_OpCode_LDIDSTBOXB(n8, b8, c8) \
+    woort_OpCodeFormal_cons(OP6_M2_A8_B8_C8, WOORT_OPCODE_LDIDSTBOX, 2, n8, b8, c8)
+
+/*
  * LDIDDICT - 字典索引加载（按键类型）
  * LDIDDICTI (mode=0): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], int key in [SB + b8]
  * LDIDDICTR (mode=1): [SB + a8][[SB + b8]] -> [SB + c8], dict in [SB + a8], real key in [SB + b8]

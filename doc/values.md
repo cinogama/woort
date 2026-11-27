@@ -341,10 +341,11 @@ void woort_set_gcstruct(dst, addr, mark, close, dylib);
 
 ## 容器解包与字段压栈（IR 层）
 
-在 IR 层，容器的解包与字段读取有专用指令（见 [opcodes.md](./opcodes.md) §18–§19）：
+在 IR 层，容器的解包与字段读取有专用指令（见 [opcodes.md](./opcodes.md) §16.6、§18–§19）：
 
 * `UNPACKVEC/UNPACKVECX/UNPACKVECALL/UNPACKVECXALL`：向量解包到栈。
 * `PUSHIDSTRUCT/PUSHIDSTBOX{I,R,B}`：结构体字段读取并（可选）装箱压栈。
+* `LDIDSTBOX{I,R,B}`：结构体字段读取并装箱写入栈槽，不压栈（等价于 `LDIDSTRUCT` + `BOXDYN`）。
 * `MKVEC/MKMAP/MKSTRUCT/MKUNION`：从栈顶元素构造容器。
 
 这些是 Woolang 前端实现「解构」「展开参数」等语法的基础。

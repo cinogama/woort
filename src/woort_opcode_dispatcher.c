@@ -742,6 +742,25 @@ _label_retry_entry:
         return c + 1;
     }
 
+    case WOORT_OPCODE_LDIDSTBOX:
+    {
+        const woort_Opcode_Stack b = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(B8, bc);
+        const woort_Opcode_Stack dst = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(C8, bc);
+        switch (m2)
+        {
+        case 0: /* LDIDSTBOXI */
+            DISPATCH(m_LDIDSTBOXI, dst, (woort_Opcode_Count)(uint8_t)WOORT_BYTECODE(A8, bc), b);
+            return c + 1;
+        case 1: /* LDIDSTBOXR */
+            DISPATCH(m_LDIDSTBOXR, dst, (woort_Opcode_Count)(uint8_t)WOORT_BYTECODE(A8, bc), b);
+            return c + 1;
+        case 2: /* LDIDSTBOXB */
+            DISPATCH(m_LDIDSTBOXB, dst, (woort_Opcode_Count)(uint8_t)WOORT_BYTECODE(A8, bc), b);
+            return c + 1;
+        }
+        return c + 1;
+    }
+
     case WOORT_OPCODE_LDIDDICT:
     {
         const woort_Opcode_Stack a = (woort_Opcode_Stack)(int8_t)WOORT_BYTECODE(A8, bc);

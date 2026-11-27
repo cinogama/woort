@@ -122,6 +122,9 @@ WOORT_OPCODE_DISPATCHER_TYPE_DECL(LDIDVEC, woort_Opcode_Stack dst, woort_Opcode_
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(LDIDVECX, woort_Opcode_Stack dst, woort_Opcode_Stack vec, woort_Opcode_Stack idx);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(LDIDSTRUCT, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(LDIDSTRING, woort_Opcode_Stack dst, woort_Opcode_Stack str, woort_Opcode_Stack idx);
+WOORT_OPCODE_DISPATCHER_TYPE_DECL(LDIDSTBOXI, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
+WOORT_OPCODE_DISPATCHER_TYPE_DECL(LDIDSTBOXR, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
+WOORT_OPCODE_DISPATCHER_TYPE_DECL(LDIDSTBOXB, woort_Opcode_Stack dst, woort_Opcode_Count idx, woort_Opcode_Stack obj);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(LDIDDICTI, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(LDIDDICTR, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx);
 WOORT_OPCODE_DISPATCHER_TYPE_DECL(LDIDDICTB, woort_Opcode_Stack dst, woort_Opcode_Stack map, woort_Opcode_Stack idx);
@@ -310,6 +313,9 @@ typedef struct woort_OpcodeDispatchers
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(LDIDVECX);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(LDIDSTRUCT);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(LDIDSTRING);
+    WOORT_OPCODE_DISPATCHER_FIELD_DECL(LDIDSTBOXI);
+    WOORT_OPCODE_DISPATCHER_FIELD_DECL(LDIDSTBOXR);
+    WOORT_OPCODE_DISPATCHER_FIELD_DECL(LDIDSTBOXB);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(LDIDDICTI);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(LDIDDICTR);
     WOORT_OPCODE_DISPATCHER_FIELD_DECL(LDIDDICTB);

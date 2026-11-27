@@ -2001,6 +2001,27 @@ WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTRUCT(
     const woort_IRValue* container,
     uint32_t idx);
 
+/** @brief Load struct field by constant index, boxed as int (DynBox result): dst = box_int(container[idx]). */
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTBOXI(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* container,
+    uint32_t idx);
+
+/** @brief Load struct field by constant index, boxed as real (DynBox result): dst = box_real(container[idx]). */
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTBOXR(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* container,
+    uint32_t idx);
+
+/** @brief Load struct field by constant index, boxed as bool (DynBox result): dst = box_bool(container[idx]). */
+WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTBOXB(
+    woort_IRFunction* f,
+    woort_IRValue* dst,
+    const woort_IRValue* container,
+    uint32_t idx);
+
 /** @brief Load string character by integer index: dst = container[idx]. */
 WOORT_NODISCARD WOORT_API bool woort_IR_LDIDSTRING(
     woort_IRFunction* f,

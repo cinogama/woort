@@ -515,6 +515,23 @@ WOORT_NODISCARD bool woort_IR_LDIDSTRUCT(
     _EMIT_END();
 }
 
+/* 结构体字段装箱到寄存器（不压栈）：dst = box(container.field[idx])，立即数索引 */
+#define _DEFINE_LDIDSTBOX(name, kind)                                            \
+    WOORT_NODISCARD bool name(                                                   \
+        woort_IRFunction* f, woort_IRValue* dst,                                  \
+        const woort_IRValue* container, uint32_t idx)                             \
+    {                                                                             \
+        _EMIT_BEGIN(f, kind);                                                     \
+        op_->m_dst = dst;                                                         \
+        op_->m_src[0] = container;                                                \
+        op_->m_index = idx;                                                       \
+        _EMIT_END();                                                              \
+    }
+
+_DEFINE_LDIDSTBOX(woort_IR_LDIDSTBOXI, WOORT_IROP_KIND_LDIDSTBOXI)
+_DEFINE_LDIDSTBOX(woort_IR_LDIDSTBOXR, WOORT_IROP_KIND_LDIDSTBOXR)
+_DEFINE_LDIDSTBOX(woort_IR_LDIDSTBOXB, WOORT_IROP_KIND_LDIDSTBOXB)
+
 /* ========== 索引存储 ========== */
 
 /* --- vec --- */

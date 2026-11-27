@@ -3687,6 +3687,50 @@ _label_continue_execution:
             }
             WOORT_VM_THROW(stack_overflow);
         }
+
+        /*
+            LDIDSTBOX：结构体索引装箱到栈槽。与 PUSHIDSTBOXI/R/B 读取相同的字段、做相同的装箱，
+            区别仅在于结果写入 [SB + c8]，不压栈（sp 不变）；操作数布局与 LDIDSTRUCT 相同。
+        */
+        /* LDIDSTBOXI */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDSTBOX, 0):
+        {
+            const size_t index = WOORT_BYTECODE(A8, c);
+            woort_GCStruct* const gcstruct =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_struct;
+
+            assert(index < gcstruct->m_size);
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = woort_DynBox_box_int(
+                gcstruct->m_datas[index].m_integer);
+            break;
+        }
+        /* LDIDSTBOXR */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDSTBOX, 1):
+        {
+            const size_t index = WOORT_BYTECODE(A8, c);
+            woort_GCStruct* const gcstruct =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_struct;
+
+            assert(index < gcstruct->m_size);
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = woort_DynBox_box_real(
+                gcstruct->m_datas[index].m_real);
+            break;
+        }
+        /* LDIDSTBOXB */
+        case WOORT_VM_CASE_OP6_M2(WOORT_OPCODE_LDIDSTBOX, 2):
+        {
+            const size_t index = WOORT_BYTECODE(A8, c);
+            woort_GCStruct* const gcstruct =
+                rt_sb[(int8_t)WOORT_BYTECODE(B8, c)].m_struct;
+
+            assert(index < gcstruct->m_size);
+
+            rt_sb[(int8_t)WOORT_BYTECODE(C8, c)].m_dynamic = woort_DynBox_box_bool(
+                gcstruct->m_datas[index].m_integer);
+            break;
+        }
         /* PACKARG */
         case WOORT_VM_CASE_OP6(WOORT_OPCODE_PACKARG):
         {

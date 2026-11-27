@@ -204,6 +204,7 @@ woort_IR_MKCLOSURE(f, dst, cidx_target, capture_count);
 WooRT 为不同的「容器 × 键类型 × 值是否装箱」组合提供独立的 IR 指令，命名规律为：
 
 * `LDID<容器>` —— 加载（读）：`LDIDVEC`、`LDIDVECX`（读到 DynBox）、`LDIDSTRUCT`、`LDIDSTRING`、`LDIDDICT{I,R,B,X}`、`LDIDDICT{I,R,B,X}X`。
+* `LDIDSTBOX{I,R,B}` —— 读取结构体字段并装箱到寄存器（不压栈）：等价于 `LDIDSTRUCT` + `BOXDYN`，但只有一条指令。
 * `STID<容器><键类型><值类型>` —— 存储（写）：`STIDVEC{I,R,B,X}`、`STIDDICT<键><值>`、`STIDMAP<键><值>`（不存在则插入）、`SDIDSTRUCT`。
 
 其中 `I/R/B/X` 分别表示整数/实数/布尔/动态（DynBox）键或值。完整列表见 [opcodes.md §16–§17](./opcodes.md)。
@@ -212,6 +213,11 @@ WooRT 为不同的「容器 × 键类型 × 值是否装箱」组合提供独立
 woort_IR_LDIDVEC(f, dst, idx, vec);
 woort_IR_STIDVECI(f, vec, idx, val);   /* 写整数到向量 */
 woort_IR_STIDMAPII(f, map, ikey, ival); /* 写整数到映射（键为整数，不存在则插入） */
+
+/* 读取结构体字段并装箱写入 dst，不压栈 */
+woort_IR_LDIDSTBOXI(f, dst, st, idx);  /* dst = box_int(st.idx)   */
+woort_IR_LDIDSTBOXR(f, dst, st, idx);  /* dst = box_real(st.idx)  */
+woort_IR_LDIDSTBOXB(f, dst, st, idx);  /* dst = box_bool(st.idx)  */
 ```
 
 ### 解包与字段压栈
@@ -229,6 +235,8 @@ woort_IR_PUSHIDSTBOXI(f, field_idx, st);      /* 装箱为整数 */
 woort_IR_PUSHIDSTBOXR(f, field_idx, st);      /* 装箱为实数 */
 woort_IR_PUSHIDSTBOXB(f, field_idx, st);      /* 装箱为布尔 */
 ```
+
+`PUSHIDSTBOX*` 把结果压栈，供随后从栈顶取值的指令（`MKVEC`、调用等）使用；要把装箱结果直接写进某个寄存器、不压栈，用 `woort_IR_LDIDSTBOXI/R/B`（见「索引读写」）。
 
 ### 变长参数收集
 
